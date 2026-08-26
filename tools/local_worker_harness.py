@@ -306,6 +306,47 @@ def _not_run_validation() -> ValidationResult:
     return ValidationResult(result="not-run", stages=(), failure_code=None)
 
 
+def run_fixture_full_validation(repo_root: Path, task: FixtureTask) -> ValidationResult:
+    stages: list[ValidationStage] = []
+    try:
+        _run_git(repo_root, "diff", "--check")
+    except HarnessRuntimeError:
+        return ValidationResult(
+            result="fail",
+            stages=(
+                ValidationStage(
+                    name="Git candidate diff integrity",
+                    result="fail",
+                    failure_code="LOCAL_DIFF_CHECK_FAILED",
+                ),
+            ),
+            failure_code="LOCAL_DIFF_CHECK_FAILED",
+        )
+    stages.append(
+        ValidationStage(name="Git candidate diff integrity", result="pass")
+    )
+
+    try:
+        validate_fixture(task.fixture_path, task.target_state, root=repo_root)
+    except (FixtureSetupError, FixtureValidationError):
+        stages.append(
+            ValidationStage(
+                name="Full deterministic fixture validation",
+                result="fail",
+                failure_code="FIXTURE_FULL_VALIDATION_FAILED",
+            )
+        )
+        return ValidationResult(
+            result="fail",
+            stages=tuple(stages),
+            failure_code="FIXTURE_FULL_VALIDATION_FAILED",
+        )
+    stages.append(
+        ValidationStage(name="Full deterministic fixture validation", result="pass")
+    )
+    return ValidationResult(result="pass", stages=tuple(stages))
+
+
 def _failure_result(
     *,
     task: FixtureTask,
@@ -321,6 +362,7 @@ def _failure_result(
     repo_root: Path,
     patch_result: BoundaryResult | None = None,
     quick_result: ValidationResult | None = None,
+    full_result: ValidationResult | None = None,
     preexisting_dirty: bool = False,
 ) -> WorkerResult:
     if preexisting_dirty:
@@ -346,7 +388,7 @@ def _failure_result(
         changed_paths=paths,
         patch_boundary=patch_result or BoundaryResult(result="not-run"),
         quick_validation=quick_result or _not_run_validation(),
-        full_validation=_not_run_validation(),
+        full_validation=full_result or _not_run_validation(),
         worker=WorkerStatus(
             result="fail",
             failure_code=code,
@@ -530,6 +572,26 @@ def _run_fixture_job(
             ),
         ),
     )
+    full = run_fixture_full_validation(root, task)
+    if full.result == "fail":
+        code = full.failure_code or "LOCAL_FULL_VALIDATION_FAILED"
+        return _failure_result(
+            task=task,
+            base_sha=base_sha,
+            task_digest=digest,
+            boundary="full-validation",
+            code=code,
+            summary="full local candidate validation failed",
+            expected="all full local validation stages pass",
+            observed=f"failure_code={code}",
+            retryable=True,
+            next_action="Repair only the declared fixture path and rerun quick validation first.",
+            repo_root=root,
+            patch_result=patch_result,
+            quick_result=quick,
+            full_result=full,
+        )
+
     paths_tuple = tuple(paths)
     result = WorkerResult(
         contract_version=WORKER_RESULT_VERSION,
@@ -543,10 +605,10 @@ def _run_fixture_job(
         changed_paths=paths_tuple,
         patch_boundary=patch_result,
         quick_validation=quick,
-        full_validation=_not_run_validation(),
+        full_validation=full,
         worker=WorkerStatus(result="pass", repair_attempts=0),
         first_failure=None,
-        ready_for_repository_handoff=False,
+        ready_for_repository_handoff=True,
     )
     validate_worker_result(result)
     return result

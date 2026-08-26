@@ -11,6 +11,7 @@ from tools.local_worker_harness import (
     candidate_content_digest,
     build_fixture_codex_prompt,
     run_codex_fixture_job,
+    run_fixture_full_validation,
     run_fixture_job,
     task_contract_digest,
     validate_patch_boundary,
@@ -88,12 +89,16 @@ def test_successful_a_to_b_job_produces_dirty_candidate_result(tmp_path):
     assert result.worker.result == "pass"
     assert result.patch_boundary.result == "pass"
     assert result.quick_validation.result == "pass"
-    assert result.full_validation.result == "not-run"
+    assert result.full_validation.result == "pass"
+    assert [stage.name for stage in result.full_validation.stages] == [
+        "Git candidate diff integrity",
+        "Full deterministic fixture validation",
+    ]
     assert result.workspace_state == "dirty-candidate"
     assert result.changed_paths == ("autonomy_smoke/fixture_state.txt",)
     assert result.candidate_sha is None
     assert result.candidate_content_digest.startswith("sha256:")
-    assert result.ready_for_repository_handoff is False
+    assert result.ready_for_repository_handoff is True
     validate_worker_result(result)
 
 
@@ -196,7 +201,25 @@ def test_codex_job_runs_after_preconditions_then_reuses_boundary_and_quick_valid
     assert result.worker.result == "pass"
     assert result.patch_boundary.result == "pass"
     assert result.quick_validation.result == "pass"
-    assert result.full_validation.result == "not-run"
+    assert result.full_validation.result == "pass"
+    assert result.ready_for_repository_handoff is True
+
+
+def test_full_validation_stops_at_git_diff_integrity_failure(tmp_path, monkeypatch):
+    repo = _repo(tmp_path, "A")
+    task = _task("A", "B")
+    (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(b"STATE=B\n")
+
+    def fail_diff(repo_root, *args):
+        raise HarnessRuntimeError("diff check failed")
+
+    monkeypatch.setattr("tools.local_worker_harness._run_git", fail_diff)
+
+    result = run_fixture_full_validation(repo, task)
+
+    assert result.result == "fail"
+    assert result.failure_code == "LOCAL_DIFF_CHECK_FAILED"
+    assert len(result.stages) == 1
 
 
 def test_dirty_repository_stops_before_codex_executor(tmp_path):
