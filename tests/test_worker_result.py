@@ -55,6 +55,24 @@ def test_valid_dirty_candidate_passes():
     assert result.ready_for_repository_handoff is True
 
 
+def test_repaired_success_preserves_first_failure_and_can_be_ready():
+    result = _passing_result(
+        worker=WorkerStatus("pass", repair_attempts=1),
+        first_failure=FailureDiagnostic(
+            boundary="quick-validation",
+            code="FIXTURE_TARGET_STATE_FAILED",
+            summary="initial candidate had wrong fixture bytes",
+            expected="STATE=B with LF",
+            observed="STATE=A with LF",
+            retryable=True,
+            next_action="Repair only the declared fixture path.",
+        ),
+    )
+
+    validate_worker_result(result)
+    assert result.ready_for_repository_handoff is True
+
+
 def test_valid_committed_candidate_passes():
     result = _passing_result(
         workspace_state="committed-candidate", candidate_sha=CANDIDATE_SHA

@@ -142,8 +142,14 @@ def validate_worker_result(value: WorkerResult) -> None:
     failed = _has_failure(value)
     if failed and value.first_failure is None:
         raise WorkerResultValidationError("failed Worker Result requires first_failure diagnostics")
-    if not failed and value.first_failure is not None:
-        raise WorkerResultValidationError("passing Worker Result may not report first_failure diagnostics")
+    if not failed and value.worker.repair_attempts == 0 and value.first_failure is not None:
+        raise WorkerResultValidationError(
+            "unrepaired passing Worker Result may not report first_failure diagnostics"
+        )
+    if not failed and value.worker.repair_attempts > 0 and value.first_failure is None:
+        raise WorkerResultValidationError(
+            "repaired passing Worker Result requires original first_failure diagnostics"
+        )
     if value.first_failure is not None:
         _validate_failure_diagnostic(value.first_failure)
 
@@ -163,7 +169,6 @@ def _compute_ready(value: WorkerResult) -> bool:
         and value.workspace_state in {"dirty-candidate", "committed-candidate"}
         and bool(value.changed_paths)
         and value.candidate_content_digest is not None
-        and value.first_failure is None
     )
 
 

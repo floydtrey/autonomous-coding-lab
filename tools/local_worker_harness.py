@@ -297,6 +297,19 @@ def build_fixture_codex_prompt(task: FixtureTask) -> str:
     )
 
 
+def build_fixture_codex_repair_prompt(task: FixtureTask, observed: str) -> str:
+    return "\n".join(
+        (
+            "Repair one failed deterministic commissioning fixture candidate.",
+            f"Original validation failure: {observed}",
+            f"Required final state: {task.fixture_path} must be exactly {task.target_state}.",
+            "Change only the declared fixture path.",
+            "Do not modify, create, rename, or delete any other path.",
+            "Do not run tests, Git commands, network commands, or package managers.",
+            "Stop immediately after the repair.",
+            f"Machine-enforced allowed paths: {json.dumps(list(task.allowed_paths))}",
+        )
+    )
 def _fixture_path_at_root(repo_root: Path, path: str) -> tuple[str, Path]:
     # Reuse the L0 validator's exact path-containment logic through its root override.
     return resolve_fixture_path(path, root=repo_root)
@@ -364,6 +377,8 @@ def _failure_result(
     quick_result: ValidationResult | None = None,
     full_result: ValidationResult | None = None,
     preexisting_dirty: bool = False,
+    repair_attempts: int = 0,
+    first_failure: FailureDiagnostic | None = None,
 ) -> WorkerResult:
     if preexisting_dirty:
         paths = ()
@@ -393,17 +408,18 @@ def _failure_result(
             result="fail",
             failure_code=code,
             failure_summary=summary,
-            repair_attempts=0,
+            repair_attempts=repair_attempts,
         ),
-        first_failure=FailureDiagnostic(
-            boundary=boundary,
-            code=code,
-            summary=summary,
-            expected=expected,
-            observed=observed,
-            retryable=retryable,
-            next_action=next_action,
-        ),
+        first_failure=first_failure
+        or FailureDiagnostic(
+                boundary=boundary,
+                code=code,
+                summary=summary,
+                expected=expected,
+                observed=observed,
+                retryable=retryable,
+                next_action=next_action,
+            ),
         ready_for_repository_handoff=False,
     )
     validate_worker_result(result)
@@ -431,13 +447,25 @@ def run_codex_fixture_job(
             )
         )
 
-    return _run_fixture_job(task, repo_root, codex_mutation)
+    def codex_repair(root: Path, fixture_task: FixtureTask, observed: str) -> None:
+        executor(
+            CodexRequest(
+                prompt=build_fixture_codex_repair_prompt(fixture_task, observed),
+                target_repo=root,
+                framework_repo=framework_repo,
+                sandbox="workspace-write",
+            )
+        )
+
+    return _run_fixture_job(task, repo_root, codex_mutation, repair=codex_repair)
 
 
 def _run_fixture_job(
     task: FixtureTask,
     repo_root: Path,
     mutation: Callable[[Path, FixtureTask], None],
+    *,
+    repair: Callable[[Path, FixtureTask, str], None] | None = None,
 ) -> WorkerResult:
     root = repo_root.resolve()
     base_sha = repository_head(root)
@@ -533,6 +561,8 @@ def _run_fixture_job(
 
     patch_result = BoundaryResult(result="pass")
 
+    repair_attempts = 0
+    first_failure: FailureDiagnostic | None = None
     try:
         validate_fixture(task.fixture_path, task.target_state, root=root)
     except (FixtureSetupError, FixtureValidationError) as exc:
@@ -547,10 +577,7 @@ def _run_fixture_job(
             ),
             failure_code="FIXTURE_TARGET_STATE_FAILED",
         )
-        return _failure_result(
-            task=task,
-            base_sha=base_sha,
-            task_digest=digest,
+        first_failure = FailureDiagnostic(
             boundary="quick-validation",
             code="FIXTURE_TARGET_STATE_FAILED",
             summary=str(exc),
@@ -558,10 +585,89 @@ def _run_fixture_job(
             observed=str(exc),
             retryable=True,
             next_action="Repair only the declared fixture path and rerun quick validation.",
-            repo_root=root,
-            patch_result=patch_result,
-            quick_result=quick,
         )
+        if repair is None:
+            return _failure_result(
+                task=task,
+                base_sha=base_sha,
+                task_digest=digest,
+                boundary="quick-validation",
+                code="FIXTURE_TARGET_STATE_FAILED",
+                summary=str(exc),
+                expected=first_failure.expected,
+                observed=first_failure.observed,
+                retryable=True,
+                next_action=first_failure.next_action,
+                repo_root=root,
+                patch_result=patch_result,
+                quick_result=quick,
+                first_failure=first_failure,
+            )
+
+        repair_attempts = 1
+        try:
+            repair(root, task, str(exc))
+        except CodexRuntimeError as repair_exc:
+            return _failure_result(
+                task=task,
+                base_sha=base_sha,
+                task_digest=digest,
+                boundary="repair-execution",
+                code=repair_exc.code,
+                summary=repair_exc.summary,
+                expected="one successful bounded repair execution",
+                observed=repair_exc.summary,
+                retryable=False,
+                next_action="Inspect the original quick-validation failure and repair runtime.",
+                repo_root=root,
+                patch_result=patch_result,
+                quick_result=quick,
+                repair_attempts=repair_attempts,
+                first_failure=first_failure,
+            )
+
+        paths = changed_paths(root, base_sha)
+        try:
+            validate_patch_boundary(paths, task.allowed_paths)
+        except HarnessRuntimeError as boundary_exc:
+            return _failure_result(
+                task=task,
+                base_sha=base_sha,
+                task_digest=digest,
+                boundary="repair-patch-boundary",
+                code="PATCH_BOUNDARY_FAILED",
+                summary=str(boundary_exc),
+                expected=f"repair changes limited to {list(task.allowed_paths)}",
+                observed=f"changed_paths={paths}",
+                retryable=False,
+                next_action="Discard the repaired candidate and inspect the out-of-bound change.",
+                repo_root=root,
+                patch_result=BoundaryResult("fail", "PATCH_BOUNDARY_FAILED"),
+                quick_result=quick,
+                repair_attempts=repair_attempts,
+                first_failure=first_failure,
+            )
+
+        try:
+            validate_fixture(task.fixture_path, task.target_state, root=root)
+        except (FixtureSetupError, FixtureValidationError) as repair_validation_exc:
+            return _failure_result(
+                task=task,
+                base_sha=base_sha,
+                task_digest=digest,
+                boundary="repair-quick-validation",
+                code="FIXTURE_TARGET_STATE_FAILED",
+                summary=str(repair_validation_exc),
+                expected=f"{task.fixture_path} in exact {task.target_state} state",
+                observed=str(repair_validation_exc),
+                retryable=False,
+                next_action="Stop after the single bounded repair attempt.",
+                repo_root=root,
+                patch_result=patch_result,
+                quick_result=quick,
+                repair_attempts=repair_attempts,
+                first_failure=first_failure,
+            )
 
     quick = ValidationResult(
         result="pass",
@@ -590,6 +696,8 @@ def _run_fixture_job(
             patch_result=patch_result,
             quick_result=quick,
             full_result=full,
+            repair_attempts=repair_attempts,
+            first_failure=first_failure,
         )
 
     paths_tuple = tuple(paths)
@@ -606,8 +714,8 @@ def _run_fixture_job(
         patch_boundary=patch_result,
         quick_validation=quick,
         full_validation=full,
-        worker=WorkerStatus(result="pass", repair_attempts=0),
-        first_failure=None,
+        worker=WorkerStatus(result="pass", repair_attempts=repair_attempts),
+        first_failure=first_failure,
         ready_for_repository_handoff=True,
     )
     validate_worker_result(result)

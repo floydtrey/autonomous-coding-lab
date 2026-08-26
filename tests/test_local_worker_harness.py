@@ -269,3 +269,52 @@ def test_codex_out_of_boundary_change_stops_before_quick_validation(tmp_path):
     assert result.first_failure is not None
     assert result.first_failure.boundary == "patch-boundary"
     assert result.quick_validation.result == "not-run"
+
+
+def test_codex_job_repairs_one_retryable_quick_validation_failure(tmp_path):
+    repo = _repo(tmp_path, "A")
+    framework = tmp_path / "framework"
+    framework.mkdir()
+    (framework / ".git").mkdir()
+    requests = []
+
+    def executor(request):
+        requests.append(request)
+        content = b"STATE=WRONG\n" if len(requests) == 1 else b"STATE=B\n"
+        (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(content)
+        return CodexExecution(("codex", "exec"), 0, "done", "")
+
+    result = run_codex_fixture_job(_task(), repo, framework, executor=executor)
+
+    assert len(requests) == 2
+    assert requests[1].prompt.startswith("Repair one failed deterministic")
+    assert result.worker.result == "pass"
+    assert result.worker.repair_attempts == 1
+    assert result.first_failure is not None
+    assert result.first_failure.boundary == "quick-validation"
+    assert result.first_failure.code == "FIXTURE_TARGET_STATE_FAILED"
+    assert result.quick_validation.result == "pass"
+    assert result.full_validation.result == "pass"
+    assert result.ready_for_repository_handoff is True
+
+
+def test_codex_job_stops_after_single_unsuccessful_repair(tmp_path):
+    repo = _repo(tmp_path, "A")
+    calls = 0
+
+    def executor(request):
+        nonlocal calls
+        calls += 1
+        (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(b"STATE=WRONG\n")
+        return CodexExecution(("codex", "exec"), 0, "done", "")
+
+    result = run_codex_fixture_job(
+        _task(), repo, tmp_path / "framework", executor=executor
+    )
+
+    assert calls == 2
+    assert result.worker.result == "fail"
+    assert result.worker.repair_attempts == 1
+    assert result.first_failure is not None
+    assert result.first_failure.boundary == "quick-validation"
+    assert result.ready_for_repository_handoff is False
