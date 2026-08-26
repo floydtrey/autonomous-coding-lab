@@ -9,10 +9,13 @@ from tools.local_worker_harness import (
     FixtureTask,
     HarnessRuntimeError,
     candidate_content_digest,
+    build_fixture_codex_prompt,
+    run_codex_fixture_job,
     run_fixture_job,
     task_contract_digest,
     validate_patch_boundary,
 )
+from tools.codex_runtime import CodexExecution, CodexRuntimeError
 from tools.worker_result import validate_worker_result
 
 
@@ -163,3 +166,83 @@ def test_worker_result_json_round_trip_for_success(tmp_path):
 
     assert decoded["contract_version"] == "worker-result:v1"
     assert decoded["task_id"] == "fixture-a-to-b"
+
+
+def test_codex_prompt_is_bounded_and_deterministic():
+    prompt = build_fixture_codex_prompt(_task("A", "B"))
+
+    assert "write exactly STATE=B followed by one LF" in prompt
+    assert 'Machine-enforced allowed paths: ["autonomy_smoke/fixture_state.txt"]' in prompt
+    assert "Do not run tests, Git commands, network commands, or package managers." in prompt
+
+
+def test_codex_job_runs_after_preconditions_then_reuses_boundary_and_quick_validation(tmp_path):
+    repo = _repo(tmp_path, "A")
+    framework = tmp_path / "framework"
+    framework.mkdir()
+    (framework / ".git").mkdir()
+    requests = []
+
+    def executor(request):
+        requests.append(request)
+        (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(b"STATE=B\n")
+        return CodexExecution(("codex", "exec"), 0, "done", "")
+
+    result = run_codex_fixture_job(_task("A", "B"), repo, framework, executor=executor)
+
+    assert len(requests) == 1
+    assert requests[0].target_repo == repo.resolve()
+    assert requests[0].sandbox == "workspace-write"
+    assert result.worker.result == "pass"
+    assert result.patch_boundary.result == "pass"
+    assert result.quick_validation.result == "pass"
+    assert result.full_validation.result == "not-run"
+
+
+def test_dirty_repository_stops_before_codex_executor(tmp_path):
+    repo = _repo(tmp_path, "A")
+    (repo / "unrelated.txt").write_text("dirty\n", encoding="utf-8")
+    called = False
+
+    def executor(request):
+        nonlocal called
+        called = True
+        raise AssertionError("executor must not run")
+
+    result = run_codex_fixture_job(_task(), repo, tmp_path / "framework", executor=executor)
+
+    assert called is False
+    assert result.first_failure is not None
+    assert result.first_failure.code == "WORKSPACE_NOT_CLEAN"
+
+
+def test_codex_runtime_failure_stops_before_patch_and_quick_boundaries(tmp_path):
+    repo = _repo(tmp_path, "A")
+
+    def executor(request):
+        raise CodexRuntimeError("CHATGPT_AUTH_REQUIRED", "managed login missing")
+
+    result = run_codex_fixture_job(_task(), repo, tmp_path / "framework", executor=executor)
+
+    assert result.worker.result == "fail"
+    assert result.first_failure is not None
+    assert result.first_failure.boundary == "codex-execution"
+    assert result.first_failure.code == "CHATGPT_AUTH_REQUIRED"
+    assert result.patch_boundary.result == "not-run"
+    assert result.quick_validation.result == "not-run"
+
+
+def test_codex_out_of_boundary_change_stops_before_quick_validation(tmp_path):
+    repo = _repo(tmp_path, "A")
+
+    def executor(request):
+        (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(b"STATE=B\n")
+        (repo / "outside.txt").write_text("not allowed\n", encoding="utf-8")
+        return CodexExecution(("codex", "exec"), 0, "done", "")
+
+    result = run_codex_fixture_job(_task(), repo, tmp_path / "framework", executor=executor)
+
+    assert result.worker.result == "fail"
+    assert result.first_failure is not None
+    assert result.first_failure.boundary == "patch-boundary"
+    assert result.quick_validation.result == "not-run"

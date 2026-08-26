@@ -7,9 +7,15 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 try:
+    from tools.codex_runtime import (
+        CodexExecution,
+        CodexRequest,
+        CodexRuntimeError,
+        execute_codex,
+    )
     from tools.worker_fixture_validator import (
         EXPECTED_CONTENT,
         FixtureSetupError,
@@ -28,6 +34,12 @@ try:
         validate_worker_result,
     )
 except ModuleNotFoundError:  # direct execution: python tools/local_worker_harness.py
+    from codex_runtime import (  # type: ignore
+        CodexExecution,
+        CodexRequest,
+        CodexRuntimeError,
+        execute_codex,
+    )
     from worker_fixture_validator import (  # type: ignore
         EXPECTED_CONTENT,
         FixtureSetupError,
@@ -49,6 +61,7 @@ except ModuleNotFoundError:  # direct execution: python tools/local_worker_harne
 
 FIXTURE_TASK_VERSION = "fixture-task:v1"
 _ALLOWED_STATES = {"A", "B", "ABSENT"}
+CodexExecutor = Callable[[CodexRequest], CodexExecution]
 
 
 class HarnessSetupError(ValueError):
@@ -263,6 +276,27 @@ def apply_fixture_mutation(repo_root: Path, task: FixtureTask) -> None:
     resolved.write_bytes(EXPECTED_CONTENT[task.target_state])
 
 
+def build_fixture_codex_prompt(task: FixtureTask) -> str:
+    target_instruction = (
+        f"delete {task.fixture_path}"
+        if task.target_state == "ABSENT"
+        else f"write exactly STATE={task.target_state} followed by one LF to {task.fixture_path}"
+    )
+    return "\n".join(
+        (
+            "Perform one deterministic commissioning fixture mutation.",
+            f"Task id: {task.task_id}",
+            f"Consumer label: {task.consumer}",
+            f"The repository is already in declared state {task.initial_state}.",
+            f"Required action: {target_instruction}.",
+            "Do not modify, create, rename, or delete any other path.",
+            "Do not run tests, Git commands, network commands, or package managers.",
+            "Stop immediately after making the required filesystem change.",
+            f"Machine-enforced allowed paths: {json.dumps(list(task.allowed_paths))}",
+        )
+    )
+
+
 def _fixture_path_at_root(repo_root: Path, path: str) -> tuple[str, Path]:
     # Reuse the L0 validator's exact path-containment logic through its root override.
     return resolve_fixture_path(path, root=repo_root)
@@ -335,6 +369,34 @@ def _failure_result(
 
 
 def run_fixture_job(task: FixtureTask, repo_root: Path) -> WorkerResult:
+    return _run_fixture_job(task, repo_root, apply_fixture_mutation)
+
+
+def run_codex_fixture_job(
+    task: FixtureTask,
+    repo_root: Path,
+    framework_repo: Path,
+    *,
+    executor: CodexExecutor = execute_codex,
+) -> WorkerResult:
+    def codex_mutation(root: Path, fixture_task: FixtureTask) -> None:
+        executor(
+            CodexRequest(
+                prompt=build_fixture_codex_prompt(fixture_task),
+                target_repo=root,
+                framework_repo=framework_repo,
+                sandbox="workspace-write",
+            )
+        )
+
+    return _run_fixture_job(task, repo_root, codex_mutation)
+
+
+def _run_fixture_job(
+    task: FixtureTask,
+    repo_root: Path,
+    mutation: Callable[[Path, FixtureTask], None],
+) -> WorkerResult:
     root = repo_root.resolve()
     base_sha = repository_head(root)
     digest = task_contract_digest(task)
@@ -375,7 +437,21 @@ def run_fixture_job(task: FixtureTask, repo_root: Path) -> WorkerResult:
         )
 
     try:
-        apply_fixture_mutation(root, task)
+        mutation(root, task)
+    except CodexRuntimeError as exc:
+        return _failure_result(
+            task=task,
+            base_sha=base_sha,
+            task_digest=digest,
+            boundary="codex-execution",
+            code=exc.code,
+            summary=exc.summary,
+            expected="successful bounded Codex execution in workspace-write sandbox",
+            observed=exc.summary,
+            retryable=exc.code in {"CODEX_TIMEOUT", "CODEX_EXECUTION_FAILED"},
+            next_action="Resolve the Codex runtime boundary before inspecting later gates.",
+            repo_root=root,
+        )
     except (OSError, FixtureSetupError, HarnessRuntimeError) as exc:
         return _failure_result(
             task=task,
@@ -488,11 +564,21 @@ def load_task(path: Path) -> FixtureTask:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Run one deterministic local fixture worker job without GitHub or Codex."
+        description="Run one deterministic local fixture worker job without GitHub."
     )
     parser.add_argument("--task", required=True, help="fixture-task:v1 JSON file")
     parser.add_argument("--repo", required=True, help="target Git repository")
     parser.add_argument("--result", required=True, help="Worker Result JSON output path")
+    parser.add_argument(
+        "--engine",
+        choices=("fixture", "codex"),
+        default="fixture",
+        help="deterministic direct mutation or bounded Codex execution",
+    )
+    parser.add_argument(
+        "--framework-repo",
+        help="framework repository path; required for the Codex engine",
+    )
     return parser
 
 
@@ -500,7 +586,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         task = load_task(Path(args.task))
-        result = run_fixture_job(task, Path(args.repo))
+        if args.engine == "codex":
+            if not args.framework_repo:
+                raise HarnessSetupError("--framework-repo is required for the Codex engine")
+            result = run_codex_fixture_job(
+                task,
+                Path(args.repo),
+                Path(args.framework_repo),
+            )
+        else:
+            result = run_fixture_job(task, Path(args.repo))
         output = Path(args.result)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(result.to_json(pretty=True) + "\n", encoding="utf-8")
