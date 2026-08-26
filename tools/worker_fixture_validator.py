@@ -30,7 +30,7 @@ class FixtureResult:
     observed: str
 
 
-def resolve_fixture_path(value: str) -> tuple[str, Path]:
+def resolve_fixture_path(value: str, *, root: Path | None = None) -> tuple[str, Path]:
     raw = str(value or "").strip().replace("\\", "/")
     if not raw:
         raise FixtureSetupError("fixture path is required")
@@ -40,8 +40,9 @@ def resolve_fixture_path(value: str) -> tuple[str, Path]:
     normalized = candidate.as_posix()
     if normalized == FIXTURE_ROOT or not normalized.startswith(f"{FIXTURE_ROOT}/"):
         raise FixtureSetupError(f"fixture path must be inside {FIXTURE_ROOT}/")
-    resolved = (ROOT / candidate).resolve()
-    fixture_root = (ROOT / FIXTURE_ROOT).resolve()
+    repo_root = (root or ROOT).resolve()
+    resolved = (repo_root / candidate).resolve()
+    fixture_root = (repo_root / FIXTURE_ROOT).resolve()
     if resolved == fixture_root or fixture_root not in resolved.parents:
         raise FixtureSetupError(f"fixture path must resolve inside {FIXTURE_ROOT}/")
     return normalized, resolved
@@ -55,12 +56,17 @@ def _describe_bytes(data: bytes) -> str:
     return repr(data)
 
 
-def validate_fixture(path: str, expected_state: str) -> FixtureResult:
+def validate_fixture(
+    path: str,
+    expected_state: str,
+    *,
+    root: Path | None = None,
+) -> FixtureResult:
     state = str(expected_state or "").strip().upper()
     if state not in {"A", "B", "ABSENT"}:
         raise FixtureSetupError("expected state must be A, B, or ABSENT")
 
-    normalized, resolved = resolve_fixture_path(path)
+    normalized, resolved = resolve_fixture_path(path, root=root)
 
     if state == "ABSENT":
         if resolved.exists():

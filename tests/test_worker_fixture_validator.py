@@ -94,3 +94,14 @@ def test_rejects_unknown_state(tmp_path, monkeypatch):
 
     with pytest.raises(validator.FixtureSetupError, match="A, B, or ABSENT"):
         validator.validate_fixture("autonomy_smoke/fixture_state.txt", "C")
+
+def test_accepts_explicit_repository_root(tmp_path):
+    _fixture(tmp_path, b"STATE=A\n")
+
+    result = validator.validate_fixture(
+        "autonomy_smoke/fixture_state.txt",
+        "A",
+        root=tmp_path,
+    )
+
+    assert result.expected_state == "A"

@@ -9,7 +9,7 @@ from typing import Any, Mapping, Sequence
 
 CONTRACT_VERSION = "worker-result:v1"
 _RESULT_VALUES = {"pass", "fail", "not-run"}
-_WORKSPACE_STATES = {"clean", "dirty-candidate", "committed-candidate"}
+_WORKSPACE_STATES = {"clean", "preexisting-dirty", "dirty-candidate", "committed-candidate"}
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -122,8 +122,16 @@ def validate_worker_result(value: WorkerResult) -> None:
         )
     if value.workspace_state == "committed-candidate" and value.candidate_sha is None:
         raise WorkerResultValidationError("committed-candidate requires candidate_sha")
-    if value.workspace_state == "clean" and value.changed_paths:
-        raise WorkerResultValidationError("clean workspace_state cannot report changed_paths")
+    if value.workspace_state in {"clean", "preexisting-dirty"} and value.changed_paths:
+        raise WorkerResultValidationError(
+            f"{value.workspace_state} workspace_state cannot report changed_paths"
+        )
+    if value.workspace_state == "preexisting-dirty" and (
+        value.candidate_sha is not None or value.candidate_content_digest is not None
+    ):
+        raise WorkerResultValidationError(
+            "preexisting-dirty workspace_state cannot report candidate identity"
+        )
 
     _validate_changed_paths(value.changed_paths)
     _validate_boundary("patch_boundary", value.patch_boundary)

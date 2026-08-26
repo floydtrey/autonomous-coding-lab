@@ -191,3 +191,32 @@ def test_committed_candidate_requires_commit_sha():
 
     with pytest.raises(WorkerResultValidationError, match="requires candidate_sha"):
         validate_worker_result(result)
+
+
+def test_accepts_preexisting_dirty_failure_without_candidate_identity():
+    result = _passing_result(
+        workspace_state="preexisting-dirty",
+        changed_paths=(),
+        candidate_sha=None,
+        candidate_content_digest=None,
+        patch_boundary=BoundaryResult(result="not-run"),
+        quick_validation=ValidationResult(result="not-run"),
+        full_validation=ValidationResult(result="not-run"),
+        worker=WorkerStatus(
+            result="fail",
+            failure_code="WORKSPACE_NOT_CLEAN",
+            failure_summary="target repository was already dirty",
+        ),
+        first_failure=FailureDiagnostic(
+            boundary="precondition",
+            code="WORKSPACE_NOT_CLEAN",
+            summary="target repository was already dirty",
+            expected="clean target repository",
+            observed="pre-existing changes",
+            retryable=False,
+            next_action="Clean the repository.",
+        ),
+        ready_for_repository_handoff=False,
+    )
+
+    validate_worker_result(result)
