@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -73,6 +74,17 @@ def _is_github_credential_name(name: str) -> bool:
     )
 
 
+def resolve_codex_executable(environment: Mapping[str, str]) -> str:
+    path_value = next(
+        (value for name, value in environment.items() if name.upper() == "PATH"),
+        None,
+    )
+    resolved = shutil.which("codex", path=path_value)
+    if resolved is None:
+        raise CodexRuntimeError("CODEX_UNAVAILABLE", "could not resolve Codex from PATH")
+    return resolved
+
+
 def validate_request(request: CodexRequest) -> None:
     if not request.prompt.strip():
         raise CodexRuntimeError("PROMPT_INVALID", "Codex prompt must not be empty")
@@ -107,10 +119,9 @@ def codex_command(request: CodexRequest, executable: str = "codex") -> tuple[str
         "exec",
         "--ephemeral",
         "--ignore-user-config",
+        "--strict-config",
         "--sandbox",
         request.sandbox,
-        "--ask-for-approval",
-        "never",
         "--model",
         request.model,
         "--config",
@@ -169,15 +180,16 @@ def execute_codex(
     request: CodexRequest,
     *,
     environment: Mapping[str, str] | None = None,
-    executable: str = "codex",
+    executable: str | None = None,
     run_process: RunProcess = subprocess.run,
 ) -> CodexExecution:
     source_env = os.environ if environment is None else environment
     clean_env = sanitized_codex_environment(source_env)
-    command = codex_command(request, executable)
+    resolved_executable = executable or resolve_codex_executable(clean_env)
+    command = codex_command(request, resolved_executable)
     check_chatgpt_auth(
         environment=clean_env,
-        executable=executable,
+        executable=resolved_executable,
         run_process=run_process,
     )
     try:
@@ -210,4 +222,3 @@ def execute_codex(
         detail = (process.stderr or process.stdout or "Codex failed without output").strip()
         raise CodexRuntimeError("CODEX_EXECUTION_FAILED", detail)
     return result
-

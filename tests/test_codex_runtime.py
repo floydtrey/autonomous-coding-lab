@@ -9,6 +9,7 @@ from tools.codex_runtime import (
     CodexRuntimeError,
     codex_command,
     execute_codex,
+    resolve_codex_executable,
     sanitized_codex_environment,
 )
 
@@ -40,6 +41,13 @@ def test_api_key_variables_fail_closed_before_environment_sanitizing():
     assert error.value.code == "API_KEY_AUTH_FORBIDDEN"
 
 
+def test_missing_codex_executable_fails_closed():
+    with pytest.raises(CodexRuntimeError) as error:
+        resolve_codex_executable({"PATH": ""})
+
+    assert error.value.code == "CODEX_UNAVAILABLE"
+
+
 @pytest.mark.parametrize("name", [
     "GITHUB_TOKEN",
     "GITHUB_ACTIONS",
@@ -59,9 +67,10 @@ def test_command_uses_only_explicit_bounded_sandbox(tmp_path, sandbox):
     command = codex_command(_request(tmp_path, sandbox))
 
     assert command[command.index("--sandbox") + 1] == sandbox
-    assert command[command.index("--ask-for-approval") + 1] == "never"
     assert "--ephemeral" in command
     assert "--ignore-user-config" in command
+    assert "--strict-config" in command
+    assert "--approve-for-me" not in command
     assert "danger-full-access" not in command
     assert "--dangerously-bypass-approvals-and-sandbox" not in command
 
@@ -95,7 +104,12 @@ def test_auth_failure_stops_before_codex_execution(tmp_path):
         return CompletedProcess(command, 1, "", "Not logged in")
 
     with pytest.raises(CodexRuntimeError) as error:
-        execute_codex(_request(tmp_path), environment={"Path": "bin"}, run_process=fake_run)
+        execute_codex(
+            _request(tmp_path),
+            environment={"Path": "bin"},
+            executable="codex",
+            run_process=fake_run,
+        )
 
     assert error.value.code == "CHATGPT_AUTH_REQUIRED"
     assert len(calls) == 2
@@ -116,6 +130,7 @@ def test_execution_receives_sanitized_environment_and_prompt_on_stdin(tmp_path):
     result = execute_codex(
         request,
         environment={"Path": "bin", "GITHUB_TOKEN": "secret"},
+        executable="codex",
         run_process=fake_run,
     )
 
@@ -136,7 +151,12 @@ def test_codex_failure_is_classified_at_execution_boundary(tmp_path):
         return CompletedProcess(command, 7, "", "sandbox denied write")
 
     with pytest.raises(CodexRuntimeError) as error:
-        execute_codex(_request(tmp_path), environment={"Path": "bin"}, run_process=fake_run)
+        execute_codex(
+            _request(tmp_path),
+            environment={"Path": "bin"},
+            executable="codex",
+            run_process=fake_run,
+        )
 
     assert error.value.code == "CODEX_EXECUTION_FAILED"
     assert "sandbox denied write" in error.value.summary
