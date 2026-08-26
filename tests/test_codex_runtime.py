@@ -5,6 +5,7 @@ import pytest
 
 from tools.codex_runtime import (
     AUDITED_CODEX_VERSION,
+    AUDITED_WINDOWS_SANDBOX,
     CodexRequest,
     CodexRuntimeError,
     codex_command,
@@ -67,6 +68,7 @@ def test_command_uses_only_explicit_bounded_sandbox(tmp_path, sandbox):
     command = codex_command(_request(tmp_path, sandbox))
 
     assert command[command.index("--sandbox") + 1] == sandbox
+    assert f'windows.sandbox="{AUDITED_WINDOWS_SANDBOX}"' in command
     assert "--ephemeral" in command
     assert "--ignore-user-config" in command
     assert "--strict-config" in command

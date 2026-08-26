@@ -10,6 +10,7 @@ from typing import Callable, Mapping, Sequence
 
 
 AUDITED_CODEX_VERSION = "0.149.1"
+AUDITED_WINDOWS_SANDBOX = "elevated"
 ALLOWED_SANDBOX_MODES = frozenset({"read-only", "workspace-write"})
 _API_KEY_NAMES = frozenset({"OPENAI_API_KEY", "CODEX_API_KEY"})
 _CHATGPT_STATUS_RE = re.compile(r"logged in using chatgpt", re.IGNORECASE)
@@ -120,6 +121,8 @@ def codex_command(request: CodexRequest, executable: str = "codex") -> tuple[str
         "--ephemeral",
         "--ignore-user-config",
         "--strict-config",
+        "--config",
+        f'windows.sandbox="{AUDITED_WINDOWS_SANDBOX}"',
         "--sandbox",
         request.sandbox,
         "--model",
