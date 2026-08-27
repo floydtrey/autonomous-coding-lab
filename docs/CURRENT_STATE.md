@@ -3,7 +3,7 @@
 **Status:** Active checkpoint authority
 **Read when:** Starting or resuming any project task.
 **Last updated:** 2026-08-27
-**Status:** Framework foundation stable; corrected Worker Lab Phase 1 complete; Worker Lab Phase 2 closed.
+**Status:** Framework foundation stable; Worker Lab `v0.1.2-phase1` published; Phase 2 authorized but not started.
 
 ## Exact repository state
 
@@ -22,13 +22,16 @@
 
 - Path: `C:\Users\MineTrackerWorker\repos\worker-lab`
 - Integrated branch: `main`
-- Corrected Phase 1 commit: `d0e17d9`
-- Named milestone: `v0.1.1-phase1`
+- Governance/publication commit: `0b6869f889201eeac9091845c9e71bb573d10bbd`
+- Named milestone: `v0.1.2-phase1`
+- Corrected validation tag: `v0.1.1-phase1` remains unchanged.
 - Historical pre-audit tag: `v0.1.0-phase1` remains unchanged.
+- Private remote: `https://github.com/floydtrey/worker-lab`
 - Test inventory: 170 passed; one expected Windows symlink capability test skipped.
 - Durable-data backup: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.1-phase1-data-99c0b58`
-- Verified tagged bundle: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.1-phase1.bundle`
-- Phase 2 has not started and requires separate authorization.
+- Verified tagged bundle: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.2-phase1.bundle`
+- Final bundle SHA-256: `56c29a51e6687b98bd5a3c1346d7c01403ceb9c2ba858dfbe575525d1b5556d9`
+- Phase 2 is authorized but implementation has not started.
 
 Recent capability checkpoints:
 
@@ -123,12 +126,13 @@ The first Mine Tracker task remains useful evidence, but one successful test-onl
 
 Recommended next sequence:
 
-1. Treat Worker Lab `v0.1.1-phase1` as the only trusted Phase 1 completion point; do not move its tag.
-2. Review the Phase 2 boundary in `WORKER_LAB_DESIGN.md` before authorizing implementation.
-3. If authorized, design only synthetic exercise factories and disposable attempt workspaces against
-   the existing protected Phase 1 contracts.
-4. Keep framework invocation and coding-worker execution closed until an explicit Phase 2 task
-   defines their contract and acceptance evidence.
+1. Treat Worker Lab `v0.1.2-phase1` as the trusted Phase 2 starting point; do not move any milestone tag.
+2. Read Worker Lab `docs/PHASE2_READINESS_REVIEW.md` and begin with the Phase 2 specification and
+   strict ephemeral workspace-receipt contract.
+3. Implement only synthetic exercise factories and disposable attempt workspaces against the
+   existing protected Phase 1 contracts.
+4. Keep framework invocation and coding-worker execution closed until Phase 3 defines their adapter
+   contract and acceptance evidence.
 5. Continue using project-agnostic task language and separate synthetic repositories; do not use an
    external product repository as the experimental surface.
 6. Defer dashboards, real curricula, graduation automation, and broader orchestration until the
@@ -138,4 +142,4 @@ Recommended next sequence:
 
 Use this concise prompt when a new conversation is required:
 
-> Read `AGENTS.md` and `docs/START_HERE.md` in `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`, then read `docs/START_HERE.md`, `docs/CURRENT_STATE.md`, and `docs/MILESTONE_EVIDENCE.md` in `C:\Users\MineTrackerWorker\repos\worker-lab`. Verify both Git states. Treat Worker Lab `v0.1.1-phase1` as the completed protected Phase 1 boundary. Do not repeat Phase 1 or begin Phase 2, framework invocation, or worker execution without explicit authorization. Keep new exercises synthetic and project-agnostic, preserve all security and authority controls, and update both current-state documents at the next milestone.
+> Read `AGENTS.md` and `docs/START_HERE.md` in `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`, then read `docs/START_HERE.md`, `docs/CURRENT_STATE.md`, `docs/MILESTONE_EVIDENCE.md`, and `docs/PHASE2_READINESS_REVIEW.md` in `C:\Users\MineTrackerWorker\repos\worker-lab`. Verify both Git states. Treat Worker Lab `v0.1.2-phase1` as the trusted Phase 2 starting point. Begin with the Phase 2 specification; do not invoke the framework, execute a worker, or modify an external product repository. Keep exercises synthetic and project-agnostic, preserve all security and authority controls, and update both current-state documents at the next milestone.
