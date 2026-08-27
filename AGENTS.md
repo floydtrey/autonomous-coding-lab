@@ -6,4 +6,4 @@ Worker Lab is the protected learning/evaluation platform. Coding workers may imp
 
 Do not copy execution-security logic from `autonomous-worker-framework` or product source from a consumer repository. Use explicit contracts between repositories.
 
-Run only the numbered test profile relevant to the current change during development. Run the full active suite at a Phase 1 milestone.
+Run only the numbered test profile relevant to the current change during development. Run the full active suite at a named phase milestone.

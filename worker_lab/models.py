@@ -16,6 +16,7 @@ EXERCISE_SCHEMA = "worker-lab-exercise:v2"
 ATTEMPT_SCHEMA = "worker-lab-attempt:v2"
 EVIDENCE_SCHEMA = "worker-lab-evidence:v2"
 FAILURE_SCHEMA = "worker-lab-failure:v1"
+WORKSPACE_RECEIPT_SCHEMA = "worker-lab-workspace-receipt:v1"
 
 ID_RE = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
 ATTEMPT_ID_RE = re.compile(r"^[A-Z0-9][A-Z0-9-]{5,95}$")
@@ -35,6 +36,11 @@ class AttemptState(StrEnum):
     NEEDS_REVIEW = "NEEDS_REVIEW"
     CLOSED = "CLOSED"
     ABORTED = "ABORTED"
+
+
+class WorkspaceReceiptState(StrEnum):
+    PREPARED = "PREPARED"
+    QUARANTINED = "QUARANTINED"
 
 
 @dataclass(frozen=True)
@@ -237,6 +243,56 @@ class AttemptRecord(_Record):
             _optional_digest(data["candidate_digest"], "candidate_digest"),
             _optional_text(data["cleanup_outcome"], "cleanup_outcome"),
             _optional_attempt_id(data["prior_attempt_id"], "prior_attempt_id"),
+        )
+
+
+@dataclass(frozen=True)
+class WorkspaceReceipt(_Record):
+    schema_version: str
+    attempt_id: str
+    exercise_id: str
+    exercise_version: int
+    template_repository: str
+    template_commit: str
+    workspace_root_digest: str
+    workspace_path_digest: str
+    workspace_relative_path: str
+    created_at: str
+    state: WorkspaceReceiptState
+
+    @classmethod
+    def from_mapping(cls, value: Any) -> "WorkspaceReceipt":
+        data = _object(value, {
+            "schema_version", "attempt_id", "exercise_id", "exercise_version",
+            "template_repository", "template_commit", "workspace_root_digest",
+            "workspace_path_digest", "workspace_relative_path", "created_at", "state",
+        })
+        _schema(data, WORKSPACE_RECEIPT_SCHEMA)
+        attempt_id = _attempt_id(data["attempt_id"], "attempt_id")
+        state = _workspace_receipt_state(data["state"])
+        relative_path = _path(data["workspace_relative_path"], "workspace_relative_path")
+        expected_relative_path = (
+            attempt_id
+            if state is WorkspaceReceiptState.PREPARED
+            else f".worker-lab-quarantine-{attempt_id}"
+        )
+        if relative_path != expected_relative_path:
+            raise LabValidationError(
+                "RECORD_WORKSPACE_PATH_INVALID",
+                f"workspace_relative_path must be {expected_relative_path!r} for {state}",
+            )
+        return cls(
+            WORKSPACE_RECEIPT_SCHEMA,
+            attempt_id,
+            _id(data["exercise_id"], "exercise_id"),
+            _positive_int(data["exercise_version"], "exercise_version"),
+            _text(data["template_repository"], "template_repository"),
+            _sha(data["template_commit"], "template_commit"),
+            _digest(data["workspace_root_digest"], "workspace_root_digest"),
+            _digest(data["workspace_path_digest"], "workspace_path_digest"),
+            relative_path,
+            _validated_timestamp_text(data["created_at"], "created_at"),
+            state,
         )
 
 
@@ -483,6 +539,15 @@ def _attempt_state(value: Any) -> AttemptState:
         return AttemptState(_text(value, "state"))
     except ValueError as exc:
         raise LabValidationError("RECORD_STATE_INVALID", "attempt state is unsupported") from exc
+
+
+def _workspace_receipt_state(value: Any) -> WorkspaceReceiptState:
+    try:
+        return WorkspaceReceiptState(_text(value, "state"))
+    except ValueError as exc:
+        raise LabValidationError(
+            "RECORD_STATE_INVALID", "workspace receipt state is unsupported"
+        ) from exc
 
 
 def _timestamp(value: Any, field: str) -> datetime:

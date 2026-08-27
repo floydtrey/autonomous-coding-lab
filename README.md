@@ -12,8 +12,8 @@ Read [`docs/START_HERE.md`](docs/START_HERE.md).
 
 The Phase 1 governance and publication milestone is complete at `v0.1.2-phase1`. It preserves the
 validated implementation and recovery evidence from `v0.1.1-phase1` while adding the durable Phase 2
-readiness boundary and private remote checkpoint. Phase 2 is authorized, but implementation has not
-started and coding workers are not invoked.
+readiness boundary and private remote checkpoint. Phase 2 Batch 1 now defines the workspace contract,
+ephemeral receipt, and focused test bindings. No workspace factory or coding worker is running yet.
 
 ## Operator interface
 

@@ -1,14 +1,14 @@
 # Start Here
 
 **Status:** Active routing authority
-**Current phase:** `v0.1.2-phase1` governance milestone complete; Phase 2 authorized but not started
+**Current phase:** Phase 2 Batch 1 contract checkpoint on `phase2/workspace-factory-v1`
 
 ## Read order
 
 1. Verify Git branch, HEAD, and working-tree cleanliness.
 2. Read `CURRENT_STATE.md`.
 3. Read `PHASE1_AUDIT_CHECKLIST.md` and `MILESTONE_EVIDENCE.md` as Phase 1 closure evidence.
-4. Read `PHASE2_READINESS_REVIEW.md` before any Phase 2 design or implementation work.
+4. Read `PHASE2_READINESS_REVIEW.md`, then `PHASE2_SPEC.md`, before Phase 2 implementation work.
 5. For authority or worker-task changes, read `POLICY_MODEL.md` and `TEST_CATALOG.md`.
 6. Before changing phase boundaries, read the authoritative specifications in the Autonomous Worker Framework repository:
    - `docs/PHASE_1_SPEC.md`

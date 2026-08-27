@@ -9,12 +9,15 @@ from worker_lab.models import (
     EVIDENCE_SCHEMA,
     EXERCISE_SCHEMA,
     FAILURE_SCHEMA,
+    WORKSPACE_RECEIPT_SCHEMA,
     AttemptRecord,
     AttemptState,
     CurriculumRecord,
     EvidenceRecord,
     ExerciseRecord,
     FailureRecord,
+    WorkspaceReceipt,
+    WorkspaceReceiptState,
 )
 
 
@@ -132,6 +135,22 @@ def failure_mapping():
     }
 
 
+def workspace_receipt_mapping():
+    return {
+        "schema_version": WORKSPACE_RECEIPT_SCHEMA,
+        "attempt_id": "ATTEMPT-000001",
+        "exercise_id": "record-model",
+        "exercise_version": 1,
+        "template_repository": "local/record-ledger-template",
+        "template_commit": SHA,
+        "workspace_root_digest": DIGEST,
+        "workspace_path_digest": "sha256:" + "b" * 64,
+        "workspace_relative_path": "ATTEMPT-000001",
+        "created_at": NOW,
+        "state": "PREPARED",
+    }
+
+
 @pytest.mark.parametrize(
     ("builder", "mapping"),
     [
@@ -140,6 +159,7 @@ def failure_mapping():
         (AttemptRecord.from_mapping, attempt_mapping),
         (EvidenceRecord.from_mapping, evidence_mapping),
         (FailureRecord.from_mapping, failure_mapping),
+        (WorkspaceReceipt.from_mapping, workspace_receipt_mapping),
     ],
 )
 def test_records_round_trip_canonically(builder, mapping):
@@ -157,6 +177,7 @@ def test_records_round_trip_canonically(builder, mapping):
         (AttemptRecord.from_mapping, attempt_mapping),
         (EvidenceRecord.from_mapping, evidence_mapping),
         (FailureRecord.from_mapping, failure_mapping),
+        (WorkspaceReceipt.from_mapping, workspace_receipt_mapping),
     ],
 )
 def test_unknown_fields_fail_closed(builder, mapping):
@@ -220,6 +241,12 @@ def test_failure_requires_control_or_accepted_limitation():
     with pytest.raises(LabValidationError) as error:
         FailureRecord.from_mapping(value)
     assert error.value.code == "RECORD_FAILURE_RESPONSE_INVALID"
+
+
+def test_workspace_receipt_parses_state_and_exact_relative_path():
+    receipt = WorkspaceReceipt.from_mapping(workspace_receipt_mapping())
+    assert receipt.state is WorkspaceReceiptState.PREPARED
+    assert receipt.workspace_relative_path == receipt.attempt_id
 
 
 def test_sorted_unique_lists_are_required():

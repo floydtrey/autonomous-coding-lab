@@ -11,6 +11,7 @@ from worker_lab.models import (
     EvidenceRecord,
     ExerciseRecord,
     FailureRecord,
+    WorkspaceReceipt,
 )
 from worker_lab.policy import ContextManifest, PolicyRecord, RoleRecord
 from worker_lab.test_catalog import TestCatalog
@@ -20,6 +21,7 @@ from tests.test_models import (
     evidence_mapping,
     exercise_mapping,
     failure_mapping,
+    workspace_receipt_mapping,
 )
 from tests.test_policy import context_mapping, policy_mapping, role_mapping
 from tests.test_test_catalog import catalog
@@ -46,6 +48,7 @@ RECORD_CASES = (
     ("context", ContextManifest.from_mapping, context_mapping),
     ("test-catalog", TestCatalog.from_mapping, lambda: catalog().to_dict()),
     ("backup-manifest", BackupManifest.from_mapping, backup_mapping),
+    ("workspace-receipt", WorkspaceReceipt.from_mapping, workspace_receipt_mapping),
 )
 
 
