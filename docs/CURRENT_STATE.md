@@ -3,7 +3,7 @@
 **Status:** Active checkpoint authority
 **Read when:** Starting or resuming any project task.
 **Last updated:** 2026-08-27
-**Status:** Foundation tagged; Worker Lab selected as the next durable product; experimental Mine Tracker product work paused.
+**Status:** Framework foundation stable; corrected Worker Lab Phase 1 complete; Worker Lab Phase 2 closed.
 
 ## Exact repository state
 
@@ -17,6 +17,18 @@
 - Tagged foundation bundle: `C:\Users\MineTrackerWorker\backups\autonomous-worker-framework\autonomous-worker-framework-v0.1.0-foundation.bundle`
 - Remote: none configured; the framework is currently local-only.
 - Test inventory: 123 tests; all passed on integrated `main` before this state refresh.
+
+### Worker Lab
+
+- Path: `C:\Users\MineTrackerWorker\repos\worker-lab`
+- Integrated branch: `main`
+- Corrected Phase 1 commit: `d0e17d9`
+- Named milestone: `v0.1.1-phase1`
+- Historical pre-audit tag: `v0.1.0-phase1` remains unchanged.
+- Test inventory: 170 passed; one expected Windows symlink capability test skipped.
+- Durable-data backup: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.1-phase1-data-99c0b58`
+- Verified tagged bundle: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.1-phase1.bundle`
+- Phase 2 has not started and requires separate authorization.
 
 Recent capability checkpoints:
 
@@ -111,15 +123,19 @@ The first Mine Tracker task remains useful evidence, but one successful test-onl
 
 Recommended next sequence:
 
-1. Create the separate local `worker-lab` repository from the design in `WORKER_LAB_DESIGN.md`.
-2. Follow `PHASE_1_SPEC.md` and `TESTING_AND_AUTHORITY.md`; implement only the headless protected records, canonical identity, storage, lifecycle, CLI, backup, and numbered-test planning boundary.
-3. Add the Local Record Ledger as the first curriculum family rather than as an unrelated application.
-4. Let workers complete multiple bounded tasks across its domain, persistence, import/export, reporting, failure, and recovery boundaries.
-5. Add a read-only evidence dashboard only after the headless workflow produces real attempt data.
-6. Do not resume Mine Tracker product-source worker changes until the graduation gates in `PROVING_PROGRAM.md` are satisfied.
+1. Treat Worker Lab `v0.1.1-phase1` as the only trusted Phase 1 completion point; do not move its tag.
+2. Review the Phase 2 boundary in `WORKER_LAB_DESIGN.md` before authorizing implementation.
+3. If authorized, design only synthetic exercise factories and disposable attempt workspaces against
+   the existing protected Phase 1 contracts.
+4. Keep framework invocation and coding-worker execution closed until an explicit Phase 2 task
+   defines their contract and acceptance evidence.
+5. Continue using project-agnostic task language and separate synthetic repositories; do not use an
+   external product repository as the experimental surface.
+6. Defer dashboards, real curricula, graduation automation, and broader orchestration until the
+   headless exercise workflow produces trustworthy retained evidence.
 
 ## New-chat handoff prompt
 
 Use this concise prompt when a new conversation is required:
 
-> Read `AGENTS.md` and `docs/START_HERE.md` in `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`. Verify Git state, then follow the Worker Lab Phase 1 route to `PHASE_1_SPEC.md` and `TESTING_AND_AUTHORITY.md`. Do not load unrelated or historical documents by default. Preserve all security and authority boundaries, keep experimental protected-project changes paused until the proving gates are met, and update `CURRENT_STATE.md` at the next milestone.
+> Read `AGENTS.md` and `docs/START_HERE.md` in `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`, then read `docs/START_HERE.md`, `docs/CURRENT_STATE.md`, and `docs/MILESTONE_EVIDENCE.md` in `C:\Users\MineTrackerWorker\repos\worker-lab`. Verify both Git states. Treat Worker Lab `v0.1.1-phase1` as the completed protected Phase 1 boundary. Do not repeat Phase 1 or begin Phase 2, framework invocation, or worker execution without explicit authorization. Keep new exercises synthetic and project-agnostic, preserve all security and authority controls, and update both current-state documents at the next milestone.
