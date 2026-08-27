@@ -1,8 +1,11 @@
 # Worker Proving Program
 
+**Status:** Active curriculum and graduation authority
+**Read when:** Designing exercises, evaluating workers, or deciding Mine Tracker graduation.
+
 ## Goal
 
-Build confidence in the complete worker system without making Mine Tracker the experimental surface.
+Build confidence in the complete worker system without making Mine Tracker the experimental surface. The curriculum will live in the durable Worker Lab platform described in `WORKER_LAB_DESIGN.md`; individual exercise repositories remain isolated and disposable.
 
 The exercises train the system around the model: task preparation, context selection, prompts, contracts, boundaries, tests, verification, failure handling, approval evidence, and rollback. They do not permanently retrain the Codex model.
 

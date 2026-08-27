@@ -6,13 +6,12 @@ The framework is separate from every repository it operates on. Mine Tracker is 
 
 ## Start here
 
-Read these documents in order when starting or resuming development:
+Start with the routing index. It will identify the minimum documents needed for the current task:
 
-1. [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) — exact checkpoint, proven capabilities, open boundary, and next step.
-2. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system map, trust boundaries, and data flow.
-3. [`docs/WORKING_AGREEMENTS.md`](docs/WORKING_AGREEMENTS.md) — roles, development loop, review rules, and maintenance expectations.
-4. [`docs/DECISIONS.md`](docs/DECISIONS.md) — decisions that must not be silently revisited.
-5. [`docs/PROVING_PROGRAM.md`](docs/PROVING_PROGRAM.md) — disposable-app curriculum and Mine Tracker graduation gates.
+1. [`docs/START_HERE.md`](docs/START_HERE.md) — authority order and task-specific reading routes.
+2. [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) — exact checkpoint, proven capabilities, open boundary, and next step.
+
+Do not read every design/history document by default. This reduces stale-context drift.
 
 ## Non-negotiable boundaries
 
@@ -40,4 +39,4 @@ Milestone gate:
 python tools\local_validate.py full
 ```
 
-The current framework suite contains 117 tests. See `docs/CURRENT_STATE.md` for the last certified checkpoint rather than assuming the working tree is current.
+The current framework suite contains 120 tests. See `docs/CURRENT_STATE.md` for the last certified checkpoint rather than assuming the working tree is current.

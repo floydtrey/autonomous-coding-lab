@@ -1,5 +1,8 @@
 # Working Agreements
 
+**Status:** Active operating procedure
+**Read when:** Running, reviewing, publishing, or maintaining worker tasks.
+
 ## Roles
 
 ### User / product owner

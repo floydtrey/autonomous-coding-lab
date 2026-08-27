@@ -1,5 +1,8 @@
 # Durable Decisions
 
+**Status:** Active durable-decision authority
+**Rule:** Every entry is active unless explicitly marked `Superseded` with a replacement decision.
+
 This is a compact decision ledger. These decisions remain active until explicitly superseded here.
 
 ## D001 — Separate standalone framework
@@ -61,3 +64,15 @@ Experimental workers will mature on isolated disposable applications before rece
 ## D015 — Enterprise direction informs boundaries, not premature architecture
 
 Mine Tracker may become the foundation of an enterprise safety systems suite. Current work should favor security, stability, modularity, efficient operation, and clean expansion seams, but must not implement speculative enterprise, multi-site, or generalized safety-suite architecture before current needs and proving evidence justify it.
+
+## D016 — Worker Lab is a durable third repository
+
+The learning/evaluation platform will be built as a separate `worker-lab` repository. The framework remains the execution/security engine; Worker Lab owns curriculum, attempts, evidence, evaluation, failures, patterns, and graduation; Mine Tracker remains the protected production consumer. Disposable exercise repositories are created by Worker Lab and are not mixed into any of the three authoritative repositories.
+
+## D017 — Workers may build training utilities but not their judge
+
+Workers may implement bounded Worker Lab modules, exercise templates, and training applications. They may not modify evaluator expectations, security policy, scoring rules, evidence integrity, approved-pattern promotion, or their own graduation requirements during an attempt. Proposed changes to those protected controls require trusted-controller design and independent verification.
+
+## D018 — Longer proving timeline is an intentional risk decision
+
+The additional Worker Lab and curriculum work intentionally extends the time before workers receive broader Mine Tracker access. This cost is accepted to reduce production mistakes, improve efficiency, expose framework weaknesses safely, and create reusable evaluation and training infrastructure.

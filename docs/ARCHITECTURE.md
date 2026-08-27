@@ -1,10 +1,31 @@
 # Architecture
 
+**Status:** Active architecture authority
+**Read when:** Changing components, trust boundaries, repository topology, or identity flow.
+
 ## Purpose
 
 The framework turns a human-approved goal into a bounded, inspectable software candidate. Codex supplies reasoning and coding ability. The framework supplies identity, scope, isolation, validation, evidence, and stop conditions.
 
 It is not a second product authority, an autonomous publisher, or a replacement for trusted review.
+
+## Repository topology
+
+The long-term system uses three separately governed repositories:
+
+```text
+autonomous-worker-framework
+  execution, sandbox, identity, boundary, validation, and handoff engine
+
+worker-lab
+  curriculum, exercise templates, attempts, evidence, evaluations,
+  failure catalog, approved patterns, and graduation records
+
+advanced-mine-asset-inspection
+  protected production consumer and future enterprise safety-suite foundation
+```
+
+Worker Lab consumes the framework but does not own or weaken it. Mine Tracker may consume graduated worker capability but does not host experiments. Exercise repositories are created separately from all three and may be discarded after their evidence and retrospective are retained.
 
 ## System map
 
@@ -80,6 +101,10 @@ Publication is mechanical transport of an already validated candidate into a com
 ### Consumer repository
 
 Mine Tracker remains authoritative for its product direction, governance, tests, and protected areas. Consumer rules narrow worker authority; framework defaults never widen it.
+
+### Worker Lab
+
+Worker Lab is trusted to store curriculum, attempt identity, evaluation evidence, failure classifications, and approved playbooks. Coding workers may build bounded Lab modules and exercise applications, but may not modify the evaluator, security policy, scoring rules, approved-pattern promotion, or their own graduation criteria.
 
 ## Identity chain
 
