@@ -8,6 +8,8 @@ from .models import (
     EvidenceRecord,
     ExerciseRecord,
     FailureRecord,
+    WorkspaceReceipt,
+    WorkspaceReceiptState,
 )
 from .policy import ContextManifest, PolicyRecord, RoleRecord
 from .test_catalog import TestCatalog
@@ -19,6 +21,8 @@ __all__ = [
     "EvidenceRecord",
     "ExerciseRecord",
     "FailureRecord",
+    "WorkspaceReceipt",
+    "WorkspaceReceiptState",
     "ContextManifest",
     "PolicyRecord",
     "RoleRecord",

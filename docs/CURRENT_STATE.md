@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-27
-**Status:** `v0.1.2-phase1` governance/publication milestone complete; Phase 2 authorized but not started.
+**Status:** Phase 2 Batch 1 contract checkpoint; workspace preparation is not implemented.
 
 ## Repository
 
@@ -10,6 +10,7 @@
 - Starting checkpoint: `b7f5bac` / `v0.1.0-phase1`
 - Corrected validation milestone: `v0.1.1-phase1`
 - Governance/publication milestone: `v0.1.2-phase1`
+- Active development branch: `phase2/workspace-factory-v1`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
@@ -56,20 +57,35 @@ Batch 4 establishes:
 - an independently cloned Git rollback checkout that passed the complete suite.
 
 All four correction batches are committed and validated. See `MILESTONE_EVIDENCE.md` for exact
-recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.md`; implementation
-has not started.
+recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.md`.
+
+## Phase 2 Batch 1 checkpoint
+
+- `PHASE2_SPEC.md` defines the preparation, restart verification, safe-disposal, recovery, and backup
+  contracts without authorizing framework or worker execution.
+- `worker-lab-workspace-receipt:v1` strictly binds attempt, exercise/template, starting commit,
+  canonical root/path digests, attempt-bound relative path, timestamp, and receipt state.
+- Receipts contain no usable absolute path and remain excluded from durable backup under
+  `state/workspaces/`.
+- Permanent T015 and T018 meanings now have immutable `worker-lab-v2` bindings, and
+  `WORKSPACE_CHANGE:v1` selects
+  the focused workspace security/lifecycle/runtime boundary.
+- Active catalog digest:
+  `sha256:fe3d50c4c0692a3d0fee0ea97690a3f1d0272a31052c0afe0489cd4e6fce44aa`.
+- No filesystem preparation, verification, cleanup, or CLI implementation exists yet.
 
 ## Still unavailable
 
 - worker execution or framework invocation;
-- exercise factories and disposable attempt workspaces;
+- exercise workspace preparation, verification, and disposal;
 - dashboard, real curricula, worker attempts, or graduation decisions.
 
 ## Next boundary
 
-Phase 2 is authorized to begin with the specification and test bindings for synthetic exercise
-factories and disposable attempt workspaces. Phase 2 does not authorize worker execution, framework
-invocation, or work in an external product repository.
+The next work is Batch 2 staged preparation for synthetic exercise workspaces: exact local-template
+validation, independent detached cloning, context verification, compensation, receipt publication,
+and `DRAFT` to `READY`. Phase 2 does not authorize worker execution, framework invocation, or work in
+an external product repository.
 
 ## Drift boundary
 
