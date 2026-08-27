@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-27
-**Status:** Phase 2 Batch 2 implemented; restart verification and disposal are not implemented.
+**Status:** Phase 2 Batch 2 integrated; restart verification and disposal are not implemented.
 
 ## Repository
 
@@ -11,7 +11,8 @@
 - Corrected validation milestone: `v0.1.1-phase1`
 - Governance/publication milestone: `v0.1.2-phase1`
 - Integrated Phase 2 Batch 1: `12048ea` / PR `#1`
-- Active development branch: `phase2/workspace-preparation-v1`
+- Integrated Phase 2 Batch 2: `97ecb34` / PR `#2`
+- Active development branch: none
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion

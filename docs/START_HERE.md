@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active routing authority
-**Current phase:** Phase 2 Batch 2 workspace-preparation checkpoint
+**Current phase:** Phase 2 Batch 2 integrated on `main`
 
 ## Read order
 
