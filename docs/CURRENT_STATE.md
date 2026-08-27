@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-27
-**Status:** Phase 2 Batch 1 contract checkpoint; workspace preparation is not implemented.
+**Status:** Phase 2 Batch 1 integrated; workspace preparation is not implemented.
 
 ## Repository
 
@@ -10,7 +10,8 @@
 - Starting checkpoint: `b7f5bac` / `v0.1.0-phase1`
 - Corrected validation milestone: `v0.1.1-phase1`
 - Governance/publication milestone: `v0.1.2-phase1`
-- Active development branch: `phase2/workspace-factory-v1`
+- Integrated Phase 2 Batch 1: `12048ea` / PR `#1`
+- Active development branch: none
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
