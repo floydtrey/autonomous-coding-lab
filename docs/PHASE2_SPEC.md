@@ -52,9 +52,9 @@ The factory must:
 3. Clone locally with independent Git objects (`git clone --no-local`).
 4. Check out the exact starting commit in detached-HEAD state.
 5. Verify the repository root, exact HEAD, detached state, clean status, and assigned context bytes.
-6. Write and verify the ephemeral receipt through a staged atomic operation.
-7. Atomically publish the staging directory as `<workspace-root>/<attempt-id>`.
-8. Reverify the published workspace and receipt.
+6. Atomically publish the staging directory as `<workspace-root>/<attempt-id>`.
+7. Write and verify the ephemeral receipt through a staged atomic operation.
+8. Reverify the published workspace and receipt before the lifecycle transition.
 9. Advance the attempt from `DRAFT` to `READY` only after every prior boundary succeeds.
 
 Git subprocesses are non-interactive, receive no inherited GitHub credential-like variables, and
