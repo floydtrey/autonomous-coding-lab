@@ -1,16 +1,17 @@
 # Start Here
 
 **Status:** Active routing authority
-**Current phase:** Phase 1 — headless contracts and local storage
+**Current phase:** Phase 1 complete; Phase 2 not started
 
 ## Read order
 
 1. Verify Git branch, HEAD, and working-tree cleanliness.
 2. Read `CURRENT_STATE.md`.
-3. For Phase 1 implementation, read the authoritative specifications in the Autonomous Worker Framework repository:
+3. Before starting Phase 2, read the authoritative specifications in the Autonomous Worker Framework repository:
    - `docs/PHASE_1_SPEC.md`
    - `docs/TESTING_AND_AUTHORITY.md`
-4. Read only the source and tests relevant to the selected numbered test profile.
+4. Select the smallest applicable profile from `TEST_CATALOG.md`.
+5. Do not begin framework invocation or worker execution as an incidental follow-on change.
 
 ## Authority
 

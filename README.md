@@ -10,10 +10,26 @@ Read [`docs/START_HERE.md`](docs/START_HERE.md).
 
 ## Current phase
 
-Phase 1 builds the protected headless contracts and local storage. It does not invoke coding workers yet.
+Phase 1 provides protected headless contracts, numbered test selection, local atomic storage,
+verified backup/restore, and an operator CLI. It does not invoke coding workers yet.
+
+## Operator interface
+
+```powershell
+python -m worker_lab.cli --help
+python -m worker_lab.cli validate-definition <path>
+python -m worker_lab.cli --root <lab-root> list-curricula
+python -m worker_lab.cli --root <lab-root> backup <destination>
+python -m worker_lab.cli verify-backup <backup>
+python -m worker_lab.cli restore <backup> <empty-destination>
+```
+
+Failures return a nonzero status and a stable `ERROR <CODE>:` diagnostic.
 
 ## Tests
 
 ```powershell
 python -m pytest -q
 ```
+
+Use [`docs/TEST_CATALOG.md`](docs/TEST_CATALOG.md) to choose the smallest trusted profile.
