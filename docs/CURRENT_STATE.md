@@ -28,8 +28,8 @@ Follow `PHASE1_AUDIT_CHECKLIST.md`. Batch 1 establishes:
 - exact read-only context manifests verified against a separate clean Git repository;
 - attempt identities bound to resolved policy, role, sandbox, context, and evaluator digests.
 
-Batch 1 implementation is complete on the working branch and awaiting final checkpoint review.
-Batches 2–4 remain incomplete.
+Batch 1 implementation is committed and validated on the working branch. Batches 2–4 remain
+incomplete.
 
 ## Still unavailable
 
