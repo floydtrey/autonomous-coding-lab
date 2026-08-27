@@ -104,7 +104,7 @@ def evidence_mapping():
         "evidence_type": "test-result",
         "attempt_id": "ATTEMPT-000001",
         "test_id": "T005",
-        "test_catalog_version": "worker-lab-tests:v1",
+        "test_catalog_version": "worker-lab-v1",
         "candidate_digest": DIGEST,
         "base_commit": SHA,
         "environment_digest": DIGEST,
@@ -181,7 +181,9 @@ def test_exercise_rejects_writable_protected_overlap():
     assert error.value.code == "RECORD_SCOPE_INVALID"
 
 
-@pytest.mark.parametrize("path", ["../escape.py", "/absolute.py", "C:/escape.py", "a/../b.py"])
+@pytest.mark.parametrize(
+    "path", ["../escape.py", "/absolute.py", "C:/escape.py", "a/../b.py", "a\\b.py"]
+)
 def test_exercise_rejects_unsafe_paths(path):
     value = exercise_mapping()
     value["writable_paths"] = [path]
@@ -225,3 +227,26 @@ def test_sorted_unique_lists_are_required():
     with pytest.raises(LabValidationError) as error:
         CurriculumRecord.from_mapping(value)
     assert error.value.code == "RECORD_LIST_INVALID"
+
+
+@pytest.mark.parametrize(
+    ("writable", "protected"),
+    [("record_ledger", "record_ledger/models.py"), ("record_ledger/models.py", "record_ledger")],
+)
+def test_exercise_rejects_nested_writable_protected_scope(writable, protected):
+    value = exercise_mapping()
+    value["writable_paths"] = [writable]
+    value["protected_paths"] = [protected]
+    with pytest.raises(LabValidationError) as error:
+        ExerciseRecord.from_mapping(value)
+    assert error.value.code == "RECORD_SCOPE_INVALID"
+
+
+def test_curriculum_exercise_sequence_preserves_intentional_order():
+    value = curriculum_mapping()
+    value["exercise_ids"] = ["second-exercise", "first-exercise"]
+    record = CurriculumRecord.from_mapping(value)
+    assert record.exercise_ids == ("second-exercise", "first-exercise")
+    reversed_value = deepcopy(value)
+    reversed_value["exercise_ids"].reverse()
+    assert record.digest() != CurriculumRecord.from_mapping(reversed_value).digest()

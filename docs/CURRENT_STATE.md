@@ -18,7 +18,7 @@ written completion gate. In particular, evidence verification, authority identit
 semantics, read purity, relationship integrity, backup scope, the real rollback drill, and the Git
 bundle require correction. The historical tag will not be moved.
 
-## Active boundary
+## Completed correction batches
 
 Follow `PHASE1_AUDIT_CHECKLIST.md`. Batch 1 establishes:
 
@@ -28,8 +28,17 @@ Follow `PHASE1_AUDIT_CHECKLIST.md`. Batch 1 establishes:
 - exact read-only context manifests verified against a separate clean Git repository;
 - attempt identities bound to resolved policy, role, sandbox, context, and evaluator digests.
 
-Batch 1 implementation is committed and validated on the working branch. Batches 2–4 remain
-incomplete.
+Batch 2 establishes:
+
+- structured, non-mutating storage failures and pure read/list operations;
+- lifecycle-aware attempt storage with immutable terminal history and linked retry records;
+- exact relationship validation across curricula, exercises, authority, attempts, evidence, failures,
+  and evaluator identity;
+- canonical path and writable/protected scope validation; and
+- preserved curriculum exercise order with deterministic set-like fields.
+
+Batch 1 is committed. Batch 2 is implemented and validated for checkpoint. Batches 3–4 remain
+incomplete, and Phase 2 remains closed.
 
 ## Still unavailable
 
@@ -41,5 +50,5 @@ incomplete.
 
 ## Drift boundary
 
-Do not begin Phase 2 or modify Mine Tracker product behavior. Work must complete an unchecked audit
+Do not begin Phase 2 or modify external project repositories. Work must complete an unchecked audit
 condition or fix a defect blocking one. Ordinary polish and speculative abstractions remain deferred.

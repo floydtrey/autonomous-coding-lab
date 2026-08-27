@@ -85,7 +85,7 @@ class CurriculumRecord(_Record):
             _text(data["purpose"], "purpose"),
             _texts(data["capabilities"], "capabilities", nonempty=True),
             prerequisites,
-            _ids(data["exercise_ids"], "exercise_ids"),
+            _ordered_ids(data["exercise_ids"], "exercise_ids"),
             status,
         )
 
@@ -130,10 +130,15 @@ class ExerciseRecord(_Record):
         _schema(data, EXERCISE_SCHEMA)
         writable = _paths(data["writable_paths"], "writable_paths", nonempty=True)
         protected = _paths(data["protected_paths"], "protected_paths")
-        overlap = set(writable).intersection(protected)
+        overlap = sorted(
+            (writable_path, protected_path)
+            for writable_path in writable
+            for protected_path in protected
+            if _paths_overlap(writable_path, protected_path)
+        )
         if overlap:
             raise LabValidationError(
-                "RECORD_SCOPE_INVALID", f"writable and protected paths overlap: {sorted(overlap)}"
+                "RECORD_SCOPE_INVALID", f"writable and protected paths overlap: {overlap}"
             )
         profiles = _texts(data["test_profile_ids"], "test_profile_ids", nonempty=True)
         if not all(TEST_PROFILE_RE.fullmatch(item) for item in profiles):
@@ -391,6 +396,15 @@ def _ids(value: Any, field: str) -> tuple[str, ...]:
     return items
 
 
+def _ordered_ids(value: Any, field: str) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        raise LabValidationError("RECORD_LIST_INVALID", f"{field} must be an array")
+    items = tuple(_id(item, field) for item in value)
+    if len(items) != len(set(items)):
+        raise LabValidationError("RECORD_LIST_INVALID", f"{field} must be unique")
+    return items
+
+
 def _attempt_ids(value: Any, field: str) -> tuple[str, ...]:
     items = _texts(value, field)
     for item in items:
@@ -423,7 +437,9 @@ def _optional_digest(value: Any, field: str) -> str | None:
 
 
 def _path(value: Any, field: str) -> str:
-    text = _text(value, field).replace("\\", "/")
+    text = _text(value, field)
+    if "\\" in text:
+        raise LabValidationError("RECORD_PATH_INVALID", f"{field} must use forward slashes")
     candidate = PurePosixPath(text)
     if (
         candidate.is_absolute()
@@ -435,6 +451,10 @@ def _path(value: Any, field: str) -> str:
     ):
         raise LabValidationError("RECORD_PATH_INVALID", f"{field} is not a normalized relative path")
     return text
+
+
+def _paths_overlap(first: str, second: str) -> bool:
+    return first == second or first.startswith(second + "/") or second.startswith(first + "/")
 
 
 def _paths(value: Any, field: str, *, nonempty: bool = False) -> tuple[str, ...]:

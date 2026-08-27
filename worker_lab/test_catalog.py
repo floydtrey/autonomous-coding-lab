@@ -98,6 +98,8 @@ class TestDefinition:
         ):
             if values != tuple(sorted(set(values))):
                 raise LabValidationError("TEST_DEFINITION_INVALID", f"{field} must be sorted and unique")
+        if not all(_valid_path_prefix(prefix) for prefix in self.path_prefixes):
+            raise LabValidationError("TEST_DEFINITION_INVALID", "path prefixes must be normalized")
         if not all(TEST_ID_RE.fullmatch(item) for item in self.prerequisites):
             raise LabValidationError("TEST_ID_INVALID", "prerequisite test ID is invalid")
         if self.test_id in self.prerequisites:
@@ -111,7 +113,7 @@ class TestDefinition:
             )
 
     def matches_path(self, path: str) -> bool:
-        return any(path.startswith(prefix) for prefix in self.path_prefixes) or any(
+        return any(_prefix_matches(path, prefix) for prefix in self.path_prefixes) or any(
             path.endswith(suffix) for suffix in self.path_suffixes
         )
 
@@ -223,9 +225,11 @@ class ChangeFacts:
             candidate = PurePosixPath(path)
             if (
                 not path
+                or "\\" in path
                 or candidate.is_absolute()
                 or ".." in candidate.parts
                 or candidate.as_posix() != path
+                or not candidate.parts
                 or ":" in candidate.parts[0]
             ):
                 raise LabValidationError("TEST_FACTS_INVALID", f"invalid changed path: {path!r}")
@@ -405,3 +409,23 @@ def _text_tuple(value: Any, field: str) -> tuple[str, ...]:
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise LabValidationError("TEST_DEFINITION_INVALID", f"{field} must be a text array")
     return tuple(value)
+
+
+def _prefix_matches(path: str, prefix: str) -> bool:
+    normalized = prefix.rstrip("/")
+    return path == normalized or path.startswith(normalized + "/")
+
+
+def _valid_path_prefix(prefix: str) -> bool:
+    if not prefix or "\\" in prefix:
+        return False
+    normalized = prefix.rstrip("/")
+    candidate = PurePosixPath(normalized)
+    return bool(
+        normalized
+        and not candidate.is_absolute()
+        and ".." not in candidate.parts
+        and candidate.parts
+        and ":" not in candidate.parts[0]
+        and candidate.as_posix() == normalized
+    )

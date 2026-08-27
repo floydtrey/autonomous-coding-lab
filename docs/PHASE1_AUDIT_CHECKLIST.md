@@ -20,15 +20,15 @@ Batch 1 remains checked only if its focused and complete regression profiles pas
 
 ## Batch 2 — Core correctness and lifecycle integrity
 
-- [ ] C05 — Invalid stored records always produce structured failures without mutation.
-- [ ] C06 — Read-only storage and CLI operations do not create or modify filesystem state.
-- [ ] C07 — Terminal attempt history and authority-bearing inputs cannot be overwritten; retries use
+- [x] C05 — Invalid stored records always produce structured failures without mutation.
+- [x] C06 — Read-only storage and CLI operations do not create or modify filesystem state.
+- [x] C07 — Terminal attempt history and authority-bearing inputs cannot be overwritten; retries use
   new linked attempts without self-links or cycles.
-- [ ] C08 — Cross-record relationships bind exact curriculum, exercise, attempt, evidence, failure,
+- [x] C08 — Cross-record relationships bind exact curriculum, exercise, attempt, evidence, failure,
   and evaluator identities.
-- [ ] C09 — Path and writable/protected scope rules consistently reject non-normalized and nested
+- [x] C09 — Path and writable/protected scope rules consistently reject non-normalized and nested
   conflicts.
-- [ ] C10 — Ordered curriculum exercise sequences preserve intentional order while true sets remain
+- [x] C10 — Ordered curriculum exercise sequences preserve intentional order while true sets remain
   sorted and unique.
 
 ## Batch 3 — Test planning, evidence, and backup
@@ -53,4 +53,5 @@ Batch 1 remains checked only if its focused and complete regression profiles pas
 ## Explicit exclusions
 
 No worker execution, Phase 2 workspaces, framework invocation, dashboard, SQLite, OCR, generalized
-permission system, Mine Tracker product change, or graduation automation belongs in this correction.
+permission system, external product repository change, or graduation automation belongs in this
+correction.

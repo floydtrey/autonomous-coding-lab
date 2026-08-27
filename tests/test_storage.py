@@ -32,12 +32,37 @@ def test_rejects_unsafe_paths(tmp_path: Path, path: str) -> None:
 def test_corrupt_record_is_reported_without_repair(tmp_path: Path) -> None:
     store = AtomicRecordStore(tmp_path / "state")
     target = tmp_path / "state" / "curriculum.json"
+    target.parent.mkdir()
     target.write_text("{broken", encoding="utf-8")
     before = target.read_bytes()
     with pytest.raises(LabValidationError) as raised:
         store.read("curriculum.json", CurriculumRecord.from_mapping)
     assert raised.value.code == "STORAGE_RECORD_CORRUPT"
     assert target.read_bytes() == before
+
+
+def test_schema_invalid_record_is_structured_and_not_repaired(tmp_path: Path) -> None:
+    store = AtomicRecordStore(tmp_path / "state")
+    target = tmp_path / "state" / "curriculum.json"
+    target.parent.mkdir()
+    target.write_text('{"schema_version":"wrong"}', encoding="utf-8")
+    before = target.read_bytes()
+    with pytest.raises(LabValidationError) as raised:
+        store.read("curriculum.json", CurriculumRecord.from_mapping)
+    assert raised.value.code == "STORAGE_RECORD_INVALID"
+    assert target.read_bytes() == before
+
+
+def test_read_only_operations_do_not_create_storage_root(tmp_path: Path) -> None:
+    root = tmp_path / "missing-state"
+    store = AtomicRecordStore(root)
+    assert not root.exists()
+    assert store.list_paths() == ()
+    assert not root.exists()
+    with pytest.raises(LabValidationError) as raised:
+        store.read("missing.json", CurriculumRecord.from_mapping)
+    assert raised.value.code == "STORAGE_RECORD_MISSING"
+    assert not root.exists()
 
 
 def test_rejected_replacement_preserves_prior_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -17,10 +17,9 @@ class AtomicRecordStore:
     """Contained, one-record-per-file JSON storage with atomic replacement."""
 
     def __init__(self, root: Path) -> None:
-        self.root = root.resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
-        if self.root.is_symlink():
-            raise LabValidationError("STORAGE_ROOT_INVALID", "storage root cannot be a symlink")
+        self.root = root.absolute()
+        if self.root.exists():
+            self._validate_root()
 
     def read(self, relative_path: str, loader: Callable[[Any], RecordT]) -> RecordT:
         target = self._target(relative_path)
@@ -38,10 +37,11 @@ class AtomicRecordStore:
             return loader(value)
         except LabValidationError as exc:
             raise LabValidationError(
-                "STORAGE_RECORD_INVALID", f"{relative_path}: {exc.code}: {exc.message}"
+                "STORAGE_RECORD_INVALID", f"{relative_path}: {exc.code}: {exc.summary}"
             ) from exc
 
     def write(self, relative_path: str, record: Any) -> None:
+        self._ensure_root_for_write()
         target = self._target(relative_path)
         target.parent.mkdir(parents=True, exist_ok=True)
         self._assert_contained_existing_parents(target)
@@ -69,6 +69,8 @@ class AtomicRecordStore:
                     pass
 
     def list_paths(self, relative_directory: str = ".") -> tuple[str, ...]:
+        if not self.root.exists():
+            return ()
         directory = self._target(relative_directory, allow_dot=True)
         if not directory.exists():
             return ()
@@ -103,8 +105,21 @@ class AtomicRecordStore:
         if candidate.as_posix() == ".":
             return self.root
         target = self.root.joinpath(*candidate.parts)
-        self._assert_contained_existing_parents(target)
+        if self.root.exists():
+            self._assert_contained_existing_parents(target)
         return target
+
+    def _ensure_root_for_write(self) -> None:
+        if not self.root.exists():
+            try:
+                self.root.mkdir(parents=True)
+            except OSError as exc:
+                raise LabValidationError("STORAGE_ROOT_INVALID", str(exc)) from exc
+        self._validate_root()
+
+    def _validate_root(self) -> None:
+        if self.root.is_symlink() or not self.root.is_dir():
+            raise LabValidationError("STORAGE_ROOT_INVALID", "storage root must be a real directory")
 
     def _assert_contained_existing_parents(self, target: Path) -> None:
         current = target.parent
@@ -116,7 +131,7 @@ class AtomicRecordStore:
 
     def _assert_contained(self, resolved: Path) -> None:
         try:
-            resolved.relative_to(self.root)
+            resolved.relative_to(self.root.resolve(strict=True))
         except ValueError as exc:
             raise LabValidationError("STORAGE_PATH_ESCAPE", "path escapes storage root") from exc
 

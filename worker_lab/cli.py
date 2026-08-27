@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .backup import create_backup, restore_backup, verify_backup
-from .canonical import canonical_digest
+from .attempt_store import AttemptStore
 from .errors import LabValidationError
 from .lifecycle import transition_attempt
 from .models import (
@@ -23,6 +23,7 @@ from .policy import (
 )
 from .storage import AtomicRecordStore
 from .test_catalog import CATALOG_SCHEMA, TestCatalog
+from .validation import attempt_task_digest
 
 
 LOADERS: dict[str, Callable[[Any], Any]] = {
@@ -116,6 +117,10 @@ def _state(args: argparse.Namespace) -> AtomicRecordStore:
     return AtomicRecordStore(args.root / "state")
 
 
+def _attempts(args: argparse.Namespace) -> AttemptStore:
+    return AttemptStore(args.root / "state")
+
+
 def _list_curricula(args: argparse.Namespace) -> str:
     store = _definitions(args)
     records = [store.read(path, CurriculumRecord.from_mapping) for path in store.list_paths("curricula")]
@@ -173,24 +178,8 @@ def _create_attempt(args: argparse.Namespace) -> str:
         "evaluator_catalog_digest": catalog.digest(), "runtime_identity": None,
         "candidate_digest": None, "cleanup_outcome": None, "prior_attempt_id": None,
     })
-    _state(args).write(f"attempts/{identity}.json", record)
+    _attempts(args).create(record)
     return record.to_json(pretty=True)
-
-
-def attempt_task_digest(
-    exercise: ExerciseRecord,
-    policy: PolicyRecord,
-    role: RoleRecord,
-    context: ContextManifest,
-    catalog: TestCatalog,
-) -> str:
-    return canonical_digest({
-        "exercise": exercise.to_dict(),
-        "policy_digest": policy.digest(),
-        "role_digest": role.digest(),
-        "context_manifest_digest": context.digest(),
-        "evaluator_catalog_digest": catalog.digest(),
-    })
 
 
 def _validate_attempt_authority(
@@ -256,15 +245,14 @@ def _validate_target_repository(lab_root: Path, target_repository: Path, expecte
 
 
 def _show_attempt(args: argparse.Namespace) -> str:
-    return _state(args).read(f"attempts/{args.attempt_id}.json", AttemptRecord.from_mapping).to_json(pretty=True)
+    return _attempts(args).read(args.attempt_id).to_json(pretty=True)
 
 
 def _transition_attempt(args: argparse.Namespace) -> str:
-    store = _state(args)
-    path = f"attempts/{args.attempt_id}.json"
-    current = store.read(path, AttemptRecord.from_mapping)
+    store = _attempts(args)
+    current = store.read(args.attempt_id)
     updated = transition_attempt(current, AttemptState(args.state), occurred_at=_now(), candidate_digest=args.candidate_digest, cleanup_outcome=args.cleanup_outcome)
-    store.write(path, updated)
+    store.save_transition(updated)
     return updated.to_json(pretty=True)
 
 

@@ -4,12 +4,13 @@ import subprocess
 from copy import deepcopy
 from pathlib import Path
 
-from worker_lab.cli import attempt_task_digest, main
+from worker_lab.cli import main
 from tests.test_models import curriculum_mapping, exercise_mapping
 from tests.test_policy import context_mapping, policy_mapping, role_mapping
 from tests.test_test_catalog import catalog
 from worker_lab.models import ExerciseRecord
 from worker_lab.policy import ContextManifest, PolicyRecord, RoleRecord
+from worker_lab.validation import attempt_task_digest
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -57,6 +58,13 @@ def test_validate_definition_and_invalid_failure(tmp_path: Path, capsys) -> None
     path.write_text("{}", encoding="utf-8")
     assert main(["validate-definition", str(path)]) == 2
     assert "ERROR RECORD_SCHEMA_INVALID" in capsys.readouterr().err
+
+
+def test_list_curricula_does_not_create_missing_lab_root(tmp_path: Path, capsys) -> None:
+    lab = tmp_path / "missing-lab"
+    assert main(["--root", str(lab), "list-curricula"]) == 0
+    assert capsys.readouterr().out == "\n"
+    assert not lab.exists()
 
 
 def test_definition_inspection_and_attempt_lifecycle(tmp_path: Path, capsys) -> None:

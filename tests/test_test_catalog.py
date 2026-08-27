@@ -147,3 +147,16 @@ def test_test_ids_are_permanent_shape_not_ordinals_that_can_shift():
     with pytest.raises(LabValidationError) as error:
         definition("1")
     assert error.value.code == "TEST_ID_INVALID"
+
+
+def test_path_prefixes_use_segment_boundaries() -> None:
+    item = definition("T030", path_prefixes=("worker_lab/storage",))
+    assert item.matches_path("worker_lab/storage/file.py")
+    assert not item.matches_path("worker_lab/storage_extra/file.py")
+
+
+@pytest.mark.parametrize("prefix", ["../outside", "/absolute", "C:/outside", "a\\b"])
+def test_catalog_rejects_unsafe_path_prefixes(prefix: str) -> None:
+    with pytest.raises(LabValidationError) as error:
+        definition("T030", path_prefixes=(prefix,))
+    assert error.value.code == "TEST_DEFINITION_INVALID"
