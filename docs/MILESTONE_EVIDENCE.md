@@ -1,8 +1,12 @@
 # Phase 1 Milestone Evidence
 
-**Milestone:** `v0.1.1-phase1`
+**Milestone:** `v0.1.2-phase1`
 **Date:** 2026-08-27
-**Scope:** Synthetic Worker Lab records and local recovery only
+**Scope:** Phase 1 governance, private publication, and Phase 2 readiness boundary
+
+`v0.1.1-phase1` remains the immutable corrected validation milestone. This milestone preserves that
+validated code and evidence, adds the durable Phase 2 readiness review, and publishes the protected
+starting point to the private `floydtrey/worker-lab` repository.
 
 ## Validation
 
@@ -29,5 +33,15 @@
 - Bundle verification: complete history, valid refs, and exact recovered HEAD.
 - Final tagged bundle: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.1-phase1.bundle`
 
-The preflight bundle proves rollback before the immutable tag is created. The final bundle is created
-from the same validated history after `v0.1.1-phase1` is attached to the final documentation commit.
+## Governance/publication checkpoint
+
+- Pre-publication bundle: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.2-preflight-d0e17d9.bundle`
+- Pre-publication bundle SHA-256: `8e572c1f211b771e01680f337188ab7f44d929f5960f2592505feb239fb55c1f`
+- Private remote: `https://github.com/floydtrey/worker-lab`
+- Published branch: `main`
+- Final tagged bundle: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.2-phase1.bundle`
+
+The original preflight bundle proves rollback before the immutable corrected tag was created. The
+new pre-publication bundle protects the exact validated Phase 1 head before governance documentation
+and remote configuration. The `v0.1.2-phase1` final bundle is created after the new immutable tag is
+attached to the governance documentation commit.
