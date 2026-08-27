@@ -1,10 +1,10 @@
 # Phase 1 Audit Completion Checklist
 
-**Status:** Active correction authority
+**Status:** Corrected milestone complete
 **Release target:** `v0.1.1-phase1`
 **Historical checkpoint:** `v0.1.0-phase1` remains unchanged and is not the corrected release.
 
-Phase 2 remains closed until every condition below is complete and independently reviewed.
+All correction conditions are complete. Phase 2 remains closed until separately authorized.
 
 ## Batch 1 — Authority and identity
 
@@ -42,12 +42,12 @@ Batch 1 remains checked only if its focused and complete regression profiles pas
 
 ## Batch 4 — Acceptance and corrected milestone
 
-- [ ] C15 — Every protected record has representative valid, missing, unknown, malformed,
+- [x] C15 — Every protected record has representative valid, missing, unknown, malformed,
   incompatible, deterministic, and input-immutability coverage.
-- [ ] C16 — Definition, attempt, transition, evidence, backup, and restore CLI flows pass end to end.
-- [ ] C17 — Focused/full suites and a real backup/restore/rollback drill pass; a verified Git bundle
+- [x] C16 — Definition, attempt, transition, evidence, backup, and restore CLI flows pass end to end.
+- [x] C17 — Focused/full suites and a real backup/restore/rollback drill pass; a verified Git bundle
   exists outside the repository.
-- [ ] C18 — Current-state documentation is accurate, framework handoff is updated, and the immutable
+- [x] C18 — Current-state documentation is accurate, framework handoff is updated, and the immutable
   corrected `v0.1.1-phase1` tag is created.
 
 ## Explicit exclusions

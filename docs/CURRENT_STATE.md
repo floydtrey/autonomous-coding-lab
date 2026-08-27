@@ -1,22 +1,22 @@
 # Current State
 
 **Last updated:** 2026-08-27
-**Status:** Phase 1 audit corrections in progress; Phase 2 closed.
+**Status:** Corrected Phase 1 milestone complete; Phase 2 closed.
 
 ## Repository
 
 - Path: `C:\Users\MineTrackerWorker\repos\worker-lab`
-- Branch: `fix/phase1-audit-corrections`
+- Integrated branch: `main`
 - Starting checkpoint: `b7f5bac` / `v0.1.0-phase1`
-- Corrected release target: `v0.1.1-phase1`
+- Corrected milestone: `v0.1.1-phase1`
 - Remote: none configured
 
 ## Audit conclusion
 
-The original Phase 1 checkpoint is a useful pre-audit foundation, but it did not satisfy every
-written completion gate. In particular, evidence verification, authority identity, permanent test
-semantics, read purity, relationship integrity, backup scope, the real rollback drill, and the Git
-bundle require correction. The historical tag will not be moved.
+The original Phase 1 checkpoint remains a useful historical pre-audit foundation and its tag was
+not moved. Batches 1–4 corrected its authority identity, record integrity, test planning, evidence,
+backup/restore, acceptance coverage, and recovery evidence. The corrected milestone is the only
+trusted Phase 1 completion point.
 
 ## Completed correction batches
 
@@ -45,15 +45,28 @@ Batch 3 establishes:
 - backup scope limited to durable `curricula/` and `state/` content; and
 - staged, verified, empty-destination-only backup publication and restore with failure cleanup.
 
-Batches 1–2 are committed. Batch 3 is implemented and validated for checkpoint. Batch 4 remains
-incomplete, and Phase 2 remains closed.
+Batch 4 establishes:
+
+- a uniform acceptance matrix for every protected record;
+- a complete synthetic CLI workflow through attempt closure, evidence verification, backup, and
+  restored inspection;
+- external durable-data backup and restore evidence; and
+- an independently cloned Git rollback checkout that passed the complete suite.
+
+All four correction batches are committed and validated. See `MILESTONE_EVIDENCE.md` for exact
+recovery artifacts. Phase 2 remains closed.
 
 ## Still unavailable
 
 - worker execution or framework invocation;
 - exercise factories and disposable attempt workspaces;
-- corrected backup/restore milestone evidence;
 - dashboard, real curricula, worker attempts, or graduation decisions.
+
+## Next boundary
+
+The next work is a separate Phase 2 design/authorization decision for synthetic exercise factories
+and disposable attempt workspaces. Phase 1 completion does not authorize worker execution,
+framework invocation, or work in an external product repository.
 
 ## Drift boundary
 

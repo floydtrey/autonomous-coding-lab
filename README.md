@@ -10,8 +10,9 @@ Read [`docs/START_HERE.md`](docs/START_HERE.md).
 
 ## Current phase
 
-Phase 1 audit corrections are in progress. The protected headless contracts, numbered test
-selection, local storage, backup/restore, and operator CLI do not invoke coding workers.
+The corrected Phase 1 headless milestone is complete at `v0.1.1-phase1`. Its protected contracts,
+numbered test selection, local storage, evidence verification, backup/restore, and operator CLI do
+not invoke coding workers. Phase 2 remains closed pending separate authorization.
 
 ## Operator interface
 
