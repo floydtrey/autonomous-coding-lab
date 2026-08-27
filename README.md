@@ -12,8 +12,9 @@ Read [`docs/START_HERE.md`](docs/START_HERE.md).
 
 The Phase 1 governance and publication milestone is complete at `v0.1.2-phase1`. It preserves the
 validated implementation and recovery evidence from `v0.1.1-phase1` while adding the durable Phase 2
-readiness boundary and private remote checkpoint. Phase 2 Batch 1 now defines the workspace contract,
-ephemeral receipt, and focused test bindings. No workspace factory or coding worker is running yet.
+readiness boundary and private remote checkpoint. Phase 2 Batch 2 adds staged preparation of a
+receipt-bound, detached synthetic workspace. Restart verification, disposal, and worker execution
+remain unavailable.
 
 ## Operator interface
 
@@ -22,6 +23,7 @@ python -m worker_lab.cli --help
 python -m worker_lab.cli validate-definition <path>
 python -m worker_lab.cli --root <lab-root> list-curricula
 python -m worker_lab.cli --root <lab-root> create-attempt --exercise <id> --version <n> --target-repository <path>
+python -m worker_lab.cli --root <lab-root> prepare-workspace <attempt-id> --template-repository <path> --workspace-root <path>
 python -m worker_lab.cli --root <lab-root> verify-evidence <sha256:digest>
 python -m worker_lab.cli --root <lab-root> backup <destination>
 python -m worker_lab.cli verify-backup <backup>

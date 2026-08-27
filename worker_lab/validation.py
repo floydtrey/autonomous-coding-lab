@@ -27,6 +27,71 @@ def attempt_task_digest(
     })
 
 
+def validate_attempt_authority_binding(
+    attempt: AttemptRecord,
+    exercise: ExerciseRecord,
+    policy: PolicyRecord,
+    role: RoleRecord,
+    context: ContextManifest,
+    catalog: TestCatalog,
+) -> None:
+    """Verify one attempt still resolves to its exact protected authority inputs."""
+    if (
+        (exercise.exercise_id, exercise.exercise_version)
+        != (attempt.exercise_id, attempt.exercise_version)
+        or exercise.curriculum_id != attempt.curriculum_id
+        or (policy.policy_id, policy.policy_version)
+        != (exercise.policy_id, exercise.policy_version)
+        or (role.role_id, role.role_version) != (exercise.role_id, exercise.role_version)
+        or (context.manifest_id, context.manifest_version)
+        != (exercise.context_manifest_id, exercise.context_manifest_version)
+        or context.repository != exercise.template_repository
+        or context.starting_commit != exercise.template_commit
+        or catalog.catalog_version != exercise.evaluator_catalog_version
+    ):
+        raise LabValidationError(
+            "RELATION_IDENTITY_MISMATCH", "attempt authority references differ"
+        )
+    if set(exercise.test_profile_ids) - {item.profile_id for item in catalog.profiles}:
+        raise LabValidationError("RELATION_REFERENCE_MISSING", "exercise test profile is missing")
+    validate_authority(
+        policy,
+        role,
+        required_capabilities=exercise.required_capabilities,
+        temporary_denied_capabilities=exercise.temporary_denied_capabilities,
+    )
+    expected = (
+        exercise.template_commit,
+        context.digest(),
+        attempt_task_digest(exercise, policy, role, context, catalog),
+        policy.policy_id,
+        policy.policy_version,
+        policy.digest(),
+        role.role_id,
+        role.role_version,
+        role.digest(),
+        exercise.sandbox_mode,
+        catalog.catalog_version,
+        catalog.digest(),
+    )
+    actual = (
+        attempt.starting_commit,
+        attempt.context_digest,
+        attempt.task_digest,
+        attempt.policy_id,
+        attempt.policy_version,
+        attempt.policy_digest,
+        attempt.role_id,
+        attempt.role_version,
+        attempt.role_digest,
+        attempt.sandbox_mode,
+        attempt.evaluator_catalog_version,
+        attempt.evaluator_catalog_digest,
+    )
+    if actual != expected:
+        raise LabValidationError("RELATION_IDENTITY_MISMATCH", "attempt authority identity differs")
+
+
 def validate_relations(
     *,
     curricula: Iterable[CurriculumRecord],
@@ -116,21 +181,7 @@ def validate_relations(
             (exercise.context_manifest_id, exercise.context_manifest_version)
         )
         assert policy is not None and role is not None and context is not None
-        expected = (
-            exercise.curriculum_id, exercise.template_commit, context.digest(),
-            attempt_task_digest(exercise, policy, role, context, catalog),
-            policy.policy_id, policy.policy_version, policy.digest(),
-            role.role_id, role.role_version, role.digest(), exercise.sandbox_mode,
-            catalog.catalog_version, catalog.digest(),
-        )
-        actual = (
-            attempt.curriculum_id, attempt.starting_commit, attempt.context_digest,
-            attempt.task_digest, attempt.policy_id, attempt.policy_version, attempt.policy_digest,
-            attempt.role_id, attempt.role_version, attempt.role_digest, attempt.sandbox_mode,
-            attempt.evaluator_catalog_version, attempt.evaluator_catalog_digest,
-        )
-        if actual != expected:
-            raise LabValidationError("RELATION_IDENTITY_MISMATCH", "attempt authority identity differs")
+        validate_attempt_authority_binding(attempt, exercise, policy, role, context, catalog)
         if attempt.prior_attempt_id == attempt.attempt_id:
             raise LabValidationError("RELATION_CYCLE_INVALID", "attempt cannot reference itself")
         if attempt.prior_attempt_id is not None and attempt.prior_attempt_id not in attempts_by_id:

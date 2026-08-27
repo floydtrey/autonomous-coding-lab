@@ -25,6 +25,7 @@ from .policy import (
 from .storage import AtomicRecordStore
 from .test_catalog import CATALOG_SCHEMA, TestCatalog
 from .validation import attempt_task_digest
+from .workspace import prepare_workspace
 
 
 LOADERS: dict[str, Callable[[Any], Any]] = {
@@ -80,6 +81,11 @@ def _parser() -> argparse.ArgumentParser:
     command = commands.add_parser("show-attempt")
     command.add_argument("attempt_id")
     command.set_defaults(handler=_show_attempt)
+    command = commands.add_parser("prepare-workspace")
+    command.add_argument("attempt_id")
+    command.add_argument("--template-repository", required=True, type=Path)
+    command.add_argument("--workspace-root", required=True, type=Path)
+    command.set_defaults(handler=_prepare_workspace)
     command = commands.add_parser("transition-attempt")
     command.add_argument("attempt_id")
     command.add_argument("state", choices=[str(state) for state in AttemptState])
@@ -247,6 +253,16 @@ def _validate_target_repository(lab_root: Path, target_repository: Path, expecte
 
 def _show_attempt(args: argparse.Namespace) -> str:
     return _attempts(args).read(args.attempt_id).to_json(pretty=True)
+
+
+def _prepare_workspace(args: argparse.Namespace) -> str:
+    return prepare_workspace(
+        args.root,
+        args.attempt_id,
+        args.template_repository,
+        args.workspace_root,
+        occurred_at=_now(),
+    ).to_json(pretty=True)
 
 
 def _transition_attempt(args: argparse.Namespace) -> str:

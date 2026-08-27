@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active routing authority
-**Current phase:** Phase 2 Batch 1 contract checkpoint on `phase2/workspace-factory-v1`
+**Current phase:** Phase 2 Batch 2 workspace-preparation checkpoint
 
 ## Read order
 
@@ -14,7 +14,7 @@
    - `docs/PHASE_1_SPEC.md`
    - `docs/TESTING_AND_AUTHORITY.md`
 7. Select the smallest applicable profile from `TEST_CATALOG.md`.
-8. Phase 2 begins with its written specification and may not invoke the framework or a coding worker.
+8. Phase 2 may prepare synthetic workspaces but may not invoke the framework or a coding worker.
 
 ## Authority
 

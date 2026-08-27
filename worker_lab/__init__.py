@@ -13,6 +13,7 @@ from .models import (
 )
 from .policy import ContextManifest, PolicyRecord, RoleRecord
 from .test_catalog import TestCatalog
+from .workspace import canonical_path_digest, prepare_workspace
 
 __all__ = [
     "AttemptRecord",
@@ -29,4 +30,6 @@ __all__ = [
     "TestCatalog",
     "canonical_digest",
     "canonical_json",
+    "canonical_path_digest",
+    "prepare_workspace",
 ]

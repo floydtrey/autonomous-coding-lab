@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-27
-**Status:** Phase 2 Batch 1 integrated; workspace preparation is not implemented.
+**Status:** Phase 2 Batch 2 implemented; restart verification and disposal are not implemented.
 
 ## Repository
 
@@ -11,7 +11,7 @@
 - Corrected validation milestone: `v0.1.1-phase1`
 - Governance/publication milestone: `v0.1.2-phase1`
 - Integrated Phase 2 Batch 1: `12048ea` / PR `#1`
-- Active development branch: none
+- Active development branch: `phase2/workspace-preparation-v1`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
@@ -60,7 +60,7 @@ Batch 4 establishes:
 All four correction batches are committed and validated. See `MILESTONE_EVIDENCE.md` for exact
 recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.md`.
 
-## Phase 2 Batch 1 checkpoint
+## Phase 2 workspace checkpoints
 
 - `PHASE2_SPEC.md` defines the preparation, restart verification, safe-disposal, recovery, and backup
   contracts without authorizing framework or worker execution.
@@ -73,20 +73,27 @@ recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.m
   the focused workspace security/lifecycle/runtime boundary.
 - Active catalog digest:
   `sha256:fe3d50c4c0692a3d0fee0ea97690a3f1d0272a31052c0afe0489cd4e6fce44aa`.
-- No filesystem preparation, verification, cleanup, or CLI implementation exists yet.
+- Batch 2 adds strict attempt-authority revalidation, local-template and workspace-root validation,
+  independent staged cloning, detached exact-commit checkout, remote removal, context verification,
+  atomic publication, an ephemeral receipt, failure compensation, and `DRAFT` to `READY`.
+- Git subprocesses ignore inherited Git configuration, run non-interactively with finite timeouts,
+  and receive no GitHub credential-like or Git path-redirection variables.
+- Preparation rejects dirty or changed templates, linked/reparse paths, submodules, alternate object
+  stores, protected-root overlap, preexisting targets or receipts, and non-clean `DRAFT` attempts.
+- The complete catalog-selected Batch 2 profile union passed 148 tests with two Windows symlink
+  skips.
 
 ## Still unavailable
 
 - worker execution or framework invocation;
-- exercise workspace preparation, verification, and disposal;
+- restart verification and workspace disposal;
 - dashboard, real curricula, worker attempts, or graduation decisions.
 
 ## Next boundary
 
-The next work is Batch 2 staged preparation for synthetic exercise workspaces: exact local-template
-validation, independent detached cloning, context verification, compensation, receipt publication,
-and `DRAFT` to `READY`. Phase 2 does not authorize worker execution, framework invocation, or work in
-an external product repository.
+After Batch 2 integration, the next work is Batch 3 restart verification, receipt/path substitution
+detection, quarantine cleanup, interruption recovery, and `READY` to `ABORTED`. Phase 2 does not
+authorize worker execution, framework invocation, or work in an external product repository.
 
 ## Drift boundary
 

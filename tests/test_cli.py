@@ -23,8 +23,8 @@ def write_authority_fixture(tmp_path: Path, *, mismatched_context: bool = False)
     lab = tmp_path / "lab"
     target = tmp_path / "target"
     (target / "record_ledger").mkdir(parents=True)
-    (target / "README.md").write_text("instructions\n", encoding="utf-8")
-    (target / "record_ledger" / "models.py").write_text("# model\n", encoding="utf-8")
+    (target / "README.md").write_bytes(b"instructions\n")
+    (target / "record_ledger" / "models.py").write_bytes(b"# model\n")
     subprocess.run(["git", "init", "-q", str(target)], check=True)
     subprocess.run(["git", "-C", str(target), "add", "."], check=True)
     subprocess.run(
