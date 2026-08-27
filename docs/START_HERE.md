@@ -34,6 +34,8 @@ Lower levels cannot silently override higher levels. Historical success never gr
 | Resume or hand off work | `CURRENT_STATE.md` | The document named by its immediate next recommendation |
 | Framework runtime/security change | `CURRENT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md` | `WORKING_AGREEMENTS.md`, relevant source/tests |
 | Worker Lab planning or implementation | `CURRENT_STATE.md`, `WORKER_LAB_DESIGN.md`, `DECISIONS.md` | `PROVING_PROGRAM.md`, `ARCHITECTURE.md`, `WORKING_AGREEMENTS.md` |
+| Worker Lab Phase 1 coding | `CURRENT_STATE.md`, `PHASE_1_SPEC.md`, `TESTING_AND_AUTHORITY.md` | `WORKER_LAB_DESIGN.md`, relevant source/tests |
+| Test selection or worker authority decision | `TESTING_AND_AUTHORITY.md`, `CURRENT_STATE.md` | `DECISIONS.md`, exact task evidence |
 | Curriculum/exercise design | `CURRENT_STATE.md`, `PROVING_PROGRAM.md` | `WORKER_LAB_DESIGN.md`, approved playbooks when they exist |
 | Run or review a worker task | `CURRENT_STATE.md`, `WORKING_AGREEMENTS.md` | `ARCHITECTURE.md`, consumer profile, exact task/context evidence |
 | Mine Tracker worker graduation decision | `CURRENT_STATE.md`, `PROVING_PROGRAM.md`, `DECISIONS.md` | Worker Lab evidence and failure records; Mine Tracker's own active governance |
@@ -51,6 +53,8 @@ Each active fact should have one primary home:
 - `DECISIONS.md` — durable decisions and explicit supersession.
 - `PROVING_PROGRAM.md` — curriculum, measurement, failure policy, and Mine Tracker graduation gates.
 - `WORKER_LAB_DESIGN.md` — Worker Lab product boundary, records, security, MVP, and phases.
+- `PHASE_1_SPEC.md` — current implementation scope and finish line.
+- `TESTING_AND_AUTHORITY.md` — programming authority, numbered test catalog, selection, cadence, and evidence reuse.
 
 Do not copy the same evolving fact into several documents. Link to its primary home.
 

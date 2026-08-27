@@ -16,7 +16,7 @@
 - Complete recoverable bundle: `C:\Users\MineTrackerWorker\backups\autonomous-worker-framework\autonomous-worker-framework-20260827-d83854f.bundle`
 - Tagged foundation bundle: `C:\Users\MineTrackerWorker\backups\autonomous-worker-framework\autonomous-worker-framework-v0.1.0-foundation.bundle`
 - Remote: none configured; the framework is currently local-only.
-- Test inventory: 120 tests; all passed on integrated `main` before this state refresh.
+- Test inventory: 123 tests; all passed on integrated `main` before this state refresh.
 
 Recent capability checkpoints:
 
@@ -112,7 +112,7 @@ The first Mine Tracker task remains useful evidence, but one successful test-onl
 Recommended next sequence:
 
 1. Create the separate local `worker-lab` repository from the design in `WORKER_LAB_DESIGN.md`.
-2. Implement only the headless Lab contracts, local storage, exercise factory, attempt records, and evidence model.
+2. Follow `PHASE_1_SPEC.md` and `TESTING_AND_AUTHORITY.md`; implement only the headless protected records, canonical identity, storage, lifecycle, CLI, backup, and numbered-test planning boundary.
 3. Add the Local Record Ledger as the first curriculum family rather than as an unrelated application.
 4. Let workers complete multiple bounded tasks across its domain, persistence, import/export, reporting, failure, and recovery boundaries.
 5. Add a read-only evidence dashboard only after the headless workflow produces real attempt data.
@@ -122,4 +122,4 @@ Recommended next sequence:
 
 Use this concise prompt when a new conversation is required:
 
-> Read `AGENTS.md` and `docs/START_HERE.md` in `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`. Verify Git state, then follow the Worker Lab task route. Do not load unrelated or historical documents by default. Preserve all security and authority boundaries, keep meaningful Mine Tracker worker changes paused until the proving gates are met, and update `CURRENT_STATE.md` at the next milestone.
+> Read `AGENTS.md` and `docs/START_HERE.md` in `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`. Verify Git state, then follow the Worker Lab Phase 1 route to `PHASE_1_SPEC.md` and `TESTING_AND_AUTHORITY.md`. Do not load unrelated or historical documents by default. Preserve all security and authority boundaries, keep experimental protected-project changes paused until the proving gates are met, and update `CURRENT_STATE.md` at the next milestone.

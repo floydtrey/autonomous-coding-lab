@@ -21,6 +21,8 @@ def test_handoff_document_set_exists_and_is_linked_from_readme():
         "DECISIONS.md",
         "PROVING_PROGRAM.md",
         "WORKER_LAB_DESIGN.md",
+        "PHASE_1_SPEC.md",
+        "TESTING_AND_AUTHORITY.md",
     ):
         assert (ROOT / "docs" / path).is_file()
         assert path in router
@@ -73,9 +75,9 @@ def test_working_agreements_require_current_state_maintenance():
     assert "mix framework changes with Mine Tracker product changes" in agreements
 
 
-def test_proving_program_defines_objective_mine_tracker_graduation():
+def test_proving_program_defines_objective_protected_project_graduation():
     program = _read("docs/PROVING_PROGRAM.md")
-    assert "## Graduation gates for Mine Tracker product work" in program
+    assert "## Graduation gates for protected project work" in program
     assert "at least two disposable applications" in program
     assert "at least six bounded implementation tasks" in program
     assert "backup and rollback" in program.lower()
@@ -92,3 +94,30 @@ def test_worker_lab_design_preserves_three_repository_and_judge_boundaries():
     assert "expected evaluator behavior cannot be changed by the worker" in design
     assert "Track A — Mine Tracker completion" in design
     assert "Track B — Worker Lab and proving" in design
+
+
+def test_phase_one_spec_has_finish_line_and_exclusions():
+    spec = _read("docs/PHASE_1_SPEC.md")
+    assert "## Phase 1 acceptance criteria" in spec
+    assert "## Explicit exclusions" in spec
+    assert "## Drift gate" in spec
+    assert "It does not run a coding worker yet" in spec
+
+
+def test_testing_policy_has_stable_ids_selection_reuse_and_authority():
+    policy = _read("docs/TESTING_AND_AUTHORITY.md")
+    assert "IDs are never reused or renumbered" in policy
+    assert "## Selection algorithm" in policy
+    assert "Take the union" in policy
+    assert "## Evidence reuse" in policy
+    assert "Trusted programmer/controller" in policy
+    assert "## Current-phase drift control" in policy
+
+
+def test_proving_graduation_is_project_agnostic():
+    program = _read("docs/PROVING_PROGRAM.md")
+    heading = "## Graduation gates for protected project work"
+    assert heading in program
+    graduation = program.split(heading, 1)[1]
+    assert "any consumer project" in graduation
+    assert "Mine Tracker product source" not in graduation

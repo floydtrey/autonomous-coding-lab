@@ -91,9 +91,9 @@ Use the same progression rather than asking for a whole application at once:
 9. Backup and rollback rehearsal.
 10. Retrospective: failures, wasted effort, missing checks, and framework changes.
 
-## Graduation gates for Mine Tracker product work
+## Graduation gates for protected project work
 
-Workers do not graduate merely because several PRs are green. Before a worker changes Mine Tracker product source, require all of the following:
+Workers do not graduate merely because several PRs are green. Before a worker changes protected product source in any consumer project, require all of the following:
 
 - at least two disposable applications completed through backup/rollback;
 - at least six bounded implementation tasks completed across different concerns;
@@ -104,9 +104,9 @@ Workers do not graduate merely because several PRs are green. Before a worker ch
 - an independent diff review and exact-candidate gate used consistently;
 - a plain-language approval packet that the product owner finds understandable;
 - a recovery drill proving a prior working version can be restored;
-- trusted-controller review concluding that worker use reduces, rather than increases, expected Mine Tracker effort and risk.
+- trusted-controller review concluding that worker use reduces, rather than increases, expected project effort and risk.
 
-After graduation, resume with test-only or tiny low-risk Mine Tracker tasks. Authentication, permissions, schema/migrations, transaction/audit authority, durable identity, consequential Vera behavior, dependencies/installers, governance, autonomy machinery, and checkpoint authority remain separately reserved.
+After graduation, begin with test-only or tiny low-risk project tasks under that consumer's profile. Authentication, permissions, schema/migrations, transaction/audit authority, durable identity, consequential AI execution, dependencies/installers, governance, autonomy machinery, and checkpoint authority remain separately reserved unless explicitly granted.
 
 ## Failure policy
 

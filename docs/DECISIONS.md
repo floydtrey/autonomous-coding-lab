@@ -76,3 +76,19 @@ Workers may implement bounded Worker Lab modules, exercise templates, and traini
 ## D018 — Longer proving timeline is an intentional risk decision
 
 The additional Worker Lab and curriculum work intentionally extends the time before workers receive broader Mine Tracker access. This cost is accepted to reduce production mistakes, improve efficiency, expose framework weaknesses safely, and create reusable evaluation and training infrastructure.
+
+## D019 — Worker capability and graduation are project-agnostic
+
+Worker Lab evaluates classes of project tasks and risk boundaries, not Mine Tracker-specific permission labels. Each consumer supplies its own profile and protected areas. Mine Tracker remains the first protected consumer and current reason for caution, but general Worker Lab authority, tests, and graduation language must remain reusable across future projects.
+
+## D020 — Stable numbered tests replace broad repeated quick suites
+
+Tests use permanent IDs, versioned project bindings, change selectors, cost classes, and named profiles. The trusted selector runs the union of relevant IDs, cheapest/highest-signal first, and escalates unmapped changes. Routine work uses precise focused tests; full applicable suites run at candidate, integration, and milestone boundaries only as required. Exact identity-matched evidence may be reused.
+
+## D021 — Trusted programmer AI has code acceptance and worker-evaluation authority
+
+The trusted programmer/controller AI may make technical decisions, accept or reject code, determine sufficient evidence, evaluate worker performance, prescribe improvement, and defer non-phase work. This authority is distinct from restricted AI roles and remains bounded by current user direction, platform/system restrictions, destructive/external authorization safety, and reserved product/business decisions.
+
+## D022 — Functional phase completion outranks endless perfection
+
+Each phase has written exit criteria. Improvements that do not complete a criterion, fix a blocker, or address material security/stability risk go to a parking lot. The trusted programmer/controller is responsible for resisting drift and ending a phase when its functional acceptance gate passes rather than pursuing unbounded refinement.
