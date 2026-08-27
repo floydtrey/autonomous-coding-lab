@@ -5,9 +5,11 @@ from pathlib import Path
 import pytest
 
 from tools.local_worker_harness import (
+    ConsumerValidationPlan,
     FIXTURE_TASK_VERSION,
     FixtureTask,
     HarnessRuntimeError,
+    TrustedValidationCommand,
     candidate_content_digest,
     build_fixture_codex_prompt,
     run_codex_fixture_job,
@@ -220,6 +222,48 @@ def test_full_validation_stops_at_git_diff_integrity_failure(tmp_path, monkeypat
     assert result.result == "fail"
     assert result.failure_code == "LOCAL_DIFF_CHECK_FAILED"
     assert len(result.stages) == 1
+
+
+def test_trusted_consumer_validation_is_recorded_in_worker_result(tmp_path):
+    repo = _repo(tmp_path, "A")
+    plan = ConsumerValidationPlan(
+        quick=(TrustedValidationCommand("Consumer quick", ("git", "status", "--short")),),
+        full=(TrustedValidationCommand("Consumer full", ("git", "diff", "--check")),),
+    )
+
+    result = run_fixture_job(_task("A", "B"), repo, validation_plan=plan)
+
+    assert [stage.name for stage in result.quick_validation.stages] == [
+        "Deterministic fixture target validation",
+        "Consumer quick",
+    ]
+    assert [stage.name for stage in result.full_validation.stages] == [
+        "Git candidate diff integrity",
+        "Full deterministic fixture validation",
+        "Consumer full",
+    ]
+    assert result.ready_for_repository_handoff is True
+
+
+def test_trusted_consumer_validation_stops_at_first_failed_command(tmp_path):
+    repo = _repo(tmp_path, "A")
+    marker = tmp_path / "must-not-run.txt"
+    plan = ConsumerValidationPlan(
+        full=(
+            TrustedValidationCommand("Failing consumer test", ("git", "rev-parse", "missing")),
+            TrustedValidationCommand(
+                "Later command",
+                ("python", "-c", f"open(r'{marker}', 'w').write('ran')"),
+            ),
+        )
+    )
+
+    result = run_fixture_job(_task("A", "B"), repo, validation_plan=plan)
+
+    assert result.worker.result == "fail"
+    assert result.full_validation.failure_code == "CONSUMER_FULL_VALIDATION_FAILED"
+    assert [stage.name for stage in result.full_validation.stages][-1] == "Failing consumer test"
+    assert marker.exists() is False
 
 
 def test_dirty_repository_stops_before_codex_executor(tmp_path):

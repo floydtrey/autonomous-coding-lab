@@ -73,6 +73,38 @@ class HarnessRuntimeError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class TrustedValidationCommand:
+    name: str
+    argv: tuple[str, ...]
+    timeout_seconds: int = 900
+
+    def __post_init__(self) -> None:
+        if not self.name.strip() or not self.argv or any(not item for item in self.argv):
+            raise HarnessSetupError("trusted validation command requires a name and argv")
+        if self.timeout_seconds <= 0:
+            raise HarnessSetupError("trusted validation timeout must be positive")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "argv": list(self.argv),
+            "timeout_seconds": self.timeout_seconds,
+        }
+
+
+@dataclass(frozen=True)
+class ConsumerValidationPlan:
+    quick: tuple[TrustedValidationCommand, ...] = ()
+    full: tuple[TrustedValidationCommand, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "quick": [command.to_dict() for command in self.quick],
+            "full": [command.to_dict() for command in self.full],
+        }
+
+
+@dataclass(frozen=True)
 class FixtureTask:
     contract_version: str
     task_id: str
@@ -226,9 +258,15 @@ def require_clean_workspace(repo_root: Path) -> None:
         raise HarnessRuntimeError("target repository must be clean before a worker job starts")
 
 
-def task_contract_digest(task: FixtureTask) -> str:
+def task_contract_digest(
+    task: FixtureTask,
+    validation_plan: ConsumerValidationPlan | None = None,
+) -> str:
+    contract: dict[str, Any] = {"task": task.to_dict()}
+    if validation_plan is not None:
+        contract["trusted_validation"] = validation_plan.to_dict()
     encoded = json.dumps(
-        task.to_dict(),
+        contract,
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
@@ -319,7 +357,42 @@ def _not_run_validation() -> ValidationResult:
     return ValidationResult(result="not-run", stages=(), failure_code=None)
 
 
-def run_fixture_full_validation(repo_root: Path, task: FixtureTask) -> ValidationResult:
+def _run_trusted_validation(
+    repo_root: Path,
+    commands: Sequence[TrustedValidationCommand],
+    *,
+    failure_code: str,
+) -> ValidationResult:
+    stages: list[ValidationStage] = []
+    for command in commands:
+        try:
+            process = subprocess.run(
+                list(command.argv),
+                cwd=repo_root,
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=command.timeout_seconds,
+                shell=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            stages.append(ValidationStage(command.name, "fail", failure_code))
+            return ValidationResult("fail", tuple(stages), failure_code)
+        if process.returncode != 0:
+            stages.append(ValidationStage(command.name, "fail", failure_code))
+            return ValidationResult("fail", tuple(stages), failure_code)
+        stages.append(ValidationStage(command.name, "pass"))
+    return ValidationResult("pass", tuple(stages))
+
+
+def run_fixture_full_validation(
+    repo_root: Path,
+    task: FixtureTask,
+    trusted_commands: Sequence[TrustedValidationCommand] = (),
+) -> ValidationResult:
     stages: list[ValidationStage] = []
     try:
         _run_git(repo_root, "diff", "--check")
@@ -357,6 +430,18 @@ def run_fixture_full_validation(repo_root: Path, task: FixtureTask) -> Validatio
     stages.append(
         ValidationStage(name="Full deterministic fixture validation", result="pass")
     )
+    trusted = _run_trusted_validation(
+        repo_root,
+        trusted_commands,
+        failure_code="CONSUMER_FULL_VALIDATION_FAILED",
+    )
+    stages.extend(trusted.stages)
+    if trusted.result == "fail":
+        return ValidationResult(
+            result="fail",
+            stages=tuple(stages),
+            failure_code=trusted.failure_code,
+        )
     return ValidationResult(result="pass", stages=tuple(stages))
 
 
@@ -426,8 +511,18 @@ def _failure_result(
     return result
 
 
-def run_fixture_job(task: FixtureTask, repo_root: Path) -> WorkerResult:
-    return _run_fixture_job(task, repo_root, apply_fixture_mutation)
+def run_fixture_job(
+    task: FixtureTask,
+    repo_root: Path,
+    *,
+    validation_plan: ConsumerValidationPlan | None = None,
+) -> WorkerResult:
+    return _run_fixture_job(
+        task,
+        repo_root,
+        apply_fixture_mutation,
+        validation_plan=validation_plan,
+    )
 
 
 def run_codex_fixture_job(
@@ -436,6 +531,7 @@ def run_codex_fixture_job(
     framework_repo: Path,
     *,
     executor: CodexExecutor = execute_codex,
+    validation_plan: ConsumerValidationPlan | None = None,
 ) -> WorkerResult:
     def codex_mutation(root: Path, fixture_task: FixtureTask) -> None:
         executor(
@@ -457,7 +553,13 @@ def run_codex_fixture_job(
             )
         )
 
-    return _run_fixture_job(task, repo_root, codex_mutation, repair=codex_repair)
+    return _run_fixture_job(
+        task,
+        repo_root,
+        codex_mutation,
+        repair=codex_repair,
+        validation_plan=validation_plan,
+    )
 
 
 def _run_fixture_job(
@@ -466,10 +568,12 @@ def _run_fixture_job(
     mutation: Callable[[Path, FixtureTask], None],
     *,
     repair: Callable[[Path, FixtureTask, str], None] | None = None,
+    validation_plan: ConsumerValidationPlan | None = None,
 ) -> WorkerResult:
     root = repo_root.resolve()
     base_sha = repository_head(root)
-    digest = task_contract_digest(task)
+    plan = validation_plan or ConsumerValidationPlan()
+    digest = task_contract_digest(task, plan)
 
     try:
         require_clean_workspace(root)
@@ -678,7 +782,37 @@ def _run_fixture_job(
             ),
         ),
     )
-    full = run_fixture_full_validation(root, task)
+    trusted_quick = _run_trusted_validation(
+        root,
+        plan.quick,
+        failure_code="CONSUMER_QUICK_VALIDATION_FAILED",
+    )
+    if trusted_quick.result == "fail":
+        quick = ValidationResult(
+            "fail",
+            quick.stages + trusted_quick.stages,
+            trusted_quick.failure_code,
+        )
+        code = trusted_quick.failure_code or "CONSUMER_QUICK_VALIDATION_FAILED"
+        return _failure_result(
+            task=task,
+            base_sha=base_sha,
+            task_digest=digest,
+            boundary="quick-validation",
+            code=code,
+            summary="trusted consumer quick validation failed",
+            expected="all trusted consumer quick validation stages pass",
+            observed=f"failure_code={code}",
+            retryable=False,
+            next_action="Inspect the failed trusted validation stage before retrying.",
+            repo_root=root,
+            patch_result=patch_result,
+            quick_result=quick,
+            repair_attempts=repair_attempts,
+            first_failure=first_failure,
+        )
+    quick = ValidationResult("pass", quick.stages + trusted_quick.stages)
+    full = run_fixture_full_validation(root, task, plan.full)
     if full.result == "fail":
         code = full.failure_code or "LOCAL_FULL_VALIDATION_FAILED"
         return _failure_result(
