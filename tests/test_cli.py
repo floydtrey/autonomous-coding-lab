@@ -5,10 +5,11 @@ from copy import deepcopy
 from pathlib import Path
 
 from worker_lab.cli import main
-from tests.test_models import curriculum_mapping, exercise_mapping
+from worker_lab.evidence import content_digest, evidence_identity_digest
+from tests.test_models import curriculum_mapping, evidence_mapping, exercise_mapping
 from tests.test_policy import context_mapping, policy_mapping, role_mapping
 from tests.test_test_catalog import catalog
-from worker_lab.models import ExerciseRecord
+from worker_lab.models import EvidenceRecord, ExerciseRecord
 from worker_lab.policy import ContextManifest, PolicyRecord, RoleRecord
 from worker_lab.validation import attempt_task_digest
 
@@ -133,3 +134,87 @@ def test_create_attempt_rejects_dirty_target_before_state_write(tmp_path: Path, 
     assert main(["--root", str(lab), "create-attempt", "--exercise", "record-model", "--version", "1", "--target-repository", str(target)]) == 2
     assert "ERROR ATTEMPT_REPOSITORY_DIRTY" in capsys.readouterr().err
     assert not (lab / "state").exists()
+
+
+def test_complete_phase1_operator_workflow(tmp_path: Path, capsys) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+
+    def succeed(arguments: list[str]) -> str:
+        assert main(arguments) == 0
+        captured = capsys.readouterr()
+        assert captured.err == ""
+        return captured.out
+
+    curriculum_path = lab / "curricula" / "curricula" / "record-ledger.json"
+    assert succeed(["validate-definition", str(curriculum_path)]).startswith("VALID sha256:")
+    assert "record-ledger\tactive" in succeed(["--root", str(lab), "list-curricula"])
+    assert json.loads(
+        succeed(["--root", str(lab), "show-curriculum", "record-ledger"])
+    )["curriculum_id"] == "record-ledger"
+    assert json.loads(
+        succeed([
+            "--root", str(lab), "show-exercise", "record-model", "--version", "1",
+        ])
+    )["exercise_id"] == "record-model"
+
+    created = json.loads(succeed([
+        "--root", str(lab), "create-attempt", "--exercise", "record-model",
+        "--version", "1", "--target-repository", str(target),
+    ]))
+    attempt_id = created["attempt_id"]
+    candidate = "sha256:" + "c" * 64
+    for state, extra in (
+        ("READY", []),
+        ("RUNNING", []),
+        ("CANDIDATE", ["--candidate-digest", candidate]),
+        ("EVALUATING", []),
+    ):
+        transitioned = json.loads(succeed([
+            "--root", str(lab), "transition-attempt", attempt_id, state, *extra,
+        ]))
+        assert transitioned["state"] == state
+
+    content = b'{"exit_code":0,"summary":"passed"}\n'
+    retained_path = lab / "state" / "evidence-content" / "T005.json"
+    retained_path.parent.mkdir(parents=True)
+    retained_path.write_bytes(content)
+    evidence = evidence_mapping()
+    evidence.update({
+        "attempt_id": attempt_id,
+        "test_catalog_digest": created["evaluator_catalog_digest"],
+        "candidate_digest": candidate,
+        "base_commit": created["starting_commit"],
+        "environment_digest": "sha256:" + "d" * 64,
+        "content_path": "evidence-content/T005.json",
+        "verification_state": "unverified",
+    })
+    provisional = EvidenceRecord.from_mapping(evidence)
+    digest = evidence_identity_digest(provisional, content_digest(content))
+    evidence["evidence_digest"] = digest
+    write_json(
+        lab / "state" / "evidence" / f"{digest.removeprefix('sha256:')}.json",
+        evidence,
+    )
+    assert succeed(["--root", str(lab), "verify-evidence", digest]).strip() == (
+        f"VERIFIED {digest}"
+    )
+
+    for state, extra in (
+        ("PASSED", []),
+        ("CLOSED", ["--cleanup-outcome", "workspace absent"]),
+    ):
+        transitioned = json.loads(succeed([
+            "--root", str(lab), "transition-attempt", attempt_id, state, *extra,
+        ]))
+        assert transitioned["state"] == state
+
+    backup = tmp_path / "backup"
+    assert succeed(["--root", str(lab), "backup", str(backup)]).startswith("VERIFIED ")
+    assert succeed(["verify-backup", str(backup)]).startswith("VERIFIED ")
+    restored = tmp_path / "restored"
+    assert succeed(["restore", str(backup), str(restored)]).startswith("VERIFIED ")
+    restored_attempt = json.loads(
+        succeed(["--root", str(restored), "show-attempt", attempt_id])
+    )
+    assert restored_attempt["state"] == "CLOSED"
+    assert restored_attempt["candidate_digest"] == candidate
