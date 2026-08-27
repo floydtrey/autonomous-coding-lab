@@ -53,3 +53,11 @@ The user explicitly authorized ChatGPT-managed Codex workers to inspect the priv
 ## D013 — Human-readable approval evidence
 
 The product owner is not expected to validate unfamiliar code. Meaningful changes should be presented with behavior, acceptance evidence, files changed, risks, unresolved concerns, and rollback identity. The trusted controller remains responsible for technical review.
+
+## D014 — Disposable applications before broader Mine Tracker work
+
+Experimental workers will mature on isolated disposable applications before receiving broader Mine Tracker product authority. These exercises do not permanently train the underlying model; they improve the framework, prompts, task contracts, validation, failure catalog, approval evidence, and controller judgment. Mine Tracker product-source worker changes remain paused until the objective graduation gates in `PROVING_PROGRAM.md` are met.
+
+## D015 — Enterprise direction informs boundaries, not premature architecture
+
+Mine Tracker may become the foundation of an enterprise safety systems suite. Current work should favor security, stability, modularity, efficient operation, and clean expansion seams, but must not implement speculative enterprise, multi-site, or generalized safety-suite architecture before current needs and proving evidence justify it.

@@ -12,6 +12,7 @@ Read these documents in order when starting or resuming development:
 2. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system map, trust boundaries, and data flow.
 3. [`docs/WORKING_AGREEMENTS.md`](docs/WORKING_AGREEMENTS.md) — roles, development loop, review rules, and maintenance expectations.
 4. [`docs/DECISIONS.md`](docs/DECISIONS.md) — decisions that must not be silently revisited.
+5. [`docs/PROVING_PROGRAM.md`](docs/PROVING_PROGRAM.md) — disposable-app curriculum and Mine Tracker graduation gates.
 
 ## Non-negotiable boundaries
 
@@ -39,4 +40,4 @@ Milestone gate:
 python tools\local_validate.py full
 ```
 
-The current framework suite contains 116 tests. See `docs/CURRENT_STATE.md` for the last certified checkpoint rather than assuming the working tree is current.
+The current framework suite contains 117 tests. See `docs/CURRENT_STATE.md` for the last certified checkpoint rather than assuming the working tree is current.

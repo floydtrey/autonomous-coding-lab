@@ -1,18 +1,19 @@
 # Current State
 
 **Last updated:** 2026-08-27
-**Status:** Good handoff/pause point; first real Mine Tracker worker task certified.
+**Status:** Foundation integrated; Mine Tracker product work paused for disposable-application proving.
 
 ## Exact repository state
 
 ### Autonomous Worker Framework
 
 - Path: `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`
-- Branch: `chore/local-worker-harness-v1`
-- Recorded pre-documentation head: `b2ae10fdf14317558f08d9bede583489d3aee137`
-- Working tree at documentation start: clean
-- `main` remains at `6bef530`; the active framework branch has not yet been integrated into framework `main` or published to a remote.
-- Test inventory before these documentation files: 112 tests collected.
+- Branch: `main`
+- Integrated foundation commit: `d83854f8eb1b365a93b431c007286a12ed9d6366`
+- Named milestone: `v0.1.0-foundation` (created after this state refresh passes validation)
+- Complete recoverable bundle: `C:\Users\MineTrackerWorker\backups\autonomous-worker-framework\autonomous-worker-framework-20260827-d83854f.bundle`
+- Remote: none configured; the framework is currently local-only.
+- Test inventory: 117 tests; all passed on integrated `main` before this state refresh.
 
 Recent capability checkpoints:
 
@@ -97,22 +98,24 @@ First real task evidence:
 - Worker target must be a different Git repository from the framework
 - Workers have no GitHub publishing or merge role
 
-## Immediate next recommendation
+## Active development policy
 
-Do not jump directly to broad feature work.
+Meaningful Mine Tracker worker changes are paused while the framework is exercised on disposable applications. Mine Tracker remains available for trusted-controller development and may receive emergency/manual fixes, but experimental workers should not alter its product behavior until the proving gates in `PROVING_PROGRAM.md` are met.
+
+The first Mine Tracker task remains useful evidence, but one successful test-only task is not enough to establish broad trust.
+
+## Immediate next recommendation
 
 Recommended next sequence:
 
-1. Review and commit this documentation checkpoint.
-2. Decide how user goals should enter the system: controller-written task contracts first, with automatic contract drafting kept advisory.
-3. Run one or two additional low-risk real tasks, increasing scope slowly:
-   - one additional test-only correctness gap in a different subsystem;
-   - then one tiny product-source behavior improvement with an explicit regression test and no protected-authority impact.
-4. After three successful real tasks, review repeated manual steps and automate only the demonstrated bottleneck.
-5. Add a standardized human-readable approval packet before meaningful UI or behavior changes become routine.
+1. Complete and tag the framework foundation checkpoint.
+2. Create Proving App 1: a dependency-light local CLI record system with deterministic validation.
+3. Let workers complete multiple bounded tasks across its schema-free domain, persistence, import/export, and reporting boundaries.
+4. Build Proving App 2 only after reviewing App 1 failures and updating framework rules.
+5. Do not resume Mine Tracker product-source worker changes until the graduation gates in `PROVING_PROGRAM.md` are satisfied.
 
 ## New-chat handoff prompt
 
 Use this concise prompt when a new conversation is required:
 
-> Continue the Autonomous Worker Framework from `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`. Read `README.md`, then `docs/CURRENT_STATE.md`, `docs/ARCHITECTURE.md`, `docs/WORKING_AGREEMENTS.md`, and `docs/DECISIONS.md` before acting. Verify the recorded Git heads and working-tree cleanliness; treat the documents as context, not a substitute for Git evidence. Preserve all security and authority boundaries. Continue from the immediate next recommendation and update `CURRENT_STATE.md` at the next milestone.
+> Continue the Autonomous Worker Framework from `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`. Read `README.md`, then `docs/CURRENT_STATE.md`, `docs/ARCHITECTURE.md`, `docs/WORKING_AGREEMENTS.md`, `docs/DECISIONS.md`, and `docs/PROVING_PROGRAM.md` before acting. Verify the recorded Git heads and working-tree cleanliness; treat the documents as context, not a substitute for Git evidence. Preserve all security and authority boundaries. Keep meaningful Mine Tracker worker changes paused until the proving-program graduation gates are met. Continue from the immediate next recommendation and update `CURRENT_STATE.md` at the next milestone.
