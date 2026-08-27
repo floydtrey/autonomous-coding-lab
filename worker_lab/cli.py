@@ -11,6 +11,7 @@ from typing import Any, Callable
 
 from .backup import create_backup, restore_backup, verify_backup
 from .attempt_store import AttemptStore
+from .evidence import verify_evidence
 from .errors import LabValidationError
 from .lifecycle import transition_attempt
 from .models import (
@@ -257,10 +258,7 @@ def _transition_attempt(args: argparse.Namespace) -> str:
 
 
 def _verify_evidence(args: argparse.Namespace) -> str:
-    key = args.digest.removeprefix("sha256:")
-    record = _state(args).read(f"evidence/{key}.json", EvidenceRecord.from_mapping)
-    if record.evidence_digest != args.digest:
-        raise LabValidationError("EVIDENCE_IDENTITY_MISMATCH", "requested digest differs from record")
+    record = verify_evidence(args.root, args.digest)
     return f"VERIFIED {record.evidence_digest}"
 
 

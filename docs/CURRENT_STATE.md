@@ -37,14 +37,21 @@ Batch 2 establishes:
 - canonical path and writable/protected scope validation; and
 - preserved curriculum exercise order with deterministic set-like fields.
 
-Batch 1 is committed. Batch 2 is implemented and validated for checkpoint. Batches 3–4 remain
+Batch 3 establishes:
+
+- dependency-respecting test plans with cost-aware selection among currently eligible tests;
+- retained-content evidence identities bound directly to attempt, candidate, base, environment,
+  exact catalog digest, and test;
+- backup scope limited to durable `curricula/` and `state/` content; and
+- staged, verified, empty-destination-only backup publication and restore with failure cleanup.
+
+Batches 1–2 are committed. Batch 3 is implemented and validated for checkpoint. Batch 4 remains
 incomplete, and Phase 2 remains closed.
 
 ## Still unavailable
 
 - worker execution or framework invocation;
 - exercise factories and disposable attempt workspaces;
-- trustworthy retained-evidence verification;
 - corrected backup/restore milestone evidence;
 - dashboard, real curricula, worker attempts, or graduation decisions.
 

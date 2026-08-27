@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from heapq import heappop, heappush
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import PurePosixPath
@@ -357,10 +358,7 @@ class TestCatalog:
             raise LabValidationError(
                 "TEST_SELECTION_RETIRED", f"selected profiles depend on retired tests: {sorted(retired)}"
             )
-        ordered = tuple(
-            test.test_id
-            for test in sorted(active_selected, key=lambda item: (COST_ORDER[item.cost_class], item.test_id))
-        )
+        ordered = self._order_selected(selected, tests)
         return TestPlan(
             self.catalog_version,
             self.digest(),
@@ -378,6 +376,37 @@ class TestCatalog:
                 if required not in selected:
                     selected.add(required)
                     pending.append(required)
+
+    def _order_selected(
+        self, selected: set[str], tests: Mapping[str, TestDefinition]
+    ) -> tuple[str, ...]:
+        remaining = {
+            test_id: len(set(tests[test_id].prerequisites).intersection(selected))
+            for test_id in selected
+        }
+        dependents: dict[str, list[str]] = {test_id: [] for test_id in selected}
+        for test_id in selected:
+            for required in tests[test_id].prerequisites:
+                if required in selected:
+                    dependents[required].append(test_id)
+        ready: list[tuple[int, str]] = []
+        for test_id, count in remaining.items():
+            if count == 0:
+                heappush(ready, (COST_ORDER[tests[test_id].cost_class], test_id))
+        ordered: list[str] = []
+        while ready:
+            _, test_id = heappop(ready)
+            ordered.append(test_id)
+            for dependent in dependents[test_id]:
+                remaining[dependent] -= 1
+                if remaining[dependent] == 0:
+                    heappush(
+                        ready,
+                        (COST_ORDER[tests[dependent].cost_class], dependent),
+                    )
+        if len(ordered) != len(selected):
+            raise LabValidationError("TEST_DEPENDENCY_INVALID", "selected tests contain a cycle")
+        return tuple(ordered)
 
     def _assert_acyclic(self) -> None:
         graph = {item.test_id: item.prerequisites for item in self.tests}

@@ -84,6 +84,28 @@ def test_cheapest_tests_run_before_minute_tests_at_milestone():
     assert plan.test_ids[-1] == "T020"
 
 
+def test_cost_order_never_places_a_test_before_its_prerequisite():
+    value = TestCatalog(
+        CATALOG_SCHEMA,
+        "dependency-order:v1",
+        tests=(
+            definition("T001", cost=CostClass.MINUTE, path_suffixes=(".py",)),
+            definition(
+                "T002",
+                cost=CostClass.MILLISECOND,
+                path_suffixes=(".py",),
+                prerequisites=("T001",),
+            ),
+            definition("T003", mode=TestMode.ALWAYS, cost=CostClass.MILLISECOND),
+        ),
+        profiles=(),
+    )
+    plan = value.select(ChangeFacts(("worker_lab/models.py",)))
+    assert plan.test_ids == ("T003", "T001", "T002")
+    assert plan.catalog_version == value.catalog_version
+    assert plan.catalog_digest == value.digest()
+
+
 def test_unmapped_changed_path_fails_closed():
     with pytest.raises(LabValidationError) as error:
         catalog().select(ChangeFacts(("styles/main.css",)))

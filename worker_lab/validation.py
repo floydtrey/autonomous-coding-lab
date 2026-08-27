@@ -159,6 +159,7 @@ def validate_relations(
             or item.candidate_digest != attempt.candidate_digest
             or item.base_commit != attempt.starting_commit
             or item.test_catalog_version != attempt.evaluator_catalog_version
+            or item.test_catalog_digest != attempt.evaluator_catalog_digest
             or item.test_id not in test_ids
         ):
             raise LabValidationError("RELATION_IDENTITY_MISMATCH", "evidence identity differs")

@@ -105,6 +105,7 @@ def evidence_mapping():
         "attempt_id": "ATTEMPT-000001",
         "test_id": "T005",
         "test_catalog_version": "worker-lab-v1",
+        "test_catalog_digest": DIGEST,
         "candidate_digest": DIGEST,
         "base_commit": SHA,
         "environment_digest": DIGEST,

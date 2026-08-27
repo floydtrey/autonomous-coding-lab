@@ -119,6 +119,7 @@ def test_retry_cannot_predate_prior_completion() -> None:
 def test_evidence_must_match_attempt_candidate_base_catalog_and_test() -> None:
     graph = valid_graph(with_candidate=True)
     evidence = evidence_mapping()
+    evidence["test_catalog_digest"] = graph["attempts"][0].evaluator_catalog_digest
     graph["evidence"] = [EvidenceRecord.from_mapping(evidence)]
     validate_relations(**graph)
     evidence["base_commit"] = "c" * 40

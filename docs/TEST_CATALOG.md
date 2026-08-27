@@ -26,10 +26,12 @@ environment, evidence fields, and retirement replacement.
 | T011 | Directly affected unit tests | Framework-selected project binding |
 | T012 | CLI contract | CLI tests |
 | T017 | Failure and cleanup behavior | Lifecycle/storage tests |
-| T019 | Focused integration | Validation/CLI tests |
+| T019 | Focused integration | Validation/evidence/CLI tests |
 | T020 | Full project suite | Complete pytest suite |
 | T021 | Backup and rollback drill | Trusted-controller milestone drill |
 
-Profiles select the union of applicable IDs, add prerequisites, and stop at the first failed
-required boundary. Unmapped paths or capabilities fail closed. Retired IDs remain reserved and name
-their replacement; they are never renumbered or reassigned.
+Profiles select the union of applicable IDs and add all prerequisites. Plans use prerequisite-first
+topological order; among tests currently eligible to run, lower-cost tests run first and permanent ID
+breaks ties. Every plan retains the exact catalog version and digest. Execution stops at the first
+failed required boundary. Unmapped paths or capabilities fail closed. Retired IDs remain reserved
+and name their replacement; they are never renumbered or reassigned.

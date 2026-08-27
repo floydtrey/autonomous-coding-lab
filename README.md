@@ -20,12 +20,16 @@ python -m worker_lab.cli --help
 python -m worker_lab.cli validate-definition <path>
 python -m worker_lab.cli --root <lab-root> list-curricula
 python -m worker_lab.cli --root <lab-root> create-attempt --exercise <id> --version <n> --target-repository <path>
+python -m worker_lab.cli --root <lab-root> verify-evidence <sha256:digest>
 python -m worker_lab.cli --root <lab-root> backup <destination>
 python -m worker_lab.cli verify-backup <backup>
 python -m worker_lab.cli restore <backup> <empty-destination>
 ```
 
 Failures return a nonzero status and a stable `ERROR <CODE>:` diagnostic.
+
+Backups include only durable `curricula/` and `state/` content. Repository internals, source code,
+caches, temporary files, and disposable workspaces are outside backup scope.
 
 ## Tests
 

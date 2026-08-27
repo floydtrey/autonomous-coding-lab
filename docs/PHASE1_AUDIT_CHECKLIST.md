@@ -33,12 +33,12 @@ Batch 1 remains checked only if its focused and complete regression profiles pas
 
 ## Batch 3 — Test planning, evidence, and backup
 
-- [ ] C11 — Test plans use dependency-respecting, cost-aware order and retain exact catalog identity.
-- [ ] C12 — Evidence verification hashes content and binds attempt, candidate, base, environment,
+- [x] C11 — Test plans use dependency-respecting, cost-aware order and retain exact catalog identity.
+- [x] C12 — Evidence verification hashes content and binds attempt, candidate, base, environment,
   catalog, and test identity before reporting `VERIFIED`.
-- [ ] C13 — Backup scope includes only explicit durable content and excludes repository internals,
+- [x] C13 — Backup scope includes only explicit durable content and excludes repository internals,
   caches, temporary files, and disposable workspaces.
-- [ ] C14 — Restore is staged, identity-verified, empty-destination-only, and interruption-safe.
+- [x] C14 — Restore is staged, identity-verified, empty-destination-only, and interruption-safe.
 
 ## Batch 4 — Acceptance and corrected milestone
 

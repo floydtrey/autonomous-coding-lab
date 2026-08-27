@@ -14,7 +14,7 @@ from .errors import LabValidationError
 CURRICULUM_SCHEMA = "worker-lab-curriculum:v1"
 EXERCISE_SCHEMA = "worker-lab-exercise:v2"
 ATTEMPT_SCHEMA = "worker-lab-attempt:v2"
-EVIDENCE_SCHEMA = "worker-lab-evidence:v1"
+EVIDENCE_SCHEMA = "worker-lab-evidence:v2"
 FAILURE_SCHEMA = "worker-lab-failure:v1"
 
 ID_RE = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
@@ -248,6 +248,7 @@ class EvidenceRecord(_Record):
     attempt_id: str
     test_id: str
     test_catalog_version: str
+    test_catalog_digest: str
     candidate_digest: str
     base_commit: str
     environment_digest: str
@@ -260,8 +261,9 @@ class EvidenceRecord(_Record):
     def from_mapping(cls, value: Any) -> "EvidenceRecord":
         data = _object(value, {
             "schema_version", "evidence_digest", "evidence_type", "attempt_id", "test_id",
-            "test_catalog_version", "candidate_digest", "base_commit", "environment_digest",
-            "content_path", "external_reference", "created_at", "verification_state",
+            "test_catalog_version", "test_catalog_digest", "candidate_digest", "base_commit",
+            "environment_digest", "content_path", "external_reference", "created_at",
+            "verification_state",
         })
         _schema(data, EVIDENCE_SCHEMA)
         content_path = None if data["content_path"] is None else _path(data["content_path"], "content_path")
@@ -278,6 +280,7 @@ class EvidenceRecord(_Record):
             _attempt_id(data["attempt_id"], "attempt_id"),
             _test_id(data["test_id"]),
             _text(data["test_catalog_version"], "test_catalog_version"),
+            _digest(data["test_catalog_digest"], "test_catalog_digest"),
             _digest(data["candidate_digest"], "candidate_digest"),
             _sha(data["base_commit"], "base_commit"),
             _digest(data["environment_digest"], "environment_digest"),
