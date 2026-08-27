@@ -532,6 +532,7 @@ def run_codex_fixture_job(
     *,
     executor: CodexExecutor = execute_codex,
     validation_plan: ConsumerValidationPlan | None = None,
+    task_contract_digest_override: str | None = None,
 ) -> WorkerResult:
     def codex_mutation(root: Path, fixture_task: FixtureTask) -> None:
         executor(
@@ -559,6 +560,7 @@ def run_codex_fixture_job(
         codex_mutation,
         repair=codex_repair,
         validation_plan=validation_plan,
+        task_contract_digest_override=task_contract_digest_override,
     )
 
 
@@ -569,11 +571,12 @@ def _run_fixture_job(
     *,
     repair: Callable[[Path, FixtureTask, str], None] | None = None,
     validation_plan: ConsumerValidationPlan | None = None,
+    task_contract_digest_override: str | None = None,
 ) -> WorkerResult:
     root = repo_root.resolve()
     base_sha = repository_head(root)
     plan = validation_plan or ConsumerValidationPlan()
-    digest = task_contract_digest(task, plan)
+    digest = task_contract_digest_override or task_contract_digest(task, plan)
 
     try:
         require_clean_workspace(root)
