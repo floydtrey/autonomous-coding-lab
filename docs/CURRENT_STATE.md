@@ -3,7 +3,7 @@
 **Status:** Active checkpoint authority
 **Read when:** Starting or resuming any project task.
 **Last updated:** 2026-08-27
-**Status:** Framework foundation stable; Worker Lab `v0.1.2-phase1` published; Phase 2 authorized but not started.
+**Status:** Framework foundation stable; Worker Lab Phase 2 Batch 1 integrated; worker execution remains closed.
 
 ## Exact repository state
 
@@ -24,6 +24,8 @@
 - Integrated branch: `main`
 - Governance/publication commit: `0b6869f889201eeac9091845c9e71bb573d10bbd`
 - Named milestone: `v0.1.2-phase1`
+- Phase 2 Batch 1 merge: `12048eaee68b53ae6cece52687c2406dc51f349b` / PR `#1`
+- Current published `main`: `db9dcfe94a7ccca01e70a89e695f096fc8b5ad51`
 - Corrected validation tag: `v0.1.1-phase1` remains unchanged.
 - Historical pre-audit tag: `v0.1.0-phase1` remains unchanged.
 - Private remote: `https://github.com/floydtrey/worker-lab`
@@ -31,7 +33,8 @@
 - Durable-data backup: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.1-phase1-data-99c0b58`
 - Verified tagged bundle: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.2-phase1.bundle`
 - Final bundle SHA-256: `56c29a51e6687b98bd5a3c1346d7c01403ceb9c2ba858dfbe575525d1b5556d9`
-- Phase 2 is authorized but implementation has not started.
+- Phase 2 specification, strict ephemeral receipt contract, and immutable `worker-lab-v2` test
+  binding are integrated. Workspace preparation is not implemented.
 
 Recent capability checkpoints:
 
@@ -126,11 +129,11 @@ The first Mine Tracker task remains useful evidence, but one successful test-onl
 
 Recommended next sequence:
 
-1. Treat Worker Lab `v0.1.2-phase1` as the trusted Phase 2 starting point; do not move any milestone tag.
-2. Read Worker Lab `docs/PHASE2_READINESS_REVIEW.md` and begin with the Phase 2 specification and
-   strict ephemeral workspace-receipt contract.
-3. Implement only synthetic exercise factories and disposable attempt workspaces against the
-   existing protected Phase 1 contracts.
+1. Treat Worker Lab `v0.1.2-phase1` as the immutable Phase 2 baseline and integrated `main` at
+   `12048ea` as the current Batch 1 checkpoint; do not move any milestone tag.
+2. Read Worker Lab `docs/PHASE2_READINESS_REVIEW.md` and `docs/PHASE2_SPEC.md`.
+3. Implement Batch 2 staged preparation only: exact local-template validation, independent detached
+   cloning, context verification, compensation, receipt publication, and `DRAFT` to `READY`.
 4. Keep framework invocation and coding-worker execution closed until Phase 3 defines their adapter
    contract and acceptance evidence.
 5. Continue using project-agnostic task language and separate synthetic repositories; do not use an
@@ -142,4 +145,4 @@ Recommended next sequence:
 
 Use this concise prompt when a new conversation is required:
 
-> Read `AGENTS.md` and `docs/START_HERE.md` in `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`, then read `docs/START_HERE.md`, `docs/CURRENT_STATE.md`, `docs/MILESTONE_EVIDENCE.md`, and `docs/PHASE2_READINESS_REVIEW.md` in `C:\Users\MineTrackerWorker\repos\worker-lab`. Verify both Git states. Treat Worker Lab `v0.1.2-phase1` as the trusted Phase 2 starting point. Begin with the Phase 2 specification; do not invoke the framework, execute a worker, or modify an external product repository. Keep exercises synthetic and project-agnostic, preserve all security and authority controls, and update both current-state documents at the next milestone.
+> Read `AGENTS.md` and `docs/START_HERE.md` in `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`, then read `docs/START_HERE.md`, `docs/CURRENT_STATE.md`, `docs/MILESTONE_EVIDENCE.md`, `docs/PHASE2_READINESS_REVIEW.md`, and `docs/PHASE2_SPEC.md` in `C:\Users\MineTrackerWorker\repos\worker-lab`. Verify both Git states. Treat Worker Lab `v0.1.2-phase1` as the immutable Phase 2 baseline and `main` at `12048ea` as the integrated Batch 1 checkpoint. Continue with Batch 2 staged preparation only; do not invoke the framework, execute a worker, or modify an external product repository. Keep exercises synthetic and project-agnostic and preserve all security and authority controls.
