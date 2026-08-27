@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,7 +17,12 @@ from .models import (
     ATTEMPT_SCHEMA, CURRICULUM_SCHEMA, EVIDENCE_SCHEMA, EXERCISE_SCHEMA, FAILURE_SCHEMA,
     AttemptRecord, AttemptState, CurriculumRecord, EvidenceRecord, ExerciseRecord, FailureRecord,
 )
+from .policy import (
+    CONTEXT_MANIFEST_SCHEMA, POLICY_SCHEMA, ROLE_SCHEMA, ContextManifest, PolicyRecord,
+    RoleRecord, validate_authority, verify_context_files,
+)
 from .storage import AtomicRecordStore
+from .test_catalog import CATALOG_SCHEMA, TestCatalog
 
 
 LOADERS: dict[str, Callable[[Any], Any]] = {
@@ -25,6 +31,10 @@ LOADERS: dict[str, Callable[[Any], Any]] = {
     ATTEMPT_SCHEMA: AttemptRecord.from_mapping,
     EVIDENCE_SCHEMA: EvidenceRecord.from_mapping,
     FAILURE_SCHEMA: FailureRecord.from_mapping,
+    POLICY_SCHEMA: PolicyRecord.from_mapping,
+    ROLE_SCHEMA: RoleRecord.from_mapping,
+    CONTEXT_MANIFEST_SCHEMA: ContextManifest.from_mapping,
+    CATALOG_SCHEMA: TestCatalog.from_mapping,
 }
 
 
@@ -63,6 +73,7 @@ def _parser() -> argparse.ArgumentParser:
     command = commands.add_parser("create-attempt")
     command.add_argument("--exercise", required=True)
     command.add_argument("--version", required=True, type=int)
+    command.add_argument("--target-repository", required=True, type=Path)
     command.set_defaults(handler=_create_attempt)
     command = commands.add_parser("show-attempt")
     command.add_argument("attempt_id")
@@ -124,23 +135,124 @@ def _show_exercise(args: argparse.Namespace) -> str:
 
 
 def _create_attempt(args: argparse.Namespace) -> str:
-    exercise = _definitions(args).read(
+    definitions = _definitions(args)
+    exercise = definitions.read(
         f"exercises/{args.exercise}/v{args.version}.json", ExerciseRecord.from_mapping
     )
+    policy = definitions.read(
+        f"policies/{exercise.policy_id}/v{exercise.policy_version}.json",
+        PolicyRecord.from_mapping,
+    )
+    role = definitions.read(
+        f"roles/{exercise.role_id}/v{exercise.role_version}.json", RoleRecord.from_mapping
+    )
+    context = definitions.read(
+        f"contexts/{exercise.context_manifest_id}/v{exercise.context_manifest_version}.json",
+        ContextManifest.from_mapping,
+    )
+    catalog = definitions.read(
+        f"catalogs/{exercise.evaluator_catalog_version}.json", TestCatalog.from_mapping
+    )
+    _validate_attempt_authority(exercise, policy, role, context, catalog)
+    _validate_target_repository(args.root, args.target_repository, exercise.template_commit)
+    verify_context_files(context, args.target_repository)
     now = _now()
     identity = "ATTEMPT-" + uuid.uuid4().hex.upper()
     record = AttemptRecord.from_mapping({
         "schema_version": ATTEMPT_SCHEMA, "attempt_id": identity,
         "curriculum_id": exercise.curriculum_id, "exercise_id": exercise.exercise_id,
         "exercise_version": exercise.exercise_version, "starting_commit": exercise.template_commit,
-        "context_digest": canonical_digest(exercise.to_dict()),
-        "task_digest": canonical_digest({"objective": exercise.objective, "acceptance_criteria": list(exercise.acceptance_criteria)}),
+        "context_digest": context.digest(),
+        "task_digest": attempt_task_digest(exercise, policy, role, context, catalog),
+        "policy_id": policy.policy_id, "policy_version": policy.policy_version,
+        "policy_digest": policy.digest(),
+        "role_id": role.role_id, "role_version": role.role_version,
+        "role_digest": role.digest(), "sandbox_mode": exercise.sandbox_mode,
         "state": "DRAFT", "created_at": now, "updated_at": now,
-        "evaluator_catalog_version": "unresolved", "runtime_identity": None,
+        "evaluator_catalog_version": catalog.catalog_version,
+        "evaluator_catalog_digest": catalog.digest(), "runtime_identity": None,
         "candidate_digest": None, "cleanup_outcome": None, "prior_attempt_id": None,
     })
     _state(args).write(f"attempts/{identity}.json", record)
     return record.to_json(pretty=True)
+
+
+def attempt_task_digest(
+    exercise: ExerciseRecord,
+    policy: PolicyRecord,
+    role: RoleRecord,
+    context: ContextManifest,
+    catalog: TestCatalog,
+) -> str:
+    return canonical_digest({
+        "exercise": exercise.to_dict(),
+        "policy_digest": policy.digest(),
+        "role_digest": role.digest(),
+        "context_manifest_digest": context.digest(),
+        "evaluator_catalog_digest": catalog.digest(),
+    })
+
+
+def _validate_attempt_authority(
+    exercise: ExerciseRecord,
+    policy: PolicyRecord,
+    role: RoleRecord,
+    context: ContextManifest,
+    catalog: TestCatalog,
+) -> None:
+    if (policy.policy_id, policy.policy_version) != (exercise.policy_id, exercise.policy_version):
+        raise LabValidationError("ATTEMPT_POLICY_MISMATCH", "exercise policy identity is unresolved")
+    if (role.role_id, role.role_version) != (exercise.role_id, exercise.role_version):
+        raise LabValidationError("ATTEMPT_ROLE_MISMATCH", "exercise role identity is unresolved")
+    if context.repository != exercise.template_repository or context.starting_commit != exercise.template_commit:
+        raise LabValidationError(
+            "ATTEMPT_CONTEXT_MISMATCH", "context repository or starting commit differs"
+        )
+    if catalog.catalog_version != exercise.evaluator_catalog_version:
+        raise LabValidationError("ATTEMPT_CATALOG_MISMATCH", "evaluator catalog is unresolved")
+    known_profiles = {profile.profile_id for profile in catalog.profiles}
+    missing_profiles = set(exercise.test_profile_ids) - known_profiles
+    if missing_profiles:
+        raise LabValidationError(
+            "ATTEMPT_PROFILE_MISSING", f"unknown test profiles: {sorted(missing_profiles)}"
+        )
+    validate_authority(
+        policy,
+        role,
+        required_capabilities=exercise.required_capabilities,
+        temporary_denied_capabilities=exercise.temporary_denied_capabilities,
+    )
+
+
+def _validate_target_repository(lab_root: Path, target_repository: Path, expected_head: str) -> None:
+    if target_repository.is_symlink():
+        raise LabValidationError(
+            "ATTEMPT_REPOSITORY_INVALID", "target repository cannot be a symlink"
+        )
+    try:
+        target = target_repository.resolve(strict=True)
+        lab = lab_root.resolve(strict=True)
+    except OSError as exc:
+        raise LabValidationError("ATTEMPT_REPOSITORY_INVALID", "repository path is missing") from exc
+    if target == lab or target.is_relative_to(lab) or lab.is_relative_to(target):
+        raise LabValidationError(
+            "ATTEMPT_REPOSITORY_INVALID", "worker target must be separate from Worker Lab"
+        )
+    try:
+        head = subprocess.run(
+            ["git", "-C", str(target), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True, encoding="utf-8",
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "-C", str(target), "status", "--porcelain=v1"],
+            check=True, capture_output=True, text=True, encoding="utf-8",
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise LabValidationError("ATTEMPT_REPOSITORY_INVALID", "target is not a readable Git repository") from exc
+    if head != expected_head:
+        raise LabValidationError("ATTEMPT_HEAD_MISMATCH", "target HEAD differs from exercise identity")
+    if dirty:
+        raise LabValidationError("ATTEMPT_REPOSITORY_DIRTY", "target repository must be clean")
 
 
 def _show_attempt(args: argparse.Namespace) -> str:

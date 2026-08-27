@@ -1,46 +1,45 @@
 # Current State
 
 **Last updated:** 2026-08-27
-**Status:** Phase 1 implementation complete and locally validated.
+**Status:** Phase 1 audit corrections in progress; Phase 2 closed.
 
 ## Repository
 
 - Path: `C:\Users\MineTrackerWorker\repos\worker-lab`
-- Branch: `main`
+- Branch: `fix/phase1-audit-corrections`
+- Starting checkpoint: `b7f5bac` / `v0.1.0-phase1`
+- Corrected release target: `v0.1.1-phase1`
 - Remote: none configured
-- Named version: `v0.1.0-phase1` after milestone tagging
 
-## Completed boundary
+## Audit conclusion
 
-- strict, versioned curriculum, exercise, attempt, evidence, and failure records;
-- deterministic canonical JSON and SHA-256 identities;
-- project-agnostic numbered test catalog and profile selection;
-- legal attempt lifecycle with immutable transition results;
-- contained atomic record storage and corruption reporting;
-- cross-record relationship validation;
-- manifest-based backup verification and staged restore;
-- headless operator commands for definition inspection, attempts, evidence metadata, backup, and restore.
+The original Phase 1 checkpoint is a useful pre-audit foundation, but it did not satisfy every
+written completion gate. In particular, evidence verification, authority identity, permanent test
+semantics, read purity, relationship integrity, backup scope, the real rollback drill, and the Git
+bundle require correction. The historical tag will not be moved.
 
-## Validation state
+## Active boundary
 
-- complete suite: 60 passed;
-- Windows symlink-escape test: skipped when the current account cannot create a test symlink;
-- backup/verify/restore behavior is covered by both focused tests and the milestone drill;
-- no network access or production-project data is used.
+Follow `PHASE1_AUDIT_CHECKLIST.md`. Batch 1 establishes:
 
-## Next authorized boundary
+- authoritative permanent test meanings with a strict Worker Lab binding;
+- non-overridable policy invariants and versioned role maxima;
+- deny-wins task restrictions and structured role mismatch;
+- exact read-only context manifests verified against a separate clean Git repository;
+- attempt identities bound to resolved policy, role, sandbox, context, and evaluator digests.
 
-Phase 2 may add versioned exercise-template creation, isolated attempt workspaces, cleanup,
-and stronger evidence identity. It must remain headless and must not invoke a coding worker until
-the separate Phase 3 framework-integration boundary is explicitly started.
+Batch 1 implementation is complete on the working branch and awaiting final checkpoint review.
+Batches 2–4 remain incomplete.
 
-## Not yet available
+## Still unavailable
 
-- worker execution;
-- attempt workspaces;
 - worker execution or framework invocation;
-- attempt workspaces and template creation;
-- evaluator execution;
-- dashboard;
-- real curricula and worker attempts;
-- graduation decisions.
+- exercise factories and disposable attempt workspaces;
+- trustworthy retained-evidence verification;
+- corrected backup/restore milestone evidence;
+- dashboard, real curricula, worker attempts, or graduation decisions.
+
+## Drift boundary
+
+Do not begin Phase 2 or modify Mine Tracker product behavior. Work must complete an unchecked audit
+condition or fix a defect blocking one. Ordinary polish and speculative abstractions remain deferred.

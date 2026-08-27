@@ -28,7 +28,7 @@ def definition(test_id, *, mode=TestMode.CONDITIONAL, cost=CostClass.SECOND, **k
 def catalog():
     return TestCatalog(
         CATALOG_SCHEMA,
-        "worker-lab-tests:v1",
+        "worker-lab-v1",
         tests=(
             definition("T001", mode=TestMode.ALWAYS, cost=CostClass.MILLISECOND),
             definition("T002", mode=TestMode.ALWAYS, cost=CostClass.MILLISECOND),
@@ -50,8 +50,25 @@ def test_catalog_digest_and_selection_are_deterministic():
     first = value.select(facts, profile_ids=("PYTHON_CHANGE:v1",))
     second = value.select(facts, profile_ids=("PYTHON_CHANGE:v1",))
     assert first == second
+    assert TestCatalog.from_mapping(value.to_dict()) == value
     assert first.catalog_digest == value.digest()
     assert first.test_ids == ("T001", "T002", "T004", "T005", "T006")
+
+
+def test_catalog_loading_rejects_unknown_fields():
+    value = catalog().to_dict()
+    value["surprise"] = True
+    with pytest.raises(LabValidationError) as error:
+        TestCatalog.from_mapping(value)
+    assert error.value.code == "TEST_CATALOG_INVALID"
+
+
+@pytest.mark.parametrize(("field", "value"), [("version", "1"), ("name", None), ("owner", None)])
+def test_catalog_loading_rejects_malformed_definition_types(field, value):
+    data = catalog().to_dict()
+    data["tests"][0][field] = value
+    with pytest.raises(LabValidationError):
+        TestCatalog.from_mapping(data)
 
 
 def test_profiles_and_automatic_selection_form_a_union_without_duplicates():

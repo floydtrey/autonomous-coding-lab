@@ -10,7 +10,7 @@ from .canonical import canonical_digest
 from .errors import LabValidationError
 
 
-CATALOG_SCHEMA = "worker-lab-test-catalog:v1"
+CATALOG_SCHEMA = "worker-lab-test-catalog:v2"
 TEST_ID_RE = re.compile(r"^T[0-9]{3}$")
 PROFILE_ID_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,63}:v[1-9][0-9]*$")
 
@@ -30,6 +30,12 @@ class TestMode(StrEnum):
     RETIRED = "retired"
 
 
+class TestRunner(StrEnum):
+    COMMAND = "command"
+    FRAMEWORK_EVALUATOR = "framework-evaluator"
+    CONTROLLER_DRILL = "controller-drill"
+
+
 COST_ORDER = {
     CostClass.MILLISECOND: 0,
     CostClass.SECOND: 1,
@@ -47,28 +53,48 @@ class TestDefinition:
     command: tuple[str, ...]
     mode: TestMode
     cost_class: CostClass
+    runner: TestRunner = TestRunner.COMMAND
+    owner: str = "worker-lab"
     path_prefixes: tuple[str, ...] = ()
     path_suffixes: tuple[str, ...] = ()
     capabilities: tuple[str, ...] = ()
     risk_flags: tuple[str, ...] = ()
     prerequisites: tuple[str, ...] = ()
     replacement_test_id: str | None = None
+    environment_requirements: tuple[str, ...] = ()
+    evidence_fields: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not TEST_ID_RE.fullmatch(self.test_id):
             raise LabValidationError("TEST_ID_INVALID", f"invalid test ID: {self.test_id!r}")
-        if isinstance(self.version, bool) or self.version <= 0:
+        if isinstance(self.version, bool) or not isinstance(self.version, int) or self.version <= 0:
             raise LabValidationError("TEST_VERSION_INVALID", "test version must be positive")
-        if not self.name.strip() or not self.purpose.strip() or not self.command:
+        if (
+            not isinstance(self.name, str)
+            or not isinstance(self.purpose, str)
+            or not self.name.strip()
+            or not self.purpose.strip()
+            or not self.command
+        ):
             raise LabValidationError("TEST_DEFINITION_INVALID", "name, purpose, and command are required")
         if not all(isinstance(arg, str) and arg for arg in self.command):
             raise LabValidationError("TEST_DEFINITION_INVALID", "command arguments must be text")
+        if not isinstance(self.mode, TestMode) or not isinstance(self.cost_class, CostClass):
+            raise LabValidationError("TEST_DEFINITION_INVALID", "mode and cost class must be enums")
+        if (
+            not isinstance(self.runner, TestRunner)
+            or not isinstance(self.owner, str)
+            or not self.owner.strip()
+        ):
+            raise LabValidationError("TEST_DEFINITION_INVALID", "runner and owner are required")
         for field, values in (
             ("path_prefixes", self.path_prefixes),
             ("path_suffixes", self.path_suffixes),
             ("capabilities", self.capabilities),
             ("risk_flags", self.risk_flags),
             ("prerequisites", self.prerequisites),
+            ("environment_requirements", self.environment_requirements),
+            ("evidence_fields", self.evidence_fields),
         ):
             if values != tuple(sorted(set(values))):
                 raise LabValidationError("TEST_DEFINITION_INVALID", f"{field} must be sorted and unique")
@@ -100,12 +126,51 @@ class TestDefinition:
         value = asdict(self)
         value["command"] = list(self.command)
         for field in (
-            "path_prefixes", "path_suffixes", "capabilities", "risk_flags", "prerequisites"
+            "path_prefixes", "path_suffixes", "capabilities", "risk_flags", "prerequisites",
+            "environment_requirements", "evidence_fields",
         ):
             value[field] = list(value[field])
         value["mode"] = str(self.mode)
         value["cost_class"] = str(self.cost_class)
+        value["runner"] = str(self.runner)
         return value
+
+    @classmethod
+    def from_mapping(cls, value: Any) -> "TestDefinition":
+        expected = {
+            "test_id", "version", "name", "purpose", "command", "mode", "cost_class",
+            "runner", "owner", "path_prefixes", "path_suffixes", "capabilities",
+            "risk_flags", "prerequisites", "replacement_test_id",
+            "environment_requirements", "evidence_fields",
+        }
+        data = _strict_object(value, expected, "TEST_DEFINITION_INVALID")
+        try:
+            mode = TestMode(data["mode"])
+            cost_class = CostClass(data["cost_class"])
+            runner = TestRunner(data["runner"])
+        except (TypeError, ValueError) as exc:
+            raise LabValidationError("TEST_DEFINITION_INVALID", "unsupported enum value") from exc
+        return cls(
+            test_id=data["test_id"],
+            version=data["version"],
+            name=data["name"],
+            purpose=data["purpose"],
+            command=_text_tuple(data["command"], "command"),
+            mode=mode,
+            cost_class=cost_class,
+            runner=runner,
+            owner=data["owner"],
+            path_prefixes=_text_tuple(data["path_prefixes"], "path_prefixes"),
+            path_suffixes=_text_tuple(data["path_suffixes"], "path_suffixes"),
+            capabilities=_text_tuple(data["capabilities"], "capabilities"),
+            risk_flags=_text_tuple(data["risk_flags"], "risk_flags"),
+            prerequisites=_text_tuple(data["prerequisites"], "prerequisites"),
+            replacement_test_id=data["replacement_test_id"],
+            environment_requirements=_text_tuple(
+                data["environment_requirements"], "environment_requirements"
+            ),
+            evidence_fields=_text_tuple(data["evidence_fields"], "evidence_fields"),
+        )
 
 
 @dataclass(frozen=True)
@@ -116,9 +181,9 @@ class TestProfile:
     test_ids: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        if not PROFILE_ID_RE.fullmatch(self.profile_id):
+        if not isinstance(self.profile_id, str) or not PROFILE_ID_RE.fullmatch(self.profile_id):
             raise LabValidationError("TEST_PROFILE_INVALID", "profile ID is invalid")
-        if not self.purpose.strip() or not self.test_ids:
+        if not isinstance(self.purpose, str) or not self.purpose.strip() or not self.test_ids:
             raise LabValidationError("TEST_PROFILE_INVALID", "profile purpose and tests are required")
         if self.test_ids != tuple(sorted(set(self.test_ids))):
             raise LabValidationError("TEST_PROFILE_INVALID", "profile test IDs must be sorted and unique")
@@ -127,6 +192,15 @@ class TestProfile:
 
     def to_dict(self) -> dict[str, Any]:
         return {"profile_id": self.profile_id, "purpose": self.purpose, "test_ids": list(self.test_ids)}
+
+    @classmethod
+    def from_mapping(cls, value: Any) -> "TestProfile":
+        data = _strict_object(
+            value, {"profile_id", "purpose", "test_ids"}, "TEST_PROFILE_INVALID"
+        )
+        return cls(
+            data["profile_id"], data["purpose"], _text_tuple(data["test_ids"], "test_ids")
+        )
 
 
 @dataclass(frozen=True)
@@ -186,7 +260,7 @@ class TestCatalog:
     def __post_init__(self) -> None:
         if self.schema_version != CATALOG_SCHEMA:
             raise LabValidationError("TEST_CATALOG_INVALID", "unsupported catalog schema")
-        if not self.catalog_version.strip():
+        if not isinstance(self.catalog_version, str) or not self.catalog_version.strip():
             raise LabValidationError("TEST_CATALOG_INVALID", "catalog version is required")
         ids = tuple(item.test_id for item in self.tests)
         if ids != tuple(sorted(set(ids))):
@@ -219,6 +293,22 @@ class TestCatalog:
 
     def digest(self) -> str:
         return canonical_digest(self.to_dict())
+
+    @classmethod
+    def from_mapping(cls, value: Any) -> "TestCatalog":
+        data = _strict_object(
+            value,
+            {"schema_version", "catalog_version", "tests", "profiles"},
+            "TEST_CATALOG_INVALID",
+        )
+        if not isinstance(data["tests"], list) or not isinstance(data["profiles"], list):
+            raise LabValidationError("TEST_CATALOG_INVALID", "tests and profiles must be arrays")
+        return cls(
+            schema_version=data["schema_version"],
+            catalog_version=data["catalog_version"],
+            tests=tuple(TestDefinition.from_mapping(item) for item in data["tests"]),
+            profiles=tuple(TestProfile.from_mapping(item) for item in data["profiles"]),
+        )
 
     def select(self, facts: ChangeFacts, *, profile_ids: Iterable[str] = ()) -> TestPlan:
         requested_profiles = tuple(sorted(set(profile_ids)))
@@ -303,3 +393,15 @@ class TestCatalog:
 
         for test_id in graph:
             visit(test_id)
+
+
+def _strict_object(value: Any, expected: set[str], code: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping) or set(value) != expected:
+        raise LabValidationError(code, "fields are missing or unknown")
+    return value
+
+
+def _text_tuple(value: Any, field: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise LabValidationError("TEST_DEFINITION_INVALID", f"{field} must be a text array")
+    return tuple(value)

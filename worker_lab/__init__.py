@@ -9,6 +9,8 @@ from .models import (
     ExerciseRecord,
     FailureRecord,
 )
+from .policy import ContextManifest, PolicyRecord, RoleRecord
+from .test_catalog import TestCatalog
 
 __all__ = [
     "AttemptRecord",
@@ -17,6 +19,10 @@ __all__ = [
     "EvidenceRecord",
     "ExerciseRecord",
     "FailureRecord",
+    "ContextManifest",
+    "PolicyRecord",
+    "RoleRecord",
+    "TestCatalog",
     "canonical_digest",
     "canonical_json",
 ]

@@ -10,8 +10,8 @@ Read [`docs/START_HERE.md`](docs/START_HERE.md).
 
 ## Current phase
 
-Phase 1 provides protected headless contracts, numbered test selection, local atomic storage,
-verified backup/restore, and an operator CLI. It does not invoke coding workers yet.
+Phase 1 audit corrections are in progress. The protected headless contracts, numbered test
+selection, local storage, backup/restore, and operator CLI do not invoke coding workers.
 
 ## Operator interface
 
@@ -19,6 +19,7 @@ verified backup/restore, and an operator CLI. It does not invoke coding workers 
 python -m worker_lab.cli --help
 python -m worker_lab.cli validate-definition <path>
 python -m worker_lab.cli --root <lab-root> list-curricula
+python -m worker_lab.cli --root <lab-root> create-attempt --exercise <id> --version <n> --target-repository <path>
 python -m worker_lab.cli --root <lab-root> backup <destination>
 python -m worker_lab.cli verify-backup <backup>
 python -m worker_lab.cli restore <backup> <empty-destination>

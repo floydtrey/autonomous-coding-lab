@@ -12,8 +12,8 @@ from .errors import LabValidationError
 
 
 CURRICULUM_SCHEMA = "worker-lab-curriculum:v1"
-EXERCISE_SCHEMA = "worker-lab-exercise:v1"
-ATTEMPT_SCHEMA = "worker-lab-attempt:v1"
+EXERCISE_SCHEMA = "worker-lab-exercise:v2"
+ATTEMPT_SCHEMA = "worker-lab-attempt:v2"
 EVIDENCE_SCHEMA = "worker-lab-evidence:v1"
 FAILURE_SCHEMA = "worker-lab-failure:v1"
 
@@ -99,6 +99,16 @@ class ExerciseRecord(_Record):
     objective: str
     template_repository: str
     template_commit: str
+    policy_id: str
+    policy_version: int
+    role_id: str
+    role_version: int
+    sandbox_mode: str
+    context_manifest_id: str
+    context_manifest_version: int
+    evaluator_catalog_version: str
+    required_capabilities: tuple[str, ...]
+    temporary_denied_capabilities: tuple[str, ...]
     writable_paths: tuple[str, ...]
     protected_paths: tuple[str, ...]
     acceptance_criteria: tuple[str, ...]
@@ -112,7 +122,10 @@ class ExerciseRecord(_Record):
             "schema_version", "exercise_id", "exercise_version", "curriculum_id", "objective",
             "template_repository", "template_commit", "writable_paths", "protected_paths",
             "acceptance_criteria", "test_profile_ids", "prohibited_shortcuts",
-            "expected_failure_behavior",
+            "expected_failure_behavior", "policy_id", "policy_version", "role_id",
+            "role_version", "sandbox_mode", "context_manifest_id", "context_manifest_version",
+            "evaluator_catalog_version", "required_capabilities",
+            "temporary_denied_capabilities",
         })
         _schema(data, EXERCISE_SCHEMA)
         writable = _paths(data["writable_paths"], "writable_paths", nonempty=True)
@@ -133,6 +146,16 @@ class ExerciseRecord(_Record):
             _text(data["objective"], "objective"),
             _text(data["template_repository"], "template_repository"),
             _sha(data["template_commit"], "template_commit"),
+            _id(data["policy_id"], "policy_id"),
+            _positive_int(data["policy_version"], "policy_version"),
+            _id(data["role_id"], "role_id"),
+            _positive_int(data["role_version"], "role_version"),
+            _choice(data["sandbox_mode"], "sandbox_mode", {"read-only", "workspace-write"}),
+            _id(data["context_manifest_id"], "context_manifest_id"),
+            _positive_int(data["context_manifest_version"], "context_manifest_version"),
+            _text(data["evaluator_catalog_version"], "evaluator_catalog_version"),
+            _texts(data["required_capabilities"], "required_capabilities", nonempty=True),
+            _texts(data["temporary_denied_capabilities"], "temporary_denied_capabilities"),
             writable,
             protected,
             _texts(data["acceptance_criteria"], "acceptance_criteria", nonempty=True),
@@ -152,10 +175,18 @@ class AttemptRecord(_Record):
     starting_commit: str
     context_digest: str
     task_digest: str
+    policy_id: str
+    policy_version: int
+    policy_digest: str
+    role_id: str
+    role_version: int
+    role_digest: str
+    sandbox_mode: str
     state: AttemptState
     created_at: str
     updated_at: str
     evaluator_catalog_version: str
+    evaluator_catalog_digest: str
     runtime_identity: str | None
     candidate_digest: str | None
     cleanup_outcome: str | None
@@ -167,7 +198,9 @@ class AttemptRecord(_Record):
             "schema_version", "attempt_id", "curriculum_id", "exercise_id", "exercise_version",
             "starting_commit", "context_digest", "task_digest", "state", "created_at",
             "updated_at", "evaluator_catalog_version", "runtime_identity", "candidate_digest",
-            "cleanup_outcome", "prior_attempt_id",
+            "cleanup_outcome", "prior_attempt_id", "policy_id", "policy_version",
+            "policy_digest", "role_id", "role_version", "role_digest", "sandbox_mode",
+            "evaluator_catalog_digest",
         })
         _schema(data, ATTEMPT_SCHEMA)
         created = _timestamp(data["created_at"], "created_at")
@@ -183,10 +216,18 @@ class AttemptRecord(_Record):
             _sha(data["starting_commit"], "starting_commit"),
             _digest(data["context_digest"], "context_digest"),
             _digest(data["task_digest"], "task_digest"),
+            _id(data["policy_id"], "policy_id"),
+            _positive_int(data["policy_version"], "policy_version"),
+            _digest(data["policy_digest"], "policy_digest"),
+            _id(data["role_id"], "role_id"),
+            _positive_int(data["role_version"], "role_version"),
+            _digest(data["role_digest"], "role_digest"),
+            _choice(data["sandbox_mode"], "sandbox_mode", {"read-only", "workspace-write"}),
             _attempt_state(data["state"]),
             data["created_at"],
             data["updated_at"],
             _text(data["evaluator_catalog_version"], "evaluator_catalog_version"),
+            _digest(data["evaluator_catalog_digest"], "evaluator_catalog_digest"),
             _optional_text(data["runtime_identity"], "runtime_identity"),
             _optional_digest(data["candidate_digest"], "candidate_digest"),
             _optional_text(data["cleanup_outcome"], "cleanup_outcome"),

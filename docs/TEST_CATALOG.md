@@ -1,29 +1,35 @@
 # Numbered Test Catalog
 
-**Catalog:** `WORKER_LAB_TESTS:v1`
-**Rule:** Select the union of applicable profiles, include prerequisites once, run cheapest checks first, and stop at the first failed boundary. Unmapped changed paths fail closed.
+**Binding:** `worker-lab-v1`
+**Authority:** Permanent meanings are defined in the Autonomous Worker Framework
+`docs/TESTING_AND_AUTHORITY.md`. Worker Lab binds commands and evaluator locators to those meanings;
+it never redefines or reuses an ID.
 
-## Stable tests
+The machine-readable binding is `curricula/catalogs/worker-lab-v1.json`. It records each active
+test's version, purpose, owner, runner, command or evaluator locator, selectors, prerequisites, cost,
+environment, evidence fields, and retirement replacement.
 
-| ID | Cost | Purpose | Command |
-|---|---|---|---|
-| T001 | millisecond | Canonical identity and strict record contracts | `python -m pytest -q tests/test_canonical.py tests/test_models.py` |
-| T002 | millisecond | Test catalog selection and dependency rules | `python -m pytest -q tests/test_test_catalog.py` |
-| T003 | millisecond | Attempt lifecycle and relationship integrity | `python -m pytest -q tests/test_lifecycle.py tests/test_validation.py` |
-| T004 | second | Atomic storage, containment, and corruption behavior | `python -m pytest -q tests/test_storage.py` |
-| T005 | second | Backup, restore, and operator-interface behavior | `python -m pytest -q tests/test_backup.py tests/test_cli.py` |
-| T006 | second | Phase/milestone full suite | `python -m pytest -q` |
+## Relevant permanent meanings
 
-## Versioned profiles
-
-| Profile | Tests | Select for |
+| ID | Permanent meaning | Worker Lab binding |
 |---|---|---|
-| `RECORD_CHANGE:v1` | T001 | canonical or record-model changes |
-| `CATALOG_CHANGE:v1` | T001, T002 | numbered test definitions or selection logic |
-| `ATTEMPT_CHANGE:v1` | T001, T003 | attempt lifecycle or relationship changes |
-| `STORAGE_CHANGE:v1` | T001, T004 | paths, persistence, atomic writes, or corruption handling |
-| `BACKUP_CLI_CHANGE:v1` | T001, T004, T005 | backup, restore, or CLI changes |
-| `MILESTONE:v1` | T001-T006 | candidate, integration, release, and rollback drills |
+| T001 | Repository identity and clean start | Framework evaluator |
+| T002 | Exact changed/protected path boundary | Framework evaluator |
+| T003 | Diff and repository integrity | Framework evaluator |
+| T004 | Python changed-file compile | Python compile command |
+| T005 | JSON/schema validation | Protected definition tests |
+| T006 | Canonical JSON and digest regression | Canonical/record/catalog tests |
+| T007 | Attempt lifecycle transitions | Lifecycle tests |
+| T008 | Path traversal and containment | Storage/context path tests |
+| T009 | Atomic write and corruption | Storage tests |
+| T010 | Backup and restore verification | Backup tests |
+| T011 | Directly affected unit tests | Framework-selected project binding |
+| T012 | CLI contract | CLI tests |
+| T017 | Failure and cleanup behavior | Lifecycle/storage tests |
+| T019 | Focused integration | Validation/CLI tests |
+| T020 | Full project suite | Complete pytest suite |
+| T021 | Backup and rollback drill | Trusted-controller milestone drill |
 
-Retirement never reuses an ID. A retired test remains recorded with its replacement. Profile or
-test behavior changes require a new profile/catalog version rather than silently changing retained evidence.
+Profiles select the union of applicable IDs, add prerequisites, and stop at the first failed
+required boundary. Unmapped paths or capabilities fail closed. Retired IDs remain reserved and name
+their replacement; they are never renumbered or reassigned.
