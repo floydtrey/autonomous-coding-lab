@@ -29,7 +29,7 @@ specification authorized; Worker Lab invocation remains disabled pending trusted
 - Phase 2 merge: `bcfb1562c3f274c0256ed4105d5f443ab0749ace` / PR `#4`
 - Named milestone: `v0.2.0-phase2`
 - Active Phase 3 design branch: `phase3/framework-interface-spec-v1`
-- Phase 3A handoff checkpoint: `a7961dcd0e8a23381d51509afb210ab514c35cc8`
+- Active Phase 3 task: tracked `TERRA_PHASE3A.md` at the branch's verified starting HEAD
 - Private remote: `https://github.com/floydtrey/worker-lab`
 - Milestone validation: 257 tests passed; six expected Windows symlink capability tests skipped in
   both the candidate workspace and an independent rollback checkout.
@@ -134,7 +134,8 @@ Neither repository may silently duplicate or widen the other's authority.
 
 Recommended next sequence:
 
-1. Use Worker Lab `TERRA_PHASE3A.md` from checkpoint `a7961dc` as the active bounded task.
+1. Use the tracked Worker Lab `TERRA_PHASE3A.md` on its active design branch as the bounded task; the
+   handoff file defines its own verified starting checkpoint.
 2. Produce only the Phase 3 interface specification, readiness review, and Terra report in Worker Lab.
 3. Treat this framework repository and its execution contracts as read-only references.
 4. Define a read-only proposal boundary before a workspace-write task boundary.
