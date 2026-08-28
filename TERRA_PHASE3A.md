@@ -20,6 +20,8 @@ allowed. Prefer a functional, narrow first integration over a generalized orches
 - Framework repository, read-only reference:
   `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`
 - Framework foundation tag: `v0.1.0-foundation`
+- Required framework authority checkpoint: `43fe205c3af0fa6351041e8bcf26d1dc7419f02d`
+  on clean local `main`
 
 Before writing, verify both repository identities and statuses with non-mutating Git commands. Confirm
 this file exists in `HEAD`; that commit is the approved starting checkpoint. Stop if Worker Lab is not
@@ -29,9 +31,10 @@ following Worker Lab files are pre-existing user-owned untracked material and mu
 - `Worker-Lab_8_28_26.zip`
 - `docs/8_27_26_ChatGPT_History`
 
-Do not require the framework working tree to be clean for this read-only design review, but record its
-actual branch, HEAD, tag relationship, and tracked status. Do not inspect or incorporate unrelated
-framework changes if present; stop if they affect a referenced contract.
+Require the framework working tree to be clean on local `main` at the authority checkpoint above and
+record its full HEAD and foundation-tag ancestry. That checkpoint refreshes the active documents to
+distinguish proven framework capability from still-disabled Worker Lab invocation. Stop on any later
+tracked change or identity difference rather than incorporating it into this design implicitly.
 
 ## Authority
 
