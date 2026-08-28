@@ -15,7 +15,7 @@ worker execution remains unavailable.
 - Integrated Phase 2 Batch 2: `97ecb34` / PR `#2`
 - Integrated Phase 2 Batch 3: `0e01168` / PR `#3`
 - Phase 2 milestone: `v0.2.0-phase2`
-- Active development branch: `phase3/framework-interface-spec-v1`
+- Active development branch: `phase3/framework-contracts-v1`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
