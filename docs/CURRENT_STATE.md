@@ -1,7 +1,8 @@
 # Current State
 
 **Last updated:** 2026-08-28
-**Status:** Phase 2 complete at `v0.2.0-phase2`; worker execution remains unavailable.
+**Status:** Phase 2 complete at `v0.2.0-phase2`; Phase 3A specification handoff prepared; worker
+execution remains unavailable.
 
 ## Repository
 
@@ -14,7 +15,7 @@
 - Integrated Phase 2 Batch 2: `97ecb34` / PR `#2`
 - Integrated Phase 2 Batch 3: `0e01168` / PR `#3`
 - Phase 2 milestone: `v0.2.0-phase2`
-- Active development branch: none
+- Active development branch: `phase3/framework-interface-spec-v1`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
@@ -99,10 +100,11 @@ recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.m
 
 ## Next boundary
 
-Phase 3 requires a new reviewed specification before implementation. Its intended subject is the
-bounded Worker Lab-to-Autonomous Worker Framework interface and the first synthetic worker exercise.
-The Phase 2 milestone does not itself authorize worker execution, framework invocation, or work in an
-external product repository.
+Phase 3A is a documentation-only specification of the bounded Worker Lab-to-Autonomous Worker
+Framework interface and the first synthetic worker exercise. `TERRA_PHASE3A.md` is the active bounded
+handoff. Its output requires trusted review before implementation. The Phase 2 milestone and Phase 3A
+handoff do not authorize worker execution, framework invocation, or work in an external product
+repository.
 
 ## Drift boundary
 
