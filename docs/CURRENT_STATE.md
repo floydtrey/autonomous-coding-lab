@@ -1,8 +1,8 @@
 # Current State
 
 **Last updated:** 2026-08-28
-**Status:** Phase 2 complete at `v0.2.0-phase2`; Phase 3A specification handoff prepared; worker
-execution remains unavailable.
+**Status:** Phase 2 complete at `v0.2.0-phase2`; Phase 3A approved for non-executing Batch 3B only;
+worker execution remains unavailable.
 
 ## Repository
 
@@ -100,11 +100,10 @@ recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.m
 
 ## Next boundary
 
-Phase 3A is a documentation-only specification of the bounded Worker Lab-to-Autonomous Worker
-Framework interface and the first synthetic worker exercise. `TERRA_PHASE3A.md` is the active bounded
-handoff. Its output requires trusted review before implementation. The Phase 2 milestone and Phase 3A
-handoff do not authorize worker execution, framework invocation, or work in an external product
-repository.
+Phase 3A approved `PHASE3_SPEC.md` and `PHASE3_READINESS_REVIEW.md` for Batch 3B strict records,
+storage, catalog bindings, and a fake/injected non-executing adapter preparation seam. A separate
+trusted decision is required before Batch 3C. Phase 3A does not authorize Codex/framework execution,
+`READY -> RUNNING`, or work in an external product repository.
 
 ## Drift boundary
 
