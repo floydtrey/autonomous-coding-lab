@@ -1,7 +1,7 @@
 # Current State
 
-**Last updated:** 2026-08-27
-**Status:** Phase 2 Batch 2 integrated; restart verification and disposal are not implemented.
+**Last updated:** 2026-08-28
+**Status:** Phase 2 complete at `v0.2.0-phase2`; worker execution remains unavailable.
 
 ## Repository
 
@@ -12,6 +12,8 @@
 - Governance/publication milestone: `v0.1.2-phase1`
 - Integrated Phase 2 Batch 1: `12048ea` / PR `#1`
 - Integrated Phase 2 Batch 2: `97ecb34` / PR `#2`
+- Integrated Phase 2 Batch 3: `0e01168` / PR `#3`
+- Phase 2 milestone: `v0.2.0-phase2`
 - Active development branch: none
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
@@ -74,30 +76,35 @@ recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.m
   the focused workspace security/lifecycle/runtime boundary.
 - Active catalog digest:
   `sha256:fe3d50c4c0692a3d0fee0ea97690a3f1d0272a31052c0afe0489cd4e6fce44aa`.
-- Batch 2 adds strict attempt-authority revalidation, local-template and workspace-root validation,
+- Batch 2 added strict attempt-authority revalidation, local-template and workspace-root validation,
   independent staged cloning, detached exact-commit checkout, remote removal, context verification,
   atomic publication, an ephemeral receipt, failure compensation, and `DRAFT` to `READY`.
 - Git subprocesses ignore inherited Git configuration, run non-interactively with finite timeouts,
   and receive no GitHub credential-like or Git path-redirection variables.
 - Preparation rejects dirty or changed templates, linked/reparse paths, submodules, alternate object
   stores, protected-root overlap, preexisting targets or receipts, and non-clean `DRAFT` attempts.
-- The complete catalog-selected Batch 2 profile union passed 148 tests with two Windows symlink
-  skips.
+- Batch 3 was merged through PR #3 at `0e01168`: restart verification fails closed without mutation,
+  and receipt-bound disposal quarantines before deletion, recovers interruptions, records the actual
+  cleanup outcome, and transitions `READY` to `ABORTED` without entering `RUNNING`.
+- Batch 4 completed synthetic public CLI and durable backup/restore acceptance coverage. The complete
+  active suite passed 257 tests with six expected Windows symlink capability skips both in Terra's
+  candidate workspace and in an independent checkout reconstructed from the preflight bundle.
+- External durable-data backup and restore verified seven files. The complete recovery identities and
+  paths are recorded in `PHASE2_MILESTONE_EVIDENCE.md`.
 
 ## Still unavailable
 
 - worker execution or framework invocation;
-- restart verification and workspace disposal;
 - dashboard, real curricula, worker attempts, or graduation decisions.
 
 ## Next boundary
 
-After Batch 2 integration, the next work is Batch 3 restart verification, receipt/path substitution
-detection, quarantine cleanup, interruption recovery, and `READY` to `ABORTED`. Phase 2 does not
-authorize worker execution, framework invocation, or work in an external product repository.
+Phase 3 requires a new reviewed specification before implementation. Its intended subject is the
+bounded Worker Lab-to-Autonomous Worker Framework interface and the first synthetic worker exercise.
+The Phase 2 milestone does not itself authorize worker execution, framework invocation, or work in an
+external product repository.
 
 ## Drift boundary
 
-Do not invoke workers or modify external product repositories. Phase 2 work must advance an approved
-readiness condition in `PHASE2_READINESS_REVIEW.md`. Ordinary polish and speculative abstractions
-remain deferred.
+Do not invoke workers or modify external product repositories until Phase 3 authority is explicitly
+approved. Ordinary polish and speculative abstractions remain deferred.

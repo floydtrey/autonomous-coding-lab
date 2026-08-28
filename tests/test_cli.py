@@ -240,6 +240,59 @@ def test_discard_workspace_cli_uses_stable_failure_output(tmp_path: Path, capsys
     assert capsys.readouterr().err.startswith("ERROR WORKSPACE_DISPOSAL_STATE_INVALID:")
 
 
+def test_complete_phase2_workspace_cli_workflow(tmp_path: Path, capsys, monkeypatch) -> None:
+    lab, template = write_authority_fixture(tmp_path)
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    assert main([
+        "--root", str(lab), "create-attempt", "--exercise", "record-model", "--version", "1",
+        "--target-repository", str(template),
+    ]) == 0
+    attempt_id = json.loads(capsys.readouterr().out)["attempt_id"]
+    assert main([
+        "--root", str(lab), "prepare-workspace", attempt_id,
+        "--template-repository", str(template), "--workspace-root", str(workspace_root),
+    ]) == 0
+    prepared = json.loads(capsys.readouterr().out)
+    workspace = workspace_root / attempt_id
+    receipt_path = lab / "state" / "workspaces" / f"{attempt_id}.json"
+    attempt_before_verify = (lab / "state" / "attempts" / f"{attempt_id}.json").read_bytes()
+    receipt_before_verify = receipt_path.read_bytes()
+
+    assert main([
+        "--root", str(lab), "verify-workspace", attempt_id,
+        "--workspace-root", str(workspace_root),
+    ]) == 0
+    assert json.loads(capsys.readouterr().out) == prepared
+    assert (lab / "state" / "attempts" / f"{attempt_id}.json").read_bytes() == attempt_before_verify
+    assert receipt_path.read_bytes() == receipt_before_verify
+    assert subprocess.run(
+        ["git", "-C", str(workspace), "remote"], capture_output=True, text=True, check=True
+    ).stdout == ""
+    assert not (workspace / ".git" / "objects" / "info" / "alternates").exists()
+
+    monkeypatch.setattr(cli_module, "_now", lambda: "2099-08-28T12:00:00Z")
+    outcome = "synthetic workspace disposed"
+    assert main([
+        "--root", str(lab), "discard-workspace", attempt_id,
+        "--workspace-root", str(workspace_root), "--cleanup-outcome", outcome,
+    ]) == 0
+    discarded = json.loads(capsys.readouterr().out)
+    assert discarded["state"] == "ABORTED"
+    assert discarded["cleanup_outcome"] == outcome
+    assert discarded["runtime_identity"] is None
+    assert discarded["candidate_digest"] is None
+    assert not workspace.exists()
+    assert not (workspace_root / f".worker-lab-quarantine-{attempt_id}").exists()
+    assert not receipt_path.exists()
+
+    assert main([
+        "--root", str(lab), "discard-workspace", attempt_id,
+        "--workspace-root", str(workspace_root), "--cleanup-outcome", outcome,
+    ]) == 0
+    assert json.loads(capsys.readouterr().out) == discarded
+
+
 def test_complete_phase1_operator_workflow(tmp_path: Path, capsys) -> None:
     lab, target = write_authority_fixture(tmp_path)
 

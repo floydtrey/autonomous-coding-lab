@@ -10,11 +10,10 @@ Read [`docs/START_HERE.md`](docs/START_HERE.md).
 
 ## Current phase
 
-The Phase 1 governance and publication milestone is complete at `v0.1.2-phase1`. It preserves the
-validated implementation and recovery evidence from `v0.1.1-phase1` while adding the durable Phase 2
-readiness boundary and private remote checkpoint. Phase 2 Batch 2 adds staged preparation of a
-receipt-bound, detached synthetic workspace. Restart verification, disposal, and worker execution
-remain unavailable.
+Phase 2 is complete at `v0.2.0-phase2`. Worker Lab can prepare, restart-verify, and safely dispose of
+a receipt-bound detached workspace made from a synthetic local Git template. Durable backup excludes
+ephemeral workspaces and receipts, and the milestone was recovered and validated from an independent
+Git bundle checkout. Worker execution remains unavailable.
 
 ## Operator interface
 
@@ -24,6 +23,8 @@ python -m worker_lab.cli validate-definition <path>
 python -m worker_lab.cli --root <lab-root> list-curricula
 python -m worker_lab.cli --root <lab-root> create-attempt --exercise <id> --version <n> --target-repository <path>
 python -m worker_lab.cli --root <lab-root> prepare-workspace <attempt-id> --template-repository <path> --workspace-root <path>
+python -m worker_lab.cli --root <lab-root> verify-workspace <attempt-id> --workspace-root <path>
+python -m worker_lab.cli --root <lab-root> discard-workspace <attempt-id> --workspace-root <path> --cleanup-outcome <text>
 python -m worker_lab.cli --root <lab-root> verify-evidence <sha256:digest>
 python -m worker_lab.cli --root <lab-root> backup <destination>
 python -m worker_lab.cli verify-backup <backup>
