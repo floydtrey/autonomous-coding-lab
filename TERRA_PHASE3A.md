@@ -20,7 +20,7 @@ allowed. Prefer a functional, narrow first integration over a generalized orches
 - Framework repository, read-only reference:
   `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`
 - Framework foundation tag: `v0.1.0-foundation`
-- Required framework authority checkpoint: `43fe205c3af0fa6351041e8bcf26d1dc7419f02d`
+- Required framework authority checkpoint: `135373d24837f5d5b0da0650c9c00fc086fcb991`
   on clean local `main`
 
 Before writing, verify both repository identities and statuses with non-mutating Git commands. Confirm
@@ -71,7 +71,7 @@ Worker Lab:
 4. authority roles and numbered test meanings in `docs/POLICY_MODEL.md` and
    `docs/TEST_CATALOG.md`
 5. directly relevant public models in `worker_lab/models.py`, `worker_lab/lifecycle.py`,
-   `worker_lab/workspace.py`, and `worker_lab/test_planner.py`
+   `worker_lab/workspace.py`, and `worker_lab/test_catalog.py`
 
 Framework, read-only:
 
