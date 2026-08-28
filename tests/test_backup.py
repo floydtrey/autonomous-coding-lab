@@ -4,7 +4,10 @@ from pathlib import Path
 import pytest
 
 import worker_lab.backup as backup_module
+from tests.test_cli import write_authority_fixture
+from worker_lab.attempt_store import AttemptStore
 from worker_lab.backup import DURABLE_ROOTS, create_backup, restore_backup, verify_backup
+from worker_lab.cli import main
 from worker_lab.errors import LabValidationError
 
 
@@ -160,3 +163,50 @@ def test_failed_restore_publish_preserves_empty_destination_and_cleans_staging(
     assert destination.is_dir()
     assert not any(destination.iterdir())
     assert not tuple(tmp_path.glob(".restored.restore.*"))
+
+
+def test_ready_workspace_backup_excludes_receipt_and_requires_terminal_recovery(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    lab, template = write_authority_fixture(tmp_path)
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    assert main([
+        "--root", str(lab), "create-attempt", "--exercise", "record-model", "--version", "1",
+        "--target-repository", str(template),
+    ]) == 0
+    attempt_id = json.loads(capsys.readouterr().out)["attempt_id"]
+    assert main([
+        "--root", str(lab), "prepare-workspace", attempt_id,
+        "--template-repository", str(template), "--workspace-root", str(workspace_root),
+    ]) == 0
+    capsys.readouterr()
+    backup = tmp_path / "backup"
+    assert main(["--root", str(lab), "backup", str(backup)]) == 0
+    capsys.readouterr()
+    manifest = verify_backup(backup)
+    paths = {path for path, _ in manifest.files}
+    assert f"state/attempts/{attempt_id}.json" in paths
+    assert "curricula/exercises/record-model/v1.json" in paths
+    assert not any("workspaces" in path or path.startswith(".git/") for path in paths)
+    restored = tmp_path / "restored"
+    assert main(["restore", str(backup), str(restored)]) == 0
+    capsys.readouterr()
+    assert AttemptStore(restored / "state").read(attempt_id).state.value == "READY"
+    assert not (restored / "state" / "workspaces").exists()
+    assert not (restored / attempt_id).exists()
+
+    assert main([
+        "--root", str(restored), "verify-workspace", attempt_id,
+        "--workspace-root", str(workspace_root),
+    ]) == 2
+    assert capsys.readouterr().err.startswith("ERROR STORAGE_RECORD_MISSING:")
+    monkeypatch.setattr("worker_lab.cli._now", lambda: "2099-08-28T12:00:00Z")
+    assert main([
+        "--root", str(restored), "transition-attempt", attempt_id, "ABORTED",
+        "--cleanup-outcome", "workspace not restored",
+    ]) == 0
+    recovered = json.loads(capsys.readouterr().out)
+    assert recovered["state"] == "ABORTED"
+    assert recovered["cleanup_outcome"] == "workspace not restored"
+    assert not (restored / "state" / "workspaces").exists()
