@@ -4,6 +4,7 @@ import subprocess
 from copy import deepcopy
 from pathlib import Path
 
+import worker_lab.cli as cli_module
 from worker_lab.cli import main
 from worker_lab.evidence import content_digest, evidence_identity_digest
 from tests.test_models import curriculum_mapping, evidence_mapping, exercise_mapping
@@ -11,7 +12,9 @@ from tests.test_policy import context_mapping, policy_mapping, role_mapping
 from tests.test_test_catalog import catalog
 from worker_lab.models import EvidenceRecord, ExerciseRecord
 from worker_lab.policy import ContextManifest, PolicyRecord, RoleRecord
+from worker_lab.attempt_store import AttemptStore
 from worker_lab.validation import attempt_task_digest
+from worker_lab.workspace import prepare_workspace
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -134,6 +137,107 @@ def test_create_attempt_rejects_dirty_target_before_state_write(tmp_path: Path, 
     assert main(["--root", str(lab), "create-attempt", "--exercise", "record-model", "--version", "1", "--target-repository", str(target)]) == 2
     assert "ERROR ATTEMPT_REPOSITORY_DIRTY" in capsys.readouterr().err
     assert not (lab / "state").exists()
+
+
+def test_verify_workspace_cli_returns_receipt_and_stable_failure(tmp_path: Path, capsys) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    assert main([
+        "--root", str(lab), "create-attempt", "--exercise", "record-model", "--version", "1",
+        "--target-repository", str(target),
+    ]) == 0
+    attempt_id = json.loads(capsys.readouterr().out)["attempt_id"]
+    prepare_workspace(
+        lab, attempt_id, target, workspace_root,
+        occurred_at=AttemptStore(lab / "state").read(attempt_id).updated_at,
+    )
+
+    assert main([
+        "--root", str(lab), "verify-workspace", attempt_id,
+        "--workspace-root", str(workspace_root),
+    ]) == 0
+    assert json.loads(capsys.readouterr().out)["state"] == "PREPARED"
+    (workspace_root / attempt_id / "untracked.txt").write_text("changed\n", encoding="utf-8")
+    assert main([
+        "--root", str(lab), "verify-workspace", attempt_id,
+        "--workspace-root", str(workspace_root),
+    ]) == 2
+    assert capsys.readouterr().err.startswith("ERROR WORKSPACE_VERIFY_FAILED:")
+
+
+def test_discard_workspace_cli_aborts_and_removes_receipt(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    assert main([
+        "--root", str(lab), "create-attempt", "--exercise", "record-model", "--version", "1",
+        "--target-repository", str(target),
+    ]) == 0
+    attempt_id = json.loads(capsys.readouterr().out)["attempt_id"]
+    prepare_workspace(
+        lab, attempt_id, target, workspace_root,
+        occurred_at=AttemptStore(lab / "state").read(attempt_id).updated_at,
+    )
+    occurred_at = "2099-08-28T12:00:00Z"
+    monkeypatch.setattr(cli_module, "_now", lambda: occurred_at)
+
+    assert main([
+        "--root", str(lab), "discard-workspace", attempt_id,
+        "--workspace-root", str(workspace_root), "--cleanup-outcome", "operator disposal",
+    ]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["state"] == "ABORTED"
+    assert result["updated_at"] == occurred_at
+    assert not (workspace_root / attempt_id).exists()
+    assert not (lab / "state" / "workspaces" / f"{attempt_id}.json").exists()
+
+
+def test_generic_transition_cannot_bypass_receipt_bound_disposal(tmp_path: Path, capsys) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    assert main([
+        "--root", str(lab), "create-attempt", "--exercise", "record-model", "--version", "1",
+        "--target-repository", str(target),
+    ]) == 0
+    attempt_id = json.loads(capsys.readouterr().out)["attempt_id"]
+    prepare_workspace(
+        lab,
+        attempt_id,
+        target,
+        workspace_root,
+        occurred_at=AttemptStore(lab / "state").read(attempt_id).updated_at,
+    )
+
+    assert main([
+        "--root", str(lab), "transition-attempt", attempt_id, "ABORTED",
+        "--cleanup-outcome", "bypass disposal",
+    ]) == 2
+
+    assert capsys.readouterr().err.startswith("ERROR ATTEMPT_WORKSPACE_DISPOSAL_REQUIRED:")
+    assert AttemptStore(lab / "state").read(attempt_id).state.value == "READY"
+    assert (workspace_root / attempt_id).is_dir()
+    assert (lab / "state" / "workspaces" / f"{attempt_id}.json").is_file()
+
+
+def test_discard_workspace_cli_uses_stable_failure_output(tmp_path: Path, capsys) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    assert main([
+        "--root", str(lab), "create-attempt", "--exercise", "record-model", "--version", "1",
+        "--target-repository", str(target),
+    ]) == 0
+    attempt_id = json.loads(capsys.readouterr().out)["attempt_id"]
+
+    assert main([
+        "--root", str(lab), "discard-workspace", attempt_id,
+        "--workspace-root", str(workspace_root), "--cleanup-outcome", "must fail",
+    ]) == 2
+    assert capsys.readouterr().err.startswith("ERROR WORKSPACE_DISPOSAL_STATE_INVALID:")
 
 
 def test_complete_phase1_operator_workflow(tmp_path: Path, capsys) -> None:

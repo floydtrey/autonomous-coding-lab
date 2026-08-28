@@ -44,6 +44,197 @@ _GIT_REDIRECTION_NAMES = frozenset({
 RunProcess = Callable[..., subprocess.CompletedProcess[str]]
 
 
+def verify_workspace(
+    lab_root: Path,
+    attempt_id: str,
+    workspace_root: Path,
+    *,
+    run_process: RunProcess = subprocess.run,
+    git_timeout_seconds: int = DEFAULT_GIT_TIMEOUT_SECONDS,
+) -> WorkspaceReceipt:
+    """Verify one prepared workspace without changing persistent or filesystem state."""
+    if isinstance(git_timeout_seconds, bool) or git_timeout_seconds <= 0:
+        raise LabValidationError("WORKSPACE_TIMEOUT_INVALID", "Git timeout must be positive")
+    lab = _real_directory(lab_root, "WORKSPACE_LAB_INVALID")
+    root = _verify_workspace_root_for_verification(workspace_root, lab)
+    state_root = lab / "state"
+    _assert_no_reparse_components(state_root)
+    _assert_no_reparse_components(state_root / "attempts" / f"{attempt_id}.json")
+    attempt = AttemptStore(state_root).read(attempt_id)
+    if (
+        attempt.state is not AttemptState.READY
+        or attempt.runtime_identity is not None
+        or attempt.candidate_digest is not None
+        or attempt.cleanup_outcome is not None
+    ):
+        raise LabValidationError(
+            "WORKSPACE_ATTEMPT_STATE_INVALID", "workspace verification requires a clean READY"
+        )
+    exercise, context = _load_and_verify_authority(lab, attempt)
+    receipt_relative = f"workspaces/{attempt.attempt_id}.json"
+    receipt_path = state_root / "workspaces" / f"{attempt.attempt_id}.json"
+    _assert_no_reparse_components(receipt_path)
+    receipt = AtomicRecordStore(lab / "state").read(
+        receipt_relative, WorkspaceReceipt.from_mapping
+    )
+    workspace = root / attempt.attempt_id
+    resolved_workspace = _real_directory(workspace, "WORKSPACE_VERIFY_FAILED")
+    if (
+        receipt.state.value != "PREPARED"
+        or receipt.attempt_id != attempt.attempt_id
+        or receipt.exercise_id != exercise.exercise_id
+        or receipt.exercise_version != exercise.exercise_version
+        or receipt.template_repository != exercise.template_repository
+        or receipt.template_commit != attempt.starting_commit
+        or receipt.workspace_root_digest != canonical_path_digest(root)
+        or receipt.workspace_path_digest != canonical_path_digest(resolved_workspace)
+        or receipt.workspace_relative_path != attempt.attempt_id
+    ):
+        raise LabValidationError("WORKSPACE_RECEIPT_MISMATCH", "workspace receipt binding differs")
+    _verify_prepared_repository(
+        resolved_workspace, attempt, context, run_process=run_process, timeout=git_timeout_seconds
+    )
+    return receipt
+
+
+def discard_workspace(
+    lab_root: Path,
+    attempt_id: str,
+    workspace_root: Path,
+    cleanup_outcome: str,
+    *,
+    occurred_at: str,
+    run_process: RunProcess = subprocess.run,
+    replace_path: Callable[[Path, Path], None] = os.replace,
+    git_timeout_seconds: int = DEFAULT_GIT_TIMEOUT_SECONDS,
+) -> AttemptRecord:
+    """Quarantine and remove one receipt-bound workspace before READY -> ABORTED."""
+    if isinstance(git_timeout_seconds, bool) or git_timeout_seconds <= 0:
+        raise LabValidationError("WORKSPACE_TIMEOUT_INVALID", "Git timeout must be positive")
+    if not isinstance(cleanup_outcome, str) or not cleanup_outcome.strip():
+        raise LabValidationError("WORKSPACE_CLEANUP_OUTCOME_INVALID", "cleanup outcome must be non-empty")
+    lab = _real_directory(lab_root, "WORKSPACE_LAB_INVALID")
+    root = _verify_workspace_root_for_verification(workspace_root, lab)
+    state_root = lab / "state"
+    _assert_no_reparse_components(state_root)
+    _assert_no_reparse_components(state_root / "attempts" / f"{attempt_id}.json")
+    attempt_store = AttemptStore(state_root)
+    attempt = attempt_store.read(attempt_id)
+    receipt_path = state_root / "workspaces" / f"{attempt.attempt_id}.json"
+    _assert_no_reparse_components(receipt_path)
+    receipt_store = AtomicRecordStore(state_root)
+    receipt_relative = f"workspaces/{attempt.attempt_id}.json"
+    final_workspace = root / attempt.attempt_id
+    quarantine = root / f".worker-lab-quarantine-{attempt.attempt_id}"
+    exercise, context = _load_and_verify_authority(lab, attempt)
+
+    if attempt.state is AttemptState.ABORTED:
+        if attempt.runtime_identity is not None or attempt.candidate_digest is not None:
+            raise LabValidationError(
+                "WORKSPACE_DISPOSAL_STATE_INVALID", "workspace disposal requires a Phase 2 attempt"
+            )
+        if attempt.cleanup_outcome != cleanup_outcome:
+            raise LabValidationError(
+                "WORKSPACE_CLEANUP_OUTCOME_MISMATCH",
+                "cleanup outcome differs from the completed attempt",
+            )
+        if os.path.lexists(final_workspace) or os.path.lexists(quarantine):
+            raise LabValidationError(
+                "WORKSPACE_DISPOSAL_AMBIGUOUS", "aborted attempt retains a workspace"
+            )
+        try:
+            receipt = receipt_store.read(receipt_relative, WorkspaceReceipt.from_mapping)
+        except LabValidationError as exc:
+            if exc.code == "STORAGE_RECORD_MISSING":
+                return attempt
+            raise
+        _validate_quarantined_receipt(receipt, attempt, exercise, root, quarantine)
+        try:
+            receipt_path.unlink()
+        except OSError as exc:
+            raise LabValidationError("WORKSPACE_DISPOSAL_FAILED", str(exc)) from exc
+        return attempt
+    if (
+        attempt.state is not AttemptState.READY
+        or attempt.runtime_identity is not None
+        or attempt.candidate_digest is not None
+        or attempt.cleanup_outcome is not None
+    ):
+        raise LabValidationError(
+            "WORKSPACE_DISPOSAL_STATE_INVALID", "workspace disposal requires a clean READY"
+        )
+    aborted_attempt = transition_attempt(
+        attempt,
+        AttemptState.ABORTED,
+        occurred_at=occurred_at,
+        cleanup_outcome=cleanup_outcome,
+    )
+    receipt = receipt_store.read(receipt_relative, WorkspaceReceipt.from_mapping)
+    if receipt.state.value == "PREPARED":
+        _validate_prepared_receipt(receipt, attempt, exercise, root, final_workspace)
+        final_exists = os.path.lexists(final_workspace)
+        quarantine_exists = os.path.lexists(quarantine)
+        if final_exists and quarantine_exists:
+            raise LabValidationError("WORKSPACE_DISPOSAL_AMBIGUOUS", "both workspace paths exist")
+        if not final_exists and not quarantine_exists:
+            raise LabValidationError("WORKSPACE_DISPOSAL_AMBIGUOUS", "workspace is missing")
+        if final_exists:
+            _verify_prepared_repository(
+                final_workspace,
+                attempt,
+                context,
+                run_process=run_process,
+                timeout=git_timeout_seconds,
+            )
+            try:
+                replace_path(final_workspace, quarantine)
+            except OSError as exc:
+                raise LabValidationError(
+                    "WORKSPACE_DISPOSAL_FAILED", "workspace quarantine rename failed"
+                ) from exc
+        else:
+            _verify_prepared_repository(
+                quarantine,
+                attempt,
+                context,
+                run_process=run_process,
+                timeout=git_timeout_seconds,
+            )
+        _assert_direct_child(quarantine, root, prefix=".worker-lab-quarantine-")
+        if _is_reparse(quarantine) or not quarantine.is_dir():
+            raise LabValidationError("WORKSPACE_PATH_INDIRECTION", "quarantine path is invalid")
+        receipt = _quarantined_receipt(receipt, quarantine)
+        receipt_store.write(receipt_relative, receipt)
+        _assert_no_reparse_components(receipt_path)
+        stored = receipt_store.read(receipt_relative, WorkspaceReceipt.from_mapping)
+        if stored != receipt:
+            raise LabValidationError("WORKSPACE_RECEIPT_MISMATCH", "quarantined receipt differs")
+    elif receipt.state.value == "QUARANTINED":
+        _validate_quarantined_receipt(receipt, attempt, exercise, root, quarantine)
+        if os.path.lexists(final_workspace):
+            raise LabValidationError("WORKSPACE_DISPOSAL_AMBIGUOUS", "workspace remains after quarantine")
+    else:
+        raise LabValidationError("WORKSPACE_RECEIPT_MISMATCH", "receipt state is unsupported")
+
+    if os.path.lexists(quarantine):
+        _assert_direct_child(quarantine, root, prefix=".worker-lab-quarantine-")
+        if _is_reparse(quarantine) or not quarantine.is_dir():
+            raise LabValidationError("WORKSPACE_PATH_INDIRECTION", "quarantine path is invalid")
+        try:
+            _remove_tree(quarantine)
+        except OSError as exc:
+            raise LabValidationError("WORKSPACE_DISPOSAL_FAILED", str(exc)) from exc
+    if os.path.lexists(quarantine):
+        raise LabValidationError("WORKSPACE_DISPOSAL_FAILED", "quarantine removal was incomplete")
+    attempt_store.save_transition(aborted_attempt)
+    _assert_no_reparse_components(receipt_path)
+    try:
+        receipt_path.unlink()
+    except OSError as exc:
+        raise LabValidationError("WORKSPACE_DISPOSAL_FAILED", str(exc)) from exc
+    return aborted_attempt
+
+
 def prepare_workspace(
     lab_root: Path,
     attempt_id: str,
@@ -328,6 +519,77 @@ def _verify_workspace_root(candidate: Path, lab: Path, source: Path) -> Path:
     return root
 
 
+def _verify_workspace_root_for_verification(candidate: Path, lab: Path) -> Path:
+    root = _real_directory(candidate, "WORKSPACE_ROOT_INVALID")
+    if _overlaps(root, lab):
+        raise LabValidationError(
+            "WORKSPACE_ROOT_INVALID", "workspace root overlaps Worker Lab"
+        )
+    for ancestor in (root, *root.parents):
+        if os.path.lexists(ancestor / ".git"):
+            raise LabValidationError(
+                "WORKSPACE_ROOT_INVALID", "workspace root is inside a Git repository"
+            )
+    return root
+
+
+def _validate_prepared_receipt(
+    receipt: WorkspaceReceipt,
+    attempt: AttemptRecord,
+    exercise: ExerciseRecord,
+    root: Path,
+    workspace: Path,
+) -> None:
+    if (
+        receipt.state.value != "PREPARED"
+        or receipt.attempt_id != attempt.attempt_id
+        or receipt.exercise_id != exercise.exercise_id
+        or receipt.exercise_version != exercise.exercise_version
+        or receipt.template_repository != exercise.template_repository
+        or receipt.template_commit != attempt.starting_commit
+        or receipt.workspace_root_digest != canonical_path_digest(root)
+        or receipt.workspace_path_digest != _direct_child_path_digest(root, workspace)
+        or receipt.workspace_relative_path != attempt.attempt_id
+    ):
+        raise LabValidationError("WORKSPACE_RECEIPT_MISMATCH", "workspace receipt binding differs")
+
+
+def _validate_quarantined_receipt(
+    receipt: WorkspaceReceipt,
+    attempt: AttemptRecord,
+    exercise: ExerciseRecord,
+    root: Path,
+    quarantine: Path,
+) -> None:
+    if (
+        receipt.state.value != "QUARANTINED"
+        or receipt.attempt_id != attempt.attempt_id
+        or receipt.exercise_id != exercise.exercise_id
+        or receipt.exercise_version != exercise.exercise_version
+        or receipt.template_repository != exercise.template_repository
+        or receipt.template_commit != attempt.starting_commit
+        or receipt.workspace_root_digest != canonical_path_digest(root)
+        or receipt.workspace_path_digest != _direct_child_path_digest(root, quarantine)
+        or receipt.workspace_relative_path != f".worker-lab-quarantine-{attempt.attempt_id}"
+    ):
+        raise LabValidationError("WORKSPACE_RECEIPT_MISMATCH", "quarantined receipt binding differs")
+
+
+def _quarantined_receipt(receipt: WorkspaceReceipt, quarantine: Path) -> WorkspaceReceipt:
+    value = receipt.to_dict()
+    value.update({
+        "workspace_path_digest": canonical_path_digest(quarantine),
+        "workspace_relative_path": f".worker-lab-quarantine-{receipt.attempt_id}",
+        "state": "QUARANTINED",
+    })
+    return WorkspaceReceipt.from_mapping(value)
+
+
+def _direct_child_path_digest(root: Path, child: Path) -> str:
+    _assert_direct_child(child, root, prefix=child.name)
+    return canonical_digest({"canonical_path": _path_key(child)})
+
+
 def _verify_prepared_repository(
     workspace: Path,
     attempt: AttemptRecord,
@@ -338,6 +600,7 @@ def _verify_prepared_repository(
 ) -> None:
     resolved = _real_directory(workspace, "WORKSPACE_VERIFY_FAILED")
     _assert_no_reparse_tree(resolved)
+    _assert_no_nested_git_repository(resolved)
     git_dir = resolved / ".git"
     if not git_dir.is_dir() or _is_reparse(git_dir):
         raise LabValidationError("WORKSPACE_VERIFY_FAILED", "workspace .git must be a real directory")
@@ -451,6 +714,7 @@ def _git_environment(source: Mapping[str, str]) -> dict[str, str]:
         "GIT_CONFIG_NOSYSTEM": "1",
         "GIT_CONFIG_SYSTEM": os.devnull,
         "GIT_LFS_SKIP_SMUDGE": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
         "GIT_TERMINAL_PROMPT": "0",
     })
     return clean
@@ -489,6 +753,17 @@ def _assert_no_reparse_tree(root: Path, *, skip_git: bool = False) -> None:
                 raise LabValidationError(
                     "WORKSPACE_PATH_INDIRECTION", f"reparse entry rejected: {child}"
                 )
+
+
+def _assert_no_nested_git_repository(root: Path) -> None:
+    for current, directories, files in os.walk(root, topdown=True, followlinks=False):
+        current_path = Path(current)
+        if current_path == root:
+            directories[:] = [name for name in directories if name != ".git"]
+        if ".git" in directories or ".git" in files:
+            raise LabValidationError(
+                "WORKSPACE_VERIFY_FAILED", "nested Git repository is forbidden"
+            )
 
 
 def _is_reparse(path: Path) -> bool:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import subprocess
 import uuid
@@ -25,7 +26,7 @@ from .policy import (
 from .storage import AtomicRecordStore
 from .test_catalog import CATALOG_SCHEMA, TestCatalog
 from .validation import attempt_task_digest
-from .workspace import prepare_workspace
+from .workspace import discard_workspace, prepare_workspace, verify_workspace
 
 
 LOADERS: dict[str, Callable[[Any], Any]] = {
@@ -86,6 +87,15 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("--template-repository", required=True, type=Path)
     command.add_argument("--workspace-root", required=True, type=Path)
     command.set_defaults(handler=_prepare_workspace)
+    command = commands.add_parser("verify-workspace")
+    command.add_argument("attempt_id")
+    command.add_argument("--workspace-root", required=True, type=Path)
+    command.set_defaults(handler=_verify_workspace)
+    command = commands.add_parser("discard-workspace")
+    command.add_argument("attempt_id")
+    command.add_argument("--workspace-root", required=True, type=Path)
+    command.add_argument("--cleanup-outcome", required=True)
+    command.set_defaults(handler=_discard_workspace)
     command = commands.add_parser("transition-attempt")
     command.add_argument("attempt_id")
     command.add_argument("state", choices=[str(state) for state in AttemptState])
@@ -265,10 +275,41 @@ def _prepare_workspace(args: argparse.Namespace) -> str:
     ).to_json(pretty=True)
 
 
+def _verify_workspace(args: argparse.Namespace) -> str:
+    return verify_workspace(args.root, args.attempt_id, args.workspace_root).to_json(pretty=True)
+
+
+def _discard_workspace(args: argparse.Namespace) -> str:
+    return discard_workspace(
+        args.root,
+        args.attempt_id,
+        args.workspace_root,
+        args.cleanup_outcome,
+        occurred_at=_now(),
+    ).to_json(pretty=True)
+
+
 def _transition_attempt(args: argparse.Namespace) -> str:
     store = _attempts(args)
     current = store.read(args.attempt_id)
-    updated = transition_attempt(current, AttemptState(args.state), occurred_at=_now(), candidate_digest=args.candidate_digest, cleanup_outcome=args.cleanup_outcome)
+    target = AttemptState(args.state)
+    receipt_path = args.root / "state" / "workspaces" / f"{current.attempt_id}.json"
+    if (
+        current.state is AttemptState.READY
+        and target is AttemptState.ABORTED
+        and os.path.lexists(receipt_path)
+    ):
+        raise LabValidationError(
+            "ATTEMPT_WORKSPACE_DISPOSAL_REQUIRED",
+            "receipt-bound READY attempts must use discard-workspace",
+        )
+    updated = transition_attempt(
+        current,
+        target,
+        occurred_at=_now(),
+        candidate_digest=args.candidate_digest,
+        cleanup_outcome=args.cleanup_outcome,
+    )
     store.save_transition(updated)
     return updated.to_json(pretty=True)
 
