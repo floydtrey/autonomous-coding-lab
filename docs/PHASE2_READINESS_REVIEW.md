@@ -3,6 +3,8 @@
 **Decision date:** 2026-08-27
 **Decision:** Approved to begin Phase 2 specification and implementation
 **Starting milestone:** `v0.1.2-phase1`
+**Completion date:** 2026-08-28
+**Completion decision:** All Phase 2 conditions passed for `v0.2.0-phase2`
 
 ## Purpose
 

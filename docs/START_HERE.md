@@ -1,8 +1,8 @@
 # Start Here
 
 **Status:** Active routing authority
-**Current phase:** Phase 2 Batch 4 acceptance and milestone preparation
-**Integrated checkpoint:** Batch 3 merge `0e01168087705c1dd4d5dd68e8d8d58b7a715146` / PR `#3`
+**Current phase:** Phase 2 complete; Phase 3 specification is the next boundary
+**Integrated checkpoint:** `v0.2.0-phase2`
 
 ## Purpose
 
@@ -66,11 +66,11 @@ fully cover the changed boundary; record the ordering honestly.
 
 ## Current boundary
 
-Batch 3 restart verification, quarantine disposal, interruption recovery, and `READY` to `ABORTED`
-are integrated. Batch 4 must prove synthetic CLI acceptance, durable backup exclusions, restored
-active-attempt handling, the complete milestone suite, external rollback, current documentation, and
-a named Phase 2 milestone.
+Phase 2 restart verification, quarantine disposal, interruption recovery, synthetic CLI acceptance,
+durable backup exclusions, restored active-attempt handling, and independent rollback validation are
+complete at `v0.2.0-phase2`.
 
-Phase 2 still does not authorize Codex/framework worker execution, candidate evaluation, publication,
-real curricula, Mine Tracker changes, or another product repository. Those remain later-phase work.
+The next work is a bounded Phase 3 specification and approval decision. The completed Phase 2
+milestone does not authorize Codex/framework worker execution, candidate evaluation, publication,
+real curricula, Mine Tracker changes, or another product repository.
 - Stop on stale or conflicting repository identity.
