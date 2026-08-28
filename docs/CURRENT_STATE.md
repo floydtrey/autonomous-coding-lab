@@ -2,8 +2,9 @@
 
 **Status:** Active checkpoint authority
 **Read when:** Starting or resuming any project task.
-**Last updated:** 2026-08-27
-**Status:** Framework foundation stable; Worker Lab Phase 2 Batch 1 integrated; worker execution remains closed.
+**Last updated:** 2026-08-28
+**Current boundary:** Framework foundation stable; Worker Lab Phase 2 complete; Phase 3A interface
+specification authorized; Worker Lab invocation remains disabled pending trusted approval.
 
 ## Exact repository state
 
@@ -13,28 +14,32 @@
 - Branch: `main`
 - Integrated and tagged foundation commit: `2b31a96a872ee7d042614b5be917b1b4f3c1d57c`
 - Named milestone: `v0.1.0-foundation`
+- Documentation-refresh base: `31c27d6c2fad0c7365806c9cc643eef2f122f93b`
+- Every commit after the foundation tag changes project memory, documentation, or documentation tests;
+  framework runtime source is unchanged.
 - Complete recoverable bundle: `C:\Users\MineTrackerWorker\backups\autonomous-worker-framework\autonomous-worker-framework-20260827-d83854f.bundle`
 - Tagged foundation bundle: `C:\Users\MineTrackerWorker\backups\autonomous-worker-framework\autonomous-worker-framework-v0.1.0-foundation.bundle`
 - Remote: none configured; the framework is currently local-only.
-- Test inventory: 123 tests; all passed on integrated `main` before this state refresh.
+- Last certified inventory: 123 tests passed. No runtime code changed after that certification.
 
 ### Worker Lab
 
 - Path: `C:\Users\MineTrackerWorker\repos\worker-lab`
 - Integrated branch: `main`
-- Governance/publication commit: `0b6869f889201eeac9091845c9e71bb573d10bbd`
-- Named milestone: `v0.1.2-phase1`
-- Phase 2 Batch 1 merge: `12048eaee68b53ae6cece52687c2406dc51f349b` / PR `#1`
-- Current published `main`: `db9dcfe94a7ccca01e70a89e695f096fc8b5ad51`
-- Corrected validation tag: `v0.1.1-phase1` remains unchanged.
-- Historical pre-audit tag: `v0.1.0-phase1` remains unchanged.
+- Phase 2 merge: `bcfb1562c3f274c0256ed4105d5f443ab0749ace` / PR `#4`
+- Named milestone: `v0.2.0-phase2`
+- Active Phase 3 design branch: `phase3/framework-interface-spec-v1`
+- Phase 3A handoff checkpoint: `a7961dcd0e8a23381d51509afb210ab514c35cc8`
 - Private remote: `https://github.com/floydtrey/worker-lab`
-- Test inventory: 170 passed; one expected Windows symlink capability test skipped.
-- Durable-data backup: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.1-phase1-data-99c0b58`
-- Verified tagged bundle: `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.1.2-phase1.bundle`
-- Final bundle SHA-256: `56c29a51e6687b98bd5a3c1346d7c01403ceb9c2ba858dfbe575525d1b5556d9`
-- Phase 2 specification, strict ephemeral receipt contract, and immutable `worker-lab-v2` test
-  binding are integrated. Workspace preparation is not implemented.
+- Milestone validation: 257 tests passed; six expected Windows symlink capability tests skipped in
+  both the candidate workspace and an independent rollback checkout.
+- Final tagged bundle:
+  `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-v0.2.0-phase2.bundle`
+- Final bundle SHA-256:
+  `4325bdcc681cce2e47c6e8b271bb8e0661902d95e220c6a1083eb48531a56f7a`
+- Phase 2 proves strict exercise/attempt records, isolated staged workspace preparation, restart
+  verification, quarantine-backed disposal, interruption recovery, durable backup exclusions, CLI
+  acceptance, and rollback recovery.
 
 Recent capability checkpoints:
 
@@ -48,19 +53,17 @@ Recent capability checkpoints:
 - `84586f8` — bounded Codex execution seam
 - `2f7b376` — deterministic local worker harness
 
-### Mine Tracker
+### External product repositories
 
-- Permanent checkout: `C:\Users\MineTrackerWorker\repos\advanced-mine-asset-inspection`
-- Permanent checkout branch: `chore/worker-result-v1` (intentionally not advanced during worker tasks)
-- GitHub repository: `floydtrey/advanced-mine-asset-inspection`
-- Certified remote `main`: `a7b2c560c22ed13442cddc9c2e3caa0b4fcaa96a`
-- Protected required check: `Python tests`, strict against current `main`
-- Admin enforcement and conversation resolution are enabled; force pushes and deletions are disabled.
+Mine Tracker and every other product repository are outside the active Phase 3A scope. Their current
+branches, commits, issues, pull requests, and backups were not refreshed for this checkpoint and must
+not be inferred from older framework history. Consult a consumer's own current authority only when a
+future task explicitly authorizes that consumer. Phase 3A must not access one.
 
-Known backup:
+## Framework capability versus current authority
 
-- `C:\Users\MineTrackerWorker\backups\mine-tracker\mine-tracker-20260826-190202-fa2f92b57463.bundle`
-- Bundle was verified complete when created. It predates the worker commissioning and first real task; GitHub history contains the later milestones.
+The framework already contains a proven bounded Codex execution seam. That technical capability does
+not authorize Worker Lab to invoke it.
 
 ## Proven capabilities
 
@@ -72,46 +75,40 @@ The following have been demonstrated, not merely unit tested:
 4. Exact path boundary enforcement, unchanged Git HEAD enforcement, and dirty-workspace rejection.
 5. Trusted quick/full consumer validation and structured worker evidence.
 6. Identity-bound candidate commit, branch, draft PR, exact verification, one-time authorization, merge, post-merge CI, and cleanup.
-7. Mine Tracker commissioning marker create/merge/remove cycle without product behavior changes.
-8. Read-only Codex analysis of real private Mine Tracker source using a content-addressed repository profile.
+7. A commissioning marker create/merge/remove cycle in a separate consumer without product behavior
+   changes.
+8. Read-only source analysis through a content-addressed consumer profile.
 9. General one-task code execution outside the fixture harness.
-10. First real Mine Tracker task: Codex identified and added archived-asset historical-retrieval regression coverage in `tests/test_assets.py`.
+10. One exact-path consumer regression task carried through controlled integration.
 
-First real task evidence:
+Historical external-product runs remain evidence that the framework boundary has operated, but their
+consumer identities are not active Phase 3 context and grant no present authority.
 
-- Task: GitHub issue `#32`
-- Candidate: PR `#33`
-- Worker candidate head: `2a9ffa047ab051cf6659f21eac33d38deed144b2`
-- Task digest: `sha256:cbd19f224b5feaf130c355966216edfbbc25fd150b3fa198022ed454a767c6e3`
-- Context digest: `sha256:8aedc42a5668654b08b40ff3da250733ba9263913eb97700e5df250bbe0372ac`
-- Exact verification run: `33066488282` — passed
-- Post-merge CI run: `33066719376` — passed
-- Resulting `main`: `a7b2c560c22ed13442cddc9c2e3caa0b4fcaa96a`
-- Product behavior changed: no; regression coverage only
+## Current Worker Lab authority
 
-## What the system can do now
-
-- Inspect a bounded Mine Tracker area and propose one low-risk task.
-- Bind the proposal to exact repository/context identity.
-- Let a restricted worker implement one exact-path task.
-- Reject out-of-scope files, worker commits, stale heads, dirty repositories, bad diffs, or failed tests.
-- Carry a validated candidate through controlled GitHub integration under trusted-controller authority.
+- Phase 3A may read the existing framework contracts and write a specification in Worker Lab.
+- Phase 3A may not invoke Codex or the framework, create an attempt, change lifecycle state, or modify
+  framework source.
+- Worker Lab may invoke the framework only after a reviewed Phase 3 specification defines the exact
+  adapter, identity, lifecycle, failure, evidence, and recovery contracts.
+- Existing historical worker runs prove framework capability; they do not grant a new Worker Lab
+  integration permission.
 
 ## What it cannot yet do reliably
 
-- Convert arbitrary natural-language product requests into trusted task contracts without controller review.
-- Select context and writable files automatically for every Mine Tracker subsystem.
-- Perform independent semantic AI code review as a formal framework stage.
-- Generate a standardized plain-language approval packet with screenshots/demonstrations for UI work.
-- Safely execute multi-file product behavior changes as a repeatedly proven routine.
-- Decompose and coordinate parent/child task graphs.
-- Generalize repair/recovery beyond the earlier single deterministic fixture retry.
-- Publish formal Mine Tracker checkpoints or version changes.
+For the active Worker Lab integration, the unavailable capabilities are:
+
+- invoke the framework or Codex;
+- transition `READY -> RUNNING` through an integration adapter;
+- persist strict invocation/result records;
+- manage read-only proposals or workspace-write worker attempts;
+- run evaluators or generate approval packets;
+- retry, repair, schedule, coordinate, publish, merge, or access an external product repository.
 
 ## Current security posture
 
 - Codex CLI audited version: `0.149.1`
-- Managed authentication: ChatGPT login
+- Managed authentication: ChatGPT login only
 - Forbidden API-key environment variables: `OPENAI_API_KEY`, `CODEX_API_KEY`
 - GitHub credential-like worker variables: stripped
 - Allowed worker sandbox modes: `read-only`, `workspace-write`
@@ -119,30 +116,39 @@ First real task evidence:
 - Worker target must be a different Git repository from the framework
 - Workers have no GitHub publishing or merge role
 
+Changing any item above is a separate framework security decision. A Worker Lab interface
+specification may depend on these controls but may not copy, weaken, or silently replace them.
+
 ## Active development policy
 
-Meaningful Mine Tracker worker changes are paused while workers build and use Worker Lab plus its disposable exercise repositories. Mine Tracker remains available for trusted-controller development and may receive emergency/manual fixes, but experimental workers should not alter its product behavior until the proving gates in `PROVING_PROGRAM.md` are met.
+Workers mature only on isolated synthetic exercise repositories. External product work remains outside
+the proving path until objective graduation gates are met and the current task explicitly authorizes
+that consumer.
 
-The first Mine Tracker task remains useful evidence, but one successful test-only task is not enough to establish broad trust.
+Worker Lab owns curriculum, attempt, authority, lifecycle, evidence, failure, evaluation, playbook,
+and graduation records. The framework owns Codex authentication, credential isolation, sandboxing,
+runtime configuration, subprocess execution, target-repository boundaries, and execution timeout.
+Neither repository may silently duplicate or widen the other's authority.
 
 ## Immediate next recommendation
 
 Recommended next sequence:
 
-1. Treat Worker Lab `v0.1.2-phase1` as the immutable Phase 2 baseline and integrated `main` at
-   `12048ea` as the current Batch 1 checkpoint; do not move any milestone tag.
-2. Read Worker Lab `docs/PHASE2_READINESS_REVIEW.md` and `docs/PHASE2_SPEC.md`.
-3. Implement Batch 2 staged preparation only: exact local-template validation, independent detached
-   cloning, context verification, compensation, receipt publication, and `DRAFT` to `READY`.
-4. Keep framework invocation and coding-worker execution closed until Phase 3 defines their adapter
-   contract and acceptance evidence.
-5. Continue using project-agnostic task language and separate synthetic repositories; do not use an
-   external product repository as the experimental surface.
-6. Defer dashboards, real curricula, graduation automation, and broader orchestration until the
-   headless exercise workflow produces trustworthy retained evidence.
+1. Use Worker Lab `TERRA_PHASE3A.md` from checkpoint `a7961dc` as the active bounded task.
+2. Produce only the Phase 3 interface specification, readiness review, and Terra report in Worker Lab.
+3. Treat this framework repository and its execution contracts as read-only references.
+4. Define a read-only proposal boundary before a workspace-write task boundary.
+5. Require strict identity, lifecycle, first-failure, interruption, non-mutation, and evidence rules.
+6. Do not invoke the framework until the trusted controller reviews and explicitly approves the
+   completed specification.
 
 ## New-chat handoff prompt
 
 Use this concise prompt when a new conversation is required:
 
-> Read `AGENTS.md` and `docs/START_HERE.md` in `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`, then read `docs/START_HERE.md`, `docs/CURRENT_STATE.md`, `docs/MILESTONE_EVIDENCE.md`, `docs/PHASE2_READINESS_REVIEW.md`, and `docs/PHASE2_SPEC.md` in `C:\Users\MineTrackerWorker\repos\worker-lab`. Verify both Git states. Treat Worker Lab `v0.1.2-phase1` as the immutable Phase 2 baseline and `main` at `12048ea` as the integrated Batch 1 checkpoint. Continue with Batch 2 staged preparation only; do not invoke the framework, execute a worker, or modify an external product repository. Keep exercises synthetic and project-agnostic and preserve all security and authority controls.
+> In `C:\Users\MineTrackerWorker\repos\worker-lab`, read `docs/START_HERE.md`, verify Git state, and
+> follow the tracked `TERRA_PHASE3A.md` handoff. Read this framework's `AGENTS.md`,
+> `docs/START_HERE.md`, current limitations here, and only the framework contracts routed by the
+> handoff. Framework capability exists, but Worker Lab invocation is not authorized. Keep the
+> framework read-only, use synthetic project-agnostic scope, and stop before implementation or any
+> worker execution.

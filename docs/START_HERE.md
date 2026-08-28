@@ -1,7 +1,7 @@
 # Start Here — Authority and Reading Router
 
 **Status:** Active routing authority
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-28
 **Purpose:** Minimize context load and prevent stale documents from influencing current work.
 
 ## First actions in a new conversation
@@ -34,6 +34,7 @@ Lower levels cannot silently override higher levels. Historical success never gr
 | Resume or hand off work | `CURRENT_STATE.md` | The document named by its immediate next recommendation |
 | Framework runtime/security change | `CURRENT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md` | `WORKING_AGREEMENTS.md`, relevant source/tests |
 | Worker Lab planning or implementation | `CURRENT_STATE.md`, `WORKER_LAB_DESIGN.md`, `DECISIONS.md` | `PROVING_PROGRAM.md`, `ARCHITECTURE.md`, `WORKING_AGREEMENTS.md` |
+| Worker Lab Phase 3 interface specification | `CURRENT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, and Worker Lab's active tracked handoff | Only the exact public framework contracts named by that handoff |
 | Worker Lab Phase 1 coding | `CURRENT_STATE.md`, `PHASE_1_SPEC.md`, `TESTING_AND_AUTHORITY.md` | `WORKER_LAB_DESIGN.md`, relevant source/tests |
 | Test selection or worker authority decision | `TESTING_AND_AUTHORITY.md`, `CURRENT_STATE.md` | `DECISIONS.md`, exact task evidence |
 | Curriculum/exercise design | `CURRENT_STATE.md`, `PROVING_PROGRAM.md` | `WORKER_LAB_DESIGN.md`, approved playbooks when they exist |
