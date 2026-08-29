@@ -3,8 +3,8 @@
 **Status:** Active checkpoint authority
 **Read when:** Starting or resuming any project task.
 **Last updated:** 2026-08-29
-**Current boundary:** Framework foundation stable; the reviewed Phase 3C non-executing adapter is
-ready at `v0.2.0-worker-lab-adapter`; Worker Lab invocation remains disabled.
+**Current boundary:** The Worker Lab adapter has a sealed read-only CLI execution path awaiting one
+explicitly authorized synthetic proposal; workspace-write remains disabled.
 
 ## Exact repository state
 
@@ -86,10 +86,10 @@ consumer identities are not active Phase 3 context and grant no present authorit
 
 ## Current Worker Lab authority
 
-- The Phase 3C framework adapter has passed trusted review and the complete framework milestone
-  suite through injected fakes and inert fixtures only.
-- It may not invoke Codex or the framework against a real workspace, create a real attempt, or claim
-  a live lifecycle transition.
+- The Phase 3C framework adapter retains strict preparation, preflight, and read-only execution
+  modes; all require the exact Worker Lab invocation protocol and fixed runtime identity.
+- One explicitly authorized synthetic read-only proposal may use this path after Worker Lab's
+  matching custody and lifecycle gates pass. Workspace-write remains disabled.
 - Worker Lab may invoke the framework only after trusted review accepts contained process custody,
   identity verification, bounded retention, and recovery behavior at a new framework milestone.
 - Existing historical worker runs prove framework capability; they do not grant a new Worker Lab

@@ -1,4 +1,6 @@
 import json
+import io
+import sys
 
 import pytest
 
@@ -159,3 +161,23 @@ def test_runtime_identity_uses_injected_launcher_version_reader(monkeypatch):
     with pytest.raises(AdapterError) as error:
         adapter.local_runtime_identity(value, version_reader=lambda _: "0.149.2")
     assert error.value.code == "CODEX_VERSION_INVALID"
+
+
+@pytest.mark.parametrize("mode,state", [("preflight", "AUTHORIZED"), ("execute-read-only", "DISPATCHING")])
+def test_cli_enables_only_the_sealed_production_modes(monkeypatch, mode, state):
+    raw = canonical_json(request(state)).encode("utf-8")
+    stdin = type("Input", (), {"buffer": io.BytesIO(raw)})()
+    stdout = type("Output", (), {"buffer": io.BytesIO()})()
+    monkeypatch.setattr(sys, "stdin", stdin)
+    monkeypatch.setattr(sys, "stdout", stdout)
+    monkeypatch.setattr(adapter, "local_runtime_identity", lambda _: (DIGEST, "codex"))
+    checked = []
+    monkeypatch.setattr(adapter, "check_chatgpt_auth", lambda **_: checked.append(True))
+    monkeypatch.setattr(adapter, "_execute_production", lambda *_: AdapterExecution(b"proposal"))
+    assert adapter.main([mode, "--protocol", adapter.PROTOCOL]) == 0
+    response = json.loads(stdout.buffer.getvalue())
+    assert response["runtime_identity"] == DIGEST
+    if mode == "preflight":
+        assert checked == [True]
+    else:
+        assert response["proposal_content"] == "proposal"

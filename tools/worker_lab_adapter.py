@@ -396,11 +396,16 @@ def main(argv: list[str] | None = None) -> int:
         runtime, _ = local_runtime_identity(invocation)
         if args.mode == "prepare":
             response = prepare(raw, runtime_identity=runtime)
+        elif args.mode == "preflight":
+            response = preflight(
+                raw, runtime_identity=runtime,
+                checker=lambda: check_chatgpt_auth(environment=os.environ),
+            )
         else:
-            # A CLI process cannot receive the test-only injected seams.  Keeping
-            # these modes disabled prevents this candidate from reaching auth or
-            # Codex execution outside focused fake-backed tests.
-            raise AdapterError("INTEGRATION_EXECUTION_DISABLED", "Batch 3C CLI execution is disabled")
+            response = execute_read_only(
+                raw, runtime_identity=runtime,
+                executor=lambda prompt: _execute_production(prompt, Path(__file__).resolve().parents[1]),
+            )
     except Exception as exc:
         code = exc.code if isinstance(exc, AdapterError) else "INTEGRATION_EXECUTION_FAILED"
         sys.stdout.buffer.write(_response({"failure_code": code, "retryable": False}))
