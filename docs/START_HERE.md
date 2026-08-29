@@ -1,7 +1,8 @@
 # Start Here
 
 **Status:** Active routing authority
-**Current phase:** Phase 3B Worker Lab contracts accepted; framework execution remains disabled
+**Current phase:** Phase 3B Worker Lab contracts integrated; framework execution remains disabled
+**Integrated checkpoint:** `b280a62` / PR `#5`
 **Rollback milestone:** `v0.2.0-phase2`
 
 ## Purpose
