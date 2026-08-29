@@ -44,3 +44,11 @@ and name their replacement; they are never renumbered or reassigned.
 
 `WORKSPACE_CHANGE:v1` binds workspace and receipt changes to T001, T002, T003, T004, T006, T007,
 T008, T009, T011, T015, T017, T018, and T019. CLI-specific workspace changes also select T012.
+
+## Phase 3 binding
+
+`worker-lab-v3` preserves every `worker-lab-v2` definition and adds bindings for `T016` evidence
+substitution/result identity and `T022` exact integration-candidate verification. Its Batch 3B
+profiles are `FRAMEWORK_ADAPTER_CHANGE:v1`, `READ_ONLY_INVOCATION:v1`,
+`CODE_INVOCATION:v1`, and `PHASE3_MILESTONE:v1`. The latter three contain planned Phase 3C-E
+coverage and do not authorize execution or claim it has occurred.

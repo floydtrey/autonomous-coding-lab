@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-28
-**Status:** Phase 2 complete at `v0.2.0-phase2`; Phase 3A approved for non-executing Batch 3B only;
+**Status:** Phase 2 complete at `v0.2.0-phase2`; Phase 3B Worker Lab contracts accepted;
 worker execution remains unavailable.
 
 ## Repository
@@ -15,7 +15,7 @@ worker execution remains unavailable.
 - Integrated Phase 2 Batch 2: `97ecb34` / PR `#2`
 - Integrated Phase 2 Batch 3: `0e01168` / PR `#3`
 - Phase 2 milestone: `v0.2.0-phase2`
-- Active development branch: `phase3/framework-contracts-v1`
+- Accepted Phase 3B development branch: `phase3/framework-contracts-v1`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
@@ -100,9 +100,11 @@ recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.m
 
 ## Next boundary
 
-Phase 3A approved `PHASE3_SPEC.md` and `PHASE3_READINESS_REVIEW.md` for Batch 3B strict records,
-storage, catalog bindings, and a fake/injected non-executing adapter preparation seam. A separate
-trusted decision is required before Batch 3C. Phase 3A does not authorize Codex/framework execution,
+The Worker Lab half of Phase 3B is accepted: strict invocation/result records, atomic guarded
+invocation storage, immutable `worker-lab-v3` bindings, and a runner-injected preparation seam that
+fails without a test fake. The next boundary is a separately reviewed framework adapter checkpoint
+and explicit resolution of the reserved Phase 3C process-containment, retention, runtime-identity,
+and read-only non-mutation decisions. No current authority permits Codex/framework execution,
 `READY -> RUNNING`, or work in an external product repository.
 
 ## Drift boundary

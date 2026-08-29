@@ -10,10 +10,10 @@ Read [`docs/START_HERE.md`](docs/START_HERE.md).
 
 ## Current phase
 
-Phase 2 is complete at `v0.2.0-phase2`. Worker Lab can prepare, restart-verify, and safely dispose of
-a receipt-bound detached workspace made from a synthetic local Git template. Durable backup excludes
-ephemeral workspaces and receipts, and the milestone was recovered and validated from an independent
-Git bundle checkout. Worker execution remains unavailable.
+Phase 2 is complete at `v0.2.0-phase2`. The accepted Phase 3B Worker Lab checkpoint adds strict
+framework invocation/result contracts, guarded invocation storage, immutable Phase 3 test bindings,
+and a fake-only adapter preparation seam. The framework adapter and worker execution remain
+unavailable pending separate review.
 
 ## Operator interface
 

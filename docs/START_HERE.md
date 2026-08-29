@@ -1,8 +1,8 @@
 # Start Here
 
 **Status:** Active routing authority
-**Current phase:** Phase 2 complete; Phase 3 specification is the next boundary
-**Integrated checkpoint:** `v0.2.0-phase2`
+**Current phase:** Phase 3B Worker Lab contracts accepted; framework execution remains disabled
+**Rollback milestone:** `v0.2.0-phase2`
 
 ## Purpose
 
@@ -66,11 +66,12 @@ fully cover the changed boundary; record the ordering honestly.
 
 ## Current boundary
 
-Phase 2 restart verification, quarantine disposal, interruption recovery, synthetic CLI acceptance,
-durable backup exclusions, restored active-attempt handling, and independent rollback validation are
-complete at `v0.2.0-phase2`.
+Phase 2 is complete at `v0.2.0-phase2`. The accepted Phase 3B Worker Lab checkpoint adds strict
+invocation/result contracts, protected invocation custody, immutable `worker-lab-v3` test bindings,
+and a fake-only adapter preparation seam.
 
-The next work is a bounded Phase 3 specification and approval decision. The completed Phase 2
-milestone does not authorize Codex/framework worker execution, candidate evaluation, publication,
-real curricula, Mine Tracker changes, or another product repository.
+The next boundary is the separately reviewed framework adapter checkpoint and the reserved Phase 3C
+security decisions. No current authority permits Codex/framework execution, `READY -> RUNNING`,
+candidate evaluation, publication, real curricula, Mine Tracker changes, or another product
+repository.
 - Stop on stale or conflicting repository identity.
