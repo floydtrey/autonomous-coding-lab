@@ -1,5 +1,6 @@
 import json
 import io
+import subprocess
 import sys
 
 import pytest
@@ -181,3 +182,13 @@ def test_cli_enables_only_the_sealed_production_modes(monkeypatch, mode, state):
         assert checked == [True]
     else:
         assert response["proposal_content"] == "proposal"
+
+
+def test_isolated_direct_script_starts_without_import_path_fallback():
+    process = subprocess.run(
+        [sys.executable, "-I", "-B", str(adapter.Path(adapter.__file__)), "--help"],
+        cwd=adapter.Path(adapter.__file__).parents[1], check=False,
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    assert process.returncode == 0
+    assert "Strict Worker Lab framework adapter" in process.stdout

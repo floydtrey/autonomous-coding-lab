@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import argparse
+import importlib.util
 import json
 import os
 import shutil
@@ -19,10 +20,22 @@ try:
     from tools.codex_runtime import (
         CodexRequest, check_chatgpt_auth, execute_codex_bounded, sanitized_codex_environment,
     )
-except ModuleNotFoundError:  # direct execution support
-    from codex_runtime import (  # type: ignore
-        CodexRequest, check_chatgpt_auth, execute_codex_bounded, sanitized_codex_environment,
+except ModuleNotFoundError:  # direct isolated-script execution support
+    # ``-I`` deliberately removes the script directory from ``sys.path``.
+    # Load only the adjacent, framework-owned runtime by exact file identity;
+    # this neither broadens import search nor imports anything from Worker Lab.
+    _runtime_spec = importlib.util.spec_from_file_location(
+        "worker_lab_adapter_codex_runtime", Path(__file__).with_name("codex_runtime.py")
     )
+    if _runtime_spec is None or _runtime_spec.loader is None:  # pragma: no cover - filesystem failure
+        raise RuntimeError("framework Codex runtime is unavailable")
+    _runtime_module = importlib.util.module_from_spec(_runtime_spec)
+    sys.modules[_runtime_spec.name] = _runtime_module
+    _runtime_spec.loader.exec_module(_runtime_module)
+    CodexRequest = _runtime_module.CodexRequest
+    check_chatgpt_auth = _runtime_module.check_chatgpt_auth
+    execute_codex_bounded = _runtime_module.execute_codex_bounded
+    sanitized_codex_environment = _runtime_module.sanitized_codex_environment
 
 
 PROTOCOL = "worker-lab-framework-adapter:v1"
