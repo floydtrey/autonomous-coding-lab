@@ -2,7 +2,8 @@
 
 **Last updated:** 2026-08-28
 **Status:** Phase 2 complete at `v0.2.0-phase2`; Phase 3B Worker Lab contracts integrated at
-`b280a62`; worker execution remains unavailable.
+`b280a62`; Phase 3C security decisions and bounded adapter handoff prepared; worker execution
+remains unavailable.
 
 ## Repository
 
@@ -102,9 +103,14 @@ recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.m
 
 The Worker Lab half of Phase 3B is accepted: strict invocation/result records, atomic guarded
 invocation storage, immutable `worker-lab-v3` bindings, and a runner-injected preparation seam that
-fails without a test fake. The next boundary is a separately reviewed framework adapter checkpoint
-and explicit resolution of the reserved Phase 3C process-containment, retention, runtime-identity,
-and read-only non-mutation decisions. No current authority permits Codex/framework execution,
+fails without a test fake. `PHASE3C_SECURITY_DECISIONS.md` now settles the reserved adapter identity,
+Windows Job Object containment, process-absence, content-bound, retention, runtime-binding, catalog,
+and framework-milestone choices. `TERRA_PHASE3C_ADAPTER.md` defines the next bounded two-repository
+candidate using fakes and inert process fixtures only.
+
+The handoff and decisions must be placed in a trusted checkpoint before Terra starts. The resulting
+candidate then requires trusted review and a separately named framework checkpoint before any live
+synthetic proposal can be authorized. No current authority permits Codex/framework execution, a real
 `READY -> RUNNING`, or work in an external product repository.
 
 ## Drift boundary
