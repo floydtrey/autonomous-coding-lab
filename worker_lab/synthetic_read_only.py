@@ -29,6 +29,7 @@ from .framework_client import (
     inspect_configuration,
     inspect_worker_lab_identity,
     pinned_framework_configuration,
+    runtime_identity,
 )
 from .integration import (
     INVOCATION_SCHEMA,
@@ -135,7 +136,8 @@ def run(run_root: Path) -> str:
         state_root=lab / "state", workspace_path=workspace, test_executor=_run_sealed_test,
     )
     result = accept_execute_response(
-        response, dispatching, custody, runtime_identity=running.runtime_identity or "",
+        response, dispatching, custody,
+        runtime_identity=runtime_identity(configuration, dispatching, evidence=framework_evidence),
         started_at=started, ended_at=ended, state_root=lab / "state", custody_store=custody_store,
         evidence_collector=collector,
     )
