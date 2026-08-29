@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import hashlib
 import os
 import subprocess
 import threading
@@ -12,6 +13,7 @@ from pathlib import Path
 from typing import BinaryIO, Callable
 
 from .errors import LabValidationError
+from .canonical import canonical_digest
 from .integration import InvocationRecord
 from .process_custody import (
     PROCESS_CUSTODY_SCHEMA,
@@ -91,6 +93,7 @@ class WorkspaceLaunchEvidence:
     workspace_path_digest: str
     observed_head: str
     status: str
+    content_digest: str
 
 
 WorkspaceInspector = Callable[[Path], WorkspaceLaunchEvidence]
@@ -154,6 +157,7 @@ class WindowsJobAdapterRunner:
             or workspace.workspace_path_digest != self.workspace_path_digest
             or workspace.observed_head != self.starting_commit
             or workspace.status != ""
+            or not _is_digest(workspace.content_digest)
         ):
             raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "adapter workspace identity differs")
 
@@ -169,6 +173,7 @@ class WindowsJobAdapterRunner:
             "adapter_pid": None,
             "adapter_creation_time_100ns": None,
             "containment_mode": "windows-job-kill-on-close",
+            "workspace_content_digest": workspace.content_digest,
             "state": "PREPARED",
             "request_sent": False,
             "exit_code": None,
@@ -380,10 +385,59 @@ def inspect_launch_workspace(path: Path) -> WorkspaceLaunchEvidence:
     if _path_key(top) != _path_key(resolved):
         raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "adapter workspace Git root differs")
     head = _workspace_git(resolved, "rev-parse", "HEAD")
+    if _workspace_git(resolved, "rev-parse", "--abbrev-ref", "HEAD") != "HEAD":
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "adapter workspace is not detached")
     status = _workspace_git(resolved, "status", "--porcelain=v1", "--untracked-files=all")
+    if _workspace_git(resolved, "remote"):
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "adapter workspace retains a remote")
+    if os.path.lexists(git_dir / "objects" / "info" / "alternates"):
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "adapter workspace shares a Git object store")
     from .workspace import canonical_path_digest
 
-    return WorkspaceLaunchEvidence(resolved, canonical_path_digest(resolved), head, status)
+    return WorkspaceLaunchEvidence(
+        resolved, canonical_path_digest(resolved), head, status, workspace_content_digest(resolved),
+    )
+
+
+def workspace_content_digest(path: Path) -> str:
+    """Digest every regular working-tree byte, excluding separately checked Git metadata."""
+    if not isinstance(path, Path) or not path.is_absolute():
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "workspace content path is invalid")
+    root = path.resolve(strict=True)
+    entries: list[dict[str, object]] = []
+    for item in sorted(root.rglob("*"), key=lambda candidate: candidate.relative_to(root).as_posix()):
+        relative = item.relative_to(root)
+        if relative.parts and relative.parts[0] == ".git":
+            continue
+        if item.is_symlink() or getattr(os.lstat(item), "st_file_attributes", 0) & 0x400:
+            raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "workspace contains a substituted path")
+        if item.is_dir():
+            continue
+        if not item.is_file():
+            raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "workspace contains an unsupported entry")
+        entries.append(_content_entry(item, relative.as_posix()))
+    config = root / ".git" / "config"
+    if not config.is_file() or config.is_symlink() or getattr(os.lstat(config), "st_file_attributes", 0) & 0x400:
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "workspace Git configuration is unavailable")
+    entries.append(_content_entry(config, ".git/config"))
+    return canonical_digest({"schema_version": "worker-lab-workspace-content:v1", "files": entries})
+
+
+def _content_entry(path: Path, relative_path: str) -> dict[str, object]:
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(65_536), b""):
+                digest.update(chunk)
+    except OSError as exc:
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "workspace content cannot be read") from exc
+    return {"path": relative_path, "size": path.stat().st_size, "digest": "sha256:" + digest.hexdigest()}
+
+
+def _is_digest(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 71 and value.startswith("sha256:") and all(
+        item in "0123456789abcdef" for item in value[7:]
+    )
 
 
 def _workspace_git(root: Path, *arguments: str) -> str:

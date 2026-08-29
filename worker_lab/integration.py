@@ -365,6 +365,12 @@ def _bounded_text(value: Any, limit: int, field: str) -> str:
     text = _text(value)
     if "\x00" in text or len(text.encode("utf-8")) > limit:
         raise LabValidationError("INTEGRATION_FIELD_INVALID", f"{field} exceeds its retained-text limit")
+    lowered = text.lower()
+    if any(marker in lowered for marker in (
+        "openai_api_key", "codex_api_key", "github_token", "gh_token", "authorization:", "bearer ",
+        "\\\\", "//", ":\\", ":/",
+    )):
+        raise LabValidationError("INTEGRATION_FIELD_INVALID", f"{field} contains forbidden retained content")
     return text
 
 

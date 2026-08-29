@@ -17,6 +17,7 @@ def custody(**updates):
         "invocation_id": "INVOCATION-001", "controller_pid": 10,
         "controller_creation_time_100ns": 100, "adapter_pid": None,
         "adapter_creation_time_100ns": None, "containment_mode": "windows-job-kill-on-close",
+        "workspace_content_digest": DIGEST,
         "state": "PREPARED", "request_sent": False, "exit_code": None,
         "active_process_count": None, "absence_verified_at": None, "first_failure": None,
     }
@@ -62,6 +63,19 @@ def test_custody_rejects_false_absence_and_stale_write(tmp_path):
     with pytest.raises(LabValidationError) as error:
         store.save_transition(assigned, expected_digest="sha256:" + "b" * 64)
     assert error.value.code == "INTEGRATION_CUSTODY_STALE_WRITE"
+
+
+def test_custody_rejects_workspace_snapshot_substitution(tmp_path):
+    store = ProcessCustodyStore(tmp_path / "state")
+    prepared = custody()
+    store.create(prepared)
+    altered = custody(
+        workspace_content_digest="sha256:" + "b" * 64,
+        state="ASSIGNED", adapter_pid=20, adapter_creation_time_100ns=200,
+    )
+    with pytest.raises(LabValidationError) as error:
+        store.save_transition(altered, expected_digest=prepared.digest())
+    assert error.value.code == "INTEGRATION_CUSTODY_INVALID"
 
 
 def test_controller_identity_rejects_pid_reuse():

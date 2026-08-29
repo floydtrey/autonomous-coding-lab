@@ -171,10 +171,7 @@ class WorkspaceEvidence:
     workspace_receipt_digest: str
     workspace_root_digest: str
     workspace_path_digest: str
-
-
-WorkspaceVerifier = Callable[[InvocationRecord], WorkspaceEvidence]
-ValidationVerifier = Callable[[InvocationRecord], tuple[ValidationStage, ...]]
+    workspace_content_digest: str
 
 
 def inspect_acceptance_workspace(
@@ -208,6 +205,7 @@ def inspect_acceptance_workspace(
         workspace_receipt_digest=receipt.digest(),
         workspace_root_digest=receipt.workspace_root_digest,
         workspace_path_digest=receipt.workspace_path_digest,
+        workspace_content_digest=observed.content_digest,
     )
 
 
@@ -221,19 +219,20 @@ def accept_execute_response(
     ended_at: str,
     state_root: Path,
     custody_store: ProcessCustodyStore,
-    workspace_verifier: WorkspaceVerifier | None,
-    validation_verifier: ValidationVerifier | None,
+    evidence_collector: object | None,
 ) -> ResultRecord:
     """Turn the exact fake adapter response into Worker Lab-owned strict evidence.
 
     Custody is reloaded first.  Only after process absence is proven does this
-    function invoke Worker Lab-owned read-only workspace and validation verifiers;
-    nothing is inferred from adapter/worker text or caller-created success objects.
+    function invoke the sealed Worker Lab collector; nothing is inferred from
+    adapter/worker text or caller-created success objects.
     """
     if not isinstance(custody, ProcessCustodyRecord):
         raise LabValidationError("INTEGRATION_RESULT_INVALID", "custody evidence has an invalid type")
-    if workspace_verifier is None or validation_verifier is None:
-        raise LabValidationError("INTEGRATION_EXECUTION_DISABLED", "trusted acceptance verifiers are required")
+    from .read_only_evidence import ReadOnlyEvidenceCollector
+
+    if not isinstance(evidence_collector, ReadOnlyEvidenceCollector):
+        raise LabValidationError("INTEGRATION_EXECUTION_DISABLED", "a sealed evidence collector is required")
     reloaded = custody_store.read(custody.invocation_id)
     if reloaded != custody:
         raise LabValidationError("INTEGRATION_OUTCOME_UNCERTAIN", "custody must be the exact durable final record")
@@ -276,8 +275,9 @@ def accept_execute_response(
         or decoded["stderr_bytes"] != 0
     ):
         raise LabValidationError("INTEGRATION_RESULT_INVALID", "successful adapter response cannot retain stderr")
-    workspace_evidence = workspace_verifier(record)
-    validation_stages = validation_verifier(record)
+    evidence = evidence_collector.collect(record)
+    workspace_evidence = evidence.workspace
+    validation_stages = evidence.validation_stages
     if not isinstance(workspace_evidence, WorkspaceEvidence):
         raise LabValidationError("INTEGRATION_RESULT_INVALID", "workspace verifier returned an invalid type")
     if (
@@ -293,6 +293,7 @@ def accept_execute_response(
         or workspace_evidence.workspace_receipt_digest != record.workspace_receipt_digest
         or workspace_evidence.workspace_root_digest != record.workspace_root_digest
         or workspace_evidence.workspace_path_digest != record.workspace_path_digest
+        or workspace_evidence.workspace_content_digest != custody.workspace_content_digest
     ):
         raise LabValidationError("INTEGRATION_RESULT_INVALID", "independent workspace evidence differs")
     if tuple(stage.test_id for stage in validation_stages) != tuple(record.test_ids) or any(

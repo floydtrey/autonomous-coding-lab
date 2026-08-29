@@ -3,13 +3,21 @@ import subprocess
 
 import pytest
 
-from worker_lab.canonical import canonical_json
+from worker_lab.canonical import canonical_digest, canonical_json
 from worker_lab.errors import LabValidationError
 from worker_lab.framework_adapter import ADAPTER_COMMAND, MAX_ADAPTER_RESPONSE_BYTES, MAX_PROPOSAL_BYTES, ProposalStore, WorkspaceEvidence, accept_execute_response, inspect_acceptance_workspace, parse_result, prepare_invocation
 from worker_lab.process_custody import PROCESS_CUSTODY_SCHEMA, ProcessCustodyRecord, ProcessCustodyStore
+from worker_lab.read_only_evidence import (
+    READ_ONLY_EVALUATION_PLAN_SCHEMA, ReadOnlyEvaluationPlan,
+    ReadOnlyEvaluationPlanStore, ReadOnlyEvidenceCollector,
+)
 from worker_lab.models import WorkspaceReceipt
 from worker_lab.storage import AtomicRecordStore
 from worker_lab.workspace import canonical_path_digest
+from worker_lab.test_catalog import (
+    CATALOG_SCHEMA, ChangeFacts, CostClass, TestCatalog, TestDefinition, TestMode, TestProfile,
+    TestRunner as CatalogRunner,
+)
 from worker_lab.integration import (
     FRAMEWORK_CONTRACT_VERSION,
     INVOCATION_SCHEMA,
@@ -30,6 +38,34 @@ from worker_lab.integration import (
 
 DIGEST = "sha256:" + "a" * 64
 SHA = "a" * 40
+
+
+def evidence_collector(tmp_path, workspace_evidence):
+    state_root = tmp_path / "state"
+    catalog = TestCatalog(
+        CATALOG_SCHEMA, "worker-lab-v3",
+        (TestDefinition("T001", 1, "Fixture", "Fixture test", ("fixture",), TestMode.ALWAYS,
+                        CostClass.MILLISECOND, CatalogRunner.COMMAND, "worker-lab"),),
+        (TestProfile("READ_ONLY_INVOCATION:v1", "Fixture profile", ("T001",)),),
+    )
+    AtomicRecordStore(tmp_path / "curricula").write("catalogs/worker-lab-v3.json", catalog)
+    selected = catalog.select(ChangeFacts(()), profile_ids=("READ_ONLY_INVOCATION:v1",))
+    invocation = record(
+        test_catalog_digest=catalog.digest(), test_plan_digest=canonical_digest(selected.to_dict()),
+    )
+    plan = ReadOnlyEvaluationPlan.from_mapping({
+        "schema_version": READ_ONLY_EVALUATION_PLAN_SCHEMA, "invocation_id": invocation.invocation_id,
+        "invocation_digest": invocation.identity_digest(), "catalog_version": catalog.catalog_version,
+        "catalog_digest": catalog.digest(), "selected_profile_ids": ["READ_ONLY_INVOCATION:v1"],
+        "test_ids": list(selected.test_ids), "test_plan_digest": invocation.test_plan_digest,
+        "changed_paths": [], "capabilities": [], "risk_flags": [],
+    })
+    ReadOnlyEvaluationPlanStore(state_root).create(plan)
+    return invocation, ReadOnlyEvidenceCollector(
+        state_root=state_root, workspace_path=tmp_path,
+        test_executor=lambda definition, path: 0,
+        workspace_inspector=lambda _: workspace_evidence,
+    )
 
 
 def record(*, operation="read-only-proposal", state="PREPARED", writable_paths=(), **updates):
@@ -190,6 +226,74 @@ def test_result_enforces_structured_text_and_content_reference_limits():
             ResultRecord.from_mapping(invalid)
         assert error.value.code in {"INTEGRATION_PATH_INVALID", "INTEGRATION_FIELD_INVALID"}
 
+    for field, unsafe in (("expected", "C:\\private\\secret"), ("observed", "Authorization: Bearer token")):
+        invalid = result_mapping(invocation)
+        invalid[field] = unsafe
+        with pytest.raises(LabValidationError) as error:
+            ResultRecord.from_mapping(invalid)
+        assert error.value.code == "INTEGRATION_FIELD_INVALID"
+
+
+def test_sealed_read_only_collector_recomputes_plan_and_rejects_failures(tmp_path):
+    original = record()
+    workspace = WorkspaceEvidence(
+        observed_head=original.starting_commit, changed_paths=(),
+        workspace_receipt_digest=original.workspace_receipt_digest,
+        workspace_root_digest=original.workspace_root_digest,
+        workspace_path_digest=original.workspace_path_digest,
+        workspace_content_digest=DIGEST,
+    )
+    invocation, collector = evidence_collector(tmp_path, workspace)
+    evidence = collector.collect(invocation)
+    assert [stage.test_id for stage in evidence.validation_stages] == list(invocation.test_ids)
+
+    failing = ReadOnlyEvidenceCollector(
+        state_root=tmp_path / "state", workspace_path=tmp_path,
+        test_executor=lambda definition, path: 1,
+        workspace_inspector=lambda _: workspace,
+    )
+    with pytest.raises(LabValidationError) as error:
+        failing.collect(invocation)
+    assert error.value.code == "INTEGRATION_VALIDATION_FAILED"
+
+    observations = iter((workspace, WorkspaceEvidence(
+        observed_head=workspace.observed_head, changed_paths=(),
+        workspace_receipt_digest=workspace.workspace_receipt_digest,
+        workspace_root_digest=workspace.workspace_root_digest,
+        workspace_path_digest=workspace.workspace_path_digest,
+        workspace_content_digest="sha256:" + "b" * 64,
+    )))
+    mutating = ReadOnlyEvidenceCollector(
+        state_root=tmp_path / "state", workspace_path=tmp_path,
+        test_executor=lambda definition, path: 0,
+        workspace_inspector=lambda _: next(observations),
+    )
+    with pytest.raises(LabValidationError) as error:
+        mutating.collect(invocation)
+    assert error.value.code == "INTEGRATION_BOUNDARY_FAILED"
+
+
+def test_sealed_read_only_collector_rejects_a_substituted_durable_plan(tmp_path):
+    original = record()
+    workspace = WorkspaceEvidence(
+        observed_head=original.starting_commit, changed_paths=(),
+        workspace_receipt_digest=original.workspace_receipt_digest,
+        workspace_root_digest=original.workspace_root_digest,
+        workspace_path_digest=original.workspace_path_digest,
+        workspace_content_digest=DIGEST,
+    )
+    invocation, collector = evidence_collector(tmp_path, workspace)
+    store = ReadOnlyEvaluationPlanStore(tmp_path / "state")
+    stored = store.read(invocation.invocation_id).to_dict()
+    stored["test_plan_digest"] = "sha256:" + "b" * 64
+    AtomicRecordStore(tmp_path / "state").write(
+        f"evaluation-plans/{invocation.invocation_id}.json",
+        ReadOnlyEvaluationPlan.from_mapping(stored),
+    )
+    with pytest.raises(LabValidationError) as error:
+        collector.collect(invocation)
+    assert error.value.code == "INTEGRATION_IDENTITY_INVALID"
+
 
 def test_acceptance_workspace_inspector_reloads_receipt_and_git_evidence(tmp_path):
     state_root = tmp_path / "state"
@@ -202,6 +306,7 @@ def test_acceptance_workspace_inspector_reloads_receipt_and_git_evidence(tmp_pat
         ["git", "config", "user.email", "fixture@example.com"],
         ["git", "config", "user.name", "Fixture"], ["git", "add", "."],
         ["git", "commit", "-m", "fixture"],
+        ["git", "checkout", "--detach"],
     ):
         subprocess.run(command, cwd=workspace, check=True, capture_output=True)
     head = subprocess.run(
@@ -247,7 +352,15 @@ def test_successful_proposal_is_bounded_checked_and_content_addressed(tmp_path):
 
 
 def test_actual_execute_response_becomes_custody_bound_strict_result(tmp_path):
-    invocation = record()
+    original = record()
+    workspace_evidence = WorkspaceEvidence(
+        observed_head=original.starting_commit, changed_paths=(),
+        workspace_receipt_digest=original.workspace_receipt_digest,
+        workspace_root_digest=original.workspace_root_digest,
+        workspace_path_digest=original.workspace_path_digest,
+        workspace_content_digest=DIGEST,
+    )
+    invocation, collector = evidence_collector(tmp_path, workspace_evidence)
     content = "bounded proposal"
     digest = "sha256:" + __import__("hashlib").sha256(content.encode()).hexdigest()
     store = ProcessCustodyStore(tmp_path / "state")
@@ -255,6 +368,7 @@ def test_actual_execute_response_becomes_custody_bound_strict_result(tmp_path):
         "schema_version": PROCESS_CUSTODY_SCHEMA, "invocation_digest": invocation.identity_digest(),
         "invocation_id": invocation.invocation_id, "controller_pid": 1, "controller_creation_time_100ns": 1,
         "adapter_pid": None, "adapter_creation_time_100ns": None, "containment_mode": "windows-job-kill-on-close",
+        "workspace_content_digest": DIGEST,
         "state": "PREPARED", "request_sent": False, "exit_code": None, "active_process_count": None,
         "absence_verified_at": None, "first_failure": None,
     })
@@ -273,16 +387,6 @@ def test_actual_execute_response_becomes_custody_bound_strict_result(tmp_path):
     exited = ProcessCustodyRecord.from_mapping({**custody.to_dict(), "state": "EXITED", "absence_verified_at": None})
     store.save_transition(exited, expected_digest=dispatching.digest())
     store.save_transition(custody, expected_digest=exited.digest())
-    workspace_evidence = WorkspaceEvidence(
-        observed_head=invocation.starting_commit, changed_paths=(),
-        workspace_receipt_digest=invocation.workspace_receipt_digest,
-        workspace_root_digest=invocation.workspace_root_digest,
-        workspace_path_digest=invocation.workspace_path_digest,
-    )
-    validation_stages = tuple(
-        ValidationStage.from_mapping({"test_id": test_id, "outcome": "pass", "failure_code": None})
-        for test_id in invocation.test_ids
-    )
     raw = __import__("json").dumps({"invocation_digest": invocation.identity_digest(), "prompt_digest": invocation.prompt_digest,
         "runtime_identity": DIGEST, "proposal_digest": digest, "output_digest": digest, "proposal_content": content,
         "stdout_bytes": len(content.encode()), "stderr_bytes": 0}, sort_keys=True, separators=(",", ":")).encode()
@@ -291,8 +395,7 @@ def test_actual_execute_response_becomes_custody_bound_strict_result(tmp_path):
         kwargs = dict(
             runtime_identity=DIGEST, started_at="2026-08-28T00:00:00Z", ended_at="2026-08-28T00:00:01Z",
             state_root=tmp_path / "state", custody_store=store,
-            workspace_verifier=lambda _: workspace_evidence,
-            validation_verifier=lambda _: validation_stages,
+            evidence_collector=collector,
         )
         used_custody = overrides.pop("custody", custody)
         kwargs.update(overrides)
@@ -301,60 +404,48 @@ def test_actual_execute_response_becomes_custody_bound_strict_result(tmp_path):
     accepted = accept()
     assert accepted.process_identity == custody.digest()
     assert (tmp_path / "state" / accepted.content_reference).read_text() == content
+    changed_snapshot = WorkspaceEvidence(
+        observed_head=workspace_evidence.observed_head, changed_paths=(),
+        workspace_receipt_digest=workspace_evidence.workspace_receipt_digest,
+        workspace_root_digest=workspace_evidence.workspace_root_digest,
+        workspace_path_digest=workspace_evidence.workspace_path_digest,
+        workspace_content_digest="sha256:" + "b" * 64,
+    )
+    mismatched_collector = ReadOnlyEvidenceCollector(
+        state_root=tmp_path / "state", workspace_path=tmp_path,
+        test_executor=lambda definition, path: 0,
+        workspace_inspector=lambda _: changed_snapshot,
+    )
+    with pytest.raises(LabValidationError) as error:
+        accept(evidence_collector=mismatched_collector)
+    assert error.value.code == "INTEGRATION_RESULT_INVALID"
     malformed_calls = []
     with pytest.raises(LabValidationError):
         accept_execute_response(raw + b" ", invocation, custody, runtime_identity=DIGEST,
                                 started_at="2026-08-28T00:00:00Z", ended_at="2026-08-28T00:00:01Z",
                                 state_root=tmp_path / "state", custody_store=store,
-                                workspace_verifier=lambda _: malformed_calls.append("workspace"),
-                                validation_verifier=lambda _: malformed_calls.append("validation"))
+                                evidence_collector=collector)
     assert malformed_calls == []
     with pytest.raises(LabValidationError) as error:
         accept(custody=dispatching)
-    with pytest.raises(LabValidationError) as error:
-        accept(workspace_verifier=lambda _: WorkspaceEvidence(
-            observed_head="9" * 40, changed_paths=(), workspace_receipt_digest=invocation.workspace_receipt_digest,
-            workspace_root_digest=invocation.workspace_root_digest, workspace_path_digest=invocation.workspace_path_digest,
-        ))
-    assert error.value.code == "INTEGRATION_RESULT_INVALID"
-    with pytest.raises(LabValidationError) as error:
-        accept(workspace_verifier=lambda _: WorkspaceEvidence(
-            observed_head=invocation.starting_commit, changed_paths=("app.py",),
-            workspace_receipt_digest=invocation.workspace_receipt_digest,
-            workspace_root_digest=invocation.workspace_root_digest, workspace_path_digest=invocation.workspace_path_digest,
-        ))
-    assert error.value.code == "INTEGRATION_RESULT_INVALID"
-    with pytest.raises(LabValidationError) as error:
-        accept(validation_verifier=lambda _: validation_stages[:-1] if len(validation_stages) > 1 else ())
-    assert error.value.code == "INTEGRATION_RESULT_INVALID"
-    failed_stage = tuple(
-        ValidationStage.from_mapping({"test_id": test_id, "outcome": "fail", "failure_code": "BOUNDARY"})
-        for test_id in invocation.test_ids
-    )
-    with pytest.raises(LabValidationError) as error:
-        accept(validation_verifier=lambda _: failed_stage)
-    assert error.value.code == "INTEGRATION_RESULT_INVALID"
+    assert error.value.code == "INTEGRATION_OUTCOME_UNCERTAIN"
     non_dispatched = ProcessCustodyRecord.from_mapping({**custody.to_dict(), "adapter_pid": None, "adapter_creation_time_100ns": None, "request_sent": False})
     with pytest.raises(LabValidationError) as error:
         accept_execute_response(raw, invocation, non_dispatched, runtime_identity=DIGEST,
                                 started_at="2026-08-28T00:00:00Z", ended_at="2026-08-28T00:00:01Z",
                                 state_root=tmp_path / "state", custody_store=store,
-                                workspace_verifier=lambda _: workspace_evidence,
-                                validation_verifier=lambda _: validation_stages)
+                                evidence_collector=collector)
     assert error.value.code == "INTEGRATION_OUTCOME_UNCERTAIN"
 
-    calls = []
     with pytest.raises(LabValidationError) as error:
         accept(
             custody=dispatching,
-            workspace_verifier=lambda _: calls.append("workspace"),
-            validation_verifier=lambda _: calls.append("validation"),
+            evidence_collector=collector,
         )
     assert error.value.code == "INTEGRATION_OUTCOME_UNCERTAIN"
-    assert calls == []
 
     with pytest.raises(LabValidationError) as error:
-        accept(workspace_verifier=None)
+        accept(evidence_collector=None)
     assert error.value.code == "INTEGRATION_EXECUTION_DISABLED"
 
 

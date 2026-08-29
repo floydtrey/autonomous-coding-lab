@@ -26,7 +26,7 @@ def runner(tmp_path, **updates):
         "invocation": record(),
         "timeout_seconds": 5, "now": lambda: "2026-08-28T00:00:01Z",
         "workspace_path": tmp_path,
-        "workspace_inspector": lambda path: WorkspaceLaunchEvidence(path, DIGEST, "a" * 40, ""),
+        "workspace_inspector": lambda path: WorkspaceLaunchEvidence(path, DIGEST, "a" * 40, "", DIGEST),
     }
     values.update(updates)
     store = updates.pop("store", None) or ProcessCustodyStore(tmp_path / "state")
@@ -38,7 +38,7 @@ def test_workspace_identity_failure_prevents_custody_and_launch(tmp_path):
     launched = []
     item, store = runner(
         tmp_path,
-        workspace_inspector=lambda path: WorkspaceLaunchEvidence(path, DIGEST, "b" * 40, ""),
+        workspace_inspector=lambda path: WorkspaceLaunchEvidence(path, DIGEST, "b" * 40, "", DIGEST),
         process_launcher=lambda *args, **kwargs: launched.append((args, kwargs)),
     )
     with pytest.raises(LabValidationError) as error:
@@ -54,12 +54,14 @@ def test_launch_workspace_inspector_seals_exact_clean_git_root(tmp_path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     (workspace / "README.md").write_text("fixture\n", encoding="utf-8")
+    (workspace / ".gitignore").write_text("ignored.txt\n", encoding="utf-8")
     for command in (
         ["git", "init"], ["git", "config", "core.autocrlf", "false"],
-        ["git", "config", "user.email", "fixture@example.com"],
-        ["git", "config", "user.name", "Fixture"], ["git", "add", "."],
-        ["git", "commit", "-m", "fixture"],
-    ):
+            ["git", "config", "user.email", "fixture@example.com"],
+            ["git", "config", "user.name", "Fixture"], ["git", "add", "."],
+            ["git", "commit", "-m", "fixture"],
+            ["git", "checkout", "--detach"],
+        ):
         subprocess.run(command, cwd=workspace, check=True, capture_output=True)
     evidence = inspect_launch_workspace(workspace)
     assert evidence.workspace_path == workspace.resolve()
@@ -67,6 +69,12 @@ def test_launch_workspace_inspector_seals_exact_clean_git_root(tmp_path):
         ["git", "rev-parse", "HEAD"], cwd=workspace, check=True, capture_output=True, text=True,
     ).stdout.strip()
     assert evidence.status == ""
+    (workspace / "ignored.txt").write_text("ignored\n", encoding="utf-8")
+    ignored = inspect_launch_workspace(workspace)
+    assert ignored.status == ""
+    assert ignored.content_digest != evidence.content_digest
+    subprocess.run(["git", "config", "user.name", "Changed"], cwd=workspace, check=True, capture_output=True)
+    assert inspect_launch_workspace(workspace).content_digest != ignored.content_digest
     (workspace / "unexpected.txt").write_text("dirty\n", encoding="utf-8")
     assert inspect_launch_workspace(workspace).status
 

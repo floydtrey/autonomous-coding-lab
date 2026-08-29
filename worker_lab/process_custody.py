@@ -47,6 +47,7 @@ class ProcessCustodyRecord:
     adapter_pid: int | None
     adapter_creation_time_100ns: int | None
     containment_mode: str
+    workspace_content_digest: str
     state: CustodyState
     request_sent: bool
     exit_code: int | None
@@ -75,7 +76,7 @@ class ProcessCustodyRecord:
             _digest(value["invocation_digest"]), _id(value["invocation_id"]),
             _positive(value["controller_pid"]), _positive(value["controller_creation_time_100ns"]),
             _optional_positive(value["adapter_pid"]), _optional_positive(value["adapter_creation_time_100ns"]),
-            _exact(value["containment_mode"], "windows-job-kill-on-close"), state,
+            _exact(value["containment_mode"], "windows-job-kill-on-close"), _digest(value["workspace_content_digest"]), state,
             _boolean(value["request_sent"]), _optional_integer(value["exit_code"]),
             _optional_count(value["active_process_count"]), _optional_timestamp(value["absence_verified_at"]),
             _optional_text(value["first_failure"]),
@@ -152,6 +153,7 @@ class ProcessCustodyStore:
         immutable = (
             "schema_version", "invocation_digest", "invocation_id", "controller_pid",
             "controller_creation_time_100ns", "containment_mode",
+            "workspace_content_digest",
         )
         if any(getattr(current, field) != getattr(updated, field) for field in immutable):
             raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "custody identity changed")
