@@ -45,9 +45,53 @@ class AtomicRecordStore:
         target = self._target(relative_path)
         target.parent.mkdir(parents=True, exist_ok=True)
         self._assert_contained_existing_parents(target)
-        if target.exists() and target.is_symlink():
+        if target.exists() and self._is_substituted(target):
             raise LabValidationError("STORAGE_PATH_ESCAPE", "record target cannot be a symlink")
         payload = canonical_json(record.to_dict()).encode("utf-8") + b"\n"
+        temp_path: Path | None = None
+        try:
+            descriptor, name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=target.parent)
+            temp_path = Path(name)
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, target)
+            temp_path = None
+            self._fsync_directory(target.parent)
+        except OSError as exc:
+            raise LabValidationError("STORAGE_WRITE_FAILED", str(exc)) from exc
+        finally:
+            if temp_path is not None:
+                try:
+                    temp_path.unlink()
+                except FileNotFoundError:
+                    pass
+
+    def read_bytes(self, relative_path: str) -> bytes:
+        target = self._target(relative_path)
+        if target.exists() and self._is_substituted(target):
+            raise LabValidationError("STORAGE_PATH_ESCAPE", "record target cannot be a symlink")
+        try:
+            return target.read_bytes()
+        except FileNotFoundError as exc:
+            raise LabValidationError("STORAGE_RECORD_MISSING", relative_path) from exc
+        except OSError as exc:
+            raise LabValidationError("STORAGE_READ_FAILED", str(exc)) from exc
+
+    def write_bytes(self, relative_path: str, payload: bytes, *, overwrite_if_identical: bool = False) -> None:
+        """Atomically write bytes with the same containment checks as JSON records."""
+        self._ensure_root_for_write()
+        target = self._target(relative_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        self._assert_contained_existing_parents(target)
+        if target.exists():
+            if self._is_substituted(target):
+                raise LabValidationError("STORAGE_PATH_ESCAPE", "record target cannot be a symlink")
+            if target.read_bytes() == payload:
+                return
+            if not overwrite_if_identical:
+                raise LabValidationError("STORAGE_RECORD_INVALID", "existing content-addressed content differs")
         temp_path: Path | None = None
         try:
             descriptor, name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=target.parent)
@@ -78,7 +122,7 @@ class AtomicRecordStore:
             raise LabValidationError("STORAGE_PATH_INVALID", "list target must be a directory")
         paths: list[str] = []
         for item in directory.rglob("*.json"):
-            if item.is_symlink():
+            if self._is_substituted(item):
                 raise LabValidationError("STORAGE_PATH_ESCAPE", "symlink found in record tree")
             resolved = item.resolve()
             self._assert_contained(resolved)
@@ -118,14 +162,14 @@ class AtomicRecordStore:
         self._validate_root()
 
     def _validate_root(self) -> None:
-        if self.root.is_symlink() or not self.root.is_dir():
+        if self._is_substituted(self.root) or not self.root.is_dir():
             raise LabValidationError("STORAGE_ROOT_INVALID", "storage root must be a real directory")
 
     def _assert_contained_existing_parents(self, target: Path) -> None:
         current = target.parent
         while current != self.root and not current.exists():
             current = current.parent
-        if current.is_symlink():
+        if self._is_substituted(current):
             raise LabValidationError("STORAGE_PATH_ESCAPE", "symlink escapes storage root")
         self._assert_contained(current.resolve())
 
@@ -134,6 +178,16 @@ class AtomicRecordStore:
             resolved.relative_to(self.root.resolve(strict=True))
         except ValueError as exc:
             raise LabValidationError("STORAGE_PATH_ESCAPE", "path escapes storage root") from exc
+
+    @staticmethod
+    def _is_substituted(path: Path) -> bool:
+        if path.is_symlink():
+            return True
+        try:
+            attributes = getattr(os.lstat(path), "st_file_attributes", 0)
+        except OSError as exc:
+            raise LabValidationError("STORAGE_PATH_INVALID", str(exc)) from exc
+        return bool(attributes & 0x400)
 
     @staticmethod
     def _fsync_directory(directory: Path) -> None:

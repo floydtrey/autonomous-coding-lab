@@ -1,8 +1,9 @@
 # Start Here
 
 **Status:** Active routing authority
-**Current phase:** Phase 3B Worker Lab contracts integrated; framework execution remains disabled
+**Current phase:** Phase 3C security decisions and bounded adapter handoff prepared; execution remains disabled
 **Integrated checkpoint:** `b280a62` / PR `#5`
+**Documentation checkpoint:** `62aaf13` / PR `#6`
 **Rollback milestone:** `v0.2.0-phase2`
 
 ## Purpose
@@ -47,6 +48,7 @@ Read only the row that matches the current task, plus the directly changed code 
 | Backup, restore, or rollback | Backup section of `PHASE2_SPEC.md`, P2-C11/P2-C12, `worker_lab/backup.py`, `tests/test_backup.py`, and prior milestone evidence only as a format reference |
 | Phase 1 audit or historical rollback | `PHASE1_AUDIT_CHECKLIST.md` and `MILESTONE_EVIDENCE.md` |
 | Phase 3 or cross-repository interface | Active Worker Lab state plus the relevant Autonomous Worker Framework specifications |
+| Phase 3C adapter candidate | `PHASE3C_SECURITY_DECISIONS.md`, `TERRA_PHASE3C_ADAPTER.md`, then only the directly affected Worker Lab and framework contracts named there |
 
 Do not read Phase 1 evidence for ordinary Phase 2 implementation. Do not read Autonomous Worker
 Framework specifications during Phase 2 unless the task changes a cross-repository contract. Do not
@@ -71,8 +73,8 @@ Phase 2 is complete at `v0.2.0-phase2`. The accepted Phase 3B Worker Lab checkpo
 invocation/result contracts, protected invocation custody, immutable `worker-lab-v3` test bindings,
 and a fake-only adapter preparation seam.
 
-The next boundary is the separately reviewed framework adapter checkpoint and the reserved Phase 3C
-security decisions. No current authority permits Codex/framework execution, `READY -> RUNNING`,
-candidate evaluation, publication, real curricula, Mine Tracker changes, or another product
-repository.
+The Phase 3C security decisions and Terra handoff authorize only a bounded non-executing adapter
+candidate using fakes and inert process fixtures. No current authority permits Codex/framework
+execution, a real `READY -> RUNNING`, candidate evaluation, publication, real curricula, Mine
+Tracker changes, or another product repository.
 - Stop on stale or conflicting repository identity.

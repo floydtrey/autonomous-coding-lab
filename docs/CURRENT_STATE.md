@@ -1,8 +1,10 @@
 # Current State
 
-**Last updated:** 2026-08-28
+**Last updated:** 2026-08-29
 **Status:** Phase 2 complete at `v0.2.0-phase2`; Phase 3B Worker Lab contracts integrated at
-`b280a62`; worker execution remains unavailable.
+`b280a62`; the framework Phase 3C adapter is checkpointed at `v0.2.0-worker-lab-adapter` and the
+Worker Lab client/custody candidate passed its final focused checkpoint validation; worker execution
+remains unavailable.
 
 ## Repository
 
@@ -16,6 +18,8 @@
 - Integrated Phase 2 Batch 3: `0e01168` / PR `#3`
 - Phase 2 milestone: `v0.2.0-phase2`
 - Integrated Phase 3B Worker Lab contracts: `b280a62` / PR `#5`
+- Reviewed framework adapter milestone:
+  `2d8c93312103015125f0eef9e2afdc697a45d244` / `v0.2.0-worker-lab-adapter`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
@@ -102,9 +106,18 @@ recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.m
 
 The Worker Lab half of Phase 3B is accepted: strict invocation/result records, atomic guarded
 invocation storage, immutable `worker-lab-v3` bindings, and a runner-injected preparation seam that
-fails without a test fake. The next boundary is a separately reviewed framework adapter checkpoint
-and explicit resolution of the reserved Phase 3C process-containment, retention, runtime-identity,
-and read-only non-mutation decisions. No current authority permits Codex/framework execution,
+fails without a test fake. `PHASE3C_SECURITY_DECISIONS.md` now settles the reserved adapter identity,
+Windows Job Object containment, process-absence, content-bound, retention, runtime-binding, catalog,
+and framework-milestone choices. `TERRA_PHASE3C_ADAPTER.md` defines the next bounded two-repository
+candidate using fakes and inert process fixtures only.
+
+The Phase 3C candidates add fake-only adapter protocol, fixed Worker Lab command configuration
+pinned to framework commit `2d8c93312103015125f0eef9e2afdc697a45d244`,
+Windows Job Object process-tree custody with bounded capture and creation-time recovery evidence,
+exact repository/adapter/Python identity checks, and the one-way `READY -> RUNNING`
+runtime-identity invariant. The framework half passed its complete 158-test milestone gate and the
+Worker Lab half passed its final focused gate with 87 passed and two expected symlink-capability
+skips. Both remain non-executing. No current authority permits Codex/framework execution, a real
 `READY -> RUNNING`, or work in an external product repository.
 
 ## Drift boundary

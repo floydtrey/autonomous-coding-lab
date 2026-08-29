@@ -218,6 +218,16 @@ class AttemptRecord(_Record):
         updated = _timestamp(data["updated_at"], "updated_at")
         if updated < created:
             raise LabValidationError("RECORD_TIME_INVALID", "updated_at cannot precede created_at")
+        runtime_identity = _optional_digest(data["runtime_identity"], "runtime_identity")
+        state = _attempt_state(data["state"])
+        if state in {AttemptState.DRAFT, AttemptState.READY} and runtime_identity is not None:
+            raise LabValidationError(
+                "ATTEMPT_RUNTIME_IDENTITY_INVALID", "draft and ready attempts require null runtime identity"
+            )
+        if state not in {AttemptState.DRAFT, AttemptState.READY, AttemptState.ABORTED} and runtime_identity is None:
+            raise LabValidationError(
+                "ATTEMPT_RUNTIME_IDENTITY_REQUIRED", "active execution states require runtime identity"
+            )
         return cls(
             ATTEMPT_SCHEMA,
             _attempt_id(data["attempt_id"], "attempt_id"),
@@ -234,12 +244,12 @@ class AttemptRecord(_Record):
             _positive_int(data["role_version"], "role_version"),
             _digest(data["role_digest"], "role_digest"),
             _choice(data["sandbox_mode"], "sandbox_mode", {"read-only", "workspace-write"}),
-            _attempt_state(data["state"]),
+            state,
             data["created_at"],
             data["updated_at"],
             _text(data["evaluator_catalog_version"], "evaluator_catalog_version"),
             _digest(data["evaluator_catalog_digest"], "evaluator_catalog_digest"),
-            _optional_text(data["runtime_identity"], "runtime_identity"),
+            runtime_identity,
             _optional_digest(data["candidate_digest"], "candidate_digest"),
             _optional_text(data["cleanup_outcome"], "cleanup_outcome"),
             _optional_attempt_id(data["prior_attempt_id"], "prior_attempt_id"),

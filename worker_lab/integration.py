@@ -18,6 +18,8 @@ RUNTIME_REASONING_EFFORT = "medium"
 RUNTIME_TIMEOUT_SECONDS = 900
 WORKER_LAB_CONTRACT_VERSION = "worker-lab-framework-client:v1"
 FRAMEWORK_CONTRACT_VERSION = "worker-lab-framework-adapter:v1"
+MAX_STRUCTURED_TEXT_BYTES = 2_048
+MAX_CONTENT_REFERENCE_BYTES = 256
 
 
 class InvocationOperation(StrEnum):
@@ -118,6 +120,16 @@ class InvocationRecord:
 
     def digest(self) -> str:
         return canonical_digest(self.to_dict())
+
+    def identity_digest(self) -> str:
+        """Return the stable execution identity, excluding mutable custody fields."""
+        value = self.to_dict()
+        for field in ("authorized_by", "authorized_at", "state", "result_digest"):
+            value.pop(field)
+        return canonical_digest({
+            "schema_version": "worker-lab-framework-invocation-identity:v1",
+            "invocation": value,
+        })
 
     @classmethod
     def from_mapping(cls, value: Any) -> "InvocationRecord":
@@ -240,12 +252,14 @@ class ResultRecord:
             _digest(data["test_plan_digest"]), _texts(data["test_ids"]), _digest(data["workspace_receipt_digest"]),
             _digest(data["workspace_root_digest"]), _digest(data["workspace_path_digest"]), _sha(data["starting_commit"]), _sha(data["observed_head"]),
             _choice(data["process_outcome"], {"pass", "fail", "not-run", "uncertain"}, "process outcome"),
-            _optional_text(data["process_identity"]), _timestamp(data["process_started_at"]), _timestamp(data["process_ended_at"]),
+            _optional_digest(data["process_identity"]), _timestamp(data["process_started_at"]), _timestamp(data["process_ended_at"]),
             _choice(data["workspace_state"], {"unchanged", "changed", "boundary-failed", "unknown"}, "workspace state"), _paths(data["changed_paths"]),
             _optional_digest(data["proposal_digest"]), _optional_digest(data["candidate_digest"]), stages,
             _optional_text(data["first_failure_boundary"]), _optional_text(data["failure_code"]),
-            _text(data["expected"]), _text(data["observed"]), _text(data["containment_outcome"]),
-            _digest(data["output_digest"]), _optional_text(data["content_reference"]), data["retryable"],
+            _bounded_text(data["expected"], MAX_STRUCTURED_TEXT_BYTES, "expected"),
+            _bounded_text(data["observed"], MAX_STRUCTURED_TEXT_BYTES, "observed"),
+            _text(data["containment_outcome"]), _digest(data["output_digest"]),
+            _optional_content_reference(data["content_reference"]), data["retryable"],
         )
         _validate_result(result)
         return result
@@ -323,6 +337,10 @@ def _validate_result(result: ResultRecord) -> None:
     if result.operation is InvocationOperation.READ_ONLY_PROPOSAL:
         if result.changed_paths or result.candidate_digest is not None:
             raise LabValidationError("INTEGRATION_RESULT_INVALID", "proposal cannot report candidate changes")
+        if result.process_outcome == "pass" and (
+            result.proposal_digest is None or result.process_identity is None or result.content_reference is None
+        ):
+            raise LabValidationError("INTEGRATION_RESULT_INVALID", "accepted proposal requires custody and content evidence")
     elif result.proposal_digest is not None:
         raise LabValidationError("INTEGRATION_RESULT_INVALID", "code task cannot report proposal content")
 
@@ -341,6 +359,22 @@ def _text(value: Any) -> str:
 
 def _optional_text(value: Any) -> str | None:
     return None if value is None else _text(value)
+
+
+def _bounded_text(value: Any, limit: int, field: str) -> str:
+    text = _text(value)
+    if "\x00" in text or len(text.encode("utf-8")) > limit:
+        raise LabValidationError("INTEGRATION_FIELD_INVALID", f"{field} exceeds its retained-text limit")
+    return text
+
+
+def _optional_content_reference(value: Any) -> str | None:
+    if value is None:
+        return None
+    reference = _path(value)
+    if len(reference.encode("utf-8")) > MAX_CONTENT_REFERENCE_BYTES:
+        raise LabValidationError("INTEGRATION_FIELD_INVALID", "content reference exceeds its limit")
+    return reference
 
 
 def _exact(value: Any, expected: str, field: str) -> str:
@@ -390,7 +424,8 @@ def _path(value: Any) -> str:
     text = _text(value)
     path = PurePosixPath(text)
     if (
-        "\\" in text
+        "\x00" in text
+        or "\\" in text
         or text == "."
         or not path.parts
         or path.is_absolute()
