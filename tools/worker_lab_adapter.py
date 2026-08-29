@@ -416,8 +416,12 @@ def main(argv: list[str] | None = None) -> int:
 
 def _git(root: Path, *args: str) -> bytes:
     environment = {"PATH": os.environ.get("PATH", ""), "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
+    # The controller has already resolved and reparse-checked ``root`` before
+    # invoking this helper.  Passing only that exact path to Git avoids a
+    # sandbox-account ownership false positive without enabling a global or
+    # user-controlled safe-directory exception.
     process = subprocess.run(
-        ["git", *args], cwd=root, env=environment, stdin=subprocess.DEVNULL,
+        ["git", "-c", f"safe.directory={root}", *args], cwd=root, env=environment, stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30, check=False,
     )
     if process.returncode != 0:
