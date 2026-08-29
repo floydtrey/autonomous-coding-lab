@@ -19,7 +19,7 @@ remains unavailable.
 - Phase 2 milestone: `v0.2.0-phase2`
 - Integrated Phase 3B Worker Lab contracts: `b280a62` / PR `#5`
 - Reviewed framework read-only adapter milestone:
-  `d822600a5702c20429a2537bbb05ad5ea6adbe2f` / `v0.2.3-worker-lab-isolated-adapter`
+  `19a67c2f2b7afac9979680cb62d2237039b8a897` / `v0.2.4-worker-lab-preflight-codes`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
@@ -111,7 +111,7 @@ and framework-milestone choices. `TERRA_PHASE3C_ADAPTER.md` defines the next bou
 candidate using fakes and inert process fixtures only.
 
 The Phase 3C candidates add adapter protocol, fixed Worker Lab command configuration
-pinned to framework commit `d822600a5702c20429a2537bbb05ad5ea6adbe2f`,
+pinned to framework commit `19a67c2f2b7afac9979680cb62d2237039b8a897`,
 Windows Job Object process-tree custody with bounded capture and creation-time recovery evidence,
 exact repository/adapter/Python identity checks, and the one-way `READY -> RUNNING`
 runtime-identity invariant. The framework half passed its complete 158-test milestone gate and the
