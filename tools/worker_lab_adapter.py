@@ -388,11 +388,11 @@ def _read_launcher_version(launcher: str) -> str:
     return process.stdout.strip().split()[-1]
 
 
-def _execute_production(prompt: str, framework_root: Path) -> AdapterExecution:
+def _execute_production(prompt: str, framework_root: Path, launcher: str) -> AdapterExecution:
     execution = execute_codex_bounded(CodexRequest(
         prompt=prompt, target_repo=Path.cwd(), framework_repo=framework_root,
         sandbox="read-only", model="gpt-5.6-terra", reasoning_effort="medium", timeout_seconds=900,
-    ))
+    ), executable=launcher)
     return AdapterExecution(execution.stdout.encode("utf-8"), execution.stderr.encode("utf-8"), execution.returncode)
 
 
@@ -406,18 +406,20 @@ def main(argv: list[str] | None = None) -> int:
     raw = sys.stdin.buffer.read(MAX_REQUEST_BYTES + 1)
     try:
         invocation, _ = parse_request(raw)
-        runtime, _ = local_runtime_identity(invocation)
+        runtime, launcher = local_runtime_identity(invocation)
         if args.mode == "prepare":
             response = prepare(raw, runtime_identity=runtime)
         elif args.mode == "preflight":
             response = preflight(
                 raw, runtime_identity=runtime,
-                checker=lambda: check_chatgpt_auth(environment=os.environ),
+                checker=lambda: check_chatgpt_auth(environment=os.environ, executable=launcher),
             )
         else:
             response = execute_read_only(
                 raw, runtime_identity=runtime,
-                executor=lambda prompt: _execute_production(prompt, Path(__file__).resolve().parents[1]),
+                executor=lambda prompt: _execute_production(
+                    prompt, Path(__file__).resolve().parents[1], launcher
+                ),
             )
     except Exception as exc:
         # Framework runtime failures already expose stable categories such as

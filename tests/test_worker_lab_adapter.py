@@ -172,10 +172,14 @@ def test_cli_enables_only_the_sealed_production_modes(monkeypatch, mode, state):
     stdout = type("Output", (), {"buffer": io.BytesIO()})()
     monkeypatch.setattr(sys, "stdin", stdin)
     monkeypatch.setattr(sys, "stdout", stdout)
-    monkeypatch.setattr(adapter, "local_runtime_identity", lambda _: (DIGEST, "codex"))
+    monkeypatch.setattr(adapter, "local_runtime_identity", lambda _: (DIGEST, "codex.exe"))
     checked = []
     monkeypatch.setattr(adapter, "check_chatgpt_auth", lambda **_: checked.append(True))
-    monkeypatch.setattr(adapter, "_execute_production", lambda *_: AdapterExecution(b"proposal"))
+    executed = []
+    monkeypatch.setattr(
+        adapter, "_execute_production",
+        lambda *args: (executed.append(args), AdapterExecution(b"proposal"))[1],
+    )
     assert adapter.main([mode, "--protocol", adapter.PROTOCOL]) == 0
     response = json.loads(stdout.buffer.getvalue())
     assert response["runtime_identity"] == DIGEST
@@ -183,6 +187,7 @@ def test_cli_enables_only_the_sealed_production_modes(monkeypatch, mode, state):
         assert checked == [True]
     else:
         assert response["proposal_content"] == "proposal"
+        assert executed[0][-1] == "codex.exe"
 
 
 def test_isolated_direct_script_starts_without_import_path_fallback():
