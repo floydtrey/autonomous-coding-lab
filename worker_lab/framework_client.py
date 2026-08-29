@@ -23,8 +23,8 @@ from .integration import (
 ADAPTER_RELATIVE_PATH = "tools/worker_lab_adapter.py"
 ADAPTER_REQUEST_SCHEMA = "worker-lab-framework-adapter-request:v1"
 PINNED_FRAMEWORK_ROOT = Path(r"C:\Users\MineTrackerWorker\repos\autonomous-worker-framework")
-PINNED_FRAMEWORK_COMMIT = "19a67c2f2b7afac9979680cb62d2237039b8a897"
-PINNED_ADAPTER_DIGEST = "sha256:077efaeee1d136e2afa27a1fb2e117c9ba0ef0f568b377bc905b9c1cdb0b71f8"
+PINNED_FRAMEWORK_COMMIT = "0f6423f848f50d0b5e9f3de6f79bbf4a94c74b49"
+PINNED_ADAPTER_DIGEST = "sha256:58b062cca73e31299a696e6aeb2699a5c1bd96a400748c8c51d564f0efc0cc2c"
 PYTHON_EXECUTABLE = Path(r"C:\Program Files\Python312\python.exe")
 PYTHON_DIGEST = "sha256:4d6f5f81a4bca11191c4c7c6b43632694d0a4ce74e068619d8fdc161d469859a"
 PYTHON_VERSION = "3.12.10"
