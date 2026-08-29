@@ -18,8 +18,8 @@ remains unavailable.
 - Integrated Phase 2 Batch 3: `0e01168` / PR `#3`
 - Phase 2 milestone: `v0.2.0-phase2`
 - Integrated Phase 3B Worker Lab contracts: `b280a62` / PR `#5`
-- Reviewed framework adapter milestone:
-  `2d8c93312103015125f0eef9e2afdc697a45d244` / `v0.2.0-worker-lab-adapter`
+- Reviewed framework read-only adapter milestone:
+  `8d79cd08350e71b98cb16b950fc855980b074af7` / `v0.2.1-worker-lab-readonly`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
