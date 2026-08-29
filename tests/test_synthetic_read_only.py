@@ -1,5 +1,8 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+
+import pytest
 
 from worker_lab.attempt_store import AttemptStore
 from worker_lab.synthetic_read_only import (
@@ -11,8 +14,10 @@ from worker_lab.synthetic_read_only import (
     _run_sealed_test,
     _write_authority,
 )
+from worker_lab.errors import LabValidationError
 from worker_lab.test_catalog import ChangeFacts, TestRunner as CatalogRunner
 from worker_lab.workspace import prepare_workspace
+import worker_lab.synthetic_read_only as synthetic
 
 
 def test_synthetic_authority_seals_one_read_only_invocation() -> None:
@@ -44,3 +49,20 @@ def test_synthetic_authority_seals_one_read_only_invocation() -> None:
         assert records[-1].select(ChangeFacts(()), profile_ids=(SYNTHETIC_PROFILE_ID,)).test_ids == (
             SYNTHETIC_TEST_ID,
         )
+
+
+def test_preexecution_runner_retains_only_a_stable_adapter_failure_code(monkeypatch) -> None:
+    class Process:
+        returncode = 1
+        stdout = b'{"failure_code":"CHATGPT_AUTH_REQUIRED","retryable":false}'
+        stderr = b"sensitive diagnostic content"
+
+    monkeypatch.setattr(synthetic.subprocess, "run", lambda *args, **kwargs: Process())
+    monkeypatch.setattr(
+        synthetic, "call_adapter", lambda *args, runner, **kwargs: runner(("adapter",), b"request")
+    )
+    with pytest.raises(LabValidationError) as error:
+        synthetic._direct_adapter_runner(
+            None, SimpleNamespace(framework_root=Path(".")), None, None, None, None
+        )
+    assert error.value.code == "CHATGPT_AUTH_REQUIRED"

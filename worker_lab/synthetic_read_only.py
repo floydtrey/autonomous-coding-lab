@@ -9,7 +9,9 @@ specified for Phase 3C; it does not commit or publish anything.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
+import re
 import shutil
 import subprocess
 import uuid
@@ -213,6 +215,16 @@ def _direct_adapter_runner(record, config, mode, prompt, evidence, worker_eviden
     def runner(command: tuple[str, ...], payload: bytes) -> bytes:
         process = subprocess.run(list(command), input=payload, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=config.framework_root, timeout=45, check=False)
         if process.returncode != 0:
+            # The adapter intentionally emits only a stable code on this path.
+            # Preserve that controller-visible classification without retaining
+            # stderr, absolute paths, or other diagnostic content.
+            try:
+                failure = json.loads(process.stdout.decode("utf-8"))
+                code = failure.get("failure_code") if isinstance(failure, dict) else None
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                code = None
+            if isinstance(code, str) and re.fullmatch(r"[A-Z0-9_]{3,96}", code):
+                raise LabValidationError(code, "adapter pre-execution check failed")
             raise LabValidationError("INTEGRATION_EXECUTION_FAILED", "adapter pre-execution check failed")
         return process.stdout
     return call_adapter(record, config, mode, prompt=prompt, evidence=evidence, worker_lab_evidence=worker_evidence, runner=runner)
