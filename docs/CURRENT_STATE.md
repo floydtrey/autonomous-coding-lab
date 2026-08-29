@@ -19,7 +19,7 @@ remains unavailable.
 - Phase 2 milestone: `v0.2.0-phase2`
 - Integrated Phase 3B Worker Lab contracts: `b280a62` / PR `#5`
 - Reviewed framework read-only adapter milestone:
-  `8d79cd08350e71b98cb16b950fc855980b074af7` / `v0.2.1-worker-lab-readonly`
+  `b50ecdd6db15b5c96cd4e15ce8ee27a783489d2a` / `v0.2.2-worker-lab-sandbox-identity`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
@@ -99,8 +99,7 @@ recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.m
 
 ## Still unavailable
 
-- worker execution or framework invocation;
-- dashboard, real curricula, worker attempts, or graduation decisions.
+- workspace-write execution, dashboard, real curricula, worker attempts, or graduation decisions.
 
 ## Next boundary
 
@@ -111,14 +110,14 @@ Windows Job Object containment, process-absence, content-bound, retention, runti
 and framework-milestone choices. `TERRA_PHASE3C_ADAPTER.md` defines the next bounded two-repository
 candidate using fakes and inert process fixtures only.
 
-The Phase 3C candidates add fake-only adapter protocol, fixed Worker Lab command configuration
-pinned to framework commit `2d8c93312103015125f0eef9e2afdc697a45d244`,
+The Phase 3C candidates add adapter protocol, fixed Worker Lab command configuration
+pinned to framework commit `b50ecdd6db15b5c96cd4e15ce8ee27a783489d2a`,
 Windows Job Object process-tree custody with bounded capture and creation-time recovery evidence,
 exact repository/adapter/Python identity checks, and the one-way `READY -> RUNNING`
 runtime-identity invariant. The framework half passed its complete 158-test milestone gate and the
 Worker Lab half passed its final focused gate with 87 passed and two expected symlink-capability
-skips. Both remain non-executing. No current authority permits Codex/framework execution, a real
-`READY -> RUNNING`, or work in an external product repository.
+skips. One user-authorized synthetic read-only proposal is now the next bounded proof; no external
+product repository or workspace-write execution is authorized.
 
 ## Drift boundary
 
