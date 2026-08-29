@@ -35,6 +35,7 @@ class CodexRequest:
     model: str = "gpt-5.6-terra"
     reasoning_effort: str = "medium"
     timeout_seconds: int = 900
+    output_last_message: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -116,7 +117,7 @@ def validate_request(request: CodexRequest) -> None:
 
 def codex_command(request: CodexRequest, executable: str = "codex") -> tuple[str, ...]:
     validate_request(request)
-    return (
+    command = (
         executable,
         "exec",
         "--ephemeral",
@@ -134,6 +135,9 @@ def codex_command(request: CodexRequest, executable: str = "codex") -> tuple[str
         str(request.target_repo.resolve()),
         "-",
     )
+    if request.output_last_message is not None:
+        command = command[:-1] + ("--output-last-message", str(request.output_last_message), "-")
+    return command
 
 
 def check_chatgpt_auth(

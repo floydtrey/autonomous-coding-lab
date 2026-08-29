@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -389,11 +390,33 @@ def _read_launcher_version(launcher: str) -> str:
 
 
 def _execute_production(prompt: str, framework_root: Path, launcher: str) -> AdapterExecution:
-    execution = execute_codex_bounded(CodexRequest(
-        prompt=prompt, target_repo=Path.cwd(), framework_repo=framework_root,
-        sandbox="read-only", model="gpt-5.6-terra", reasoning_effort="medium", timeout_seconds=900,
-    ), executable=launcher)
-    return AdapterExecution(execution.stdout.encode("utf-8"), execution.stderr.encode("utf-8"), execution.returncode)
+    descriptor, output_name = tempfile.mkstemp(prefix="worker-lab-final-", suffix=".txt")
+    os.close(descriptor)
+    output_path = Path(output_name)
+    try:
+        execution = execute_codex_bounded(CodexRequest(
+            prompt=prompt, target_repo=Path.cwd(), framework_repo=framework_root,
+            sandbox="read-only", model="gpt-5.6-terra", reasoning_effort="medium",
+            timeout_seconds=900, output_last_message=output_path,
+        ), executable=launcher)
+        try:
+            content = output_path.read_bytes()
+        except OSError as exc:
+            raise AdapterError("INTEGRATION_EXECUTION_FAILED", "Codex final message is unavailable") from exc
+        if not content or len(content) > MAX_PROPOSAL_BYTES:
+            raise AdapterError("INTEGRATION_RESULT_INVALID", "Codex final message is empty or oversized")
+        try:
+            content.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise AdapterError("INTEGRATION_RESULT_INVALID", "Codex final message is not UTF-8") from exc
+        # stderr may contain normal CLI progress.  It is bounded by the runtime
+        # but deliberately never becomes retained proposal evidence.
+        return AdapterExecution(content, b"", execution.returncode)
+    finally:
+        try:
+            output_path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def main(argv: list[str] | None = None) -> int:

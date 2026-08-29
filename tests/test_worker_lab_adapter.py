@@ -6,7 +6,7 @@ import sys
 import pytest
 
 import tools.worker_lab_adapter as adapter
-from tools.codex_runtime import CodexRuntimeError
+from tools.codex_runtime import CodexExecution, CodexRuntimeError
 from tools.worker_lab_adapter import (
     REQUEST_SCHEMA, AdapterError, AdapterExecution, MAX_PROPOSAL_BYTES, canonical_json, digest,
     execute_read_only, invocation_identity, prepare, preflight,
@@ -215,3 +215,18 @@ def test_cli_retains_only_a_stable_framework_preflight_code(monkeypatch):
     assert json.loads(stdout.buffer.getvalue()) == {
         "failure_code": "CHATGPT_AUTH_REQUIRED", "retryable": False,
     }
+
+
+def test_production_retains_only_the_final_message_not_cli_stderr(monkeypatch, tmp_path):
+    observed = []
+
+    def fake_execute(request, *, executable):
+        observed.append(request.output_last_message)
+        assert request.output_last_message is not None
+        request.output_last_message.write_text("proposal", encoding="utf-8")
+        return CodexExecution(("codex",), 0, "progress", "normal CLI progress")
+
+    monkeypatch.setattr(adapter, "execute_codex_bounded", fake_execute)
+    result = adapter._execute_production("prompt", tmp_path, "codex")
+    assert result == AdapterExecution(b"proposal", b"", 0)
+    assert observed[0] is not None and not observed[0].exists()
