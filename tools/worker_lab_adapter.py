@@ -420,7 +420,11 @@ def main(argv: list[str] | None = None) -> int:
                 executor=lambda prompt: _execute_production(prompt, Path(__file__).resolve().parents[1]),
             )
     except Exception as exc:
-        code = exc.code if isinstance(exc, AdapterError) else "INTEGRATION_EXECUTION_FAILED"
+        # Framework runtime failures already expose stable categories such as
+        # CHATGPT_AUTH_REQUIRED.  Preserve only that code, never stderr or an
+        # exception message that could contain local/sensitive detail.
+        candidate = getattr(exc, "code", None)
+        code = candidate if isinstance(candidate, str) and re.fullmatch(r"[A-Z0-9_]{3,96}", candidate) else "INTEGRATION_EXECUTION_FAILED"
         sys.stdout.buffer.write(_response({"failure_code": code, "retryable": False}))
         return 1
     sys.stdout.buffer.write(response)

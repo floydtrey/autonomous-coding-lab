@@ -6,6 +6,7 @@ import sys
 import pytest
 
 import tools.worker_lab_adapter as adapter
+from tools.codex_runtime import CodexRuntimeError
 from tools.worker_lab_adapter import (
     REQUEST_SCHEMA, AdapterError, AdapterExecution, MAX_PROPOSAL_BYTES, canonical_json, digest,
     execute_read_only, invocation_identity, prepare, preflight,
@@ -192,3 +193,20 @@ def test_isolated_direct_script_starts_without_import_path_fallback():
     )
     assert process.returncode == 0
     assert "Strict Worker Lab framework adapter" in process.stdout
+
+
+def test_cli_retains_only_a_stable_framework_preflight_code(monkeypatch):
+    raw = canonical_json(request("AUTHORIZED")).encode("utf-8")
+    stdin = type("Input", (), {"buffer": io.BytesIO(raw)})()
+    stdout = type("Output", (), {"buffer": io.BytesIO()})()
+    monkeypatch.setattr(sys, "stdin", stdin)
+    monkeypatch.setattr(sys, "stdout", stdout)
+    monkeypatch.setattr(adapter, "local_runtime_identity", lambda _: (DIGEST, "codex"))
+    monkeypatch.setattr(
+        adapter, "check_chatgpt_auth",
+        lambda **_: (_ for _ in ()).throw(CodexRuntimeError("CHATGPT_AUTH_REQUIRED", "private detail")),
+    )
+    assert adapter.main(["preflight", "--protocol", adapter.PROTOCOL]) == 1
+    assert json.loads(stdout.buffer.getvalue()) == {
+        "failure_code": "CHATGPT_AUTH_REQUIRED", "retryable": False,
+    }
