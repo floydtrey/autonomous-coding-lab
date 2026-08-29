@@ -1,5 +1,7 @@
 from pathlib import Path
 from subprocess import CompletedProcess
+import subprocess
+import threading
 
 import pytest
 
@@ -9,10 +11,66 @@ from tools.codex_runtime import (
     CodexRequest,
     CodexRuntimeError,
     codex_command,
+    execute_codex_bounded,
     execute_codex,
     resolve_codex_executable,
     sanitized_codex_environment,
 )
+
+
+class _Stream:
+    def __init__(self, chunks=(), exc=None, blocker=None):
+        self.chunks = list(chunks)
+        self.exc = exc
+        self.blocker = blocker
+
+    def read(self, _size):
+        if self.chunks:
+            return self.chunks.pop(0)
+        if self.blocker is not None:
+            self.blocker.wait()
+            return b""
+        if self.exc is not None:
+            raise self.exc
+        return b""
+
+
+class _Stdin:
+    def __init__(self):
+        self.written = b""
+        self.closed = False
+
+    def write(self, value):
+        self.written += value
+
+    def close(self):
+        self.closed = True
+
+
+class _Process:
+    def __init__(self, *, stdout=b"", stderr=b"", returncode=0, wait_error=None):
+        self.stdin = _Stdin()
+        self.stdout = stdout if isinstance(stdout, _Stream) else _Stream([stdout])
+        self.stderr = stderr if isinstance(stderr, _Stream) else _Stream([stderr])
+        self.returncode = returncode
+        self.wait_error = wait_error
+        self.terminated = False
+
+    def wait(self, timeout=None):
+        if self.wait_error:
+            error, self.wait_error = self.wait_error, None
+            raise error
+        return self.returncode
+
+    def terminate(self):
+        self.terminated = True
+
+
+def _bounded(request, process, **updates):
+    values = {"environment": {"Path": "bin"}, "executable": "codex", "popen": lambda *_args, **_kwargs: process,
+              "auth_checker": lambda **_kwargs: None}
+    values.update(updates)
+    return execute_codex_bounded(request, **values)
 
 
 def _repos(tmp_path: Path) -> tuple[Path, Path]:
@@ -162,3 +220,65 @@ def test_codex_failure_is_classified_at_execution_boundary(tmp_path):
 
     assert error.value.code == "CODEX_EXECUTION_FAILED"
     assert "sandbox denied write" in error.value.summary
+
+
+def test_bounded_execution_caps_output_and_preserves_prompt_input(tmp_path):
+    request = _request(tmp_path, "read-only")
+    process = _Process(stdout=b"x" * 8)
+    result = _bounded(request, process, stdout_limit=8, stderr_limit=8)
+    assert result.stdout == "x" * 8
+    assert process.stdin.written == request.prompt.encode()
+    assert process.stdin.closed
+
+    overflow = _Process(stdout=b"x" * 9)
+    with pytest.raises(CodexRuntimeError) as error:
+        _bounded(request, overflow, stdout_limit=8, stderr_limit=8)
+    assert error.value.code == "CODEX_OUTPUT_LIMIT"
+    assert overflow.terminated
+
+
+@pytest.mark.parametrize("stdout", [b"\xff", b"valid-prefix"])
+def test_bounded_execution_rejects_invalid_or_incompletely_captured_stdout(tmp_path, stdout):
+    request = _request(tmp_path, "read-only")
+    if stdout == b"\xff":
+        process = _Process(stdout=stdout)
+    else:
+        process = _Process(stdout=_Stream([stdout], exc=OSError("read failed")))
+    with pytest.raises(CodexRuntimeError) as error:
+        _bounded(request, process)
+    assert error.value.code == "CODEX_OUTPUT_INVALID"
+    if stdout == b"valid-prefix":
+        assert process.terminated
+
+
+def test_bounded_execution_rejects_stderr_reader_failure_timeout_and_nonzero_exit(tmp_path):
+    request = _request(tmp_path, "read-only")
+    stderr_failure = _Process(stdout=b"ok", stderr=_Stream(exc=OSError("stderr failed")))
+    with pytest.raises(CodexRuntimeError) as error:
+        _bounded(request, stderr_failure)
+    assert error.value.code == "CODEX_OUTPUT_INVALID"
+    assert stderr_failure.terminated
+
+    timeout = _Process(wait_error=subprocess.TimeoutExpired(["codex"], 1))
+    with pytest.raises(CodexRuntimeError) as error:
+        _bounded(request, timeout)
+    assert error.value.code == "CODEX_TIMEOUT"
+    assert timeout.terminated
+
+    nonzero = _Process(returncode=7, stderr=b"bounded failure")
+    with pytest.raises(CodexRuntimeError) as error:
+        _bounded(request, nonzero)
+    assert error.value.code == "CODEX_EXECUTION_FAILED"
+
+
+def test_bounded_execution_rejects_reader_that_does_not_stop(tmp_path):
+    request = _request(tmp_path, "read-only")
+    unblock = threading.Event()
+    process = _Process(stdout=_Stream(blocker=unblock))
+    try:
+        with pytest.raises(CodexRuntimeError) as error:
+            _bounded(request, process, reader_join_timeout=0.01)
+        assert error.value.code == "CODEX_EXECUTION_FAILED"
+        assert process.terminated
+    finally:
+        unblock.set()

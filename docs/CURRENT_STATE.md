@@ -2,9 +2,9 @@
 
 **Status:** Active checkpoint authority
 **Read when:** Starting or resuming any project task.
-**Last updated:** 2026-08-28
-**Current boundary:** Framework foundation stable; Worker Lab Phase 2 complete; Phase 3A interface
-specification authorized; Worker Lab invocation remains disabled pending trusted approval.
+**Last updated:** 2026-08-29
+**Current boundary:** Framework foundation stable; the reviewed Phase 3C non-executing adapter is
+ready at `v0.2.0-worker-lab-adapter`; Worker Lab invocation remains disabled.
 
 ## Exact repository state
 
@@ -15,12 +15,12 @@ specification authorized; Worker Lab invocation remains disabled pending trusted
 - Integrated and tagged foundation commit: `2b31a96a872ee7d042614b5be917b1b4f3c1d57c`
 - Named milestone: `v0.1.0-foundation`
 - Documentation-refresh base: `31c27d6c2fad0c7365806c9cc643eef2f122f93b`
-- Every commit after the foundation tag changes project memory, documentation, or documentation tests;
-  framework runtime source is unchanged.
+- Reviewed Worker Lab adapter milestone: `v0.2.0-worker-lab-adapter`.
+- Milestone validation: 158 tests passed on 2026-08-29.
 - Complete recoverable bundle: `C:\Users\MineTrackerWorker\backups\autonomous-worker-framework\autonomous-worker-framework-20260827-d83854f.bundle`
 - Tagged foundation bundle: `C:\Users\MineTrackerWorker\backups\autonomous-worker-framework\autonomous-worker-framework-v0.1.0-foundation.bundle`
 - Remote: none configured; the framework is currently local-only.
-- Last certified inventory: 123 tests passed. No runtime code changed after that certification.
+- The foundation inventory remains 123 tests; the adapter milestone inventory is 158 tests.
 
 ### Worker Lab
 
@@ -86,11 +86,12 @@ consumer identities are not active Phase 3 context and grant no present authorit
 
 ## Current Worker Lab authority
 
-- Phase 3A may read the existing framework contracts and write a specification in Worker Lab.
-- Phase 3A may not invoke Codex or the framework, create an attempt, change lifecycle state, or modify
-  framework source.
-- Worker Lab may invoke the framework only after a reviewed Phase 3 specification defines the exact
-  adapter, identity, lifecycle, failure, evidence, and recovery contracts.
+- The Phase 3C framework adapter has passed trusted review and the complete framework milestone
+  suite through injected fakes and inert fixtures only.
+- It may not invoke Codex or the framework against a real workspace, create a real attempt, or claim
+  a live lifecycle transition.
+- Worker Lab may invoke the framework only after trusted review accepts contained process custody,
+  identity verification, bounded retention, and recovery behavior at a new framework milestone.
 - Existing historical worker runs prove framework capability; they do not grant a new Worker Lab
   integration permission.
 
@@ -134,14 +135,10 @@ Neither repository may silently duplicate or widen the other's authority.
 
 Recommended next sequence:
 
-1. Use the tracked Worker Lab `TERRA_PHASE3A.md` on its active design branch as the bounded task; the
-   handoff file defines its own verified starting checkpoint.
-2. Produce only the Phase 3 interface specification, readiness review, and Terra report in Worker Lab.
-3. Treat this framework repository and its execution contracts as read-only references.
-4. Define a read-only proposal boundary before a workspace-write task boundary.
-5. Require strict identity, lifecycle, first-failure, interruption, non-mutation, and evidence rules.
-6. Do not invoke the framework until the trusted controller reviews and explicitly approves the
-   completed specification.
+1. Resolve the exact commit tagged `v0.2.0-worker-lab-adapter` and pin that full identity in Worker Lab.
+2. Checkpoint and validate the reviewed Worker Lab Phase 3C client/custody candidate.
+3. Keep CLI preflight/execution and real `READY -> RUNNING` disabled.
+4. Require a separate explicit authorization before one live synthetic read-only proposal.
 
 ## New-chat handoff prompt
 

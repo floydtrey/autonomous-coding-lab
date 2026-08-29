@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
@@ -224,4 +225,92 @@ def execute_codex(
     if process.returncode != 0:
         detail = (process.stderr or process.stdout or "Codex failed without output").strip()
         raise CodexRuntimeError("CODEX_EXECUTION_FAILED", detail)
+    return result
+
+
+def execute_codex_bounded(
+    request: CodexRequest,
+    *,
+    environment: Mapping[str, str] | None = None,
+    executable: str | None = None,
+    stdout_limit: int = 65_536,
+    stderr_limit: int = 16_384,
+    reader_join_timeout: float = 10.0,
+    popen: Callable[..., subprocess.Popen[bytes]] = subprocess.Popen,
+    auth_checker: Callable[..., None] = check_chatgpt_auth,
+) -> CodexExecution:
+    """Execute Codex with streaming byte caps; outer callers retain process-tree custody."""
+    if stdout_limit <= 0 or stderr_limit <= 0 or reader_join_timeout <= 0:
+        raise CodexRuntimeError("RUNTIME_CONFIG_INVALID", "output limits must be positive")
+    source_env = os.environ if environment is None else environment
+    clean_env = sanitized_codex_environment(source_env)
+    resolved_executable = executable or resolve_codex_executable(clean_env)
+    command = codex_command(request, resolved_executable)
+    auth_checker(environment=clean_env, executable=resolved_executable)
+    try:
+        process = popen(
+            list(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            shell=False, close_fds=True, env=clean_env,
+        )
+    except OSError as exc:
+        raise CodexRuntimeError("CODEX_UNAVAILABLE", f"could not start Codex: {exc}") from exc
+    assert process.stdin is not None and process.stdout is not None and process.stderr is not None
+    stdout = bytearray()
+    stderr = bytearray()
+    overflow = threading.Event()
+    reader_failure: list[tuple[str, BaseException]] = []
+    failure_lock = threading.Lock()
+
+    def drain(stream, target: bytearray, limit: int, name: str) -> None:
+        try:
+            while True:
+                chunk = stream.read(4096)
+                if not chunk:
+                    return
+                remaining = limit - len(target)
+                if remaining > 0:
+                    target.extend(chunk[:remaining])
+                if len(chunk) > remaining:
+                    overflow.set()
+                    process.terminate()
+        except Exception as exc:
+            # Bytes captured before a read failure are never trustworthy; treat
+            # the failure itself as authoritative instead of returning them.
+            with failure_lock:
+                if not reader_failure:
+                    reader_failure.append((name, exc))
+            process.terminate()
+
+    readers = [
+        threading.Thread(target=drain, args=(process.stdout, stdout, stdout_limit, "stdout"), daemon=True),
+        threading.Thread(target=drain, args=(process.stderr, stderr, stderr_limit, "stderr"), daemon=True),
+    ]
+    for reader in readers:
+        reader.start()
+    try:
+        process.stdin.write(request.prompt.encode("utf-8"))
+        process.stdin.close()
+        process.wait(timeout=request.timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
+        process.terminate()
+        process.wait(timeout=10)
+        raise CodexRuntimeError("CODEX_TIMEOUT", f"Codex exceeded the {request.timeout_seconds}-second execution limit") from exc
+    finally:
+        for reader in readers:
+            reader.join(timeout=reader_join_timeout)
+    if any(reader.is_alive() for reader in readers):
+        process.terminate()
+        raise CodexRuntimeError("CODEX_EXECUTION_FAILED", "Codex output readers did not stop")
+    if reader_failure:
+        raise CodexRuntimeError("CODEX_OUTPUT_INVALID", f"Codex {reader_failure[0][0]} could not be captured")
+    if overflow.is_set():
+        raise CodexRuntimeError("CODEX_OUTPUT_LIMIT", "Codex output exceeded the bounded capture limit")
+    try:
+        stdout_text = bytes(stdout).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise CodexRuntimeError("CODEX_OUTPUT_INVALID", "Codex stdout is not UTF-8") from exc
+    stderr_text = bytes(stderr).decode("utf-8", errors="replace")
+    result = CodexExecution(command, process.returncode, stdout_text, stderr_text)
+    if process.returncode != 0:
+        raise CodexRuntimeError("CODEX_EXECUTION_FAILED", "Codex returned nonzero")
     return result

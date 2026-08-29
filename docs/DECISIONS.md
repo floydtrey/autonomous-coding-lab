@@ -1,4 +1,11 @@
 # Durable Decisions
+## D023 - Worker Lab adapter has a reviewed, non-executing milestone
+
+The bounded Worker Lab adapter is accepted at `v0.2.0-worker-lab-adapter` after complete milestone
+validation using injected fakes and inert fixtures. Framework-owned authentication, environment
+sanitation, sandbox, command, and timeout controls remain authoritative. The milestone does not
+authorize live Worker Lab invocation; that requires a separately approved synthetic read-only run.
+
 
 **Status:** Active durable-decision authority
 **Rule:** Every entry is active unless explicitly marked `Superseded` with a replacement decision.
