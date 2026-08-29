@@ -1,8 +1,8 @@
 # Current State
 
 **Last updated:** 2026-08-28
-**Status:** Phase 2 complete at `v0.2.0-phase2`; Phase 3B Worker Lab contracts accepted;
-worker execution remains unavailable.
+**Status:** Phase 2 complete at `v0.2.0-phase2`; Phase 3B Worker Lab contracts integrated at
+`b280a62`; worker execution remains unavailable.
 
 ## Repository
 
@@ -15,7 +15,7 @@ worker execution remains unavailable.
 - Integrated Phase 2 Batch 2: `97ecb34` / PR `#2`
 - Integrated Phase 2 Batch 3: `0e01168` / PR `#3`
 - Phase 2 milestone: `v0.2.0-phase2`
-- Accepted Phase 3B development branch: `phase3/framework-contracts-v1`
+- Integrated Phase 3B Worker Lab contracts: `b280a62` / PR `#5`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
