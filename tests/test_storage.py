@@ -94,3 +94,18 @@ def test_symlink_escape_is_rejected_when_supported(tmp_path: Path) -> None:
     with pytest.raises(LabValidationError) as raised:
         store.write("linked/record.json", record())
     assert raised.value.code == "STORAGE_PATH_ESCAPE"
+
+
+def test_contained_binary_content_rejects_substituted_parent_when_supported(tmp_path: Path) -> None:
+    store = AtomicRecordStore(tmp_path / "state")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = tmp_path / "state" / "proposals"
+    link.parent.mkdir()
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation is unavailable")
+    with pytest.raises(LabValidationError) as raised:
+        store.write_bytes("proposals/content.txt", b"bounded")
+    assert raised.value.code == "STORAGE_PATH_ESCAPE"

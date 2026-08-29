@@ -1,8 +1,9 @@
 # Current State
 
-**Last updated:** 2026-08-28
+**Last updated:** 2026-08-29
 **Status:** Phase 2 complete at `v0.2.0-phase2`; Phase 3B Worker Lab contracts integrated at
-`b280a62`; Phase 3C security decisions and bounded adapter handoff prepared; worker execution
+`b280a62`; the framework Phase 3C adapter is checkpointed at `v0.2.0-worker-lab-adapter` and the
+Worker Lab client/custody candidate passed its final focused checkpoint validation; worker execution
 remains unavailable.
 
 ## Repository
@@ -17,6 +18,8 @@ remains unavailable.
 - Integrated Phase 2 Batch 3: `0e01168` / PR `#3`
 - Phase 2 milestone: `v0.2.0-phase2`
 - Integrated Phase 3B Worker Lab contracts: `b280a62` / PR `#5`
+- Reviewed framework adapter milestone:
+  `2d8c93312103015125f0eef9e2afdc697a45d244` / `v0.2.0-worker-lab-adapter`
 - Private remote: `https://github.com/floydtrey/worker-lab`
 
 ## Audit conclusion
@@ -108,9 +111,13 @@ Windows Job Object containment, process-absence, content-bound, retention, runti
 and framework-milestone choices. `TERRA_PHASE3C_ADAPTER.md` defines the next bounded two-repository
 candidate using fakes and inert process fixtures only.
 
-The handoff and decisions must be placed in a trusted checkpoint before Terra starts. The resulting
-candidate then requires trusted review and a separately named framework checkpoint before any live
-synthetic proposal can be authorized. No current authority permits Codex/framework execution, a real
+The Phase 3C candidates add fake-only adapter protocol, fixed Worker Lab command configuration
+pinned to framework commit `2d8c93312103015125f0eef9e2afdc697a45d244`,
+Windows Job Object process-tree custody with bounded capture and creation-time recovery evidence,
+exact repository/adapter/Python identity checks, and the one-way `READY -> RUNNING`
+runtime-identity invariant. The framework half passed its complete 158-test milestone gate and the
+Worker Lab half passed its final focused gate with 87 passed and two expected symlink-capability
+skips. Both remain non-executing. No current authority permits Codex/framework execution, a real
 `READY -> RUNNING`, or work in an external product repository.
 
 ## Drift boundary

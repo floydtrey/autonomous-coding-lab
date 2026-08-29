@@ -10,7 +10,7 @@ from .storage import AtomicRecordStore
 
 
 TERMINAL_STATES = frozenset({AttemptState.CLOSED, AttemptState.ABORTED})
-MUTABLE_FIELDS = frozenset({"state", "updated_at", "candidate_digest", "cleanup_outcome"})
+MUTABLE_FIELDS = frozenset({"state", "updated_at", "runtime_identity", "candidate_digest", "cleanup_outcome"})
 IMMUTABLE_FIELDS = tuple(
     field.name for field in fields(AttemptRecord) if field.name not in MUTABLE_FIELDS
 )
@@ -61,6 +61,9 @@ class AttemptStore:
             candidate_digest=(
                 updated.candidate_digest if updated.state is AttemptState.CANDIDATE else None
             ),
+            runtime_identity=(
+                updated.runtime_identity if updated.state is AttemptState.RUNNING else None
+            ),
             cleanup_outcome=(
                 updated.cleanup_outcome
                 if updated.state in {AttemptState.CLOSED, AttemptState.ABORTED}
@@ -72,6 +75,33 @@ class AttemptStore:
                 "ATTEMPT_TRANSITION_INVALID", "stored transition differs from protected lifecycle"
             )
         self.records.write(self._path(updated.attempt_id), updated)
+
+    def bind_authorized_invocation(
+        self,
+        invocation_store,
+        *,
+        invocation_id: str,
+        expected_invocation_identity: str,
+        occurred_at: str,
+    ) -> AttemptRecord:
+        """Durably reload and bind exactly one AUTHORIZED invocation to READY -> RUNNING."""
+        from .integration import InvocationState
+        from .lifecycle import bind_authorized_invocation
+
+        attempt = self.read(self._path_id_from_invocation(invocation_id, invocation_store))
+        invocation = invocation_store.read(invocation_id)
+        if invocation.state is not InvocationState.AUTHORIZED:
+            raise LabValidationError("INTEGRATION_AUTHORIZATION_INVALID", "invocation is not durably authorized")
+        if invocation.identity_digest() != expected_invocation_identity:
+            raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "authorized invocation identity differs")
+        updated = bind_authorized_invocation(attempt, invocation, occurred_at=occurred_at)
+        self.save_transition(updated)
+        return updated
+
+    @staticmethod
+    def _path_id_from_invocation(invocation_id: str, invocation_store) -> str:
+        """Read the durable invocation first; no caller-supplied attempt identity is trusted."""
+        return invocation_store.read(invocation_id).attempt_id
 
     def _validate_retry_link(self, attempt: AttemptRecord) -> None:
         if attempt.prior_attempt_id == attempt.attempt_id:

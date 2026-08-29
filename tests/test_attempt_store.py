@@ -7,6 +7,9 @@ from worker_lab.attempt_store import AttemptStore
 from worker_lab.errors import LabValidationError
 from worker_lab.lifecycle import transition_attempt
 from worker_lab.models import AttemptState
+from worker_lab.integration import InvocationRecord, InvocationState, transition_invocation
+from worker_lab.invocation_store import InvocationStore
+from tests.test_integration import record
 from tests.test_lifecycle import attempt
 
 
@@ -95,3 +98,35 @@ def test_terminal_attempt_can_be_linked_by_new_retry(tmp_path: Path) -> None:
     )
     store.create(retry)
     assert store.read(retry.attempt_id).prior_attempt_id == original.attempt_id
+
+
+def test_running_binding_reloads_exact_authorized_invocation(tmp_path: Path) -> None:
+    attempts = AttemptStore(tmp_path / "state")
+    invocations = InvocationStore(tmp_path / "state")
+    original = attempt()
+    attempts.create(original)
+    ready = transition_attempt(original, AttemptState.READY, occurred_at="2026-08-27T12:00:01Z")
+    attempts.save_transition(ready)
+    value = record().to_dict()
+    value.update({
+        "attempt_id": ready.attempt_id, "exercise_id": ready.exercise_id,
+        "exercise_version": ready.exercise_version, "policy_id": ready.policy_id,
+        "policy_version": ready.policy_version, "policy_digest": ready.policy_digest,
+        "role_id": ready.role_id, "role_version": ready.role_version, "role_digest": ready.role_digest,
+        "context_digest": ready.context_digest, "task_digest": ready.task_digest,
+        "test_catalog_version": ready.evaluator_catalog_version,
+        "test_catalog_digest": ready.evaluator_catalog_digest, "starting_commit": ready.starting_commit,
+        "sandbox_mode": ready.sandbox_mode, "operation": "workspace-write-code-task", "writable_paths": ["app.py"],
+    })
+    prepared = InvocationRecord.from_mapping(value)
+    invocations.create(prepared)
+    authorized = transition_invocation(prepared, InvocationState.AUTHORIZED, authorized_by="trusted-controller", authorized_at="2026-08-27T12:00:01Z")
+    invocations.save_transition(authorized, expected_digest=prepared.digest())
+    with pytest.raises(LabValidationError):
+        attempts.bind_authorized_invocation(invocations, invocation_id=authorized.invocation_id,
+                                            expected_invocation_identity="sha256:" + "f" * 64,
+                                            occurred_at="2026-08-27T12:00:02Z")
+    bound = attempts.bind_authorized_invocation(invocations, invocation_id=authorized.invocation_id,
+                                                expected_invocation_identity=authorized.identity_digest(),
+                                                occurred_at="2026-08-27T12:00:02Z")
+    assert bound.runtime_identity == authorized.identity_digest()
