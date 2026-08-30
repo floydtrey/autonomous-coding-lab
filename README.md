@@ -13,6 +13,9 @@ explicit component parity milestone transfers authority to this repository.
 
 Start with [`docs/START_HERE.md`](docs/START_HERE.md).
 
+Source-conversation witness reports and the exact reusable request live under
+[`docs/handoffs/`](docs/handoffs/README.md).
+
 ## Intended components
 
 - Worker Lab: task authority, roles, lifecycle, curricula, evidence, and review.
