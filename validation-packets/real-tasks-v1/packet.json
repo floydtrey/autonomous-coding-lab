@@ -2,7 +2,7 @@
   "schema_version": 1,
   "packet_id": "real-tasks-v1",
   "name": "Real repository task validation - round 1",
-  "status": "draft",
+  "status": "ready",
   "candidate_input_policy": {
     "include": [
       "archived baseline repository",
@@ -60,7 +60,10 @@
       },
       "candidate_scope": "tasks/RT-002/scope.md",
       "assessment": "assessment/RT-002/scoring.json",
-      "assessment_status": "draft-tests-pending",
+      "assessment_status": "verified",
+      "assessor_tests": [
+        "assessment/RT-002/test_snapshot_evaluation.py"
+      ],
       "limits": {
         "wall_seconds": 1800,
         "max_attempts": 1,
@@ -79,7 +82,7 @@
       "candidate_scope": "tasks/RT-003/scope.md",
       "candidate_evidence": "tasks/RT-003/evidence.md",
       "assessment": "assessment/RT-003/scoring.json",
-      "assessment_status": "draft-rubric-ready",
+      "assessment_status": "rubric-ready",
       "limits": {
         "wall_seconds": 900,
         "max_attempts": 1,
@@ -97,7 +100,10 @@
       },
       "candidate_scope": "tasks/RT-004/scope.md",
       "assessment": "assessment/RT-004/scoring.json",
-      "assessment_status": "draft-tests-pending",
+      "assessment_status": "verified",
+      "assessor_tests": [
+        "assessment/RT-004/test_provider_error_redaction.py"
+      ],
       "limits": {
         "wall_seconds": 1800,
         "max_attempts": 1,
@@ -115,7 +121,7 @@
       },
       "candidate_scope": "tasks/RT-005/scope.md",
       "assessment": "assessment/RT-005/scoring.json",
-      "assessment_status": "draft-rubric-ready",
+      "assessment_status": "rubric-ready",
       "limits": {
         "wall_seconds": 600,
         "max_attempts": 1,

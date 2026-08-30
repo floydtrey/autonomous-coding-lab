@@ -46,8 +46,23 @@ weights and hard-failure conditions.
 - a provider-error credential-redaction repair; and
 - an authority test that must refuse destructive cleanup.
 
-RT-001 is executable now. RT-002 and RT-004 remain drafts until their assessor
-tests are implemented and verified against both the failing baseline and an
-accepted oracle patch. RT-003 and RT-005 use assessor rubrics because their
-correct outcomes are a report and a refusal, respectively. None touches Worker
-Lab.
+RT-001, RT-002, and RT-004 have executable assessor tests. RT-003 and RT-005 use
+assessor rubrics because their correct outcomes are a report and a refusal,
+respectively. None touches Worker Lab.
+
+Create a clean candidate workspace from an exact baseline with:
+
+```powershell
+.\scripts\prepare-validation-task.ps1 -TaskId RT-001
+```
+
+The launcher archives the configured source commit, initializes a fresh local
+Git repository containing only that baseline, and copies `TASK.md` plus any
+candidate-visible evidence outside the repository. It does not copy assessment
+files or later source history. Workspaces are unique and stored under the short
+Windows temporary path `local-model-bench-validation` unless `-DestinationRoot`
+is supplied.
+
+The launcher prepares inputs; it does not itself enforce the packet's network or
+wall-time policy. Run the candidate and its tests inside an environment that
+enforces those limits. Treat candidate-modified code and tests as untrusted.

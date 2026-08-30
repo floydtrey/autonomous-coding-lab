@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from localbench.config import load_config
 from localbench.evaluate import evaluate_case, evaluate_run
-from localbench.providers import OpenAICompatibleProvider
+from localbench.providers import OpenAICompatibleProvider, ProviderError
 from localbench.runner import BenchmarkRunner
 from localbench.suites import load_suite
 from localbench.util import atomic_write_json
@@ -85,6 +85,9 @@ class FakeHandler(BaseHTTPRequestHandler):
                 },
             )
         elif self.path == "/v1/chat/completions":
+            if payload.get("model") == "echo-secret-error":
+                self._send(400, {"echo": self.headers.get("Authorization")})
+                return
             self._send(
                 200,
                 {
@@ -177,6 +180,27 @@ class ProviderTests(unittest.TestCase):
             self.assertEqual(response.content, "open reply")
             self.assertEqual(response.total_tokens, 7)
 
+    def test_openai_error_body_redacts_environment_credential(self):
+        secret = 'key.*[x]"slash\\value'
+        with ServerFixture() as fixture, patch.dict(
+            os.environ, {"LOCALBENCH_TEST_KEY": secret}, clear=False
+        ):
+            provider = OpenAICompatibleProvider("test-openai", {
+                "type": "openai_compatible",
+                "base_url": fixture.base_url + "/v1",
+                "api_key_env": "LOCALBENCH_TEST_KEY",
+            })
+            with self.assertRaises(ProviderError) as raised:
+                provider.chat(
+                    "echo-secret-error",
+                    [{"role": "user", "content": "hello"}],
+                    {},
+                    2,
+                )
+            body = raised.exception.body or ""
+            self.assertFalse(secret in body, "credential leaked in provider error body")
+            self.assertIn("[REDACTED]", body)
+
 
 class EvaluatorTests(unittest.TestCase):
     def _plan_record(self):
@@ -233,6 +257,37 @@ class EvaluatorTests(unittest.TestCase):
             self.assertEqual(report["models"][0]["percent"], 100.0)
             for name in ("evaluation.json", "evaluation.csv", "evaluation.md"):
                 self.assertTrue((root / name).is_file())
+
+    def test_evaluate_snapshot_is_isolated_and_non_destructive(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            cases = root / "models" / "001-model" / "cases"
+            cases.mkdir(parents=True)
+            manifest = {
+                "run_id": "eval-run",
+                "status": "running",
+                "models": [{"sequence": 1, "id": "model-a"}],
+            }
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (cases / "0001.json").write_text(
+                json.dumps(self._plan_record()), encoding="utf-8"
+            )
+            canonical = root / "evaluation.md"
+            canonical.write_text("existing canonical report\n", encoding="utf-8")
+
+            report = evaluate_run(root, snapshot="partial-1")
+
+            output = root / "snapshots" / "partial-1"
+            self.assertEqual(canonical.read_text(encoding="utf-8"), "existing canonical report\n")
+            self.assertTrue(all((output / name).is_file() for name in (
+                "evaluation.json", "evaluation.csv", "evaluation.md"
+            )))
+            self.assertEqual(report["snapshot"]["manifest_status"], "running")
+            self.assertEqual(report["snapshot"]["terminal_case_files"], 1)
+            with self.assertRaises(FileExistsError):
+                evaluate_run(root, snapshot="partial-1")
+            with self.assertRaises(ValueError):
+                evaluate_run(root, snapshot="../escape")
 
 
 class RunnerTests(unittest.TestCase):

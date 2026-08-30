@@ -18,6 +18,30 @@ from typing import Any
 from .models import ProviderResponse
 
 
+REDACTION_MARKER = "[REDACTED]"
+
+
+def _redact_sensitive_text(text: str, headers: dict[str, str]) -> str:
+    sensitive: set[str] = set()
+    for name, value in headers.items():
+        if name.casefold() not in {"authorization", "api-key", "x-api-key"}:
+            continue
+        if not isinstance(value, str) or not value:
+            continue
+        sensitive.add(value)
+        scheme, separator, credential = value.partition(" ")
+        if separator and scheme.casefold() in {"bearer", "basic"} and credential:
+            sensitive.add(credential)
+    encoded = {
+        json.dumps(value, ensure_ascii=False)[1:-1]
+        for value in sensitive
+    }
+    for value in sorted(sensitive | encoded, key=len, reverse=True):
+        if value:
+            text = text.replace(value, REDACTION_MARKER)
+    return text
+
+
 class ProviderError(RuntimeError):
     def __init__(self, message: str, *, status_code: int | None = None, body: str | None = None):
         super().__init__(message)
@@ -46,14 +70,17 @@ class Provider(ABC):
         timeout_seconds: float = 30,
     ) -> dict[str, Any]:
         body = None if payload is None else json.dumps(payload).encode("utf-8")
+        headers = self._headers()
         request = urllib.request.Request(
-            self._url(path), data=body, headers=self._headers(), method=method
+            self._url(path), data=body, headers=headers, method=method
         )
         try:
             with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
                 response_body = response.read().decode("utf-8", errors="replace")
         except urllib.error.HTTPError as exc:
-            response_body = exc.read().decode("utf-8", errors="replace")[:8000]
+            response_body = _redact_sensitive_text(
+                exc.read().decode("utf-8", errors="replace"), headers
+            )[:8000]
             raise ProviderError(
                 f"HTTP {exc.code} from {self.provider_id}",
                 status_code=exc.code,
@@ -67,7 +94,8 @@ class Provider(ABC):
             value = json.loads(response_body)
         except json.JSONDecodeError as exc:
             raise ProviderError(
-                f"invalid JSON from {self.provider_id}", body=response_body[:8000]
+                f"invalid JSON from {self.provider_id}",
+                body=_redact_sensitive_text(response_body, headers)[:8000],
             ) from exc
         if not isinstance(value, dict):
             raise ProviderError(f"unexpected JSON shape from {self.provider_id}")

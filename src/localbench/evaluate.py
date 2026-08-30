@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from .util import atomic_write_json, read_json, utc_now
+from .util import atomic_write_json, read_json, utc_now, validate_id
 
 
 def _string_list(value: Any) -> bool:
@@ -279,12 +279,24 @@ def evaluate_case(record: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def evaluate_run(run_dir: Path) -> dict[str, Any]:
+def evaluate_run(run_dir: Path, *, snapshot: str | None = None) -> dict[str, Any]:
     run_dir = run_dir.resolve()
     if not (run_dir / "manifest.json").is_file():
         raise FileNotFoundError(f"run directory has no manifest.json: {run_dir}")
+    output_dir = run_dir
+    snapshot_name: str | None = None
+    if snapshot is not None:
+        snapshot_name = validate_id(snapshot, "snapshot name")
+        snapshot_root = (run_dir / "snapshots").resolve()
+        try:
+            snapshot_root.relative_to(run_dir)
+        except ValueError as exc:
+            raise ValueError("snapshot directory escapes the benchmark run") from exc
+        output_dir = snapshot_root / snapshot_name
+        output_dir.mkdir(parents=True, exist_ok=False)
     results: list[dict[str, Any]] = []
-    for path in sorted(run_dir.glob("models/*/cases/*.json")):
+    case_paths = sorted(run_dir.glob("models/*/cases/*.json"))
+    for path in case_paths:
         evaluated = evaluate_case(read_json(path))
         if evaluated:
             results.append(evaluated)
@@ -318,15 +330,22 @@ def evaluate_run(run_dir: Path) -> dict[str, Any]:
         "models": models,
         "cases": results,
     }
-    atomic_write_json(run_dir / "evaluation.json", report)
+    if snapshot_name is not None:
+        report["snapshot"] = {
+            "name": snapshot_name,
+            "created_at": report["generated_at"],
+            "manifest_status": manifest.get("status"),
+            "terminal_case_files": len(case_paths),
+        }
+    atomic_write_json(output_dir / "evaluation.json", report)
 
     csv_fields = [
         "model_id", "model_name", "provider", "suite_id", "case_id", "kind",
         "expected_status", "deterministic_score", "maximum_score", "hard_fail",
         "hard_failures", "failed_checks",
     ]
-    csv_path = run_dir / "evaluation.csv"
-    temp_path = run_dir / ".evaluation.csv.tmp"
+    csv_path = output_dir / "evaluation.csv"
+    temp_path = output_dir / ".evaluation.csv.tmp"
     with temp_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=csv_fields)
         writer.writeheader()
@@ -368,5 +387,5 @@ def evaluate_run(run_dir: Path) -> dict[str, Any]:
                 f"{'yes' if item['hard_fail'] else 'no'} | {failed or '-'} |"
             )
         lines.append("")
-    (run_dir / "evaluation.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (output_dir / "evaluation.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return report

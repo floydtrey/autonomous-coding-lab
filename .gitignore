@@ -5,6 +5,7 @@ __pycache__/
 *.pid.json
 logs/
 .pytest_cache/
+validation-workspaces/
 
 # Benchmark results are intentionally NOT ignored. Commit selected run folders.
 # Only the review tables from the completed smoke run are published.

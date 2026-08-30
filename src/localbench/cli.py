@@ -46,6 +46,10 @@ def _parser() -> argparse.ArgumentParser:
 
     evaluate = subparsers.add_parser("evaluate", help="score completed result contracts")
     evaluate.add_argument("--run", type=Path, required=True, help="benchmark result directory")
+    evaluate.add_argument(
+        "--snapshot",
+        help="write a named, non-destructive report under RUN/snapshots/NAME",
+    )
 
     return parser
 
@@ -152,7 +156,7 @@ def _doctor(args: argparse.Namespace) -> int:
 
 
 def _evaluate(args: argparse.Namespace) -> int:
-    report = evaluate_run(args.run)
+    report = evaluate_run(args.run, snapshot=args.snapshot)
     print(json.dumps({"run_id": report["run_id"], "models": report["models"]}, indent=2))
     return 0
 
