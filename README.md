@@ -36,6 +36,36 @@ Every response must be an exact JSON plan or task set. When the run completes, t
 
 The deterministic score measures completion, JSON contract adherence, correct ready/blocked decisions, exact requirement declaration, traceability, item identity, dependency validity, and scenario-specific semantic anchors. It intentionally does not claim to replace human review of technical judgment.
 
+### Qwen 14B native-JSON retest
+
+The completed 90-call run showed that Qwen 14B returned all 18 otherwise
+parseable objects inside Markdown fences. A separate configuration now repeats
+only those 18 cases using Ollama's native JSON mode. It does not alter the
+completed run or its canonical evaluation:
+
+```powershell
+.\scripts\run-qwen14-json-retest.ps1
+```
+
+Watch the printed run path with `scripts\watch-status.ps1`. This retest keeps the
+same prompt suite, seed, context, output limit, and case order so the structured
+output setting is the intended variable.
+
+### Scope-withdrawal probe
+
+No installed comparison model is scheduled for removal. The two-case
+[`scope-withdrawal`](suites/scope-withdrawal.json) probe tests whether a model can
+plan and task a forward decommission of a deeply integrated, unreleased product
+capability while preserving shared infrastructure and placing irreversible data
+cleanup behind approval. Its all-model configuration uses native JSON for Ollama
+models and leaves Vera's managed llama.cpp path unchanged:
+
+```powershell
+.\scripts\run-unattended.ps1 -Config .\configs\scope-withdrawal-all-models.json
+```
+
+This probe is prepared but intentionally separate from the Qwen 14B retest.
+
 ## Original 16 GB smoke baseline
 
 The original config compared three model families in roughly the same local-memory class. Its completed results remain reproducible even though StarCoder2 is not included in planning round 2:
@@ -191,6 +221,12 @@ The JSON metadata comment is optional. A `localbench` JSON comment before the fi
 ## Configuration and provider abstraction
 
 The config lists providers separately from the ordered models. Native Ollama uses `/api/chat` and records its detailed nanosecond timings, token counts, digest, quantization, parameter size, and model size when available.
+
+For Ollama structured output, put `"format": "json"` or a JSON Schema object in
+the model or case `options`. The provider sends `format` at the top level of the
+Ollama chat request while keeping generation settings such as `temperature`,
+`num_ctx`, and `num_predict` inside Ollama's `options` object. Invalid format
+types are rejected before the request is sent.
 
 The `openai_compatible` provider uses `/v1/models` and `/v1/chat/completions`, which supports local servers such as LM Studio and Jan:
 

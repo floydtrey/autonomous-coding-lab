@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from localbench.config import load_config
 from localbench.evaluate import evaluate_case, evaluate_run
-from localbench.providers import OpenAICompatibleProvider, ProviderError
+from localbench.providers import OllamaProvider, OpenAICompatibleProvider, ProviderError
 from localbench.runner import BenchmarkRunner
 from localbench.suites import load_suite
 from localbench.util import atomic_write_json
@@ -168,6 +168,46 @@ class SuiteTests(unittest.TestCase):
 
 
 class ProviderTests(unittest.TestCase):
+    def test_ollama_structured_format_is_a_top_level_chat_field(self):
+        schema = {
+            "type": "object",
+            "properties": {"answer": {"type": "string"}},
+            "required": ["answer"],
+        }
+        with ServerFixture() as fixture:
+            provider = OllamaProvider(
+                "test-ollama",
+                {"type": "ollama", "base_url": fixture.base_url, "keep_alive": "5m"},
+            )
+            provider.chat(
+                "model-a:latest",
+                [{"role": "user", "content": "hello"}],
+                {"temperature": 0, "format": schema},
+                2,
+            )
+            request = next(
+                item
+                for item in FakeHandler.requests
+                if item.get("path") == "/api/chat" and item.get("payload", {}).get("messages")
+            )
+            self.assertEqual(request["payload"]["format"], schema)
+            self.assertEqual(request["payload"]["keep_alive"], "5m")
+            self.assertEqual(request["payload"]["options"], {"temperature": 0})
+            self.assertNotIn("format", request["payload"]["options"])
+
+    def test_ollama_rejects_invalid_structured_format_locally(self):
+        with ServerFixture() as fixture:
+            provider = OllamaProvider(
+                "test-ollama", {"type": "ollama", "base_url": fixture.base_url}
+            )
+            with self.assertRaisesRegex(ProviderError, "format"):
+                provider.chat(
+                    "model-a:latest",
+                    [{"role": "user", "content": "hello"}],
+                    {"format": "xml"},
+                    2,
+                )
+
     def test_openai_compatible_provider(self):
         with ServerFixture() as fixture:
             provider = OpenAICompatibleProvider(

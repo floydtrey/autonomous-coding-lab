@@ -155,10 +155,15 @@ class OllamaProvider(Provider):
         }
         ollama_options = dict(options)
         keep_alive = ollama_options.pop("keep_alive", self.settings.get("keep_alive"))
+        response_format = ollama_options.pop("format", None)
         if ollama_options:
             payload["options"] = ollama_options
         if keep_alive is not None:
             payload["keep_alive"] = keep_alive
+        if response_format is not None:
+            if response_format != "json" and not isinstance(response_format, dict):
+                raise ProviderError("Ollama format must be 'json' or a JSON Schema object")
+            payload["format"] = response_format
         raw = self._request(
             "POST", "/api/chat", payload=payload, timeout_seconds=timeout_seconds
         )
