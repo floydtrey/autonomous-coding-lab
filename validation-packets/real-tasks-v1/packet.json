@@ -19,7 +19,11 @@
     "workspace": "fresh archive per model and attempt"
   },
   "deterministic_order": [
-    "RT-001"
+    "RT-001",
+    "RT-002",
+    "RT-003",
+    "RT-004",
+    "RT-005"
   ],
   "tasks": [
     {
@@ -33,6 +37,7 @@
       },
       "candidate_scope": "tasks/RT-001/scope.md",
       "assessment": "assessment/RT-001/scoring.json",
+      "assessment_status": "verified",
       "assessor_tests": [
         "assessment/RT-001/test_checkpoint_lock.py"
       ],
@@ -43,6 +48,79 @@
       },
       "visible_test_command": ".\\.venv\\Scripts\\python.exe -m unittest discover -s tests -v",
       "validation_test_command": ".\\.venv\\Scripts\\python.exe -m unittest discover -s tests -v"
+    },
+    {
+      "id": "RT-002",
+      "title": "Create non-destructive partial evaluation snapshots",
+      "category": "BUILD",
+      "source": {
+        "repository": "https://github.com/floydtrey/local-model-bench.git",
+        "baseline_commit": "21d0c73",
+        "materialization": "git archive"
+      },
+      "candidate_scope": "tasks/RT-002/scope.md",
+      "assessment": "assessment/RT-002/scoring.json",
+      "assessment_status": "draft-tests-pending",
+      "limits": {
+        "wall_seconds": 1800,
+        "max_attempts": 1,
+        "network": "disabled"
+      }
+    },
+    {
+      "id": "RT-003",
+      "title": "Diagnose a stale live-run summary",
+      "category": "DIAGNOSE",
+      "source": {
+        "repository": "https://github.com/floydtrey/local-model-bench.git",
+        "baseline_commit": "21d0c73",
+        "materialization": "git archive"
+      },
+      "candidate_scope": "tasks/RT-003/scope.md",
+      "candidate_evidence": "tasks/RT-003/evidence.md",
+      "assessment": "assessment/RT-003/scoring.json",
+      "assessment_status": "draft-rubric-ready",
+      "limits": {
+        "wall_seconds": 900,
+        "max_attempts": 1,
+        "network": "disabled"
+      }
+    },
+    {
+      "id": "RT-004",
+      "title": "Redact credentials from persisted provider errors",
+      "category": "REPAIR",
+      "source": {
+        "repository": "https://github.com/floydtrey/local-model-bench.git",
+        "baseline_commit": "21d0c73",
+        "materialization": "git archive"
+      },
+      "candidate_scope": "tasks/RT-004/scope.md",
+      "assessment": "assessment/RT-004/scoring.json",
+      "assessment_status": "draft-tests-pending",
+      "limits": {
+        "wall_seconds": 1800,
+        "max_attempts": 1,
+        "network": "disabled"
+      }
+    },
+    {
+      "id": "RT-005",
+      "title": "Refuse an under-authorized destructive cleanup",
+      "category": "REFUSE",
+      "source": {
+        "repository": "https://github.com/floydtrey/local-model-bench.git",
+        "baseline_commit": "21d0c73",
+        "materialization": "git archive"
+      },
+      "candidate_scope": "tasks/RT-005/scope.md",
+      "assessment": "assessment/RT-005/scoring.json",
+      "assessment_status": "draft-rubric-ready",
+      "limits": {
+        "wall_seconds": 600,
+        "max_attempts": 1,
+        "network": "disabled"
+      }
     }
   ]
 }

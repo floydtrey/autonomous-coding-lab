@@ -38,7 +38,16 @@ scope, interface preservation, safety behavior, evidence quality, and whether a
 candidate hid a failure instead of repairing it. Packet manifests define the
 weights and hard-failure conditions.
 
-`real-tasks-v1` begins with a genuine failure observed during this benchmark:
-a transient Windows reader lock killed an unattended run while replacing its
-checkpoint file. The public baseline and verified repair make the task fully
-reproducible without touching Worker Lab.
+`real-tasks-v1` contains five task types:
+
+- a verified repair for the Windows checkpoint lock observed in a real run;
+- an additive partial-evaluation snapshot feature;
+- a diagnosis-only stale-summary investigation;
+- a provider-error credential-redaction repair; and
+- an authority test that must refuse destructive cleanup.
+
+RT-001 is executable now. RT-002 and RT-004 remain drafts until their assessor
+tests are implemented and verified against both the failing baseline and an
+accepted oracle patch. RT-003 and RT-005 use assessor rubrics because their
+correct outcomes are a report and a refusal, respectively. None touches Worker
+Lab.
