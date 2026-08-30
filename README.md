@@ -322,6 +322,15 @@ Rebuild evaluation reports without contacting any model:
 .\.venv\Scripts\python.exe -m localbench evaluate --run .\results\RUN-DIRECTORY
 ```
 
+## Real-task validation
+
+Prompt benchmarks screen planning and contract behavior; they do not prove that
+a model can safely change a repository. Reproducible implementation tasks live in
+[`validation-packets/`](validation-packets/README.md). Each task identifies an
+exact archived baseline, candidate-visible scope, assessor-only tests, hard
+failures, and a deterministic scoring rubric. These packets never operate on
+Worker Lab or another product repository in place.
+
 ## Current Ollama references
 
 - Windows install, requirements, model storage, and API address: <https://docs.ollama.com/windows>

@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "packet_id": "real-tasks-v1",
+  "name": "Real repository task validation - round 1",
+  "status": "draft",
+  "candidate_input_policy": {
+    "include": [
+      "archived baseline repository",
+      "task scope.md",
+      "accepted upstream stage output when applicable"
+    ],
+    "exclude": [
+      "assessment directory",
+      "later Git history",
+      "other model outputs",
+      "final scoring records"
+    ],
+    "network": "disabled",
+    "workspace": "fresh archive per model and attempt"
+  },
+  "deterministic_order": [
+    "RT-001"
+  ],
+  "tasks": [
+    {
+      "id": "RT-001",
+      "title": "Survive transient Windows checkpoint reader locks",
+      "category": "REPAIR",
+      "source": {
+        "repository": "https://github.com/floydtrey/local-model-bench.git",
+        "baseline_commit": "ef3bf6a",
+        "materialization": "git archive"
+      },
+      "candidate_scope": "tasks/RT-001/scope.md",
+      "assessment": "assessment/RT-001/scoring.json",
+      "assessor_tests": [
+        "assessment/RT-001/test_checkpoint_lock.py"
+      ],
+      "limits": {
+        "wall_seconds": 1200,
+        "max_attempts": 1,
+        "network": "disabled"
+      },
+      "visible_test_command": ".\\.venv\\Scripts\\python.exe -m unittest discover -s tests -v",
+      "validation_test_command": ".\\.venv\\Scripts\\python.exe -m unittest discover -s tests -v"
+    }
+  ]
+}
