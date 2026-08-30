@@ -5,6 +5,7 @@ import json
 import os
 import re
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -56,7 +57,19 @@ def atomic_write_json(path: Path, value: Any) -> None:
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temp_name, path)
+        # On Windows, a reader can briefly prevent replacement of the existing
+        # file. The progress watcher and antivirus scanners are common causes.
+        # Retry the atomic rename instead of aborting a healthy unattended run.
+        delay_seconds = 0.01
+        for attempt in range(20):
+            try:
+                os.replace(temp_name, path)
+                break
+            except PermissionError:
+                if attempt == 19:
+                    raise
+                time.sleep(delay_seconds)
+                delay_seconds = min(delay_seconds * 2, 0.25)
     except BaseException:
         try:
             os.unlink(temp_name)
@@ -83,4 +96,3 @@ def redact_config(config: dict[str, Any]) -> dict[str, Any]:
 
     visit(copied)
     return copied
-

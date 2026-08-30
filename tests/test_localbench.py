@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 from localbench.config import load_config
 from localbench.evaluate import evaluate_case, evaluate_run
 from localbench.providers import OpenAICompatibleProvider
 from localbench.runner import BenchmarkRunner
 from localbench.suites import load_suite
+from localbench.util import atomic_write_json
 
 
 class FakeHandler(BaseHTTPRequestHandler):
@@ -112,6 +115,28 @@ class ServerFixture:
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=2)
+
+
+class UtilTests(unittest.TestCase):
+    def test_atomic_write_retries_transient_permission_error(self):
+        with tempfile.TemporaryDirectory() as temp:
+            target = Path(temp) / "checkpoint.json"
+            target.write_text('{"old": true}\n', encoding="utf-8")
+            real_replace = os.replace
+            calls = 0
+
+            def flaky_replace(source, destination):
+                nonlocal calls
+                calls += 1
+                if calls < 3:
+                    raise PermissionError("synthetic Windows reader lock")
+                return real_replace(source, destination)
+
+            with patch("localbench.util.os.replace", side_effect=flaky_replace):
+                atomic_write_json(target, {"new": True})
+
+            self.assertEqual(calls, 3)
+            self.assertEqual(json.loads(target.read_text(encoding="utf-8")), {"new": True})
 
 
 class SuiteTests(unittest.TestCase):
