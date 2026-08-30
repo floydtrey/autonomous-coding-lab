@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.tmp
+*.pid.json
+logs/
+.pytest_cache/
+
+# Benchmark results are intentionally NOT ignored. Commit selected run folders.
+# Only the review tables from the completed smoke run are published.
+results/background-20260829T182425-cf7a65c7/checkpoint.json
+results/background-20260829T182425-cf7a65c7/manifest.json
+results/background-20260829T182425-cf7a65c7/inputs/
+results/background-20260829T182425-cf7a65c7/models/
+# This run is still active; remove this line only after it reaches a terminal state.
+results/background-20260829T201719-f1197139/
