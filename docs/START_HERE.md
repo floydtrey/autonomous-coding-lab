@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M0 — repository bootstrap
+**Current milestone:** M1 — source audit and merger-contract review
 **Execution authority:** Disabled
 
 ## First actions
@@ -26,6 +26,7 @@ Historical material is evidence, not current authority.
 
 ## Current boundary
 
-The repository shell and merger governance may be created. Source code must not
-be copied until M1 records an accepted inventory, source identity, import method,
-directory map, exclusions, and validation plan.
+The repository shell and merger governance are complete. Source code must not be
+copied until M1 accepts the inventory, exact source snapshots, full-history
+import method, stable component paths, exclusions, license treatment, identity
+migration, and validation plan.

@@ -38,3 +38,38 @@ prompt changes, dependency upgrades, and authority expansion.
 
 Worker target repositories and validation workspaces remain separate disposable
 Git repositories. The controlling monorepo cannot be its own worker target.
+
+## ACL-D006 — Stable component roots through integration
+
+**Status:** Proposed for M1 acceptance
+
+The three sources land under `components/<source-name>/` and remain there through
+M6. Import, prefix repair, restructuring, refactoring, and feature development
+are separate changes. A later move to `apps/`, `packages/`, or `tools/` must show
+an actual benefit and repeat affected parity checks.
+
+## ACL-D007 — Full ancestry, exact snapshot imports
+
+**Status:** Proposed for M1 acceptance
+
+Each import retains complete source ancestry without squashing. The approved
+source commit and imported tree are recorded independently of the monorepo merge
+commit. Ignored, untracked, unreadable, generated, and machine-local data are not
+introduced by the history import.
+
+## ACL-D008 — Execution disabled across identity migration
+
+**Status:** Proposed for M1 acceptance
+
+Standalone repository identity is part of the existing Worker Lab/framework
+security contract. Component import does not grant authority to replace it.
+Read-only and workspace-write execution stay disabled until component-scoped
+monorepo identity is designed, tested, reviewed, and explicitly authorized.
+
+## ACL-D009 — Component-local environments first
+
+**Status:** Proposed for M1 acceptance
+
+Worker Lab, the framework, and Local Model Bench retain their own runtimes and
+validation commands through their import milestones. Dependency or packaging
+unification is post-parity work.

@@ -14,6 +14,8 @@
 - Decide license and history-preservation strategy.
 - Finalize initial directory paths and parity commands.
 - Review the updated merger contract before import.
+- Accept the standalone-to-monorepo identity migration boundary while keeping
+  execution disabled.
 
 ## M2 — Execution framework import
 
@@ -22,6 +24,9 @@
 - Repair only prefix-related paths required for parity.
 - Pass focused and milestone framework tests.
 - Review security-boundary parity.
+- Repair the quick validator's prefixed-path discovery only after untouched full
+  parity passes.
+- Design and test component-root/blob identity without authorizing execution.
 
 ## M3 — Worker Lab import
 
@@ -30,6 +35,8 @@
 - Preserve protected curricula, authority, lifecycle, and evidence contracts.
 - Pass focused and milestone Worker Lab tests.
 - Validate the internal framework interface without enabling execution.
+- Replace absolute standalone pins only through the reviewed component identity
+  contract and focused substitution/drift tests.
 
 ## M4 — Local Model Bench import
 
@@ -54,3 +61,6 @@
 - Perform recovery verification from pre-migration source identities.
 - Make the private monorepo authoritative and freeze source repositories only
   after final review.
+
+Each milestone has two commits when repair is necessary: an exact import commit
+and a later adaptation commit. The import commit is never mixed with path repair.

@@ -6,9 +6,10 @@ roles.
 
 ## Current status
 
-Milestone M0: repository bootstrap and merger governance. No source code has
+Milestone M0 is complete. Milestone M1 is auditing the exact source snapshots,
+paths, histories, tests, licenses, and security identities. No source code has
 been imported. The three source repositories remain authoritative until an
-explicit parity milestone transfers authority to this repository.
+explicit component parity milestone transfers authority to this repository.
 
 Start with [`docs/START_HERE.md`](docs/START_HERE.md).
 
