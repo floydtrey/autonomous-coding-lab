@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-30
-**Status:** M2-B exact framework import complete; standalone parity not authorized
+**Status:** M2 standalone parity complete; in-monorepo testing not authorized
 **Canonical repository:** Merger governance plus exact framework bytes; component authority has not transferred
 
 ## Target repository
@@ -87,7 +87,13 @@ M2-B exact import commit
 `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd`, and exact imported subtree
 `35ecad05e60c664324a4f30d42a4f6b198181074`. No imported file was adapted.
 
-The next gate is a separately authorized untouched full-suite parity run from a
-disposable standalone reconstruction of the imported subtree. No framework test
-has run in the monorepo. In-monorepo prefix testing, path adaptation, component
-authority transfer, and all execution remain later gates.
+Untouched standalone parity passed from a disposable reconstruction whose Git
+tree exactly matched `35ecad05e60c664324a4f30d42a4f6b198181074`:
+Python 3.12.10 compiled the framework and pytest 9.1.1 passed all 163 tests. The
+first test attempt was environment-invalid because pytest could not access its
+pre-existing default Windows temp directory; the unchanged documented command
+passed after `TEMP` and `TMP` were directed to a fresh disposable directory.
+
+No framework test has run from its prefixed monorepo location. That separately
+authorized exposure run is the next gate. Path adaptation, component authority
+transfer, and all worker/model execution remain disabled.

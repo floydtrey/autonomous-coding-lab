@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M2-B exact framework import complete; parity not authorized
+**Current milestone:** M2 standalone parity complete; in-monorepo testing not authorized
 **Execution authority:** Disabled
 
 ## First actions
@@ -35,6 +35,6 @@ and no execution.
 
 The framework recovery artifact and source identities passed M2-A. M2-B imported
 the exact framework tree with complete reachable ancestry and namespaced tags.
-The next gate is an untouched parity run from a disposable standalone
-reconstruction; it requires separate authorization. In-monorepo testing,
-adaptation, and execution remain disabled.
+The untouched full suite then passed from an exact disposable standalone
+reconstruction. The next gate is separately authorized in-monorepo testing to
+expose prefix-dependent behavior. Adaptation and execution remain disabled.

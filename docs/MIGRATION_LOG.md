@@ -132,3 +132,23 @@ Resolution and next gates:
 - Ran no framework test or command, enabled no execution, and made no path,
   behavior, dependency, identity, or security adaptation.
 - Untouched standalone parity is the next separately authorized gate.
+
+## 2026-08-30 — M2 untouched standalone framework parity
+
+- Reconstructed a disposable independent Git repository only from the imported
+  framework subtree at exact-import commit
+  `d1c95814bce512318c61a5745dcd684d87e3676a`.
+- Proved its Git tree exactly matched accepted source/import tree
+  `35ecad05e60c664324a4f30d42a4f6b198181074` before testing.
+- Used Python 3.12.10 and pytest 9.1.1 with the documented full-validation
+  command. Compile passed and all 163 tests passed.
+- Classified the first test attempt as environment-invalid: pytest could not
+  access its pre-existing default Windows temp directory, causing 74 setup
+  errors after 89 passes. The unchanged command passed after directing `TEMP`
+  and `TMP` to a fresh disposable directory.
+- Confirmed the reconstruction had no tracked or non-ignored untracked changes;
+  only disposable ignored test artifacts existed. The ACL and source
+  repositories remained clean. Ran no worker or model, changed no imported
+  component file, and performed no network operation or push.
+- In-monorepo prefix testing is the next separately authorized gate. Adaptation,
+  component-authority transfer, and execution remain disabled.

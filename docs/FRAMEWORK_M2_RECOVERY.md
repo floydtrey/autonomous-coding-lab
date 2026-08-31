@@ -1,6 +1,6 @@
 # Framework M2 Recovery and Exact-Import Preflight
 
-**Status:** VERIFIED — M2-B exact import complete; parity not authorized
+**Status:** VERIFIED — exact import and untouched standalone parity complete
 **Observed:** 2026-08-30
 **Execution authority:** Disabled
 **Component import performed:** Yes — exact tracked source tree only
@@ -248,9 +248,29 @@ passing state.
 No framework test or imported command ran. Component authority has not
 transferred.
 
-## 8. M2-B gate
+## 8. Untouched standalone parity gate
 
-M2-B exact import is `VERIFIED COMPLETE`. The next gate is untouched full-suite
-parity from a disposable standalone reconstruction of the imported subtree. It
-requires separate user authorization. In-monorepo testing, prefix adaptation,
-identity implementation, and execution remain disabled.
+The user separately authorized the next step after M2-B. A disposable repository
+was reconstructed only from
+`d1c95814bce512318c61a5745dcd684d87e3676a:components/autonomous-worker-framework`.
+Its independent Git tree exactly matched
+`35ecad05e60c664324a4f30d42a4f6b198181074`, and it was clean before validation.
+
+Validation environment and result:
+
+- Python: 3.12.10
+- pytest: 9.1.1
+- Documented command: `python tools\local_validate.py full`
+- Compile stage: passed
+- Full suite: 163 passed in 45.46 seconds
+- Repository status after validation: clean; only ignored test artifacts existed
+
+The initial suite attempt was environment-invalid: 89 tests passed and 74 tests
+could not enter setup because pytest lacked permission to its pre-existing
+default Windows temp directory. No test reported a framework assertion failure.
+The unchanged documented command passed after `TEMP` and `TMP` were directed to
+a fresh directory inside the disposable parity area.
+
+Untouched standalone parity is `VERIFIED COMPLETE`. In-monorepo testing remains
+unstarted and requires separate authorization. Prefix adaptation, identity
+implementation, component-authority transfer, and execution remain disabled.

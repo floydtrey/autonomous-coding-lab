@@ -26,7 +26,7 @@
 
 ## M2 — Execution framework import
 
-**Status:** M2-B exact import complete; untouched standalone parity not authorized
+**Status:** Exact import and untouched standalone parity complete; in-monorepo testing not authorized
 
 - Begin from a clean, accepted M1 checkpoint commit.
 - Reverify source identities and create a checksummed framework recovery bundle
