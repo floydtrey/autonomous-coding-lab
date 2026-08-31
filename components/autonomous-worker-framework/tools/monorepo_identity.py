@@ -10,13 +10,15 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 
-SCHEMA_VERSION = "acl-framework-monorepo-identity-policy:v1"
-POLICY_ID = "acl-framework-monorepo-identity:v1"
+SCHEMA_VERSION = "acl-monorepo-identity-policy:v2"
+POLICY_ID = "acl-monorepo-identity:v2"
 POLICY_PATH = "config/monorepo-identity.json"
 FRAMEWORK_REPOSITORY_ID = "autonomous-worker-framework"
 FRAMEWORK_PREFIX = "components/autonomous-worker-framework"
 SOURCE_ADAPTER_PATH = "tools/worker_lab_adapter.py"
 INTEGRATION_ADAPTER_PATH = f"{FRAMEWORK_PREFIX}/{SOURCE_ADAPTER_PATH}"
+WORKER_LAB_REPOSITORY_ID = "worker-lab"
+WORKER_LAB_PREFIX = "components/worker-lab"
 MAX_POLICY_BYTES = 16_384
 
 
@@ -48,6 +50,25 @@ class IntegrationPolicy:
 
 
 @dataclass(frozen=True)
+class WorkerSourceProvenance:
+    repository_id: str
+    commit: str
+    tree: str
+    branch: str
+    final_tag: str
+    remote_state: str
+    recovery_bundle_sha256: str
+
+
+@dataclass(frozen=True)
+class WorkerIntegrationPolicy:
+    import_commit: str
+    canonical_component_prefix: str
+    component_scope: str
+    shared_dependency_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class FrameworkIdentityPolicy:
     schema_version: str
     policy_id: str
@@ -56,6 +77,8 @@ class FrameworkIdentityPolicy:
     deferred_participants: tuple[str, ...]
     framework: SourceProvenance
     integration_policy: IntegrationPolicy
+    worker_lab: WorkerSourceProvenance
+    worker_integration_policy: WorkerIntegrationPolicy
 
 
 @dataclass(frozen=True)
@@ -194,6 +217,8 @@ def parse_identity_policy(raw: bytes | str) -> FrameworkIdentityPolicy:
             "deferred_participants",
             "framework",
             "integration_policy",
+            "worker_lab",
+            "worker_integration_policy",
         },
         "identity policy",
     )
@@ -205,7 +230,7 @@ def parse_identity_policy(raw: bytes | str) -> FrameworkIdentityPolicy:
         raise IdentityPolicyError("identity policy cannot grant execution authority")
     deferred = _string_list(top["deferred_participants"], "deferred participants")
     if deferred != ("worker-lab",):
-        raise IdentityPolicyError("Worker Lab must remain deferred during M2")
+        raise IdentityPolicyError("Worker Lab must remain operationally deferred")
 
     source = _strict_object(
         top["framework"],
@@ -284,7 +309,78 @@ def parse_identity_policy(raw: bytes | str) -> FrameworkIdentityPolicy:
     if policy.component_scope != "whole-component:v1":
         raise IdentityPolicyError("framework component scope is unsupported")
     if policy.shared_dependency_paths != (POLICY_PATH,):
-        raise IdentityPolicyError("M2 shared dependency closure is unsupported")
+        raise IdentityPolicyError("framework dependency closure is unsupported")
+
+    worker = _strict_object(
+        top["worker_lab"],
+        {
+            "repository_id",
+            "commit",
+            "tree",
+            "branch",
+            "final_tag",
+            "remote_state",
+            "recovery_bundle_sha256",
+        },
+        "Worker Lab provenance",
+    )
+    worker_provenance = WorkerSourceProvenance(
+        repository_id=_text(worker["repository_id"], "Worker Lab repository ID"),
+        commit=_sha1(worker["commit"], "Worker Lab source commit"),
+        tree=_sha1(worker["tree"], "Worker Lab source tree"),
+        branch=_text(worker["branch"], "Worker Lab source branch"),
+        final_tag=_text(worker["final_tag"], "Worker Lab final tag"),
+        remote_state=_text(worker["remote_state"], "Worker Lab remote state"),
+        recovery_bundle_sha256=_sha256(
+            worker["recovery_bundle_sha256"], "Worker Lab recovery bundle"
+        ),
+    )
+    if worker_provenance.repository_id != WORKER_LAB_REPOSITORY_ID:
+        raise IdentityPolicyError("Worker Lab repository ID is substituted")
+    if worker_provenance.branch != "main":
+        raise IdentityPolicyError("Worker Lab branch is substituted")
+    if worker_provenance.final_tag != "v0.2.0-phase2":
+        raise IdentityPolicyError("Worker Lab final tag is substituted")
+    if worker_provenance.remote_state != "private-remote-local-ahead:10":
+        raise IdentityPolicyError("Worker Lab remote state is unsupported")
+
+    worker_integration = _strict_object(
+        top["worker_integration_policy"],
+        {
+            "import_commit",
+            "canonical_component_prefix",
+            "component_scope",
+            "shared_dependency_paths",
+        },
+        "Worker Lab integration policy",
+    )
+    worker_prefix = _relative_path(
+        worker_integration["canonical_component_prefix"],
+        "Worker Lab component prefix",
+    )
+    worker_shared_paths = tuple(
+        _relative_path(path, "Worker Lab shared dependency path")
+        for path in _string_list(
+            worker_integration["shared_dependency_paths"],
+            "Worker Lab shared dependency paths",
+        )
+    )
+    worker_policy = WorkerIntegrationPolicy(
+        import_commit=_sha1(
+            worker_integration["import_commit"], "Worker Lab import commit"
+        ),
+        canonical_component_prefix=worker_prefix,
+        component_scope=_text(
+            worker_integration["component_scope"], "Worker Lab component scope"
+        ),
+        shared_dependency_paths=worker_shared_paths,
+    )
+    if worker_policy.canonical_component_prefix != WORKER_LAB_PREFIX:
+        raise IdentityPolicyError("Worker Lab component prefix is substituted")
+    if worker_policy.component_scope != "whole-component:v1":
+        raise IdentityPolicyError("Worker Lab component scope is unsupported")
+    if worker_policy.shared_dependency_paths != (FRAMEWORK_PREFIX, POLICY_PATH):
+        raise IdentityPolicyError("Worker Lab dependency closure is unsupported")
 
     return FrameworkIdentityPolicy(
         schema_version=top["schema_version"],
@@ -294,6 +390,8 @@ def parse_identity_policy(raw: bytes | str) -> FrameworkIdentityPolicy:
         deferred_participants=deferred,
         framework=provenance,
         integration_policy=policy,
+        worker_lab=worker_provenance,
+        worker_integration_policy=worker_policy,
     )
 
 
@@ -302,6 +400,13 @@ def require_source_provenance(
 ) -> None:
     if policy.framework != expected:
         raise IdentityPolicyError("framework source provenance is stale or substituted")
+
+
+def require_worker_source_provenance(
+    policy: FrameworkIdentityPolicy, expected: WorkerSourceProvenance
+) -> None:
+    if policy.worker_lab != expected:
+        raise IdentityPolicyError("Worker Lab source provenance is stale or substituted")
 
 
 def identity_policy_digest(raw: bytes | str) -> str:

@@ -25,6 +25,24 @@
     ],
     "source_adapter_path": "tools/worker_lab_adapter.py"
   },
-  "policy_id": "acl-framework-monorepo-identity:v1",
-  "schema_version": "acl-framework-monorepo-identity-policy:v1"
+  "policy_id": "acl-monorepo-identity:v2",
+  "schema_version": "acl-monorepo-identity-policy:v2",
+  "worker_integration_policy": {
+    "canonical_component_prefix": "components/worker-lab",
+    "component_scope": "whole-component:v1",
+    "import_commit": "057f6500585d6e692ad5330d6738bd5c08d13cc5",
+    "shared_dependency_paths": [
+      "components/autonomous-worker-framework",
+      "config/monorepo-identity.json"
+    ]
+  },
+  "worker_lab": {
+    "branch": "main",
+    "commit": "fddf0726b975a8192d5e126f109e6fc756f11b36",
+    "final_tag": "v0.2.0-phase2",
+    "recovery_bundle_sha256": "74445d0bac13b4ec24b2036e6bb66927d3e5136dc3f206a2bb5019b023899f36",
+    "remote_state": "private-remote-local-ahead:10",
+    "repository_id": "worker-lab",
+    "tree": "5fe9e3f153b48543a57f3b9d1e339b3cd875930a"
+  }
 }

@@ -10,13 +10,16 @@ from tools.monorepo_identity import (
     POLICY_ID,
     POLICY_PATH,
     SCHEMA_VERSION,
+    WORKER_LAB_PREFIX,
     IdentityPolicyError,
     SourceProvenance,
+    WorkerSourceProvenance,
     canonical_policy_json,
     identity_policy_digest,
     integration_identity_digest,
     parse_identity_policy,
     require_source_provenance,
+    require_worker_source_provenance,
     verify_framework_integration,
 )
 
@@ -33,7 +36,7 @@ def render(value):
     return canonical_policy_json(value)
 
 
-def test_tracked_policy_is_canonical_framework_only_and_separates_identities():
+def test_tracked_policy_declares_worker_identity_without_activating_it():
     raw = POLICY_FILE.read_bytes()
     policy = parse_identity_policy(raw)
 
@@ -45,6 +48,20 @@ def test_tracked_policy_is_canonical_framework_only_and_separates_identities():
     assert policy.deferred_participants == ("worker-lab",)
     assert policy.integration_policy.canonical_component_prefix == FRAMEWORK_PREFIX
     assert policy.integration_policy.shared_dependency_paths == (POLICY_PATH,)
+    assert isinstance(policy.worker_lab, WorkerSourceProvenance)
+    assert policy.worker_lab.repository_id == "worker-lab"
+    assert policy.worker_lab.commit == "fddf0726b975a8192d5e126f109e6fc756f11b36"
+    assert policy.worker_lab.tree == "5fe9e3f153b48543a57f3b9d1e339b3cd875930a"
+    assert policy.worker_integration_policy.import_commit == (
+        "057f6500585d6e692ad5330d6738bd5c08d13cc5"
+    )
+    assert policy.worker_integration_policy.canonical_component_prefix == (
+        WORKER_LAB_PREFIX
+    )
+    assert policy.worker_integration_policy.shared_dependency_paths == (
+        FRAMEWORK_PREFIX,
+        POLICY_PATH,
+    )
     assert "monorepo_commit" not in raw.decode("utf-8")
     assert identity_policy_digest(raw).startswith("sha256:")
 
@@ -129,6 +146,15 @@ def test_expected_source_provenance_rejects_stale_or_substituted_source():
         require_source_provenance(policy, stale)
 
 
+def test_expected_worker_provenance_rejects_stale_or_substituted_source():
+    policy = parse_identity_policy(POLICY_FILE.read_bytes())
+    require_worker_source_provenance(policy, policy.worker_lab)
+
+    stale = replace(policy.worker_lab, commit="0" * 40)
+    with pytest.raises(IdentityPolicyError, match="stale or substituted"):
+        require_worker_source_provenance(policy, stale)
+
+
 def test_policy_rejects_duplicate_or_unsorted_shared_dependency_paths():
     for paths in (
         [POLICY_PATH, POLICY_PATH],
@@ -143,6 +169,71 @@ def test_policy_rejects_duplicate_or_unsorted_shared_dependency_paths():
 def test_source_provenance_type_remains_explicit():
     policy = parse_identity_policy(POLICY_FILE.read_bytes())
     assert isinstance(policy.framework, SourceProvenance)
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("repository_id", "worker-lab-evil"),
+        ("commit", "A" * 40),
+        ("tree", "1" * 39),
+        ("branch", "other"),
+        ("final_tag", "v0.2.0-phase2-evil"),
+        ("remote_state", "local-only"),
+        ("recovery_bundle_sha256", "z" * 64),
+    ),
+)
+def test_policy_rejects_invalid_or_substituted_worker_provenance(
+    field, replacement
+):
+    value = policy_mapping()
+    value["worker_lab"][field] = replacement
+
+    with pytest.raises(IdentityPolicyError):
+        parse_identity_policy(render(value))
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("import_commit", "A" * 40),
+        ("canonical_component_prefix", "components/worker-lab-evil"),
+        ("canonical_component_prefix", "../worker-lab"),
+        ("component_scope", "selected-files:v1"),
+        ("shared_dependency_paths", [POLICY_PATH]),
+        (
+            "shared_dependency_paths",
+            [FRAMEWORK_PREFIX, POLICY_PATH, WORKER_LAB_PREFIX],
+        ),
+    ),
+)
+def test_policy_rejects_worker_import_prefix_or_closure_substitution(
+    field, replacement
+):
+    value = policy_mapping()
+    value["worker_integration_policy"][field] = replacement
+
+    with pytest.raises(IdentityPolicyError):
+        parse_identity_policy(render(value))
+
+
+def test_policy_rejects_duplicate_or_unsorted_worker_dependency_paths():
+    for paths in (
+        [FRAMEWORK_PREFIX, FRAMEWORK_PREFIX],
+        [POLICY_PATH, FRAMEWORK_PREFIX],
+    ):
+        value = policy_mapping()
+        value["worker_integration_policy"]["shared_dependency_paths"] = paths
+        with pytest.raises(IdentityPolicyError):
+            parse_identity_policy(render(value))
+
+
+def test_worker_declaration_does_not_expand_framework_verifier_closure():
+    policy = parse_identity_policy(POLICY_FILE.read_bytes())
+
+    assert policy.activation_state == "FRAMEWORK_ONLY"
+    assert policy.deferred_participants == ("worker-lab",)
+    assert policy.integration_policy.shared_dependency_paths == (POLICY_PATH,)
 
 
 def integration_fixture(tmp_path, monkeypatch):
