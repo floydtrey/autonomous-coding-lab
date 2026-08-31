@@ -242,3 +242,30 @@ Resolution and next gates:
 - The adapter v1 schema, `local_runtime_identity`, CLI modes, and execution path
   were not modified. P-006 and bilateral P-007 remain blocked on M3 exact Worker
   Lab import and coordinated contract adaptation.
+
+## 2026-08-31 — M3-A Worker Lab recovery and source-identity preflight
+
+- Reverified clean ACL checkpoint
+  `fe5182fceb4eef2a94df15977903421feee00c82` and Worker Lab source tip
+  `fddf0726b975a8192d5e126f109e6fc756f11b36` with tree
+  `5fe9e3f153b48543a57f3b9d1e339b3cd875930a`.
+- Confirmed the selected Worker Lab snapshot is 10 commits ahead and 0 behind
+  `origin/main`, has 68 tracked files, and has 44 commits in complete reachable
+  history. All nine local heads and four annotated tag targets are ancestors of
+  accepted `main`.
+- Created the complete external recovery bundle
+  `C:\Users\MineTrackerWorker\backups\worker-lab\worker-lab-20260831-fddf0726-full.bundle`
+  with SHA-256
+  `74445D0BAC13B4EC24B2036E6BB66927D3E5136DC3F206A2BB5019B023899F36`.
+- Independently reconstructed a temporary bare mirror from only the bundle;
+  all 21 refs, selected commit/tree, 44 commits, 392 object-list lines, single
+  root, strict object verification, and checksum matched.
+- Recorded the namespaced tag map and exact native-Git, non-squashed M3-B import
+  procedure. Source remote-tracking refs remain recovery evidence rather than
+  permanent monorepo refs.
+- Corrected the stale Worker inventory sentence: the accepted current tree
+  excludes the 17 obsolete handoff files while complete history preserves their
+  prior blobs.
+- Ran no tests because M3-A changed no component code. Imported nothing, enabled
+  no execution or component authority, changed no source repository, and made
+  no network operation or push.

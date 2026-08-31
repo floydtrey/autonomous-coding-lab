@@ -1,7 +1,7 @@
 # Source Inventory
 
-**Status:** M1 inventory accepted; component imports require separate milestone authorization
-**Observed:** 2026-08-30
+**Status:** M3-A Worker Lab recovery verified; Worker Lab import requires separate authorization
+**Observed:** 2026-08-31
 
 Git-tracked snapshots are the only automatic import inputs. Working-tree,
 ignored, unreadable, generated, runtime, and machine-local material is excluded
@@ -12,7 +12,7 @@ unless this document explicitly selects it later.
 | Component | Exact observed HEAD | Tracked scope | Distribution | Principal review gate |
 |---|---|---:|---|---|
 | Worker Lab | `fddf0726b975a8192d5e126f109e6fc756f11b36` | 68 files / 634,920 bytes / 44 commits | No license file; private internal use only | Preserve ten local-only commits; migrate standalone identities |
-| Execution framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` | 38 files / 288,791 bytes / 33 commits | No license file; private internal use only | Exact import and both full-suite contexts verified; focused P-008 repair requires separate authorization |
+| Execution framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` | 38 files / 288,791 bytes / 33 commits | No license file; private internal use only | Exact import, both parity contexts, P-008 repair, and framework-only identity verifier complete |
 | Local Model Bench | `4a023c8230365c3098a6dff71fa9623cac059cdd` | 59 files / 252,116 bytes / 7 commits | MIT; preserve component license | Classify selected compact evidence; native run is complete but semantically unreviewed |
 
 File and byte counts are the exact `HEAD` trees, not filesystem counts.
@@ -86,11 +86,12 @@ historical counts do not set the expected current total.
 ### Import gate
 
 The exact local-ahead HEAD ancestry/tree and separate historical disposition of
-the 17 moved/deleted working-tree files are accepted for a future, separately
-authorized M3 import. Complete the monorepo identity implementation before that
-import. The current deletion state cannot silently change import content: the
-accepted exact HEAD tree includes those files. Legacy/chat history, ignored
-residue, and unreadable directories remain excluded.
+the 17 deleted working-tree files are accepted. M3-A independently verified the
+complete recovery bundle and drafted the exact non-squashed import in
+`WORKER_LAB_M3_RECOVERY.md`. The accepted exact HEAD tree excludes those 17
+obsolete files; their prior blobs remain in preserved history. Legacy/chat
+history, ignored residue, and unreadable directories remain excluded. M3-B
+requires separate authorization naming the exact M3-A checkpoint.
 
 ## Autonomous Worker Framework
 
@@ -154,8 +155,11 @@ drill, namespaced tags, import procedure, and proof are recorded in
 Adapter execution remains disabled. Untouched standalone and prefixed
 in-monorepo full validation each passed all 163 tests. Focused exposure proved
 that quick validation receives prefixed paths, selects no stages, and falsely
-succeeds. P-008 repair remains a separate gate. M2 may not silently authorize
-the new identity contract.
+succeeds. P-008 was later repaired at
+`8985ff205b756a843fbfcce3ff61ea5f1638273a`; nine focused and all 165 then-current
+framework tests passed. The later framework-only policy and unwired verifier
+passed all 197 tests, but do not authorize execution or substitute for M3's
+Worker identity and bilateral contract.
 
 ## Local Model Bench
 

@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M2 framework-only identity adaptation complete; M3 exact Worker import pending
+**Current milestone:** M3-A Worker Lab recovery complete; M3-B exact import pending
 **Execution authority:** Disabled
 
 ## First actions
@@ -13,11 +13,12 @@
 4. Read `handoffs/CONSOLIDATION_RECONCILIATION.md` for the current M1 evidence,
    conflicts, accepted architecture boundaries, and user decisions.
 5. For M2 framework work, read `FRAMEWORK_M2_RECOVERY.md` before any import.
-6. Read a source repository's own `AGENTS.md` and routing document before
+6. For M3 Worker Lab work, read `WORKER_LAB_M3_RECOVERY.md` before any import.
+7. Read a source repository's own `AGENTS.md` and routing document before
    inspecting or importing that component.
-7. Query `../migration/inventory/` for exact source-file, path, structure, and
+8. Query `../migration/inventory/` for exact source-file, path, structure, and
    connection evidence instead of repeating broad repository discovery.
-8. Stop if Git evidence and documentation disagree.
+9. Stop if Git evidence and documentation disagree.
 
 ## Authority order
 
@@ -46,4 +47,6 @@ gaps. P-008 is repaired and validated in the monorepo. The framework-only
 identity policy and unwired verifier now bind source provenance, monorepo
 integration evidence, exact paths/blobs, and the M2 dependency closure. Worker
 Lab identity, bilateral cleanliness, protocol wiring, and all execution remain
-deferred. The next gate is M3 exact Worker Lab recovery/import.
+deferred. Worker Lab recovery, complete-history reconstruction, and exact-import
+preflight passed in M3-A without importing or executing it. The next gate is a
+separately authorized M3-B exact Worker Lab import from the accepted bundle.

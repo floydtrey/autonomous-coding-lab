@@ -1,7 +1,7 @@
 # Current State
 
-**Last updated:** 2026-08-30
-**Status:** M2 framework-only identity adaptation complete; bilateral activation deferred
+**Last updated:** 2026-08-31
+**Status:** M3-A Worker Lab recovery complete; exact import pending
 **Canonical repository:** Merger governance plus exact framework bytes; component authority has not transferred
 
 ## Target repository
@@ -134,8 +134,20 @@ The resulting identity digest is
 Thirty-two focused tests and all 197 framework tests passed.
 
 The v1 adapter protocol and CLI were not changed and do not consume the new
-verifier. Execution remains disabled. The next gate is M3 exact Worker Lab
-recovery/import; only after that may a coordinated Worker/framework identity
-contract address P-006, complete bilateral P-007, and wire a new protocol.
+verifier. Execution remains disabled.
+
+Worker Lab M3-A recovery and source-identity preflight are verified in
+`WORKER_LAB_M3_RECOVERY.md`. The accepted local-ahead tip is
+`fddf0726b975a8192d5e126f109e6fc756f11b36`, its tree is
+`5fe9e3f153b48543a57f3b9d1e339b3cd875930a`, and its complete 44-commit
+reachable history plus refs can be reconstructed from the external bundle with
+SHA-256
+`74445D0BAC13B4EC24B2036E6BB66927D3E5136DC3F206A2BB5019B023899F36`.
+
+The next gate is a separately authorized M3-B exact, non-squashed Worker Lab
+import from that artifact. The authorization must name the exact M3-A checkpoint
+commit. Only after exact import and untouched parity may coordinated
+Worker/framework identity adaptation address P-006, complete bilateral P-007,
+and wire a new protocol.
 No Worker Lab import, worker/model execution, push, or publication is authorized
 by this checkpoint.
