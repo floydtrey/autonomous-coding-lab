@@ -1,0 +1,37 @@
+{
+  "components": [
+    {
+      "code": "AWF",
+      "destination_prefix": "components/autonomous-worker-framework",
+      "imported": {
+        "commit": "d1c95814bce512318c61a5745dcd684d87e3676a",
+        "prefix": "components/autonomous-worker-framework",
+        "repo": "C:\\Users\\MineTrackerWorker\\repos\\autonomous-coding-lab"
+      },
+      "name": "Autonomous Worker Framework",
+      "source_commit": "3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd",
+      "source_repo": "C:\\Users\\MineTrackerWorker\\repos\\autonomous-worker-framework"
+    },
+    {
+      "code": "WLAB",
+      "destination_prefix": "components/worker-lab",
+      "name": "Worker Lab",
+      "source_commit": "fddf0726b975a8192d5e126f109e6fc756f11b36",
+      "source_repo": "C:\\Users\\MineTrackerWorker\\repos\\worker-lab"
+    },
+    {
+      "code": "LMB",
+      "destination_prefix": "components/local-model-bench",
+      "name": "Local Model Bench",
+      "source_commit": "4a023c8230365c3098a6dff71fa9623cac059cdd",
+      "source_repo": "C:\\Users\\MineTrackerWorker\\repos\\awf-live-consumer-smoke\\2026-08-29\\referenced-chatgpt-conversation-this-is-an\\outputs\\local-model-bench"
+    }
+  ],
+  "excluded_repositories": [
+    {
+      "path": "C:\\Users\\MineTrackerWorker\\repos\\worker-lab-gui-lab",
+      "reason": "Experimental proving repository; not one of the three accepted merger components"
+    }
+  ],
+  "schema_version": "acl-source-snapshots:v1"
+}

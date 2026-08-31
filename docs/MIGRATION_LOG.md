@@ -185,3 +185,21 @@ Resolution and next gates:
 - Complete ancestry preserves the removed historical blobs, while the selected
   current tree and structural inventory exclude them. Legacy copies, ignored
   runtime data, and unreadable test residue remain excluded.
+
+## 2026-08-30 — Deterministic structural baseline
+
+- Added standard-library Git-tree inventory, query, and guarded repair-planning
+  tools. They read exact committed blobs and do not execute component code.
+- Bound 38 framework, 68 Worker Lab, and 59 Model Bench files to stable IDs,
+  source/destination paths, Git blobs, SHA-256 digests, languages, roles,
+  extracted code structures, and typed path references.
+- Verified the imported framework subtree still equals its accepted source tree.
+- Recorded 15 cross-component connections, one mechanical failure
+  (`AWF-PATH-008`), 11 known semantic/runtime gaps, and zero unknown parser
+  failures. `worker-lab-gui-lab` is explicitly excluded as an experimental
+  proving repository.
+- Generated a one-change guarded repair plan for P-008. It records the starting
+  blob and names only the framework validator and its focused test file; it
+  grants no automatic edit or commit authority.
+- Four focused analyzer/planner tests passed. A complete repeat generation
+  produced byte-for-byte identical JSON outputs.

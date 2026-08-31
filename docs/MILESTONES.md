@@ -26,7 +26,7 @@
 
 ## M2 — Execution framework import
 
-**Status:** Import, standalone parity, and prefix exposure complete; P-008 repair not authorized
+**Status:** Import, parity, prefix exposure, and structural baseline complete; P-008 repair planned
 
 - Begin from a clean, accepted M1 checkpoint commit.
 - Reverify source identities and create a checksummed framework recovery bundle

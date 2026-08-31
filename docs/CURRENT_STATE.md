@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-30
-**Status:** M2 in-monorepo exposure complete; P-008 repair not authorized
+**Status:** M2 structural baseline complete; guarded P-008 repair planned
 **Canonical repository:** Merger governance plus exact framework bytes; component authority has not transferred
 
 ## Target repository
@@ -102,6 +102,14 @@ paths, including 38 framework paths carrying the monorepo prefix, but selected
 zero stages and returned success. This proves P-008: `_existing_files` and the
 changed-test selector expect component-relative paths.
 
-The next gate is a separately authorized minimal P-008 repair plus focused
-regression and full validation. No other path adaptation, component-authority
-transfer, or worker/model execution is authorized.
+The deterministic Git-tree inventory under `migration/inventory/` now binds all
+165 tracked files across the three selected source snapshots to their blobs,
+destination paths, extracted structures, and typed path references. It records
+15 cross-component connections, one mechanical failure (P-008), 11 known
+semantic/runtime gaps, and no unknown parser failures. A repeat generation was
+byte-for-byte identical. The guarded repair plan names only
+`tools/local_validate.py` and its focused test file.
+
+The next gate is the planned minimal P-008 repair plus focused regression, one
+full framework validation, and inventory regeneration. No other path adaptation,
+component-authority transfer, or worker/model execution is authorized.

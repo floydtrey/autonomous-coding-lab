@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M2 prefix exposure complete; quick-validator repair not authorized
+**Current milestone:** M2 structural baseline complete; guarded P-008 repair planned
 **Execution authority:** Disabled
 
 ## First actions
@@ -15,7 +15,9 @@
 5. For M2 framework work, read `FRAMEWORK_M2_RECOVERY.md` before any import.
 6. Read a source repository's own `AGENTS.md` and routing document before
    inspecting or importing that component.
-7. Stop if Git evidence and documentation disagree.
+7. Query `../migration/inventory/` for exact source-file, path, structure, and
+   connection evidence instead of repeating broad repository discovery.
+8. Stop if Git evidence and documentation disagree.
 
 ## Authority order
 
@@ -38,5 +40,7 @@ the exact framework tree with complete reachable ancestry and namespaced tags.
 The untouched full suite passed from an exact disposable standalone
 reconstruction, and the prefixed in-monorepo full suite also passed. Focused
 testing proved the quick validator falsely selects no stages for monorepo-prefixed
-paths. The next gate is a separate P-008 repair with regression tests. All other
+paths. The deterministic structural inventory classifies P-008 as the sole
+mechanical failure and records the remaining issues as known semantic/runtime
+gaps. The next gate is its guarded repair with regression tests. All other
 adaptation and execution remain disabled.

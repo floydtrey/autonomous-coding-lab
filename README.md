@@ -6,15 +6,19 @@ roles.
 
 ## Current status
 
-Milestone M0 is complete. Milestone M1 is auditing the exact source snapshots,
-paths, histories, tests, licenses, and security identities. No source code has
-been imported. The three source repositories remain authoritative until an
-explicit component parity milestone transfers authority to this repository.
+M1 governance is accepted. The execution framework's exact history and tree are
+imported, standalone and prefixed full validation pass, and the known quick
+validator prefix defect is isolated as P-008. Worker Lab and Local Model Bench
+remain outside the monorepo pending their later import gates. Execution remains
+disabled.
 
 Start with [`docs/START_HERE.md`](docs/START_HERE.md).
 
 Source-conversation witness reports and the exact reusable request live under
 [`docs/handoffs/`](docs/handoffs/README.md).
+
+Deterministic file, structure, path, and connection inventories live under
+[`migration/inventory/`](migration/inventory/README.md).
 
 ## Intended components
 

@@ -1,0 +1,156 @@
+{
+  "connection_count": 15,
+  "connections": [
+    {
+      "connection_id": "AWF-TO-WLAB-0001",
+      "connection_type": "path_or_process_reference",
+      "evidence": "C:\\Users\\MineTrackerWorker\\repos\\worker-lab",
+      "file_id": "AWF:docs/CURRENT_STATE.md",
+      "line": 27,
+      "reference_id": "AWF:docs/CURRENT_STATE.md#PATH-0004",
+      "source_component": "AWF",
+      "target_component": "WLAB"
+    },
+    {
+      "connection_id": "AWF-TO-WLAB-0002",
+      "connection_type": "path_or_process_reference",
+      "evidence": "https://github.com/floydtrey/worker-lab",
+      "file_id": "AWF:docs/CURRENT_STATE.md",
+      "line": 33,
+      "reference_id": "AWF:docs/CURRENT_STATE.md#PATH-0006",
+      "source_component": "AWF",
+      "target_component": "WLAB"
+    },
+    {
+      "connection_id": "AWF-TO-WLAB-0003",
+      "connection_type": "path_or_process_reference",
+      "evidence": "C:\\Users\\MineTrackerWorker\\backups\\worker-lab\\worker-lab-v0.2.0-phase2.bundle",
+      "file_id": "AWF:docs/CURRENT_STATE.md",
+      "line": 37,
+      "reference_id": "AWF:docs/CURRENT_STATE.md#PATH-0008",
+      "source_component": "AWF",
+      "target_component": "WLAB"
+    },
+    {
+      "connection_id": "AWF-TO-WLAB-0004",
+      "connection_type": "path_or_process_reference",
+      "evidence": "C:\\Users\\MineTrackerWorker\\repos\\worker-lab",
+      "file_id": "AWF:docs/CURRENT_STATE.md",
+      "line": 147,
+      "reference_id": "AWF:docs/CURRENT_STATE.md#PATH-0009",
+      "source_component": "AWF",
+      "target_component": "WLAB"
+    },
+    {
+      "connection_id": "AWF-TO-WLAB-0005",
+      "connection_type": "path_or_process_reference",
+      "evidence": "C:\\Users\\MineTrackerWorker\\repos\\worker-lab",
+      "file_id": "AWF:docs/PHASE_1_SPEC.md",
+      "line": 16,
+      "reference_id": "AWF:docs/PHASE_1_SPEC.md#PATH-0001",
+      "source_component": "AWF",
+      "target_component": "WLAB"
+    },
+    {
+      "connection_id": "AWF-TO-WLAB-0006",
+      "connection_type": "path_or_process_reference",
+      "evidence": "docs/WORKER_LAB_DESIGN.md",
+      "file_id": "AWF:tests/test_project_documentation.py",
+      "line": 89,
+      "reference_id": "AWF:tests/test_project_documentation.py#PATH-0032",
+      "source_component": "AWF",
+      "target_component": "WLAB"
+    },
+    {
+      "connection_id": "AWF-TO-WLAB-0007",
+      "connection_type": "path_or_process_reference",
+      "evidence": "",
+      "file_id": "AWF:tools/worker_lab_adapter.py",
+      "line": 28,
+      "reference_id": "AWF:tools/worker_lab_adapter.py#PATH-0001",
+      "source_component": "AWF",
+      "target_component": "WLAB"
+    },
+    {
+      "connection_id": "AWF-TO-WLAB-0008",
+      "connection_type": "path_or_process_reference",
+      "evidence": "worker_lab_adapter_codex_runtime",
+      "file_id": "AWF:tools/worker_lab_adapter.py",
+      "line": 29,
+      "reference_id": "AWF:tools/worker_lab_adapter.py#PATH-0002",
+      "source_component": "AWF",
+      "target_component": "WLAB"
+    },
+    {
+      "connection_id": "WLAB-TO-AWF-0009",
+      "connection_type": "path_or_process_reference",
+      "evidence": "tools/worker_lab_adapter.py",
+      "file_id": "WLAB:docs/PHASE3C_SECURITY_DECISIONS.md",
+      "line": 23,
+      "reference_id": "WLAB:docs/PHASE3C_SECURITY_DECISIONS.md#PATH-0001",
+      "source_component": "WLAB",
+      "target_component": "AWF"
+    },
+    {
+      "connection_id": "WLAB-TO-AWF-0010",
+      "connection_type": "path_or_process_reference",
+      "evidence": "tools/worker_lab_adapter.py",
+      "file_id": "WLAB:docs/PHASE3C_SECURITY_DECISIONS.md",
+      "line": 38,
+      "reference_id": "WLAB:docs/PHASE3C_SECURITY_DECISIONS.md#PATH-0002",
+      "source_component": "WLAB",
+      "target_component": "AWF"
+    },
+    {
+      "connection_id": "WLAB-TO-AWF-0011",
+      "connection_type": "path_or_process_reference",
+      "evidence": "tools/worker_lab_adapter.py",
+      "file_id": "WLAB:docs/PHASE3_SPEC.md",
+      "line": 48,
+      "reference_id": "WLAB:docs/PHASE3_SPEC.md#PATH-0001",
+      "source_component": "WLAB",
+      "target_component": "AWF"
+    },
+    {
+      "connection_id": "WLAB-TO-AWF-0012",
+      "connection_type": "path_or_process_reference",
+      "evidence": "tools/worker_lab_adapter.py",
+      "file_id": "WLAB:tests/test_framework_client.py",
+      "line": 39,
+      "reference_id": "WLAB:tests/test_framework_client.py#PATH-0004",
+      "source_component": "WLAB",
+      "target_component": "AWF"
+    },
+    {
+      "connection_id": "WLAB-TO-AWF-0013",
+      "connection_type": "path_or_process_reference",
+      "evidence": "tools/worker_lab_adapter.py",
+      "file_id": "WLAB:tests/test_framework_client.py",
+      "line": 67,
+      "reference_id": "WLAB:tests/test_framework_client.py#PATH-0021",
+      "source_component": "WLAB",
+      "target_component": "AWF"
+    },
+    {
+      "connection_id": "WLAB-TO-AWF-0014",
+      "connection_type": "path_or_process_reference",
+      "evidence": "tools/worker_lab_adapter.py",
+      "file_id": "WLAB:worker_lab/framework_client.py",
+      "line": 23,
+      "reference_id": "WLAB:worker_lab/framework_client.py#PATH-0001",
+      "source_component": "WLAB",
+      "target_component": "AWF"
+    },
+    {
+      "connection_id": "WLAB-TO-AWF-0015",
+      "connection_type": "path_or_process_reference",
+      "evidence": "C:\\Users\\MineTrackerWorker\\repos\\autonomous-worker-framework",
+      "file_id": "WLAB:worker_lab/framework_client.py",
+      "line": 25,
+      "reference_id": "WLAB:worker_lab/framework_client.py#PATH-0003",
+      "source_component": "WLAB",
+      "target_component": "AWF"
+    }
+  ],
+  "schema_version": "acl-structure-connections:v1"
+}
