@@ -517,7 +517,12 @@ def test_verify_workspace_rejects_non_ready_attempt_without_mutation(tmp_path: P
     lab, _, workspace_root, attempt_id, workspace = _prepared_workspace(tmp_path, capsys)
     store = AttemptStore(lab / "state")
     ready = store.read(attempt_id)
-    store.save_transition(transition_attempt(ready, AttemptState.RUNNING, occurred_at=ready.updated_at))
+    store.save_transition(transition_attempt(
+        ready,
+        AttemptState.RUNNING,
+        occurred_at=ready.updated_at,
+        runtime_identity="sha256:" + "f" * 64,
+    ))
     before = _verification_snapshot(lab, workspace_root, attempt_id)
 
     with pytest.raises(LabValidationError) as error:

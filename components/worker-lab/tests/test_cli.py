@@ -10,9 +10,10 @@ from worker_lab.evidence import content_digest, evidence_identity_digest
 from tests.test_models import curriculum_mapping, evidence_mapping, exercise_mapping
 from tests.test_policy import context_mapping, policy_mapping, role_mapping
 from tests.test_test_catalog import catalog
-from worker_lab.models import EvidenceRecord, ExerciseRecord
+from worker_lab.models import AttemptState, EvidenceRecord, ExerciseRecord
 from worker_lab.policy import ContextManifest, PolicyRecord, RoleRecord
 from worker_lab.attempt_store import AttemptStore
+from worker_lab.lifecycle import transition_attempt
 from worker_lab.validation import attempt_task_digest
 from worker_lab.workspace import prepare_workspace
 
@@ -320,9 +321,28 @@ def test_complete_phase1_operator_workflow(tmp_path: Path, capsys) -> None:
     ]))
     attempt_id = created["attempt_id"]
     candidate = "sha256:" + "c" * 64
+    transitioned = json.loads(succeed([
+        "--root", str(lab), "transition-attempt", attempt_id, "READY",
+    ]))
+    assert transitioned["state"] == "READY"
+
+    assert main([
+        "--root", str(lab), "transition-attempt", attempt_id, "RUNNING",
+    ]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("ERROR ATTEMPT_RUNTIME_IDENTITY_REQUIRED:")
+
+    store = AttemptStore(lab / "state")
+    ready = store.read(attempt_id)
+    store.save_transition(transition_attempt(
+        ready,
+        AttemptState.RUNNING,
+        occurred_at=ready.updated_at,
+        runtime_identity="sha256:" + "f" * 64,
+    ))
+
     for state, extra in (
-        ("READY", []),
-        ("RUNNING", []),
         ("CANDIDATE", ["--candidate-digest", candidate]),
         ("EVALUATING", []),
     ):

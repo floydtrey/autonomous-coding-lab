@@ -22,6 +22,7 @@ def evidence_fixture(tmp_path: Path) -> tuple[Path, str, dict]:
     attempt = attempt_mapping()
     attempt.update({
         "state": "EVALUATING",
+        "runtime_identity": "sha256:" + "f" * 64,
         "candidate_digest": "sha256:" + "a" * 64,
         "evaluator_catalog_digest": tests.digest(),
     })

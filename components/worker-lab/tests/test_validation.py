@@ -32,6 +32,7 @@ def valid_graph(*, with_candidate: bool = False) -> dict:
     })
     if with_candidate:
         attempt_value["state"] = "EVALUATING"
+        attempt_value["runtime_identity"] = "sha256:" + "f" * 64
         attempt_value["candidate_digest"] = "sha256:" + "a" * 64
     return {
         "curricula": [curriculum], "exercises": [exercise], "policies": [policy],
