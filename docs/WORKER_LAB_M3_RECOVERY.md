@@ -1,14 +1,14 @@
 # Worker Lab M3 Recovery and Exact-Import Preflight
 
-**Status:** VERIFIED — recovery complete; exact import not performed
+**Status:** VERIFIED — recovery and exact import complete; parity and adaptation pending
 **Observed:** 2026-08-31
 **Execution authority:** Disabled
-**Component import performed:** No
+**Component import performed:** Yes — exact tracked source tree only
 
 This record binds the accepted Worker Lab source identity to an independently
-verified offline recovery artifact and defines the exact, non-squashed M3-B
-import procedure. It does not authorize that procedure. No Worker Lab file was
-modified, imported, executed, or tested during M3-A.
+verified offline recovery artifact and records the executed exact, non-squashed
+M3-B import procedure. No Worker Lab source byte was modified, executed, or
+tested during M3-A or M3-B.
 
 ## 1. ACL checkpoint basis
 
@@ -135,7 +135,7 @@ Source heads use `refs/remotes/m3-worker-lab/*`. Complete ancestry is durable
 through the exact-import commit's second parent. Source remote-tracking refs stay
 only in the recovery bundle and this record.
 
-## 7. Exact non-squashed M3-B procedure — not authorized or executed
+## 7. Exact non-squashed M3-B procedure — executed
 
 The procedure mirrors the proven native-Git M2 import: a merge parent preserves
 ancestry and a prefixed `read-tree` preserves the exact selected tree. It must
@@ -176,11 +176,11 @@ the operation.
 
 ### 7.3 Exact prefixed merge-parent import
 
-The user-supplied M3-A hash must replace the placeholder below. It may not be
-inferred from a moving branch name.
+The user separately authorized M3-B by naming the exact M3-A hash below; it was
+not inferred from a moving branch name.
 
 ```powershell
-$expectedBase = '<exact-M3-A-checkpoint-provided-by-user>'
+$expectedBase = 'c4b85219a5082226ec9eae82e74c6d60cb84d6af'
 $sourceRef = 'refs/remotes/m3-worker-lab/main'
 $sourceCommit = 'fddf0726b975a8192d5e126f109e6fc756f11b36'
 $sourceTree = '5fe9e3f153b48543a57f3b9d1e339b3cd875930a'
@@ -234,9 +234,26 @@ post-commit assertion fails, preserve the evidence and return to the M3-A
 checkpoint only through a separately reviewed rollback; do not amend the import
 into passing state.
 
-## 8. M3-B readiness
+## 8. Verified M3-B outcome
 
-M3-A is complete and Worker Lab is not imported. M3-B is mechanically ready
-only after the user names the exact commit containing this record and separately
-authorizes the exact import. Sol High is sufficient for that bounded operation;
-Ultra review is not required.
+- Exact-import commit:
+  `057f6500585d6e692ad5330d6738bd5c08d13cc5`
+- Commit tree: `4bf795f905586f9560ffef1b02a88a256a8a50a0`
+- First parent: M3-A checkpoint
+  `c4b85219a5082226ec9eae82e74c6d60cb84d6af`
+- Second parent: Worker Lab source commit
+  `fddf0726b975a8192d5e126f109e6fc756f11b36`
+- Imported prefix: `components/worker-lab/`
+- Imported subtree: `5fe9e3f153b48543a57f3b9d1e339b3cd875930a`
+- First-parent change set: exactly 68 additions, all below the imported prefix
+- Source-tree-to-imported-subtree diff: empty
+- Source tip ancestor check: passed
+- Nine source branch refs: exact under `refs/remotes/m3-worker-lab/*`
+- Four annotated tag object IDs: exact under `refs/tags/worker-lab/*`
+- Source and ACL worktrees after the import commit: clean
+- Recovery bundle checksum after import: unchanged
+
+No Worker Lab test, imported command, worker, model, or adapter ran. No path,
+identity, protocol, dependency, behavior, or security adaptation occurred.
+Component authority and execution remain disabled. Untouched standalone parity
+from an exact disposable reconstruction is the next separately authorized gate.

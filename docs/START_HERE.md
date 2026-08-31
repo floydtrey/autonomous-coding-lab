@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M3-A Worker Lab recovery complete; M3-B exact import pending
+**Current milestone:** M3-B exact Worker Lab import complete; untouched parity pending
 **Execution authority:** Disabled
 
 ## First actions
@@ -47,6 +47,8 @@ gaps. P-008 is repaired and validated in the monorepo. The framework-only
 identity policy and unwired verifier now bind source provenance, monorepo
 integration evidence, exact paths/blobs, and the M2 dependency closure. Worker
 Lab identity, bilateral cleanliness, protocol wiring, and all execution remain
-deferred. Worker Lab recovery, complete-history reconstruction, and exact-import
-preflight passed in M3-A without importing or executing it. The next gate is a
-separately authorized M3-B exact Worker Lab import from the accepted bundle.
+deferred. Worker Lab recovery and complete-history reconstruction passed in
+M3-A. M3-B then imported the exact source tree, complete ancestry, and
+namespaced tags without running or adapting the component. The next gate is
+separately authorized untouched standalone Worker Lab parity from an exact
+disposable reconstruction of the imported subtree.

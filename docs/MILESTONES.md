@@ -45,7 +45,7 @@
 
 ## M3 — Worker Lab import
 
-**Status:** M3-A recovery and exact-import preflight complete; M3-B import pending
+**Status:** Exact import complete; untouched standalone parity pending
 
 - Import the exact approved Worker Lab identity with provenance.
 - Resolve its local-ahead state before selecting the snapshot.

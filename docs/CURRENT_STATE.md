@@ -1,16 +1,17 @@
 # Current State
 
 **Last updated:** 2026-08-31
-**Status:** M3-A Worker Lab recovery complete; exact import pending
-**Canonical repository:** Merger governance plus exact framework bytes; component authority has not transferred
+**Status:** M3-B exact Worker Lab import complete; untouched parity pending
+**Canonical repository:** Merger governance plus exact framework and Worker Lab bytes; component authority has not transferred
 
 ## Target repository
 
 - Local path: `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
 - Remote: private `floydtrey/autonomous-coding-lab`
 - Branch: `main`
-- Source code imported: exact framework tree only at
-  `components/autonomous-worker-framework/`
+- Source code imported: exact framework tree at
+  `components/autonomous-worker-framework/` and exact Worker Lab tree at
+  `components/worker-lab/`
 - Worker execution authority: none
 
 ## Preliminary source identities
@@ -144,10 +145,16 @@ reachable history plus refs can be reconstructed from the external bundle with
 SHA-256
 `74445D0BAC13B4EC24B2036E6BB66927D3E5136DC3F206A2BB5019B023899F36`.
 
-The next gate is a separately authorized M3-B exact, non-squashed Worker Lab
-import from that artifact. The authorization must name the exact M3-A checkpoint
-commit. Only after exact import and untouched parity may coordinated
+M3-B exact-import commit
+`057f6500585d6e692ad5330d6738bd5c08d13cc5` has first parent M3-A checkpoint
+`c4b85219a5082226ec9eae82e74c6d60cb84d6af`, second parent Worker Lab source
+`fddf0726b975a8192d5e126f109e6fc756f11b36`, and exact imported subtree
+`5fe9e3f153b48543a57f3b9d1e339b3cd875930a`. Its first-parent change set is
+exactly 68 additions below `components/worker-lab/`; no imported byte was
+adapted.
+
+The next gate is separately authorized untouched standalone Worker Lab parity
+from an exact disposable reconstruction. Only after parity may coordinated
 Worker/framework identity adaptation address P-006, complete bilateral P-007,
-and wire a new protocol.
-No Worker Lab import, worker/model execution, push, or publication is authorized
-by this checkpoint.
+and wire a new protocol. No Worker Lab test or imported command, worker/model
+execution, adaptation, push, or publication is authorized by this checkpoint.

@@ -1,6 +1,6 @@
 # Source Inventory
 
-**Status:** M3-A Worker Lab recovery verified; Worker Lab import requires separate authorization
+**Status:** M3-B exact Worker Lab import complete; untouched parity requires separate authorization
 **Observed:** 2026-08-31
 
 Git-tracked snapshots are the only automatic import inputs. Working-tree,
@@ -87,11 +87,17 @@ historical counts do not set the expected current total.
 
 The exact local-ahead HEAD ancestry/tree and separate historical disposition of
 the 17 deleted working-tree files are accepted. M3-A independently verified the
-complete recovery bundle and drafted the exact non-squashed import in
-`WORKER_LAB_M3_RECOVERY.md`. The accepted exact HEAD tree excludes those 17
-obsolete files; their prior blobs remain in preserved history. Legacy/chat
-history, ignored residue, and unreadable directories remain excluded. M3-B
-requires separate authorization naming the exact M3-A checkpoint.
+complete recovery bundle, and M3-B exact-import commit
+`057f6500585d6e692ad5330d6738bd5c08d13cc5` preserves the accepted source tip as
+its second parent and tree `5fe9e3f153b48543a57f3b9d1e339b3cd875930a`
+unchanged under `components/worker-lab/`. Exact identities, checksum, recovery
+drill, namespaced tags, import procedure, and proof are recorded in
+`WORKER_LAB_M3_RECOVERY.md`.
+
+The imported current tree excludes the 17 obsolete files; their prior blobs
+remain in preserved history. Legacy/chat history, ignored residue, and
+unreadable directories remain excluded. Untouched standalone parity is the next
+separately authorized gate; adaptation and execution remain disabled.
 
 ## Autonomous Worker Framework
 

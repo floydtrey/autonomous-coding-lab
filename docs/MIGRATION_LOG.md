@@ -269,3 +269,26 @@ Resolution and next gates:
 - Ran no tests because M3-A changed no component code. Imported nothing, enabled
   no execution or component authority, changed no source repository, and made
   no network operation or push.
+
+## 2026-08-31 — M3-B exact Worker Lab import
+
+- Reverified the user-named M3-A checkpoint
+  `c4b85219a5082226ec9eae82e74c6d60cb84d6af`, the clean source identity, the
+  complete bundle, its checksum, and absent destination/ref namespaces before
+  any mutation.
+- Fetched all nine source heads under `refs/remotes/m3-worker-lab/*` and all four
+  annotated tag objects under `refs/tags/worker-lab/*`; every object ID matched
+  the source. Source `refs/remotes/origin/*` remained bundle-only evidence.
+- Created pure exact-import commit
+  `057f6500585d6e692ad5330d6738bd5c08d13cc5` with the M3-A checkpoint as first
+  parent and accepted Worker Lab tip
+  `fddf0726b975a8192d5e126f109e6fc756f11b36` as second parent.
+- Proved `components/worker-lab/` equals source tree
+  `5fe9e3f153b48543a57f3b9d1e339b3cd875930a`, the tree-to-subtree diff is
+  empty, and the first-parent change set is exactly 68 prefix-contained
+  additions.
+- Reverified source-tip ancestry, namespaced refs/tags, clean ACL and source
+  worktrees, unchanged source HEAD/tree, and unchanged bundle checksum.
+- Ran no test, Worker Lab command, worker, model, or adapter. Made no adaptation,
+  authority transfer, network operation, or push. Untouched disposable
+  standalone parity is the next separately authorized gate.
