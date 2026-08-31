@@ -1,12 +1,13 @@
 # Path Migration Ledger
 
-No component paths have moved yet. Destination roots were accepted at M1 and
+The framework exact tree was imported at M2-B without changing its source
+repository. Other component imports remain pending. Accepted destination roots
 stay unchanged through M6.
 
 | ID | Source | Destination | Known references or behavior | Validation | Milestone | Status |
 |---|---|---|---|---|---|---|
 | P-001 | Worker Lab repository root | `components/worker-lab/` | Package/test relative paths survive; Git HEAD/status and source-root identity do not | Complete Worker Lab suite | M3 | Accepted path; move pending |
-| P-002 | Framework repository root | `components/autonomous-worker-framework/` | Adapter Git root/blob lookup and quick validator path discovery require design/repair | Framework full suite, then focused prefix tests | M2 | Accepted path; move pending |
+| P-002 | Framework repository root at source commit `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` | `components/autonomous-worker-framework/` at exact-import commit `d1c95814bce512318c61a5745dcd684d87e3676a` | Exact subtree `35ecad05e60c664324a4f30d42a4f6b198181074` preserved; adapter Git root/blob lookup and quick validator path discovery still require later design/repair | Subtree equality passed; untouched standalone full suite and later focused prefix tests pending | M2 | Exact import complete; parity pending |
 | P-003 | Local Model Bench repository root | `components/local-model-bench/` | `PSScriptRoot`, config-relative suites/results, editable install, and `.venv` stay component-local | Unit suite and config validation | M4 | Accepted path; move pending |
 | P-004 | Worker Lab framework pin `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework` | Versioned monorepo identity manifest plus canonical framework prefix | Bind monorepo root/commit/tree, source provenance, exact prefix/subtree and closed invocation dependency set; never use a loose relative path | Identity/substitution/prefix/escape regression suite | M2/M3 | Accepted boundary; implementation pending |
 | P-005 | Framework blob `tools/worker_lab_adapter.py` at standalone commit | `components/autonomous-worker-framework/tools/worker_lab_adapter.py` at monorepo commit plus imported-source identity | Preserve source and integration identities separately; committed blob and worktree digest must match | Adapter preflight and stale-provenance tests | M2/M3 | Accepted boundary; implementation pending |

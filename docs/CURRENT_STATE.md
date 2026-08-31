@@ -1,15 +1,16 @@
 # Current State
 
 **Last updated:** 2026-08-30
-**Status:** M2-A recovery preflight complete; M2-B exact import not authorized
-**Canonical repository:** Merger governance only; component authority has not transferred
+**Status:** M2-B exact framework import complete; standalone parity not authorized
+**Canonical repository:** Merger governance plus exact framework bytes; component authority has not transferred
 
 ## Target repository
 
 - Local path: `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
 - Remote: private `floydtrey/autonomous-coding-lab`
 - Branch: `main`
-- Source code imported: none
+- Source code imported: exact framework tree only at
+  `components/autonomous-worker-framework/`
 - Worker execution authority: none
 
 ## Preliminary source identities
@@ -80,6 +81,13 @@ external recovery bundle are verified in `FRAMEWORK_M2_RECOVERY.md`. The bundle
 SHA-256 is
 `5D14E8D34DA523C9719646CEB437833C4D9D56E31407D8C5BF2122BC7789779B`.
 
-M2-B exact import is ready for a separate user authorization that names the M2-A
-checkpoint. No source is imported yet. Untouched standalone parity, in-monorepo
-prefix testing, path adaptation, and all execution remain later separate gates.
+M2-B exact import commit
+`d1c95814bce512318c61a5745dcd684d87e3676a` has first parent M2-A checkpoint
+`bbc2e831328c841ae204e4fd6064202a18d3ee5d`, second parent framework source
+`3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd`, and exact imported subtree
+`35ecad05e60c664324a4f30d42a4f6b198181074`. No imported file was adapted.
+
+The next gate is a separately authorized untouched full-suite parity run from a
+disposable standalone reconstruction of the imported subtree. No framework test
+has run in the monorepo. In-monorepo prefix testing, path adaptation, component
+authority transfer, and all execution remain later gates.

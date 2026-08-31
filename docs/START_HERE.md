@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M2-A complete; M2-B exact import not authorized
+**Current milestone:** M2-B exact framework import complete; parity not authorized
 **Execution authority:** Disabled
 
 ## First actions
@@ -33,6 +33,8 @@ The repository shell and M1 merger governance are accepted. The commit containin
 the accepted reconciliation is the M1 checkpoint. It authorizes no source import
 and no execution.
 
-The framework recovery artifact and source identities passed M2-A. M2-B remains
-blocked until the user names the exact M2-A checkpoint and separately authorizes
-the bounded exact-import operation. Execution and adaptation remain disabled.
+The framework recovery artifact and source identities passed M2-A. M2-B imported
+the exact framework tree with complete reachable ancestry and namespaced tags.
+The next gate is an untouched parity run from a disposable standalone
+reconstruction; it requires separate authorization. In-monorepo testing,
+adaptation, and execution remain disabled.

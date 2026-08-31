@@ -109,3 +109,26 @@ Resolution and next gates:
   no execution, changed no source repository, and performed no fetch or push.
 - M2-B exact import is ready for separate user authorization naming the M2-A
   checkpoint.
+
+## 2026-08-30 — M2-B exact framework import
+
+- Reverified clean ACL checkpoint
+  `bbc2e831328c841ae204e4fd6064202a18d3ee5d`, clean framework source commit
+  `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd`, source tree
+  `35ecad05e60c664324a4f30d42a4f6b198181074`, and recovery SHA-256 before
+  mutation.
+- Fetched three source branch refs into
+  `refs/remotes/m2-autonomous-worker-framework/*` and preserved all eight
+  annotated tag objects under `refs/tags/autonomous-worker-framework/*`.
+- Created exact-import commit
+  `d1c95814bce512318c61a5745dcd684d87e3676a` with the M2-A checkpoint as first
+  parent and the exact framework source tip as second parent.
+- Proved the imported subtree equals the source tree, the first-parent change set
+  is exactly 38 prefixed additions, the tree-to-subtree diff is empty, and the
+  source tip is reachable through the merge parent.
+- Proved the imported adapter Git blob and SHA-256 exactly equal the source.
+- Left source and ACL worktrees clean. Changed no source repository and performed
+  no network fetch or push.
+- Ran no framework test or command, enabled no execution, and made no path,
+  behavior, dependency, identity, or security adaptation.
+- Untouched standalone parity is the next separately authorized gate.

@@ -1,13 +1,13 @@
 # Framework M2 Recovery and Exact-Import Preflight
 
-**Status:** VERIFIED — M2-A complete; M2-B not authorized
+**Status:** VERIFIED — M2-B exact import complete; parity not authorized
 **Observed:** 2026-08-30
 **Execution authority:** Disabled
-**Component import performed:** No
+**Component import performed:** Yes — exact tracked source tree only
 
 This record binds the accepted framework source identity to an independently
-verified offline recovery artifact and defines the proposed exact-import
-procedure. The procedure in section 7 has not been executed.
+verified offline recovery artifact and records the executed exact-import
+procedure. No framework test, path adaptation, or execution occurred.
 
 ## 1. ACL checkpoint basis
 
@@ -126,11 +126,11 @@ The source heads are fetched temporarily under
 durable in this record and the recovery bundle. Complete ancestry remains
 reachable from the exact-import commit's second parent.
 
-## 7. Proposed exact non-squashed M2-B procedure — not executed
+## 7. Exact non-squashed M2-B procedure — executed
 
 The installed `git subtree` helper exits 126 and reports itself broken even
-though its script exists, so M2-B must not depend on it. The approved equivalent
-is a native Git merge parent plus a prefixed `read-tree`. This creates one exact
+though its script exists, so M2-B did not depend on it. The executed equivalent
+used a native Git merge parent plus a prefixed `read-tree`. It created one exact
 import commit whose first parent is the M2-A checkpoint and whose second parent
 is the accepted framework source tip.
 
@@ -149,7 +149,7 @@ Before running any mutating command, the separately authorized M2-B task must:
 
 ### 7.2 Ref fetch
 
-Run from the ACL repository using the exact bundle path:
+The following ref fetch ran from the ACL repository using the exact bundle path:
 
 ```powershell
 $aclRepo = 'C:\Users\MineTrackerWorker\repos\autonomous-coding-lab'
@@ -165,11 +165,10 @@ extra, or mismatched ref stops M2-B before tree changes.
 
 ### 7.3 Exact prefixed merge-parent import
 
-Set `$expectedBase` to the exact M2-A checkpoint named in the user's M2-B
-authorization. Do not infer or substitute it.
+The exact M2-A checkpoint was reverified immediately before the import:
 
 ```powershell
-$expectedBase = '<exact user-authorized M2-A checkpoint>'
+$expectedBase = 'bbc2e831328c841ae204e4fd6064202a18d3ee5d'
 $sourceRef = 'refs/remotes/m2-autonomous-worker-framework/main'
 $sourceCommit = '3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd'
 $sourceTree = '35ecad05e60c664324a4f30d42a4f6b198181074'
@@ -200,12 +199,12 @@ if ($candidateSubtree -ne $sourceTree) {
 git -C $aclRepo commit -m 'chore: import autonomous worker framework exact history'
 ```
 
-This is the exact-import commit. It must contain no path repair, adaptation,
-refactor, dependency change, test change, or execution authorization.
+The resulting exact-import commit contains no path repair, adaptation, refactor,
+dependency change, test change, or execution authorization.
 
 ### 7.4 Post-commit proof
 
-M2-B must stop on any failed assertion:
+All required assertions passed:
 
 - `HEAD^1` equals the exact M2-A checkpoint.
 - `HEAD^2` equals the accepted framework commit.
@@ -223,9 +222,35 @@ post-commit assertion fails, preserve the evidence and return to the M2-A
 checkpoint through a separately reviewed rollback; do not amend the import into
 passing state.
 
+### 7.5 Verified import outcome
+
+- Exact-import commit:
+  `d1c95814bce512318c61a5745dcd684d87e3676a`
+- Commit tree: `defab82164d4071bce1899a4b5da4044d0a7cb5f`
+- First parent: M2-A checkpoint
+  `bbc2e831328c841ae204e4fd6064202a18d3ee5d`
+- Second parent: source commit
+  `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd`
+- Imported prefix: `components/autonomous-worker-framework/`
+- Imported subtree: `35ecad05e60c664324a4f30d42a4f6b198181074`
+- First-parent change set: exactly 38 additions, all below the imported prefix
+- Tree-to-subtree diff: empty
+- Source tip ancestor check: passed
+- Three source branch refs: exact under the approved import namespace
+- Eight annotated tag object IDs: exact under the permanent tag namespace
+- Adapter blob: `d38b6a366dc2a69187e217b007af7638ee9cc419`
+- Adapter SHA-256:
+  `B9F53081D23B0C16F5B262DC900DF1AC08A09FEF12711C1F2B4FA98552EDA558`
+- Source and ACL worktrees after the import commit: clean
+- ACL strict object check: passed; it reported two dangling blobs and one
+  dangling commit, all unreachable from current refs and outside import identity
+
+No framework test or imported command ran. Component authority has not
+transferred.
+
 ## 8. M2-B gate
 
-The recovery, source-identity, ancestry, ref, checksum, and tooling preconditions
-are satisfied. M2-B exact import is `READY FOR USER AUTHORIZATION`, not active.
-The monorepo still contains no framework component source, and execution remains
-disabled.
+M2-B exact import is `VERIFIED COMPLETE`. The next gate is untouched full-suite
+parity from a disposable standalone reconstruction of the imported subtree. It
+requires separate user authorization. In-monorepo testing, prefix adaptation,
+identity implementation, and execution remain disabled.

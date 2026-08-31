@@ -26,7 +26,7 @@
 
 ## M2 — Execution framework import
 
-**Status:** M2-A recovery preflight complete; M2-B exact import not authorized
+**Status:** M2-B exact import complete; untouched standalone parity not authorized
 
 - Begin from a clean, accepted M1 checkpoint commit.
 - Reverify source identities and create a checksummed framework recovery bundle
