@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-30
-**Status:** M2 structural baseline complete; guarded P-008 repair planned
+**Status:** M2 structural baseline and guarded P-008 repair complete
 **Canonical repository:** Merger governance plus exact framework bytes; component authority has not transferred
 
 ## Target repository
@@ -110,6 +110,16 @@ semantic/runtime gaps, and no unknown parser failures. A repeat generation was
 byte-for-byte identical. The guarded repair plan names only
 `tools/local_validate.py` and its focused test file.
 
-The next gate is the planned minimal P-008 repair plus focused regression, one
-full framework validation, and inventory regeneration. No other path adaptation,
-component-authority transfer, or worker/model execution is authorized.
+P-008 was repaired in commit
+`8985ff205b756a843fbfcce3ff61ea5f1638273a`. The quick selector now translates
+monorepo-root Git paths to component-relative paths, ignores paths outside the
+framework component, and fails closed if the component is outside Git's reported
+root. Nine focused tests passed, the full framework passed all 165 tests, and a
+fresh regeneration changed none of the eight immutable source-baseline JSON
+artifacts. `migration/inventory/resolutions.json` binds the exact repaired blobs
+and evidence without rewriting the source finding.
+
+The next boundary is the semantic monorepo identity/security adaptation. It must
+implement the already accepted fail-closed contract before any component
+authority transfer or execution. No semantic identity change, Worker Lab import,
+worker/model execution, push, or publication is authorized by this checkpoint.

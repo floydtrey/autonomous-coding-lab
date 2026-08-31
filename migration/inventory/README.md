@@ -26,6 +26,11 @@ content digest, language, role, extracted code structure, and typed path
 references. `findings.json`, `connections.json`, `summary.json`, and
 `repair-plan.json` are reproducible derived outputs.
 
+Source findings remain immutable provenance after integration repairs. The
+separate `resolutions.json` binds a resolved finding to exact monorepo commit,
+tree, destination blobs, and validation evidence without rewriting the source
+snapshot.
+
 The tools read source repositories through Git object commands and never import
 or execute component code. A repair plan does not grant edit, execution, commit,
 push, or publication authority.

@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M2 structural baseline complete; guarded P-008 repair planned
+**Current milestone:** M2 structural baseline and guarded P-008 repair complete
 **Execution authority:** Disabled
 
 ## First actions
@@ -42,5 +42,7 @@ reconstruction, and the prefixed in-monorepo full suite also passed. Focused
 testing proved the quick validator falsely selects no stages for monorepo-prefixed
 paths. The deterministic structural inventory classifies P-008 as the sole
 mechanical failure and records the remaining issues as known semantic/runtime
-gaps. The next gate is its guarded repair with regression tests. All other
-adaptation and execution remain disabled.
+gaps. P-008 is repaired and validated in the monorepo, with its exact integration
+evidence recorded separately from the immutable source finding. Stop before the
+semantic identity/security adaptation unless it is separately authorized. All
+execution remains disabled.
