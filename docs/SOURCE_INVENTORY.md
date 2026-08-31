@@ -1,6 +1,6 @@
 # Source Inventory
 
-**Status:** M3-B exact Worker Lab import complete; untouched parity requires separate authorization
+**Status:** M3 exact Worker Lab import complete; standalone parity failed and bounded repair is pending
 **Observed:** 2026-08-31
 
 Git-tracked snapshots are the only automatic import inputs. Working-tree,
@@ -96,8 +96,15 @@ drill, namespaced tags, import procedure, and proof are recorded in
 
 The imported current tree excludes the 17 obsolete files; their prior blobs
 remain in preserved history. Legacy/chat history, ignored residue, and
-unreadable directories remain excluded. Untouched standalone parity is the next
-separately authorized gate; adaptation and execution remain disabled.
+unreadable directories remain excluded.
+
+An exact standalone reconstruction passed 317 tests, skipped seven expected
+Windows symlink-capability cases, and failed 12 cases. The valid failures are
+source-snapshot test/workflow drift: production requires runtime identity for
+active attempts, while older CLI, evidence, validation, and workspace fixtures
+omit it. The exact import remains unchanged. A bounded parity repair requires
+separate authorization; cross-component adaptation and execution remain
+disabled.
 
 ## Autonomous Worker Framework
 

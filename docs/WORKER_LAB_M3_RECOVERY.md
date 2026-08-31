@@ -1,6 +1,6 @@
 # Worker Lab M3 Recovery and Exact-Import Preflight
 
-**Status:** VERIFIED — recovery and exact import complete; parity and adaptation pending
+**Status:** VERIFIED import — standalone parity failed on 12 source-snapshot tests; repair not authorized
 **Observed:** 2026-08-31
 **Execution authority:** Disabled
 **Component import performed:** Yes — exact tracked source tree only
@@ -257,3 +257,60 @@ No Worker Lab test, imported command, worker, model, or adapter ran. No path,
 identity, protocol, dependency, behavior, or security adaptation occurred.
 Component authority and execution remain disabled. Untouched standalone parity
 from an exact disposable reconstruction is the next separately authorized gate.
+
+## 9. Untouched standalone parity — failed gate
+
+The user separately authorized standalone parity from governance checkpoint
+`746795acec98642db85825f15f0f9c13eb4049f2`. A disposable repository fetched
+the imported Worker ref from ACL and checked out the exact source commit rather
+than creating a substitute integration identity. Before testing it had:
+
+- HEAD `fddf0726b975a8192d5e126f109e6fc756f11b36`;
+- tree `5fe9e3f153b48543a57f3b9d1e339b3cd875930a`;
+- 44 reachable commits and 68 tracked files; and
+- an empty Git status.
+
+Validation used Python 3.12.10, pytest 9.1.1, and the immutable T020 command:
+
+```powershell
+python -m pytest -q
+```
+
+The first attempt was environment-invalid: placing pytest's temporary tree
+under the already long disposable path produced 263-character nested Git object
+paths. Git returned `Filename too long`; 260 tests passed, two symlink tests
+skipped, and 74 tests failed through that shared fixture failure. This attempt
+is not source-parity evidence.
+
+The unchanged command was retried once from the exact source commit with the
+short disposable temp root `C:\acl-wl-t-746795a`. The path failure disappeared.
+The valid result was:
+
+- 317 passed;
+- 7 expected Windows symlink-capability skips;
+- 12 failed; and
+- 164.20 seconds elapsed.
+
+All 12 failures expose one source-snapshot contract inconsistency: production
+records and transitions now fail closed unless active attempts carry a
+`runtime_identity`, while older test workflows and fixtures still construct or
+transition active attempts with `runtime_identity = null`.
+
+| Failure group | Count | Direct conflict |
+|---|---:|---|
+| `tests/test_cli.py` | 1 | Phase 1 workflow requests `READY -> RUNNING` without an invocation identity |
+| `tests/test_evidence.py` | 9 | Evidence fixtures persist active attempt records without runtime identity, so record validation fails before evidence assertions |
+| `tests/test_validation.py` | 1 | The nominal valid graph creates an active attempt without runtime identity |
+| `tests/test_workspace_receipt.py` | 1 | The non-ready workspace case directly transitions to `RUNNING` without runtime identity |
+
+This is a genuine failure of the accepted standalone source snapshot, not a
+monorepo prefix or import-byte difference. The import remains exact. No Worker
+Lab code or test was changed, and no in-monorepo suite, worker, model, adapter,
+or execution path ran. Both disposable repositories, the short temp tree, and
+all generated test artifacts were removed after their exact containment was
+verified. ACL and source worktrees remained clean.
+
+Parity is not complete. The next possible gate is a separately authorized,
+bounded Worker Lab parity repair that preserves the accepted runtime-identity
+invariant and updates only the stale workflows/fixtures proven by focused tests.
+No identity, protocol, path, or bilateral adaptation may begin first.

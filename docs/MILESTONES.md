@@ -45,7 +45,7 @@
 
 ## M3 — Worker Lab import
 
-**Status:** Exact import complete; untouched standalone parity pending
+**Status:** Exact import complete; standalone parity failed on 12 stale runtime-identity cases; repair pending
 
 - Import the exact approved Worker Lab identity with provenance.
 - Resolve its local-ahead state before selecting the snapshot.

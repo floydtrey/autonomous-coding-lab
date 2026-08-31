@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M3-B exact Worker Lab import complete; untouched parity pending
+**Current milestone:** M3 exact import complete; standalone parity failed and repair is pending
 **Execution authority:** Disabled
 
 ## First actions
@@ -49,6 +49,10 @@ integration evidence, exact paths/blobs, and the M2 dependency closure. Worker
 Lab identity, bilateral cleanliness, protocol wiring, and all execution remain
 deferred. Worker Lab recovery and complete-history reconstruction passed in
 M3-A. M3-B then imported the exact source tree, complete ancestry, and
-namespaced tags without running or adapting the component. The next gate is
-separately authorized untouched standalone Worker Lab parity from an exact
-disposable reconstruction of the imported subtree.
+namespaced tags without running or adapting the component. An exact disposable
+standalone reconstruction then ran T020: 317 tests passed, seven expected
+Windows symlink-capability tests skipped, and 12 tests failed because older
+fixtures omit the now-required runtime identity for active attempts. The import
+remains exact, but parity is not complete. The next possible gate is a
+separately authorized bounded source-parity repair; identity/protocol adaptation
+remains blocked.

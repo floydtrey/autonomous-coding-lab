@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-31
-**Status:** M3-B exact Worker Lab import complete; untouched parity pending
+**Status:** M3 exact import complete; standalone parity failed on 12 runtime-identity fixture/workflow cases
 **Canonical repository:** Merger governance plus exact framework and Worker Lab bytes; component authority has not transferred
 
 ## Target repository
@@ -153,8 +153,17 @@ M3-B exact-import commit
 exactly 68 additions below `components/worker-lab/`; no imported byte was
 adapted.
 
-The next gate is separately authorized untouched standalone Worker Lab parity
-from an exact disposable reconstruction. Only after parity may coordinated
-Worker/framework identity adaptation address P-006, complete bilateral P-007,
-and wire a new protocol. No Worker Lab test or imported command, worker/model
-execution, adaptation, push, or publication is authorized by this checkpoint.
+Untouched standalone parity reconstructed the exact source commit/tree and ran
+the immutable T020 command under Python 3.12.10 and pytest 9.1.1. After one
+environment-invalid long-path attempt, the valid short-temp run produced 317
+passes, seven expected Windows symlink skips, and 12 failures. All 12 failures
+come from older workflows/fixtures omitting the runtime identity now required
+for active attempt states. Exact evidence and failure groups are recorded in
+`WORKER_LAB_M3_RECOVERY.md` section 9.
+
+Parity is not complete. A separately authorized bounded source-parity repair
+must preserve the fail-closed runtime-identity invariant and prove the stale
+test/workflow corrections before any coordinated Worker/framework identity
+adaptation addresses P-006, completes bilateral P-007, or wires a new protocol.
+No repair, in-monorepo test, worker/model execution, adaptation, push, or
+publication is authorized by this checkpoint.

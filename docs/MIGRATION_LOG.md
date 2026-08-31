@@ -292,3 +292,26 @@ Resolution and next gates:
 - Ran no test, Worker Lab command, worker, model, or adapter. Made no adaptation,
   authority transfer, network operation, or push. Untouched disposable
   standalone parity is the next separately authorized gate.
+
+## 2026-08-31 — M3 untouched standalone Worker Lab parity failure
+
+- Reconstructed an independent disposable repository from ACL's imported Worker
+  ref at exact source HEAD `fddf0726b975a8192d5e126f109e6fc756f11b36`
+  and tree `5fe9e3f153b48543a57f3b9d1e339b3cd875930a`; it had 44 reachable commits, 68
+  tracked files, and a clean pre-test status.
+- Ran immutable T020 command `python -m pytest -q` with Python 3.12.10 and pytest
+  9.1.1. The first attempt was environment-invalid because a 263-character
+  nested fixture path caused Git `Filename too long` errors; it is not parity
+  evidence.
+- Retried the unchanged command once with a short disposable temp root. The valid
+  run completed in 164.20 seconds: 317 passed, seven expected Windows symlink
+  skips, and 12 failed.
+- Classified all 12 valid failures under one source-snapshot inconsistency:
+  production requires runtime identity for active attempt records/transitions,
+  while one CLI workflow, nine evidence cases, one validation graph, and one
+  workspace-receipt case still omit it.
+- Confirmed this is neither a prefix failure nor an import-byte mismatch. The
+  exact import is unchanged; parity is not complete.
+- Removed both disposable repositories, the short temp tree, and all generated
+  test artifacts after exact containment checks. Changed no component source or
+  test, ran no worker/model/adapter, enabled no execution, and performed no push.
