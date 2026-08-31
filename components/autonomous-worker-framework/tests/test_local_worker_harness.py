@@ -1,0 +1,364 @@
+import json
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from tools.local_worker_harness import (
+    ConsumerValidationPlan,
+    FIXTURE_TASK_VERSION,
+    FixtureTask,
+    HarnessRuntimeError,
+    TrustedValidationCommand,
+    candidate_content_digest,
+    build_fixture_codex_prompt,
+    run_codex_fixture_job,
+    run_fixture_full_validation,
+    run_fixture_job,
+    task_contract_digest,
+    validate_patch_boundary,
+)
+from tools.codex_runtime import CodexExecution, CodexRuntimeError
+from tools.worker_result import validate_worker_result
+
+
+def _git(repo: Path, *args: str) -> str:
+    process = subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    return process.stdout.strip()
+
+
+def _repo(tmp_path: Path, state: str = "A") -> Path:
+    repo = tmp_path / "consumer"
+    repo.mkdir()
+    _git(repo, "init")
+    _git(repo, "config", "user.email", "fixture@example.com")
+    _git(repo, "config", "user.name", "Fixture")
+    (repo / "autonomy_smoke").mkdir()
+    (repo / "README.md").write_text("fixture consumer\n", encoding="utf-8")
+    if state != "ABSENT":
+        (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(
+            f"STATE={state}\n".encode("ascii")
+        )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "fixture baseline")
+    return repo
+
+
+def _task(initial: str = "A", target: str = "B") -> FixtureTask:
+    return FixtureTask.from_mapping(
+        {
+            "contract_version": FIXTURE_TASK_VERSION,
+            "task_id": f"fixture-{initial.lower()}-to-{target.lower()}",
+            "consumer": "commissioning-fixture",
+            "allowed_paths": ["autonomy_smoke/fixture_state.txt"],
+            "fixture_path": "autonomy_smoke/fixture_state.txt",
+            "initial_state": initial,
+            "target_state": target,
+        }
+    )
+
+
+def test_task_requires_fixture_path_inside_exact_allowed_paths():
+    value = _task().to_dict()
+    value["allowed_paths"] = ["autonomy_smoke/other.txt"]
+
+    with pytest.raises(Exception, match="explicitly present"):
+        FixtureTask.from_mapping(value)
+
+
+def test_task_digest_is_deterministic():
+    task = _task()
+
+    assert task_contract_digest(task) == task_contract_digest(task)
+    assert task_contract_digest(task).startswith("sha256:")
+
+
+def test_successful_a_to_b_job_produces_dirty_candidate_result(tmp_path):
+    repo = _repo(tmp_path, "A")
+    task = _task("A", "B")
+
+    result = run_fixture_job(task, repo)
+
+    assert (repo / "autonomy_smoke" / "fixture_state.txt").read_bytes() == b"STATE=B\n"
+    assert result.worker.result == "pass"
+    assert result.patch_boundary.result == "pass"
+    assert result.quick_validation.result == "pass"
+    assert result.full_validation.result == "pass"
+    assert [stage.name for stage in result.full_validation.stages] == [
+        "Git candidate diff integrity",
+        "Full deterministic fixture validation",
+    ]
+    assert result.workspace_state == "dirty-candidate"
+    assert result.changed_paths == ("autonomy_smoke/fixture_state.txt",)
+    assert result.candidate_sha is None
+    assert result.candidate_content_digest.startswith("sha256:")
+    assert result.ready_for_repository_handoff is True
+    validate_worker_result(result)
+
+
+def test_successful_absent_to_a_job_tracks_new_file(tmp_path):
+    repo = _repo(tmp_path, "ABSENT")
+    task = _task("ABSENT", "A")
+
+    result = run_fixture_job(task, repo)
+
+    assert result.worker.result == "pass"
+    assert (repo / "autonomy_smoke" / "fixture_state.txt").read_bytes() == b"STATE=A\n"
+    assert result.changed_paths == ("autonomy_smoke/fixture_state.txt",)
+
+
+def test_initial_state_mismatch_stops_before_mutation(tmp_path):
+    repo = _repo(tmp_path, "B")
+    task = _task("A", "B")
+
+    result = run_fixture_job(task, repo)
+
+    assert result.worker.result == "fail"
+    assert result.first_failure is not None
+    assert result.first_failure.boundary == "fixture-precondition"
+    assert result.first_failure.code == "FIXTURE_INITIAL_STATE_FAILED"
+    assert result.changed_paths == ()
+    assert (repo / "autonomy_smoke" / "fixture_state.txt").read_bytes() == b"STATE=B\n"
+
+
+def test_dirty_repository_fails_closed_before_mutation(tmp_path):
+    repo = _repo(tmp_path, "A")
+    (repo / "unrelated.txt").write_text("dirty\n", encoding="utf-8")
+
+    result = run_fixture_job(_task("A", "B"), repo)
+
+    assert result.worker.result == "fail"
+    assert result.first_failure is not None
+    assert result.first_failure.code == "WORKSPACE_NOT_CLEAN"
+    assert result.workspace_state == "preexisting-dirty"
+    assert result.changed_paths == ()
+    assert result.candidate_content_digest is None
+    assert (repo / "autonomy_smoke" / "fixture_state.txt").read_bytes() == b"STATE=A\n"
+
+
+def test_patch_boundary_rejects_outside_path():
+    with pytest.raises(HarnessRuntimeError, match="outside"):
+        validate_patch_boundary(
+            ["autonomy_smoke/fixture_state.txt", "app/unrelated.py"],
+            ["autonomy_smoke/fixture_state.txt"],
+        )
+
+
+def test_candidate_content_digest_changes_with_bytes(tmp_path):
+    repo = tmp_path / "repo"
+    (repo / "autonomy_smoke").mkdir(parents=True)
+    path = repo / "autonomy_smoke" / "fixture_state.txt"
+    path.write_bytes(b"STATE=A\n")
+    first = candidate_content_digest(repo, ["autonomy_smoke/fixture_state.txt"])
+    path.write_bytes(b"STATE=B\n")
+    second = candidate_content_digest(repo, ["autonomy_smoke/fixture_state.txt"])
+
+    assert first != second
+
+
+def test_worker_result_json_round_trip_for_success(tmp_path):
+    repo = _repo(tmp_path, "A")
+
+    result = run_fixture_job(_task("A", "B"), repo)
+    encoded = result.to_json()
+    decoded = json.loads(encoded)
+
+    assert decoded["contract_version"] == "worker-result:v1"
+    assert decoded["task_id"] == "fixture-a-to-b"
+
+
+def test_codex_prompt_is_bounded_and_deterministic():
+    prompt = build_fixture_codex_prompt(_task("A", "B"))
+
+    assert "write exactly STATE=B followed by one LF" in prompt
+    assert 'Machine-enforced allowed paths: ["autonomy_smoke/fixture_state.txt"]' in prompt
+    assert "Do not run tests, Git commands, network commands, or package managers." in prompt
+
+
+def test_codex_job_runs_after_preconditions_then_reuses_boundary_and_quick_validation(tmp_path):
+    repo = _repo(tmp_path, "A")
+    framework = tmp_path / "framework"
+    framework.mkdir()
+    (framework / ".git").mkdir()
+    requests = []
+
+    def executor(request):
+        requests.append(request)
+        (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(b"STATE=B\n")
+        return CodexExecution(("codex", "exec"), 0, "done", "")
+
+    result = run_codex_fixture_job(_task("A", "B"), repo, framework, executor=executor)
+
+    assert len(requests) == 1
+    assert requests[0].target_repo == repo.resolve()
+    assert requests[0].sandbox == "workspace-write"
+    assert result.worker.result == "pass"
+    assert result.patch_boundary.result == "pass"
+    assert result.quick_validation.result == "pass"
+    assert result.full_validation.result == "pass"
+    assert result.ready_for_repository_handoff is True
+
+
+def test_full_validation_stops_at_git_diff_integrity_failure(tmp_path, monkeypatch):
+    repo = _repo(tmp_path, "A")
+    task = _task("A", "B")
+    (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(b"STATE=B\n")
+
+    def fail_diff(repo_root, *args):
+        raise HarnessRuntimeError("diff check failed")
+
+    monkeypatch.setattr("tools.local_worker_harness._run_git", fail_diff)
+
+    result = run_fixture_full_validation(repo, task)
+
+    assert result.result == "fail"
+    assert result.failure_code == "LOCAL_DIFF_CHECK_FAILED"
+    assert len(result.stages) == 1
+
+
+def test_trusted_consumer_validation_is_recorded_in_worker_result(tmp_path):
+    repo = _repo(tmp_path, "A")
+    plan = ConsumerValidationPlan(
+        quick=(TrustedValidationCommand("Consumer quick", ("git", "status", "--short")),),
+        full=(TrustedValidationCommand("Consumer full", ("git", "diff", "--check")),),
+    )
+
+    result = run_fixture_job(_task("A", "B"), repo, validation_plan=plan)
+
+    assert [stage.name for stage in result.quick_validation.stages] == [
+        "Deterministic fixture target validation",
+        "Consumer quick",
+    ]
+    assert [stage.name for stage in result.full_validation.stages] == [
+        "Git candidate diff integrity",
+        "Full deterministic fixture validation",
+        "Consumer full",
+    ]
+    assert result.ready_for_repository_handoff is True
+
+
+def test_trusted_consumer_validation_stops_at_first_failed_command(tmp_path):
+    repo = _repo(tmp_path, "A")
+    marker = tmp_path / "must-not-run.txt"
+    plan = ConsumerValidationPlan(
+        full=(
+            TrustedValidationCommand("Failing consumer test", ("git", "rev-parse", "missing")),
+            TrustedValidationCommand(
+                "Later command",
+                ("python", "-c", f"open(r'{marker}', 'w').write('ran')"),
+            ),
+        )
+    )
+
+    result = run_fixture_job(_task("A", "B"), repo, validation_plan=plan)
+
+    assert result.worker.result == "fail"
+    assert result.full_validation.failure_code == "CONSUMER_FULL_VALIDATION_FAILED"
+    assert [stage.name for stage in result.full_validation.stages][-1] == "Failing consumer test"
+    assert marker.exists() is False
+
+
+def test_dirty_repository_stops_before_codex_executor(tmp_path):
+    repo = _repo(tmp_path, "A")
+    (repo / "unrelated.txt").write_text("dirty\n", encoding="utf-8")
+    called = False
+
+    def executor(request):
+        nonlocal called
+        called = True
+        raise AssertionError("executor must not run")
+
+    result = run_codex_fixture_job(_task(), repo, tmp_path / "framework", executor=executor)
+
+    assert called is False
+    assert result.first_failure is not None
+    assert result.first_failure.code == "WORKSPACE_NOT_CLEAN"
+
+
+def test_codex_runtime_failure_stops_before_patch_and_quick_boundaries(tmp_path):
+    repo = _repo(tmp_path, "A")
+
+    def executor(request):
+        raise CodexRuntimeError("CHATGPT_AUTH_REQUIRED", "managed login missing")
+
+    result = run_codex_fixture_job(_task(), repo, tmp_path / "framework", executor=executor)
+
+    assert result.worker.result == "fail"
+    assert result.first_failure is not None
+    assert result.first_failure.boundary == "codex-execution"
+    assert result.first_failure.code == "CHATGPT_AUTH_REQUIRED"
+    assert result.patch_boundary.result == "not-run"
+    assert result.quick_validation.result == "not-run"
+
+
+def test_codex_out_of_boundary_change_stops_before_quick_validation(tmp_path):
+    repo = _repo(tmp_path, "A")
+
+    def executor(request):
+        (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(b"STATE=B\n")
+        (repo / "outside.txt").write_text("not allowed\n", encoding="utf-8")
+        return CodexExecution(("codex", "exec"), 0, "done", "")
+
+    result = run_codex_fixture_job(_task(), repo, tmp_path / "framework", executor=executor)
+
+    assert result.worker.result == "fail"
+    assert result.first_failure is not None
+    assert result.first_failure.boundary == "patch-boundary"
+    assert result.quick_validation.result == "not-run"
+
+
+def test_codex_job_repairs_one_retryable_quick_validation_failure(tmp_path):
+    repo = _repo(tmp_path, "A")
+    framework = tmp_path / "framework"
+    framework.mkdir()
+    (framework / ".git").mkdir()
+    requests = []
+
+    def executor(request):
+        requests.append(request)
+        content = b"STATE=WRONG\n" if len(requests) == 1 else b"STATE=B\n"
+        (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(content)
+        return CodexExecution(("codex", "exec"), 0, "done", "")
+
+    result = run_codex_fixture_job(_task(), repo, framework, executor=executor)
+
+    assert len(requests) == 2
+    assert requests[1].prompt.startswith("Repair one failed deterministic")
+    assert result.worker.result == "pass"
+    assert result.worker.repair_attempts == 1
+    assert result.first_failure is not None
+    assert result.first_failure.boundary == "quick-validation"
+    assert result.first_failure.code == "FIXTURE_TARGET_STATE_FAILED"
+    assert result.quick_validation.result == "pass"
+    assert result.full_validation.result == "pass"
+    assert result.ready_for_repository_handoff is True
+
+
+def test_codex_job_stops_after_single_unsuccessful_repair(tmp_path):
+    repo = _repo(tmp_path, "A")
+    calls = 0
+
+    def executor(request):
+        nonlocal calls
+        calls += 1
+        (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(b"STATE=WRONG\n")
+        return CodexExecution(("codex", "exec"), 0, "done", "")
+
+    result = run_codex_fixture_job(
+        _task(), repo, tmp_path / "framework", executor=executor
+    )
+
+    assert calls == 2
+    assert result.worker.result == "fail"
+    assert result.worker.repair_attempts == 1
+    assert result.first_failure is not None
+    assert result.first_failure.boundary == "quick-validation"
+    assert result.ready_for_repository_handoff is False
