@@ -17,14 +17,15 @@
 
 | Source | Verified HEAD | Observed state | Remote |
 |---|---|---|---|
-| Worker Lab | `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684` | `main` is 9 commits ahead; 17 unstaged tracked deletions; no ordinary untracked files; ignored/unreadable test residue | private GitHub remote |
+| Worker Lab | `fddf0726b975a8192d5e126f109e6fc756f11b36` | `main` is 10 commits ahead; tracked worktree and index clean; ignored/unreadable test residue remains excluded | private GitHub remote |
 | Autonomous Worker Framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` / `v0.2.6-worker-lab-final-message` | local `main`; unreadable test-temp directories; no remote | none |
 | Local Model Bench | `4a023c8230365c3098a6dff71fa9623cac059cdd` | tracked tree clean and locally synchronized; native-JSON run completed in ignored local results | public GitHub remote recorded locally |
 
-These are audit observations, not import approvals. All 17 Worker Lab deletions
-have blob-equivalent copies under the separate Legacy history location. Their
-working-tree disposition, unreadable directories, ignored results, and
-historical material will not be cleaned, removed, or copied automatically.
+These are audit observations, not import approvals. The user classified all 17
+obsolete Worker Lab `TERRA*.md` instruction/report files for removal, and Worker
+Lab commit `fddf0726b975a8192d5e126f109e6fc756f11b36` records their deletion plus
+three active-reference repairs. Legacy copies, unreadable directories, ignored
+results, and other historical material remain excluded from automatic import.
 
 ## Existing boundary that must be preserved
 

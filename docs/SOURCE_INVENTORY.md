@@ -11,7 +11,7 @@ unless this document explicitly selects it later.
 
 | Component | Exact observed HEAD | Tracked scope | Distribution | Principal review gate |
 |---|---|---:|---|---|
-| Worker Lab | `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684` | 85 files / 768,850 bytes / 43 commits | No license file; private internal use only | Preserve nine local-only commits; resolve 17-deletion disposition; migrate standalone identities |
+| Worker Lab | `fddf0726b975a8192d5e126f109e6fc756f11b36` | 68 files / 634,920 bytes / 44 commits | No license file; private internal use only | Preserve ten local-only commits; migrate standalone identities |
 | Execution framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` | 38 files / 288,791 bytes / 33 commits | No license file; private internal use only | Exact import and both full-suite contexts verified; focused P-008 repair requires separate authorization |
 | Local Model Bench | `4a023c8230365c3098a6dff71fa9623cac059cdd` | 59 files / 252,116 bytes / 7 commits | MIT; preserve component license | Classify selected compact evidence; native run is complete but semantically unreviewed |
 
@@ -24,14 +24,14 @@ File and byte counts are the exact `HEAD` trees, not filesystem counts.
 - Source: `C:\Users\MineTrackerWorker\repos\worker-lab`
 - Branch: `main`
 - Remote: private `https://github.com/floydtrey/worker-lab.git`
-- Remote relation: `main` is nine commits ahead of `origin/main`
-- Observed HEAD: `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684`
-- Observed tree: `cf7fb964aa25aabb076292865f2367f0cecb4c04`
+- Remote relation: `main` is ten commits ahead of `origin/main`
+- Observed HEAD: `fddf0726b975a8192d5e126f109e6fc756f11b36`
+- Observed tree: `5fe9e3f153b48543a57f3b9d1e339b3cd875930a`
 - Tags: `v0.1.0-phase1`, `v0.1.1-phase1`, `v0.1.2-phase1`,
   `v0.2.0-phase2`
 - Package: `worker-lab` (`worker_lab` import), Python 3.12+, CLI
   `worker-lab = worker_lab.cli:main`
-- Layout: 23 root files, 8 curriculum files, 12 active docs, 20 test
+- Layout: 6 root files, 8 curriculum files, 12 active docs, 20 test
   files, and 22 package files
 
 ### Authority and interface
@@ -56,11 +56,9 @@ models require a reviewed monorepo replacement before execution.
 
 ### Working-tree classification
 
-- Exactly 17 tracked historical/task-report files are deleted in the working
-  tree. Each name has a blob-equivalent copy under the separate
-  `Legacy/worker-lab-history` location. These working-tree deletions are not part
-  of the selected HEAD tree and must not be committed, imported as deletions, or
-  restored automatically during M1.
+- Commit `fddf0726b975a8192d5e126f109e6fc756f11b36` records the user-authorized
+  removal of 17 obsolete root `TERRA*.md` instruction/report files and repairs
+  three active references. The tracked worktree and index are clean.
 - `Legacy/worker-lab-history` contains one additional
   `8_27_26_ChatGPT_History` file. It is historical conversation material and is
   excluded from import.
@@ -68,9 +66,9 @@ models require a reviewed monorepo replacement before execution.
   tracked and are excluded without cleaning or inspection.
 - `.venv/`, caches, `state/`, `evidence/`, `workspace/`, and temporary files are
   ignored runtime/generated categories and are excluded.
-- Numerous tracked `TERRA*.md` files are historical task and handoff evidence.
-  Preserve them on full-history import, but do not treat their old absolute
-  paths or stopped authority as current instructions.
+- Complete Git ancestry retains the old `TERRA*.md` blobs as history, but they
+  are absent from the selected current tree and are not active instructions or
+  current-tree structural-analysis inputs.
 
 ### Validation candidate
 

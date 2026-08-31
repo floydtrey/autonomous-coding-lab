@@ -171,3 +171,17 @@ Resolution and next gates:
   worker or model ran, and no network operation or push occurred.
 - P-008 repair with focused regression tests is the next separately authorized
   gate. All other adaptation and execution remain disabled.
+
+## 2026-08-30 — Worker Lab obsolete-handoff disposition
+
+- The user classified the 17 deleted root `TERRA*.md` files as obsolete AI
+  instruction, handoff, and chat-report material that must not remain active.
+- Worker Lab commit `fddf0726b975a8192d5e126f109e6fc756f11b36`
+  records exactly those 17 deletions and repairs three active references to the
+  deleted adapter handoff; no code changed and no push occurred.
+- The finalized current tree is
+  `5fe9e3f153b48543a57f3b9d1e339b3cd875930a`: 68 tracked files, 634,920 bytes,
+  and 44 commits in HEAD history. `main` is 10 ahead of `origin/main`.
+- Complete ancestry preserves the removed historical blobs, while the selected
+  current tree and structural inventory exclude them. Legacy copies, ignored
+  runtime data, and unreadable test residue remain excluded.

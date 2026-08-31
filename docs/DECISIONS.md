@@ -147,7 +147,7 @@ tracked as a second handoff.
 
 ## ACL-D017 — Worker Lab source snapshot and historical disposition
 
-**Status:** Active — accepted 2026-08-30
+**Status:** Superseded by ACL-D018 — 2026-08-30
 
 Preserve Worker Lab's complete reachable ancestry through
 `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684` and import that exact HEAD tree when
@@ -155,3 +155,18 @@ M3 is separately authorized. The 17 current working-tree deletions and their
 Legacy copies are separately reviewed historical disposition; they do not alter
 the selected source tree and must not be committed, restored, or imported from
 the working tree automatically.
+
+## ACL-D018 — Finalize Worker Lab without obsolete AI handoffs
+
+**Status:** Active — accepted 2026-08-30
+
+The user classified the 17 root `TERRA*.md` instruction, handoff, and report
+files as obsolete experimental AI coordination material that must not continue
+as active Worker Lab content. Worker Lab commit
+`fddf0726b975a8192d5e126f109e6fc756f11b36` removes those files and repairs the
+three active-document references to the deleted adapter handoff. The selected
+M3 candidate is this commit and tree
+`5fe9e3f153b48543a57f3b9d1e339b3cd875930a`, subject to M3 recovery,
+reverification, import authorization, and parity gates. Complete ancestry still
+preserves the historical commits; current-tree structural analysis excludes the
+removed files.
