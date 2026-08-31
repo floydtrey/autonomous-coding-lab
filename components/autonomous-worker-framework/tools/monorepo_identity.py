@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping
+import os
+import subprocess
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 
@@ -54,6 +56,28 @@ class FrameworkIdentityPolicy:
     deferred_participants: tuple[str, ...]
     framework: SourceProvenance
     integration_policy: IntegrationPolicy
+
+
+@dataclass(frozen=True)
+class FrameworkIntegrationIdentity:
+    schema_version: str
+    monorepo_commit: str
+    monorepo_tree: str
+    source_commit: str
+    source_tree: str
+    import_commit: str
+    component_prefix: str
+    component_tree: str
+    adapter_path: str
+    adapter_blob: str
+    adapter_digest: str
+    policy_path: str
+    policy_blob: str
+    policy_digest: str
+    dependency_set_version: str
+
+
+GitRunner = Callable[[Path, tuple[str, ...]], bytes]
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -284,3 +308,302 @@ def identity_policy_digest(raw: bytes | str) -> str:
     parse_identity_policy(raw)
     encoded = raw.encode("utf-8") if isinstance(raw, str) else raw
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _git(repository_root: Path, args: tuple[str, ...]) -> bytes:
+    environment = {
+        "PATH": os.environ.get("PATH", ""),
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+    }
+    process = subprocess.run(
+        ["git", "-c", f"safe.directory={repository_root}", *args],
+        cwd=repository_root,
+        env=environment,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30,
+        check=False,
+    )
+    if process.returncode != 0:
+        raise IdentityPolicyError("monorepo Git identity check failed")
+    return process.stdout
+
+
+def _git_bytes(run_git: GitRunner, root: Path, *args: str) -> bytes:
+    try:
+        raw = run_git(root, tuple(args))
+    except OSError as exc:
+        raise IdentityPolicyError("monorepo Git identity check failed") from exc
+    if not isinstance(raw, bytes):
+        raise IdentityPolicyError("monorepo Git identity output is invalid")
+    return raw
+
+
+def _git_line(
+    run_git: GitRunner,
+    root: Path,
+    *args: str,
+    allow_spaces: bool = False,
+) -> str:
+    try:
+        decoded = _git_bytes(run_git, root, *args).decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise IdentityPolicyError("monorepo Git identity output is invalid") from exc
+    lines = decoded.splitlines()
+    if len(lines) != 1 or not lines[0]:
+        raise IdentityPolicyError("monorepo Git identity output is invalid")
+    value = lines[0]
+    if not allow_spaces and any(character.isspace() for character in value):
+        raise IdentityPolicyError("monorepo Git identity output is invalid")
+    return value
+
+
+def _git_sha1(run_git: GitRunner, root: Path, *args: str) -> str:
+    return _sha1(_git_line(run_git, root, *args), "monorepo Git object")
+
+
+def _is_link_or_junction(path: Path) -> bool:
+    try:
+        junction_check = getattr(path, "is_junction", None)
+        return path.is_symlink() or bool(junction_check and junction_check())
+    except OSError as exc:
+        raise IdentityPolicyError("identity path metadata is unreadable") from exc
+
+
+def _require_plain_path(repository_root: Path, target: Path, name: str) -> None:
+    try:
+        relative = target.relative_to(repository_root)
+    except ValueError as exc:
+        raise IdentityPolicyError(f"{name} escapes the monorepo root") from exc
+    current = repository_root
+    if _is_link_or_junction(current):
+        raise IdentityPolicyError(f"{name} uses a linked or reparse path")
+    for part in relative.parts:
+        current /= part
+        if _is_link_or_junction(current):
+            raise IdentityPolicyError(f"{name} uses a linked or reparse path")
+    try:
+        if not target.exists():
+            raise IdentityPolicyError(f"{name} does not exist")
+    except OSError as exc:
+        raise IdentityPolicyError(f"{name} is unreadable") from exc
+
+
+def _read_bytes(path: Path, name: str) -> bytes:
+    try:
+        return path.read_bytes()
+    except OSError as exc:
+        raise IdentityPolicyError(f"{name} is unreadable") from exc
+
+
+def _integration_identity_payload(
+    identity: FrameworkIntegrationIdentity,
+) -> dict[str, str]:
+    return {
+        "adapter_blob": identity.adapter_blob,
+        "adapter_digest": identity.adapter_digest,
+        "adapter_path": identity.adapter_path,
+        "component_prefix": identity.component_prefix,
+        "component_tree": identity.component_tree,
+        "dependency_set_version": identity.dependency_set_version,
+        "import_commit": identity.import_commit,
+        "monorepo_commit": identity.monorepo_commit,
+        "monorepo_tree": identity.monorepo_tree,
+        "policy_blob": identity.policy_blob,
+        "policy_digest": identity.policy_digest,
+        "policy_path": identity.policy_path,
+        "schema_version": identity.schema_version,
+        "source_commit": identity.source_commit,
+        "source_tree": identity.source_tree,
+    }
+
+
+def integration_identity_digest(identity: FrameworkIntegrationIdentity) -> str:
+    encoded = json.dumps(
+        _integration_identity_payload(identity),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def verify_framework_integration(
+    policy: FrameworkIdentityPolicy,
+    *,
+    expected_monorepo_commit: str,
+    component_root: Path,
+    git_runner: GitRunner | None = None,
+) -> FrameworkIntegrationIdentity:
+    expected_head = _sha1(expected_monorepo_commit, "expected monorepo commit")
+    run_git = git_runner or _git
+    component_path = Path(os.path.abspath(component_root))
+    prefix_parts = PurePosixPath(
+        policy.integration_policy.canonical_component_prefix
+    ).parts
+    repository_root = component_path
+    for _ in prefix_parts:
+        repository_root = repository_root.parent
+    expected_component = repository_root.joinpath(*prefix_parts)
+    if os.path.normcase(str(component_path)) != os.path.normcase(
+        str(expected_component)
+    ):
+        raise IdentityPolicyError("framework component root is substituted")
+
+    _require_plain_path(repository_root, repository_root, "monorepo root")
+    _require_plain_path(repository_root, component_path, "framework component root")
+    adapter_path = repository_root.joinpath(
+        *PurePosixPath(policy.integration_policy.adapter_integration_path).parts
+    )
+    policy_path = repository_root.joinpath(*PurePosixPath(POLICY_PATH).parts)
+    _require_plain_path(repository_root, adapter_path, "framework adapter")
+    _require_plain_path(repository_root, policy_path, "identity policy")
+
+    reported_root = Path(
+        _git_line(
+            run_git,
+            repository_root,
+            "rev-parse",
+            "--show-toplevel",
+            allow_spaces=True,
+        )
+    )
+    try:
+        if reported_root.resolve(strict=True) != repository_root.resolve(strict=True):
+            raise IdentityPolicyError("Git reported a substituted monorepo root")
+    except OSError as exc:
+        raise IdentityPolicyError("monorepo root is unreadable") from exc
+
+    head = _git_sha1(run_git, repository_root, "rev-parse", "HEAD")
+    if head != expected_head:
+        raise IdentityPolicyError("monorepo commit is stale or substituted")
+    monorepo_tree = _git_sha1(
+        run_git, repository_root, "rev-parse", "HEAD^{tree}"
+    )
+
+    source = policy.framework
+    source_tree = _git_sha1(
+        run_git,
+        repository_root,
+        "rev-parse",
+        f"{source.commit}^{{tree}}",
+    )
+    if source_tree != source.tree:
+        raise IdentityPolicyError("framework source tree is stale or substituted")
+    source_adapter_blob = _git_sha1(
+        run_git,
+        repository_root,
+        "rev-parse",
+        f"{source.commit}:{policy.integration_policy.source_adapter_path}",
+    )
+    if source_adapter_blob != source.adapter_blob:
+        raise IdentityPolicyError("framework source adapter blob is substituted")
+    source_adapter_bytes = _git_bytes(
+        run_git,
+        repository_root,
+        "show",
+        f"{source.commit}:{policy.integration_policy.source_adapter_path}",
+    )
+    if hashlib.sha256(source_adapter_bytes).hexdigest() != source.adapter_sha256:
+        raise IdentityPolicyError("framework source adapter digest is substituted")
+
+    import_component_tree = _git_sha1(
+        run_git,
+        repository_root,
+        "rev-parse",
+        (
+            f"{policy.integration_policy.import_commit}:"
+            f"{policy.integration_policy.canonical_component_prefix}"
+        ),
+    )
+    if import_component_tree != source.tree:
+        raise IdentityPolicyError("framework import subtree differs from provenance")
+    import_adapter_blob = _git_sha1(
+        run_git,
+        repository_root,
+        "rev-parse",
+        (
+            f"{policy.integration_policy.import_commit}:"
+            f"{policy.integration_policy.adapter_integration_path}"
+        ),
+    )
+    if import_adapter_blob != source.adapter_blob:
+        raise IdentityPolicyError("framework imported adapter differs from provenance")
+
+    component_tree = _git_sha1(
+        run_git,
+        repository_root,
+        "rev-parse",
+        f"HEAD:{policy.integration_policy.canonical_component_prefix}",
+    )
+    adapter_blob = _git_sha1(
+        run_git,
+        repository_root,
+        "rev-parse",
+        f"HEAD:{policy.integration_policy.adapter_integration_path}",
+    )
+    committed_adapter = _git_bytes(
+        run_git,
+        repository_root,
+        "show",
+        f"HEAD:{policy.integration_policy.adapter_integration_path}",
+    )
+    worktree_adapter = _read_bytes(adapter_path, "framework adapter")
+    if committed_adapter != worktree_adapter:
+        raise IdentityPolicyError("framework adapter worktree differs from HEAD")
+    adapter_digest = "sha256:" + hashlib.sha256(worktree_adapter).hexdigest()
+
+    policy_blob = _git_sha1(
+        run_git, repository_root, "rev-parse", f"HEAD:{POLICY_PATH}"
+    )
+    committed_policy = _git_bytes(
+        run_git, repository_root, "show", f"HEAD:{POLICY_PATH}"
+    )
+    worktree_policy = _read_bytes(policy_path, "identity policy")
+    if committed_policy != worktree_policy:
+        raise IdentityPolicyError("identity policy worktree differs from HEAD")
+    parsed_worktree_policy = parse_identity_policy(worktree_policy)
+    if parsed_worktree_policy != policy:
+        raise IdentityPolicyError("identity policy input differs from the worktree")
+    policy_digest = identity_policy_digest(worktree_policy)
+
+    closure = (
+        policy.integration_policy.canonical_component_prefix,
+        *policy.integration_policy.shared_dependency_paths,
+    )
+    status = _git_bytes(
+        run_git,
+        repository_root,
+        "status",
+        "--porcelain=v1",
+        "-z",
+        "--untracked-files=all",
+        "--",
+        *closure,
+    )
+    if status:
+        raise IdentityPolicyError("framework invocation dependency set is dirty")
+    final_head = _git_sha1(run_git, repository_root, "rev-parse", "HEAD")
+    if final_head != head:
+        raise IdentityPolicyError("monorepo commit changed during identity verification")
+
+    return FrameworkIntegrationIdentity(
+        schema_version="acl-framework-monorepo-integration-identity:v1",
+        monorepo_commit=head,
+        monorepo_tree=monorepo_tree,
+        source_commit=source.commit,
+        source_tree=source.tree,
+        import_commit=policy.integration_policy.import_commit,
+        component_prefix=policy.integration_policy.canonical_component_prefix,
+        component_tree=component_tree,
+        adapter_path=policy.integration_policy.adapter_integration_path,
+        adapter_blob=adapter_blob,
+        adapter_digest=adapter_digest,
+        policy_path=POLICY_PATH,
+        policy_blob=policy_blob,
+        policy_digest=policy_digest,
+        dependency_set_version=policy.integration_policy.component_scope,
+    )
