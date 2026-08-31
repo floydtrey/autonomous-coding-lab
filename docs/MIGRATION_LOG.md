@@ -87,3 +87,25 @@ Resolution and next gates:
 - Kept source import and execution disabled. M2 requires separate authorization
   after framework recovery and source-reverification prerequisites pass.
 - The commit containing this entry is the accepted M1 governance checkpoint.
+
+## 2026-08-30 — M2-A framework recovery and identity preflight
+
+- Reverified the no-remote framework at commit
+  `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd`, tree
+  `35ecad05e60c664324a4f30d42a4f6b198181074`, and final annotated tag.
+- Confirmed a clean working tree, 33 reachable commits, one root, three branch
+  refs whose tips are all in `main`, eight annotated tags, and no object
+  alternates or shallow boundary.
+- Created the external complete-history bundle recorded in
+  `FRAMEWORK_M2_RECOVERY.md` and bound it to SHA-256
+  `5D14E8D34DA523C9719646CEB437833C4D9D56E31407D8C5BF2122BC7789779B`.
+- Reconstructed a temporary bare mirror, proved exact ref/commit/tree/ancestry
+  equality, passed strict object verification, and removed only that temporary
+  verification repository.
+- Recorded the exact namespaced-tag mapping and a native Git merge-parent plus
+  prefixed-tree import procedure because the installed `git subtree` helper is
+  broken.
+- Imported no component source, ran no framework tests/workers/models, enabled
+  no execution, changed no source repository, and performed no fetch or push.
+- M2-B exact import is ready for separate user authorization naming the M2-A
+  checkpoint.

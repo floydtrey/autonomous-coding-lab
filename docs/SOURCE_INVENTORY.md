@@ -12,7 +12,7 @@ unless this document explicitly selects it later.
 | Component | Exact observed HEAD | Tracked scope | Distribution | Principal review gate |
 |---|---|---:|---|---|
 | Worker Lab | `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684` | 85 files / 768,850 bytes / 43 commits | No license file; private internal use only | Preserve nine local-only commits; resolve 17-deletion disposition; migrate standalone identities |
-| Execution framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` | 38 files / 288,791 bytes / 33 commits | No license file; private internal use only | No remote; create recovery bundle and migrate repository-root identity safely |
+| Execution framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` | 38 files / 288,791 bytes / 33 commits | No license file; private internal use only | Recovery bundle verified; exact import requires separate authorization |
 | Local Model Bench | `4a023c8230365c3098a6dff71fa9623cac059cdd` | 59 files / 252,116 bytes / 7 commits | MIT; preserve component license | Classify selected compact evidence; native run is complete but semantically unreviewed |
 
 File and byte counts are the exact `HEAD` trees, not filesystem counts.
@@ -145,13 +145,16 @@ validation must pass before any prefix-aware validator or identity change.
 
 ### Import gate
 
-Create and checksum a recoverable bundle or mirror before import because the
-framework has no remote. Preserve ancestry through a permanent merge parent or
-equivalent reachable non-squashed history, namespace source tags, and keep
-adapter execution disabled. Prove imported subtree equality, run untouched
-parity from a disposable standalone reconstruction, then run the in-monorepo
-suite to expose prefix-dependent failures for the separate adaptation commit.
-M2 may not silently authorize the new identity contract.
+The current no-remote source, all refs, complete reachable ancestry, and a new
+external recovery bundle passed M2-A verification. Exact identities, checksum,
+recovery drill, namespaced tag mapping, and the native Git merge-parent/import
+procedure are recorded in `FRAMEWORK_M2_RECOVERY.md`.
+
+M2-B still requires separate authorization. It must preserve ancestry through
+the exact-import commit's second parent, keep adapter execution disabled, and
+prove subtree equality before any test or adaptation. Untouched parity from a
+disposable standalone reconstruction and later in-monorepo prefix testing remain
+separate gates. M2 may not silently authorize the new identity contract.
 
 ## Local Model Bench
 

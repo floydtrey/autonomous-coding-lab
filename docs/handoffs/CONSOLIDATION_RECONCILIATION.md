@@ -24,9 +24,9 @@ publication actions were performed.
 
 | Component | Recorded identity | Purpose and owned responsibility | Forbidden responsibility | Entry/interface | Destination | Import blocker |
 |---|---|---|---|---|---|---|
-| Autonomous Coding Lab | Pre-draft HEAD `7e6086954b2bfd66dd1e11a2ab467d70f85056c1`; tree `7272f715e05737e6bd1eeb67d1038ac1f4d244b2`; accepted checkpoint is the commit containing this document | Private merger governance, integration identity, milestone/rollback authority | Worker execution, benchmark scoring, silent component-authority transfer | Root governance under `docs/` | Repository root | M2 recovery/reverification prerequisites remain; M2 not authorized |
+| Autonomous Coding Lab | Pre-draft HEAD `7e6086954b2bfd66dd1e11a2ab467d70f85056c1`; tree `7272f715e05737e6bd1eeb67d1038ac1f4d244b2`; accepted checkpoint is the commit containing this document | Private merger governance, integration identity, milestone/rollback authority | Worker execution, benchmark scoring, silent component-authority transfer | Root governance under `docs/` | Repository root | M2-A subsequently passed; M2-B exact import remains unauthorized |
 | Worker Lab | HEAD `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684`; tree `cf7fb964aa25aabb076292865f2367f0cecb4c04`; `main` 9 ahead | Curricula, roles, policy, task authorization, attempts, test catalog, evidence, lifecycle, evaluation and graduation | Authentication, sandbox/process execution, provider security, publication or merge | Python package/CLI and canonical-JSON framework invocation | `components/worker-lab/` | 17 tracked deletions, local-only history selection, no license, monorepo identity design |
-| Autonomous Worker Framework | HEAD `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd`; tree `35ecad05e60c664324a4f30d42a4f6b198181074`; final-message tag; clean | Authentication, credential stripping, sandbox/process custody, containment, bounded output, strict transport/result validation | Task acceptance, curricula, graduation, model selection, publication or merge | Root-relative tools and `worker_lab_adapter.py` subprocess protocol | `components/autonomous-worker-framework/` | No remote/license; recovery bundle and prefix/identity design required |
+| Autonomous Worker Framework | HEAD `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd`; tree `35ecad05e60c664324a4f30d42a4f6b198181074`; final-message tag; clean | Authentication, credential stripping, sandbox/process custody, containment, bounded output, strict transport/result validation | Task acceptance, curricula, graduation, model selection, publication or merge | Root-relative tools and `worker_lab_adapter.py` subprocess protocol | `components/autonomous-worker-framework/` | M2-A recovery verified; exact import and later identity adaptation require separate gates |
 | Local Model Bench | HEAD `4a023c8230365c3098a6dff71fa9623cac059cdd`; tree `1b20a0e6a9e273532ed047ff3cb9f8c990f6fa01`; clean `main` | Deterministic model/prompt evaluation, provider abstraction, resumable runs, experimental evidence | Worker attempts, execution security, graduation, routing authority, publication or merge | `local-model-bench` CLI; config/suite/result/evaluation schemas | `components/local-model-bench/` | MIT preservation and selected compact-evidence decision before M4 |
 
 Dependency and authority direction is:
@@ -203,9 +203,10 @@ checkpoint containing this reconciliation.
 ## 11. M1 status
 
 `ACCEPTED`. The commit containing this document is the clean M1 governance
-checkpoint. M2 remains blocked until framework recovery evidence is created,
-source identities are reverified at the M2 boundary, and the user separately
-authorizes the bounded M2 operation.
+checkpoint. Framework recovery and source re-verification subsequently passed
+M2-A as recorded in `../FRAMEWORK_M2_RECOVERY.md`. M2-B remains blocked until
+the user names the exact M2-A checkpoint and separately authorizes the bounded
+exact-import operation.
 
 Benchmark semantic review, Phi-4 retesting, production GUI design, exact
 Terra/Sol attribution, and historical synthetic roots do not block M2.

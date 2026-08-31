@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-30
-**Status:** M1 accepted; M2 prerequisites not started or authorized
+**Status:** M2-A recovery preflight complete; M2-B exact import not authorized
 **Canonical repository:** Merger governance only; component authority has not transferred
 
 ## Target repository
@@ -34,7 +34,7 @@ component to silently assume another component's authority.
 
 ## M1 findings
 
-- The first integration layout is fixed for review as `components/worker-lab/`,
+- The first integration layout is accepted as `components/worker-lab/`,
   `components/autonomous-worker-framework/`, and
   `components/local-model-bench/`. These paths remain stable through M6.
 - Worker Lab and the framework have no detected Python imports between them.
@@ -75,9 +75,11 @@ component to silently assume another component's authority.
 
 ## Next boundary
 
-The M1 reconciliation and decisions are accepted in the checkpoint containing
-this document. M2 is not authorized. Before a separately authorized M2 exact
-import, create and checksum a framework recovery artifact, reverify source
-identities, and record the exact-import validation procedure that separates
-subtree equality, standalone reconstructed parity, and later in-monorepo prefix
-adaptation.
+The framework source identity, complete reachable ancestry, annotated tags, and
+external recovery bundle are verified in `FRAMEWORK_M2_RECOVERY.md`. The bundle
+SHA-256 is
+`5D14E8D34DA523C9719646CEB437833C4D9D56E31407D8C5BF2122BC7789779B`.
+
+M2-B exact import is ready for a separate user authorization that names the M2-A
+checkpoint. No source is imported yet. Untouched standalone parity, in-monorepo
+prefix testing, path adaptation, and all execution remain later separate gates.
