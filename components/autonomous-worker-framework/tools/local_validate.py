@@ -65,6 +65,30 @@ def _git_lines(*args: str) -> set[str]:
     return _normalize_paths(_run_capture(("git", *args)).splitlines())
 
 
+def _component_relative_paths(
+    paths: Iterable[str], *, repository_root: Path
+) -> set[str]:
+    component_root = ROOT.resolve()
+    resolved_repository_root = repository_root.resolve()
+    try:
+        component_prefix = component_root.relative_to(resolved_repository_root)
+    except ValueError as exc:
+        raise ValidationSetupError(
+            "Framework root is outside the Git repository root."
+        ) from exc
+
+    normalized = _normalize_paths(paths)
+    if component_prefix == Path("."):
+        return normalized
+
+    prefix = component_prefix.as_posix().rstrip("/") + "/"
+    return {
+        path.removeprefix(prefix)
+        for path in normalized
+        if path.startswith(prefix)
+    }
+
+
 def resolve_base(explicit_base: str | None = None) -> str:
     candidates = [explicit_base] if explicit_base else ["main"]
     last_error: Exception | None = None
@@ -85,12 +109,23 @@ def resolve_base(explicit_base: str | None = None) -> str:
 
 
 def discover_changed_paths(base: str) -> list[str]:
+    repository_root_text = _run_capture(
+        ("git", "rev-parse", "--show-toplevel")
+    ).strip()
+    if not repository_root_text:
+        raise ValidationSetupError("Git did not report a repository root.")
+
     changed: set[str] = set()
     changed |= _git_lines("diff", "--name-only", "--diff-filter=ACMR", f"{base}...HEAD")
     changed |= _git_lines("diff", "--name-only", "--diff-filter=ACMR")
     changed |= _git_lines("diff", "--cached", "--name-only", "--diff-filter=ACMR")
     changed |= _git_lines("ls-files", "--others", "--exclude-standard")
-    return sorted(changed)
+    return sorted(
+        _component_relative_paths(
+            changed,
+            repository_root=Path(repository_root_text),
+        )
+    )
 
 
 def _existing_files(paths: Iterable[str], suffix: str | None = None) -> list[str]:

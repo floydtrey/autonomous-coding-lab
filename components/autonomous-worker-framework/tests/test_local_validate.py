@@ -56,6 +56,13 @@ def test_discover_changed_paths_unions_git_sources(monkeypatch):
     }
 
     monkeypatch.setattr(validator, "_git_lines", lambda *args: responses[args])
+    monkeypatch.setattr(
+        validator,
+        "_run_capture",
+        lambda command: f"{validator.ROOT}\n"
+        if tuple(command) == ("git", "rev-parse", "--show-toplevel")
+        else "",
+    )
 
     assert validator.discover_changed_paths("abc") == [
         "README.md",
@@ -63,6 +70,60 @@ def test_discover_changed_paths_unions_git_sources(monkeypatch):
         "tools/a.py",
         "tools/b.py",
     ]
+
+
+def test_discover_changed_paths_strips_monorepo_prefix_and_ignores_siblings(
+    tmp_path, monkeypatch
+):
+    component_root = tmp_path / "components" / "autonomous-worker-framework"
+    component_root.mkdir(parents=True)
+    responses = {
+        ("diff", "--name-only", "--diff-filter=ACMR", "abc...HEAD"): {
+            "components/autonomous-worker-framework/tools/a.py",
+            "components/worker-lab/worker_lab/a.py",
+        },
+        ("diff", "--name-only", "--diff-filter=ACMR"): {
+            r"components\autonomous-worker-framework\tests\test_a.py"
+        },
+        ("diff", "--cached", "--name-only", "--diff-filter=ACMR"): {
+            "docs/CURRENT_STATE.md"
+        },
+        ("ls-files", "--others", "--exclude-standard"): set(),
+    }
+
+    monkeypatch.setattr(validator, "ROOT", component_root)
+    monkeypatch.setattr(validator, "_git_lines", lambda *args: responses[args])
+    monkeypatch.setattr(
+        validator,
+        "_run_capture",
+        lambda command: f"{tmp_path}\n"
+        if tuple(command) == ("git", "rev-parse", "--show-toplevel")
+        else "",
+    )
+
+    assert validator.discover_changed_paths("abc") == [
+        "tests/test_a.py",
+        "tools/a.py",
+    ]
+
+
+def test_component_relative_paths_rejects_component_outside_repository(
+    tmp_path, monkeypatch
+):
+    repository_root = tmp_path / "repo"
+    component_root = tmp_path / "elsewhere" / "framework"
+    repository_root.mkdir()
+    component_root.mkdir(parents=True)
+    monkeypatch.setattr(validator, "ROOT", component_root)
+
+    try:
+        validator._component_relative_paths(
+            ["tools/a.py"], repository_root=repository_root
+        )
+    except validator.ValidationSetupError as exc:
+        assert "outside the Git repository root" in str(exc)
+    else:
+        raise AssertionError("Expected an out-of-repository component root to fail closed")
 
 
 def test_resolve_base_uses_main(monkeypatch):
