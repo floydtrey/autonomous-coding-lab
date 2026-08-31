@@ -12,16 +12,25 @@ def load_json(path: Path) -> dict[str, Any]:
 
 def query(args: argparse.Namespace) -> list[dict[str, Any]]:
     root = args.inventory_dir.resolve()
+    prefix = "current-" if args.current else ""
+    if args.delta:
+        report = load_json(root / "integration-delta.json")
+        return [
+            row
+            for component in report["components"]
+            if not args.component or component["component"] == args.component
+            for row in component["changes"]
+        ]
     if args.connects:
         source, target = args.connects
-        rows = load_json(root / "connections.json")["connections"]
+        rows = load_json(root / f"{prefix}connections.json")["connections"]
         return [
             row
             for row in rows
             if row["source_component"] == source
             and row["target_component"] == target
         ]
-    findings = load_json(root / "findings.json")["findings"]
+    findings = load_json(root / f"{prefix}findings.json")["findings"]
     if args.finding:
         return [row for row in findings if row["finding_id"] == args.finding]
     if args.status or args.repair:
@@ -36,7 +45,10 @@ def query(args: argparse.Namespace) -> list[dict[str, Any]]:
         components = [args.component.lower()] if args.component else ["awf", "wlab", "lmb"]
         rows: list[dict[str, Any]] = []
         for component in components:
-            inventory = load_json(root / f"{component}.json")
+            path = root / f"{prefix}{component}.json"
+            if not path.exists():
+                continue
+            inventory = load_json(path)
             for file in inventory["files"]:
                 for reference in file["path_references"]:
                     if reference["path_type"] == args.path_type:
@@ -78,6 +90,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--path-type")
     parser.add_argument("--finding")
     parser.add_argument("--connects", nargs=2, metavar=("SOURCE", "TARGET"))
+    parser.add_argument("--current", action="store_true")
+    parser.add_argument("--delta", action="store_true")
     parser.add_argument("--json", action="store_true")
     return parser
 
@@ -93,6 +107,7 @@ def main(argv: list[str] | None = None) -> int:
                 row.get("finding_id")
                 or row.get("connection_id")
                 or row.get("reference_id")
+                or row.get("file_id")
             )
             status = row.get(
                 "status", row.get("path_type", row.get("connection_type", ""))

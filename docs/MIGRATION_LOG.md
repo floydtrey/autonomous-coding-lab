@@ -340,3 +340,26 @@ Resolution and next gates:
   temp trees. ACL and source repositories remained clean. Ran no worker, model,
   adapter, production execution, cross-component adaptation, network operation,
   or push.
+
+## 2026-08-31 — Current-tree structural inventory and delta
+
+- Added a deterministic scanner for the current imported framework and Worker
+  Lab subtrees. It reads committed Git blobs, fails closed on component-scope
+  dirtiness, and writes separate current inventories without changing immutable
+  source evidence.
+- Bound the scan to clean checkpoint
+  `d28cbbb43ae1cd09cfbd1d2fc016c63c12959916`, framework subtree
+  `5a3b19c11ac00d7c88bfd62ff09872aa115eabf6`, and Worker subtree
+  `2c12c6ab1b18c9fef96fdaad82b6a40270e9ca16`.
+- Inventoried 108 current component files with zero parser failures. The exact
+  delta is two framework additions, two framework modifications, four Worker
+  test modifications, and no removals.
+- Corrected the old P-008 pattern detector so the verified prefix-normalization
+  repair is not falsely reopened. Current analysis contains no mechanical path
+  failure.
+- Reduced the four remaining live findings to one guarded semantic identity
+  packet spanning the framework adapter and Worker framework client. Automatic
+  rewriting remains disabled because these paths bind provenance and runtime
+  identity.
+- Nine focused inventory tests passed. No component suite, adapter, worker,
+  model, or component code ran; no execution authority or push was granted.

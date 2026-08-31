@@ -1,6 +1,12 @@
 import json
 
-from tools.inventory_trees import analyze_text, classify_path, language_for, role_for
+from tools.inventory_trees import (
+    analyze_text,
+    build_findings,
+    classify_path,
+    language_for,
+    role_for,
+)
 from tools.plan_repairs import build_plan
 
 
@@ -43,11 +49,61 @@ def changed_tests(paths):
     )
 
 
+def test_python_inventory_locates_dynamic_adapter_git_object_lookup():
+    source = '''
+ADAPTER_RELATIVE_PATH = "tools/worker_lab_adapter.py"
+blob = _git(root, "show", f"{commit}:{ADAPTER_RELATIVE_PATH}")
+'''
+
+    result = analyze_text("worker_lab/framework_client.py", "python", source)
+
+    assert result["structures"]["git_object_lookups"] == [
+        {
+            "line": 3,
+            "expression": '_git(root, "show", f"{commit}:{ADAPTER_RELATIVE_PATH}")',
+        }
+    ]
+
+
 def test_file_classification_keeps_tests_docs_and_configs_separate():
     assert language_for("tests/test_x.py", False) == "python"
     assert role_for("tests/test_x.py", "python") == "test"
     assert role_for("docs/CURRENT_STATE.md", "markdown") == "documentation"
     assert role_for("pyproject.toml", "toml") == "configuration"
+
+
+def test_repaired_path_normalization_is_not_reported_as_path_008():
+    source = '''
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]
+
+def _component_relative_paths(paths, repository_root):
+    prefix = ROOT.relative_to(repository_root).as_posix() + "/"
+    return [path.removeprefix(prefix) for path in paths if path.startswith(prefix)]
+
+def discover_changed_paths():
+    subprocess.run(("git", "diff", "--name-only"))
+
+def changed_tests(paths):
+    return [path for path in paths if path.startswith("tests/") and (ROOT / path).is_file()]
+'''
+    analysis = analyze_text("tools/local_validate.py", "python", source)
+    inventory = {
+        "component": "AWF",
+        "files": [
+            {
+                "file_id": "AWF:tools/local_validate.py",
+                "component": "AWF",
+                "source_path": "tools/local_validate.py",
+                "destination_path": "components/autonomous-worker-framework/tools/local_validate.py",
+                "role": "tool",
+                **analysis,
+            }
+        ],
+    }
+
+    assert "component_path_normalization" in analysis["signals"]
+    assert build_findings([inventory])["findings"] == []
 
 
 def test_repair_plan_requires_an_active_registered_mechanical_finding(tmp_path):

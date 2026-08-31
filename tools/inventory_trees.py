@@ -226,6 +226,7 @@ class PythonStructureVisitor(ast.NodeVisitor):
         self.functions: list[dict[str, Any]] = []
         self.classes: list[dict[str, Any]] = []
         self.calls: list[dict[str, Any]] = []
+        self.git_object_lookups: list[dict[str, Any]] = []
         self.environment_variables: set[str] = set()
         self.path_references: list[dict[str, Any]] = []
         self._path_seen: set[tuple[int, int, str, str]] = set()
@@ -256,6 +257,20 @@ class PythonStructureVisitor(ast.NodeVisitor):
     def visit_Call(self, node: ast.Call) -> None:
         function = ast.unparse(node.func) if hasattr(ast, "unparse") else "call"
         expression = ast.get_source_segment(self.source, node) or function
+        if (
+            function == "_git"
+            and any(
+                isinstance(argument, ast.Constant) and argument.value == "show"
+                for argument in node.args
+            )
+            and (
+                "worker_lab_adapter" in expression
+                or "ADAPTER_RELATIVE_PATH" in expression
+            )
+        ):
+            self.git_object_lookups.append(
+                {"line": node.lineno, "expression": expression[:500]}
+            )
         if "__file__" in expression:
             _record_path(
                 self.path_references,
@@ -370,6 +385,7 @@ def analyze_text(path: str, language: str, text: str) -> dict[str, Any]:
         "functions": [],
         "classes": [],
         "calls": [],
+        "git_object_lookups": [],
         "environment_variables": sorted(
             set(PYTHON_ENV.findall(text)) | set(POWERSHELL_ENV.findall(text))
         ),
@@ -387,6 +403,7 @@ def analyze_text(path: str, language: str, text: str) -> dict[str, Any]:
                     "functions": visitor.functions,
                     "classes": visitor.classes,
                     "calls": visitor.calls,
+                    "git_object_lookups": visitor.git_object_lookups,
                     "environment_variables": sorted(
                         set(structures["environment_variables"])
                         | visitor.environment_variables
@@ -429,6 +446,9 @@ def analyze_text(path: str, language: str, text: str) -> dict[str, Any]:
             ),
             "component_relative_test_selector": "startswith(\"tests/\")" in text
             or "startswith('tests/')" in text,
+            "component_path_normalization": "_component_relative_paths" in text
+            and ".relative_to(" in text
+            and ".removeprefix(" in text,
             "adapter_root_object": "tools/worker_lab_adapter.py" in text
             and '"show"' in text,
             "adapter_standalone_identity": path == "tools/worker_lab_adapter.py"
@@ -569,6 +589,7 @@ def build_findings(inventories: Iterable[dict[str, Any]]) -> dict[str, Any]:
                     "component_relative_test_selector",
                 }
                 <= signals
+                and "component_path_normalization" not in signals
             ):
                 findings.append(
                     {
@@ -610,29 +631,45 @@ def build_findings(inventories: Iterable[dict[str, Any]]) -> dict[str, Any]:
                         }
                     )
                 if "adapter_root_object" in signals:
-                    object_reference = next(
-                        (
-                            item
-                            for item in file["path_references"]
-                            if item["path_type"] == "git_object_path"
-                        ),
-                        None,
+                    is_runtime_adapter = (
+                        component == "AWF"
+                        and file["source_path"] == "tools/worker_lab_adapter.py"
+                    ) or (
+                        component == "WLAB"
+                        and file["source_path"] == "worker_lab/framework_client.py"
                     )
-                    findings.append(
-                        {
-                            "finding_id": _finding_id(component, "GIT-OBJECT", file["file_id"], 1),
-                            "status": "KNOWN_GAP",
-                            "severity": "high",
-                            "repair_class": "SEMANTIC_REVIEW",
-                            "component": component,
-                            "file_id": file["file_id"],
-                            "source_path": file["source_path"],
-                            "destination_path": file["destination_path"],
-                            "line": object_reference["line"] if object_reference else 1,
-                            "summary": "Git object lookup assumes the adapter is at repository-root tools/.",
-                            "evidence": "HEAD:tools/worker_lab_adapter.py",
-                        }
-                    )
+                    if is_runtime_adapter:
+                        object_reference = next(
+                            (
+                                item
+                                for item in file["path_references"]
+                                if item["path_type"] == "git_object_path"
+                            ),
+                            None,
+                        )
+                        lookup = next(
+                            iter(file["structures"].get("git_object_lookups", [])),
+                            None,
+                        )
+                        findings.append(
+                            {
+                                "finding_id": _finding_id(component, "GIT-OBJECT", file["file_id"], 1),
+                                "status": "KNOWN_GAP",
+                                "severity": "high",
+                                "repair_class": "SEMANTIC_REVIEW",
+                                "component": component,
+                                "file_id": file["file_id"],
+                                "source_path": file["source_path"],
+                                "destination_path": file["destination_path"],
+                                "line": (
+                                    object_reference["line"]
+                                    if object_reference
+                                    else lookup["line"] if lookup else 1
+                                ),
+                                "summary": "Git object lookup assumes the adapter is at repository-root tools/.",
+                                "evidence": "HEAD:tools/worker_lab_adapter.py",
+                            }
+                        )
                 if "framework_standalone_pin" in signals:
                     reference = next(
                         (

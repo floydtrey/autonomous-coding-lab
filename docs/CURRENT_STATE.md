@@ -172,3 +172,19 @@ Standalone parity is complete. Coordinated Worker/framework identity adaptation
 to address P-006, complete bilateral P-007, and wire a new protocol remains a
 separately authorized gate. No worker/model execution, cross-component
 adaptation, push, or publication is authorized by this checkpoint.
+
+The deterministic integration scanner now inventories the current imported
+component trees separately from their immutable source inventories. At clean
+checkpoint `d28cbbb43ae1cd09cfbd1d2fc016c63c12959916`, it parsed all 40 framework
+files and all 68 Worker Lab files with no parser failures. The source-to-current
+delta is exactly the already recorded framework P-008/identity additions and
+four Worker parity-test repairs; no file was removed.
+
+Current-tree analysis reports no active mechanical path failure. Four remaining
+findings reduce to one semantic boundary across
+`components/autonomous-worker-framework/tools/worker_lab_adapter.py` and
+`components/worker-lab/worker_lab/framework_client.py`: standalone Git identity,
+the absolute framework pin, and repository-root adapter object lookup. The
+guarded packet is recorded in
+`migration/inventory/integration-repair-plan.json`; automatic rewriting is
+disabled. This evidence does not authorize adapter wiring or execution.

@@ -1,0 +1,273 @@
+{
+  "components": [
+    {
+      "change_counts": {
+        "ADDED": 2,
+        "MODIFIED": 2,
+        "REMOVED": 0,
+        "UNCHANGED": 36
+      },
+      "changes": [
+        {
+          "file_id": "AWF:tests/test_local_validate.py",
+          "integrated_blob": "3660e1280cb9f42ab4f1a59cb40748657754c8f2",
+          "integrated_path": "components/autonomous-worker-framework/tests/test_local_validate.py",
+          "relative_path": "tests/test_local_validate.py",
+          "source_blob": "6a11d263fae73b39fe00b3d99115176eb3ee9e0b",
+          "status": "MODIFIED",
+          "structural_delta": {
+            "path_references": {
+              "added": [
+                {
+                  "column": 13,
+                  "expression": "components/autonomous-worker-framework/tools/a.py",
+                  "line": 82,
+                  "literal": "components/autonomous-worker-framework/tools/a.py",
+                  "path_type": "repo_root_relative"
+                },
+                {
+                  "column": 13,
+                  "expression": "components/worker-lab/worker_lab/a.py",
+                  "line": 83,
+                  "literal": "components/worker-lab/worker_lab/a.py",
+                  "path_type": "repo_root_relative"
+                },
+                {
+                  "column": 14,
+                  "expression": "components\\autonomous-worker-framework\\tests\\test_a.py",
+                  "line": 86,
+                  "literal": "components\\autonomous-worker-framework\\tests\\test_a.py",
+                  "path_type": "repo_root_relative"
+                },
+                {
+                  "column": 13,
+                  "expression": "docs/CURRENT_STATE.md",
+                  "line": 89,
+                  "literal": "docs/CURRENT_STATE.md",
+                  "path_type": "component_root_relative"
+                },
+                {
+                  "column": 26,
+                  "expression": "{tmp_path}\\n",
+                  "line": 99,
+                  "literal": "{tmp_path}\\n",
+                  "path_type": "dynamic_or_relative"
+                },
+                {
+                  "column": 26,
+                  "expression": "{validator.ROOT}\\n",
+                  "line": 62,
+                  "literal": "{validator.ROOT}\\n",
+                  "path_type": "dynamic_or_relative"
+                }
+              ],
+              "removed": []
+            },
+            "signals": {
+              "added": [
+                "git_repo_root"
+              ],
+              "removed": []
+            },
+            "structures": {
+              "functions": {
+                "added": [
+                  {
+                    "line": 110,
+                    "name": "test_component_relative_paths_rejects_component_outside_repository"
+                  },
+                  {
+                    "line": 75,
+                    "name": "test_discover_changed_paths_strips_monorepo_prefix_and_ignores_siblings"
+                  }
+                ],
+                "removed": []
+              }
+            }
+          }
+        },
+        {
+          "file_id": "AWF:tests/test_monorepo_identity.py",
+          "integrated_blob": "178839fe470105a4822a70e927dd09a0baf913de",
+          "integrated_path": "components/autonomous-worker-framework/tests/test_monorepo_identity.py",
+          "relative_path": "tests/test_monorepo_identity.py",
+          "source_blob": null,
+          "status": "ADDED"
+        },
+        {
+          "file_id": "AWF:tools/local_validate.py",
+          "integrated_blob": "57cef62a639f607d95a73b3155f609c97154f2a7",
+          "integrated_path": "components/autonomous-worker-framework/tools/local_validate.py",
+          "relative_path": "tools/local_validate.py",
+          "source_blob": "05d780716055506bb4f422a9825d7752217235e9",
+          "status": "MODIFIED",
+          "structural_delta": {
+            "path_references": {
+              "added": [
+                {
+                  "column": 33,
+                  "expression": ".",
+                  "line": 81,
+                  "literal": ".",
+                  "path_type": "cwd_relative"
+                },
+                {
+                  "column": 32,
+                  "expression": "Path(\".\")",
+                  "line": 81,
+                  "literal": ".",
+                  "path_type": "cwd_relative"
+                },
+                {
+                  "column": 48,
+                  "expression": "component_prefix.as_posix().rstrip(\"/\")",
+                  "line": 84,
+                  "literal": "/",
+                  "path_type": "dynamic_or_relative"
+                }
+              ],
+              "removed": []
+            },
+            "signals": {
+              "added": [
+                "component_path_normalization",
+                "git_repo_root"
+              ],
+              "removed": []
+            },
+            "structures": {
+              "calls": {
+                "added": [
+                  {
+                    "function": "ROOT.resolve",
+                    "line": 71
+                  },
+                  {
+                    "function": "repository_root.resolve",
+                    "line": 72
+                  }
+                ],
+                "removed": []
+              },
+              "functions": {
+                "added": [
+                  {
+                    "line": 68,
+                    "name": "_component_relative_paths"
+                  }
+                ],
+                "removed": []
+              }
+            }
+          }
+        },
+        {
+          "file_id": "AWF:tools/monorepo_identity.py",
+          "integrated_blob": "ffaf691d4da5f28fcc5632d1bc60ca3ff0441a75",
+          "integrated_path": "components/autonomous-worker-framework/tools/monorepo_identity.py",
+          "relative_path": "tools/monorepo_identity.py",
+          "source_blob": null,
+          "status": "ADDED"
+        }
+      ],
+      "component": "AWF",
+      "component_prefix": "components/autonomous-worker-framework",
+      "integrated_tree": "5a3b19c11ac00d7c88bfd62ff09872aa115eabf6",
+      "source_commit": "3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd",
+      "source_tree": "35ecad05e60c664324a4f30d42a4f6b198181074"
+    },
+    {
+      "change_counts": {
+        "ADDED": 0,
+        "MODIFIED": 4,
+        "REMOVED": 0,
+        "UNCHANGED": 64
+      },
+      "changes": [
+        {
+          "file_id": "WLAB:tests/test_cli.py",
+          "integrated_blob": "28efb0dc37c5f59f563fd529d409217912e8066e",
+          "integrated_path": "components/worker-lab/tests/test_cli.py",
+          "relative_path": "tests/test_cli.py",
+          "source_blob": "e6feef5f75a89d0848d987f8fd79f3554e58a962",
+          "status": "MODIFIED",
+          "structural_delta": {
+            "structures": {
+              "imports": {
+                "added": [
+                  {
+                    "line": 16,
+                    "module": "worker_lab.lifecycle",
+                    "names": [
+                      "transition_attempt"
+                    ]
+                  },
+                  {
+                    "line": 13,
+                    "module": "worker_lab.models",
+                    "names": [
+                      "AttemptState",
+                      "EvidenceRecord",
+                      "ExerciseRecord"
+                    ]
+                  }
+                ],
+                "removed": [
+                  {
+                    "line": 13,
+                    "module": "worker_lab.models",
+                    "names": [
+                      "EvidenceRecord",
+                      "ExerciseRecord"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "file_id": "WLAB:tests/test_evidence.py",
+          "integrated_blob": "f70191a1b1a0bab6f028acf5f58e59daae2bf4a9",
+          "integrated_path": "components/worker-lab/tests/test_evidence.py",
+          "relative_path": "tests/test_evidence.py",
+          "source_blob": "9bf273aa6fc6a2234349e60a180f3dea9ae030d8",
+          "status": "MODIFIED",
+          "structural_delta": {
+            "content_only": true
+          }
+        },
+        {
+          "file_id": "WLAB:tests/test_validation.py",
+          "integrated_blob": "7aafc55f36a4dcb676cc12ec0b543a56ddadfe66",
+          "integrated_path": "components/worker-lab/tests/test_validation.py",
+          "relative_path": "tests/test_validation.py",
+          "source_blob": "9d4ec13088c4ecd0d5e9da69c65e694682b5f802",
+          "status": "MODIFIED",
+          "structural_delta": {
+            "content_only": true
+          }
+        },
+        {
+          "file_id": "WLAB:tests/test_workspace_receipt.py",
+          "integrated_blob": "974bb6f6497c4ce9554dcb1b2bfb8d257a74ca2a",
+          "integrated_path": "components/worker-lab/tests/test_workspace_receipt.py",
+          "relative_path": "tests/test_workspace_receipt.py",
+          "source_blob": "e4f6ec078cb59a38d4c18ca877b2590bd656e7be",
+          "status": "MODIFIED",
+          "structural_delta": {
+            "content_only": true
+          }
+        }
+      ],
+      "component": "WLAB",
+      "component_prefix": "components/worker-lab",
+      "integrated_tree": "2c12c6ab1b18c9fef96fdaad82b6a40270e9ca16",
+      "source_commit": "fddf0726b975a8192d5e126f109e6fc756f11b36",
+      "source_tree": "5fe9e3f153b48543a57f3b9d1e339b3cd875930a"
+    }
+  ],
+  "monorepo_commit": "d28cbbb43ae1cd09cfbd1d2fc016c63c12959916",
+  "monorepo_tree": "72df8488c891dd99d26df7891e7fc6706ffb83d9",
+  "schema_version": "acl-source-integration-delta:v1"
+}

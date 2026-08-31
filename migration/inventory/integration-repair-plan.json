@@ -1,0 +1,41 @@
+{
+  "automatic_rewrite": false,
+  "based_on_monorepo_commit": "d28cbbb43ae1cd09cfbd1d2fc016c63c12959916",
+  "packets": [
+    {
+      "classification": "SEMANTIC_REVIEW",
+      "completion_condition": "The two components consume one fail-closed monorepo identity without an absolute standalone framework pin or repository-root adapter object assumption; execution remains disabled.",
+      "finding_ids": [
+        "AWF-GIT-OBJECT-5ABAEEC8",
+        "AWF-IDENTITY-STANDALONE",
+        "WLAB-FRAMEWORK-PIN-60AB028F",
+        "WLAB-GIT-OBJECT-67E2C9BD"
+      ],
+      "objective": "Replace the bilateral standalone repository assumptions with the accepted monorepo identity boundary.",
+      "packet_id": "M3-SEMANTIC-IDENTITY-001",
+      "production_files": [
+        "components/autonomous-worker-framework/tools/worker_lab_adapter.py",
+        "components/worker-lab/worker_lab/framework_client.py"
+      ],
+      "prohibited_expansion": [
+        "adapter execution or protocol activation",
+        "component authority transfer",
+        "external target repository changes",
+        "model or worker execution",
+        "universal evidence envelope"
+      ],
+      "required_negative_tests": [
+        "absolute standalone framework pin rejection",
+        "component prefix substitution",
+        "dependency drift and dirty sibling",
+        "repository-root adapter object substitution",
+        "stale source and integration provenance"
+      ],
+      "supporting_policy_files": [
+        "components/autonomous-worker-framework/tools/monorepo_identity.py",
+        "config/monorepo-identity.json"
+      ]
+    }
+  ],
+  "schema_version": "acl-integration-repair-plan:v1"
+}
