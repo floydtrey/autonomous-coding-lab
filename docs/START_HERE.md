@@ -48,7 +48,7 @@ Read only the row that matches the current task, plus the directly changed code 
 | Backup, restore, or rollback | Backup section of `PHASE2_SPEC.md`, P2-C11/P2-C12, `worker_lab/backup.py`, `tests/test_backup.py`, and prior milestone evidence only as a format reference |
 | Phase 1 audit or historical rollback | `PHASE1_AUDIT_CHECKLIST.md` and `MILESTONE_EVIDENCE.md` |
 | Phase 3 or cross-repository interface | Active Worker Lab state plus the relevant Autonomous Worker Framework specifications |
-| Phase 3C adapter candidate | `PHASE3C_SECURITY_DECISIONS.md`, `TERRA_PHASE3C_ADAPTER.md`, then only the directly affected Worker Lab and framework contracts named there |
+| Phase 3C adapter candidate | `CURRENT_STATE.md`, `PHASE3C_SECURITY_DECISIONS.md`, then only the directly affected Worker Lab and framework contracts |
 
 Do not read Phase 1 evidence for ordinary Phase 2 implementation. Do not read Autonomous Worker
 Framework specifications during Phase 2 unless the task changes a cross-repository contract. Do not

@@ -105,10 +105,10 @@ recovery artifacts. The Phase 2 review is recorded in `PHASE2_READINESS_REVIEW.m
 
 The Worker Lab half of Phase 3B is accepted: strict invocation/result records, atomic guarded
 invocation storage, immutable `worker-lab-v3` bindings, and a runner-injected preparation seam that
-fails without a test fake. `PHASE3C_SECURITY_DECISIONS.md` now settles the reserved adapter identity,
+fails without a test fake. `PHASE3C_SECURITY_DECISIONS.md` settles the reserved adapter identity,
 Windows Job Object containment, process-absence, content-bound, retention, runtime-binding, catalog,
-and framework-milestone choices. `TERRA_PHASE3C_ADAPTER.md` defines the next bounded two-repository
-candidate using fakes and inert process fixtures only.
+and framework-milestone choices. The resulting bounded two-repository candidate uses fakes and inert
+process fixtures only.
 
 The Phase 3C candidates add adapter protocol, fixed Worker Lab command configuration
 pinned to framework commit `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd`,

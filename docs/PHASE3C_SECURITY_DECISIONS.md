@@ -204,8 +204,8 @@ Worker Lab `v0.3.0` remains reserved for the Batch 3E Phase 3 recovery/milestone
 
 ## Implementation approval and final stop
 
-These decisions authorize the bounded implementation described by `TERRA_PHASE3C_ADAPTER.md` using
-fakes and inert child-process fixtures. They do not authorize:
+These decisions authorized the bounded implementation recorded in Git history and
+`CURRENT_STATE.md`, using fakes and inert child-process fixtures. They do not authorize:
 
 - calling Codex, checking live authentication, or running a real worker;
 - a real adapter request against a workspace;
@@ -214,4 +214,5 @@ fakes and inert child-process fixtures. They do not authorize:
 - a commit, tag, push, PR, merge, backup, cleanup, or remote operation; or
 - any external product repository.
 
-After Terra's candidate and report are complete, stop for trusted review.
+The completed candidate remains subject to the current authority and next boundary in
+`CURRENT_STATE.md`.
