@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-30
-**Status:** M2 standalone parity complete; in-monorepo testing not authorized
+**Status:** M2 in-monorepo exposure complete; P-008 repair not authorized
 **Canonical repository:** Merger governance plus exact framework bytes; component authority has not transferred
 
 ## Target repository
@@ -94,6 +94,13 @@ first test attempt was environment-invalid because pytest could not access its
 pre-existing default Windows temp directory; the unchanged documented command
 passed after `TEMP` and `TMP` were directed to a fresh disposable directory.
 
-No framework test has run from its prefixed monorepo location. That separately
-authorized exposure run is the next gate. Path adaptation, component authority
-transfer, and all worker/model execution remain disabled.
+The unchanged full validator also passed from the prefixed component root: Python
+compilation passed and all 163 tests passed. A focused quick-validation probe
+against base `bbc2e831328c841ae204e4fd6064202a18d3ee5d` discovered 46 changed
+paths, including 38 framework paths carrying the monorepo prefix, but selected
+zero stages and returned success. This proves P-008: `_existing_files` and the
+changed-test selector expect component-relative paths.
+
+The next gate is a separately authorized minimal P-008 repair plus focused
+regression and full validation. No other path adaptation, component-authority
+transfer, or worker/model execution is authorized.

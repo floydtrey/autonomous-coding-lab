@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M2 standalone parity complete; in-monorepo testing not authorized
+**Current milestone:** M2 prefix exposure complete; quick-validator repair not authorized
 **Execution authority:** Disabled
 
 ## First actions
@@ -35,6 +35,8 @@ and no execution.
 
 The framework recovery artifact and source identities passed M2-A. M2-B imported
 the exact framework tree with complete reachable ancestry and namespaced tags.
-The untouched full suite then passed from an exact disposable standalone
-reconstruction. The next gate is separately authorized in-monorepo testing to
-expose prefix-dependent behavior. Adaptation and execution remain disabled.
+The untouched full suite passed from an exact disposable standalone
+reconstruction, and the prefixed in-monorepo full suite also passed. Focused
+testing proved the quick validator falsely selects no stages for monorepo-prefixed
+paths. The next gate is a separate P-008 repair with regression tests. All other
+adaptation and execution remain disabled.

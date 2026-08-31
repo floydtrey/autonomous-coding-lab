@@ -1,6 +1,6 @@
 # Framework M2 Recovery and Exact-Import Preflight
 
-**Status:** VERIFIED — exact import and untouched standalone parity complete
+**Status:** VERIFIED — exact import, standalone parity, and prefix exposure complete
 **Observed:** 2026-08-30
 **Execution authority:** Disabled
 **Component import performed:** Yes — exact tracked source tree only
@@ -271,6 +271,30 @@ default Windows temp directory. No test reported a framework assertion failure.
 The unchanged documented command passed after `TEMP` and `TMP` were directed to
 a fresh directory inside the disposable parity area.
 
-Untouched standalone parity is `VERIFIED COMPLETE`. In-monorepo testing remains
-unstarted and requires separate authorization. Prefix adaptation, identity
-implementation, component-authority transfer, and execution remain disabled.
+Untouched standalone parity was `VERIFIED COMPLETE` at this checkpoint.
+In-monorepo testing then required separate authorization; its later result is
+recorded in section 9. Prefix adaptation, identity implementation,
+component-authority transfer, and execution remained disabled.
+
+## 9. In-monorepo prefix exposure gate
+
+The user separately authorized the next step after standalone parity. From
+`components/autonomous-worker-framework/`, the unchanged documented full
+validator passed compilation and all 163 tests under Python 3.12.10 and pytest
+9.1.1. The first compile attempt was environment-invalid because the restricted
+sandbox could not create ignored `__pycache__` directories; the unchanged command
+passed when granted write access for generated caches.
+
+The focused quick-validator probe used base
+`bbc2e831328c841ae204e4fd6064202a18d3ee5d`. It discovered 46 paths: 38 imported
+framework paths under `components/autonomous-worker-framework/` and eight root
+governance paths. Because `quick_stages` expects component-relative paths, it
+selected no compile or test stage and returned success with:
+
+`No applicable local validation stages were required.`
+
+This is a reproduced fail-open validation-selection defect, not a full-suite
+regression. Generated caches and the dedicated pytest temp directory were
+removed after validation; ACL and source worktrees remained clean. P-008 repair
+and regression tests require separate authorization. Adapter identity repair,
+component-authority transfer, and execution remain disabled.

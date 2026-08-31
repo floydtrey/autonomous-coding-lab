@@ -12,7 +12,7 @@ unless this document explicitly selects it later.
 | Component | Exact observed HEAD | Tracked scope | Distribution | Principal review gate |
 |---|---|---:|---|---|
 | Worker Lab | `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684` | 85 files / 768,850 bytes / 43 commits | No license file; private internal use only | Preserve nine local-only commits; resolve 17-deletion disposition; migrate standalone identities |
-| Execution framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` | 38 files / 288,791 bytes / 33 commits | No license file; private internal use only | Exact import and untouched standalone parity verified; in-monorepo testing requires separate authorization |
+| Execution framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` | 38 files / 288,791 bytes / 33 commits | No license file; private internal use only | Exact import and both full-suite contexts verified; focused P-008 repair requires separate authorization |
 | Local Model Bench | `4a023c8230365c3098a6dff71fa9623cac059cdd` | 59 files / 252,116 bytes / 7 commits | MIT; preserve component license | Classify selected compact evidence; native run is complete but semantically unreviewed |
 
 File and byte counts are the exact `HEAD` trees, not filesystem counts.
@@ -153,10 +153,11 @@ second parent and the accepted source tree unchanged under
 drill, namespaced tags, import procedure, and proof are recorded in
 `FRAMEWORK_M2_RECOVERY.md`.
 
-Adapter execution remains disabled. Untouched full-suite parity passed from an
-exact disposable standalone reconstruction: compile passed and all 163 tests
-passed. In-monorepo prefix testing and adaptation remain separate gates. M2 may
-not silently authorize the new identity contract.
+Adapter execution remains disabled. Untouched standalone and prefixed
+in-monorepo full validation each passed all 163 tests. Focused exposure proved
+that quick validation receives prefixed paths, selects no stages, and falsely
+succeeds. P-008 repair remains a separate gate. M2 may not silently authorize
+the new identity contract.
 
 ## Local Model Bench
 

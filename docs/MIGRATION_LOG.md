@@ -152,3 +152,22 @@ Resolution and next gates:
   component file, and performed no network operation or push.
 - In-monorepo prefix testing is the next separately authorized gate. Adaptation,
   component-authority transfer, and execution remain disabled.
+
+## 2026-08-30 — M2 in-monorepo framework exposure
+
+- Ran the unchanged documented full validator from the prefixed framework
+  component root. Compilation passed and all 163 tests passed.
+- Classified the first compile attempt as environment-invalid because the
+  restricted sandbox could not create ignored Python caches. The unchanged
+  command passed after granting cache-write access.
+- Ran the focused quick validator against pre-import base
+  `bbc2e831328c841ae204e4fd6064202a18d3ee5d`. It discovered 46 changed paths but
+  selected zero stages and returned success.
+- Confirmed the cause is P-008 path handling: framework paths retain the
+  `components/autonomous-worker-framework/` Git prefix, while `_existing_files`
+  and changed-test selection expect component-relative paths.
+- Removed only generated ignored caches and the dedicated pytest temp directory.
+  ACL and source repositories remained clean; no imported code was changed, no
+  worker or model ran, and no network operation or push occurred.
+- P-008 repair with focused regression tests is the next separately authorized
+  gate. All other adaptation and execution remain disabled.
