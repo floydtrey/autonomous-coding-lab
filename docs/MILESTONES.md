@@ -26,7 +26,7 @@
 
 ## M2 — Execution framework import
 
-**Status:** Import, parity, structural baseline, and guarded P-008 repair complete; semantic identity adaptation pending
+**Status:** Framework-only import, parity, path repair, and identity verifier complete; bilateral activation deferred to M3
 
 - Begin from a clean, accepted M1 checkpoint commit.
 - Reverify source identities and create a checksummed framework recovery bundle

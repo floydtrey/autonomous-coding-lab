@@ -1,0 +1,31 @@
+{
+  "authority": {
+    "adapter_cli_wired": false,
+    "execution_authority": "DISABLED",
+    "worker_lab_deferred": true
+  },
+  "identity": {
+    "adapter_blob": "d38b6a366dc2a69187e217b007af7638ee9cc419",
+    "adapter_digest": "sha256:b9f53081d23b0c16f5b262dc900df1ac08a09fef12711c1f2b4fa98552eda558",
+    "adapter_path": "components/autonomous-worker-framework/tools/worker_lab_adapter.py",
+    "component_prefix": "components/autonomous-worker-framework",
+    "component_tree": "5a3b19c11ac00d7c88bfd62ff09872aa115eabf6",
+    "dependency_set_version": "whole-component:v1",
+    "identity_digest": "sha256:98dcf445573f11c7ea004cfd8ab2ecf9fcb7805769cdb41e33f7fb593de0a205",
+    "import_commit": "d1c95814bce512318c61a5745dcd684d87e3676a",
+    "monorepo_commit": "57a298562de274cd4f989a2a5741861a5a5b56a8",
+    "monorepo_tree": "32c0146b46a085b6a40a1e7908cb418f8f0607c4",
+    "policy_blob": "2d6efb90bc68336189920f2a8a8213e7793b37f9",
+    "policy_digest": "sha256:0710617d03cb5a202186428e84941b607cd60ba2b691d975369670a81d7c603f",
+    "policy_path": "config/monorepo-identity.json",
+    "source_commit": "3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd",
+    "source_tree": "35ecad05e60c664324a4f30d42a4f6b198181074"
+  },
+  "schema_version": "acl-framework-m2-identity-evidence:v1",
+  "validation": {
+    "full_framework": "197 passed in 45.76s",
+    "m2_s1_focused": "21 passed in 0.11s",
+    "m2_s2_focused": "32 passed in 0.42s",
+    "real_repository_verification": "PASS"
+  }
+}

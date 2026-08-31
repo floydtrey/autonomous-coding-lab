@@ -31,6 +31,11 @@ separate `resolutions.json` binds a resolved finding to exact monorepo commit,
 tree, destination blobs, and validation evidence without rewriting the source
 snapshot.
 
+`framework-m2-identity-evidence.json` records the exact clean commit verified by
+the unwired framework-only identity checker. It is checkpoint evidence, not the
+runtime policy and not execution authority; the runtime policy is the canonical
+`config/monorepo-identity.json` file.
+
 The tools read source repositories through Git object commands and never import
 or execute component code. A repair plan does not grant edit, execution, commit,
 push, or publication authority.

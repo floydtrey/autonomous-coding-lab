@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M2 structural baseline and guarded P-008 repair complete
+**Current milestone:** M2 framework-only identity adaptation complete; M3 exact Worker import pending
 **Execution authority:** Disabled
 
 ## First actions
@@ -42,7 +42,8 @@ reconstruction, and the prefixed in-monorepo full suite also passed. Focused
 testing proved the quick validator falsely selects no stages for monorepo-prefixed
 paths. The deterministic structural inventory classifies P-008 as the sole
 mechanical failure and records the remaining issues as known semantic/runtime
-gaps. P-008 is repaired and validated in the monorepo, with its exact integration
-evidence recorded separately from the immutable source finding. Stop before the
-semantic identity/security adaptation unless it is separately authorized. All
-execution remains disabled.
+gaps. P-008 is repaired and validated in the monorepo. The framework-only
+identity policy and unwired verifier now bind source provenance, monorepo
+integration evidence, exact paths/blobs, and the M2 dependency closure. Worker
+Lab identity, bilateral cleanliness, protocol wiring, and all execution remain
+deferred. The next gate is M3 exact Worker Lab recovery/import.

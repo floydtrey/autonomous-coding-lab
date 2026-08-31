@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-30
-**Status:** M2 structural baseline and guarded P-008 repair complete
+**Status:** M2 framework-only identity adaptation complete; bilateral activation deferred
 **Canonical repository:** Merger governance plus exact framework bytes; component authority has not transferred
 
 ## Target repository
@@ -119,7 +119,23 @@ fresh regeneration changed none of the eight immutable source-baseline JSON
 artifacts. `migration/inventory/resolutions.json` binds the exact repaired blobs
 and evidence without rewriting the source finding.
 
-The next boundary is the semantic monorepo identity/security adaptation. It must
-implement the already accepted fail-closed contract before any component
-authority transfer or execution. No semantic identity change, Worker Lab import,
-worker/model execution, push, or publication is authorized by this checkpoint.
+M2-S1 commit `6622c24ade7e08a66aa62d23837aad11ff08e0a4`
+introduced a canonical framework-only identity policy and strict parser. The
+policy separates immutable source provenance from future dynamic integration
+identity, declares the whole framework component plus its policy file as the M2
+dependency closure, keeps Worker Lab deferred, and cannot grant execution.
+
+M2-S2 commit `57a298562de274cd4f989a2a5741861a5a5b56a8`
+added an unwired Git-backed verifier. Against that exact clean commit it bound
+the source/import/current trees, canonical framework prefix, committed and
+worktree adapter bytes, policy blob, and scoped tracked/untracked cleanliness.
+The resulting identity digest is
+`sha256:98dcf445573f11c7ea004cfd8ab2ecf9fcb7805769cdb41e33f7fb593de0a205`.
+Thirty-two focused tests and all 197 framework tests passed.
+
+The v1 adapter protocol and CLI were not changed and do not consume the new
+verifier. Execution remains disabled. The next gate is M3 exact Worker Lab
+recovery/import; only after that may a coordinated Worker/framework identity
+contract address P-006, complete bilateral P-007, and wire a new protocol.
+No Worker Lab import, worker/model execution, push, or publication is authorized
+by this checkpoint.
