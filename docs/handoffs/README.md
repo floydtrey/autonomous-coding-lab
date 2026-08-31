@@ -22,8 +22,17 @@ the active merger contract.
 
 | ID | Area | Status | File |
 |---|---|---|---|
+| H01 | Worker Lab and framework boundary | Accepted canonical witness | `H01-Handoff.txt` |
 | H03 | Local Model Benchmark and merger foundation | Prepared | `H03-LOCAL-MODEL-BENCHMARK-AND-MERGER-FOUNDATION.md` |
+
+The excluded `H01-Handoff.md` duplicate differed from the user-supplied `.txt`
+only by a missing first-line Markdown heading marker. The user accepted the
+unchanged `.txt` as canonical on 2026-08-30; the malformed duplicate was removed
+instead of being indexed as a second handoff.
+
+The current cross-handoff reconciliation is
+`CONSOLIDATION_RECONCILIATION.md`. Its D-01 through D-06 decisions were accepted
+by the user on 2026-08-30.
 
 Add incoming reports to this index only after their content has been preserved
 exactly. Normalization and conflict resolution happen in a separate document.
-

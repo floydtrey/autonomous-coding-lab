@@ -1,0 +1,219 @@
+# PROJECT CONSOLIDATION HANDOFF — H01
+
+## Handoff Metadata
+
+- **Handoff ID:** H01
+- **Source label:** Automated Workers New — Worker Lab
+- **Prepared:** 2026-08-30T05:10:43-05:00
+- **Conversation/task title:** Automated Workers New — Worker Lab (CHAT-ONLY)
+- **Task ID:** UNKNOWN
+- **Repository:** `worker-lab`
+- **Path:** `C:\Users\MineTrackerWorker\repos\worker-lab`
+- **Coverage:** One repository. The separately rooted Autonomous Worker Framework is a pinned runtime dependency, not an import source in this handoff.
+- **Branch / HEAD:** `main` at `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684` (VERIFIED)
+- **HEAD tree:** `cf7fb964aa25aabb076292865f2367f0cecb4c04` (VERIFIED)
+- **Upstream relation:** local `main` is 9 commits ahead and 0 behind `origin/main` (VERIFIED)
+- **Remote:** `origin` fetch/push `https://github.com/floydtrey/worker-lab.git` (VERIFIED)
+- **Tags at current HEAD:** None (VERIFIED)
+- **Working tree:** 17 tracked historical/report files are deleted from the repository working tree after relocation to Legacy; no staged changes or ordinary untracked files were reported. Ignored runtime/cache paths exist. (VERIFIED)
+- **Dependency identity:** `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`, `main`, HEAD `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd`, tree `35ecad05e60c664324a4f30d42a4f6b198181074`, tag `v0.2.6-worker-lab-final-message`, with no configured remote observed. (VERIFIED)
+
+Verification used Git identity/status commands; `C:\Users\MineTrackerWorker\repos\worker-lab\AGENTS.md`; Worker Lab source and current-state documents; and the pinned framework source files.
+
+## 1. Purpose and Scope
+
+Worker Lab owns the protected learning and evaluation controller: authoritative curricula, exercises, policies, attempts, evidence, lifecycle transitions, and evaluation decisions. It is intended to consume a strict local framework adapter through a bounded contract. (RECORDED: `C:\Users\MineTrackerWorker\repos\worker-lab\docs\PHASE3_SPEC.md`)
+
+It does not own Codex authentication, raw provider options, sandbox implementation, framework runtime security, commits, remotes, publication, or merge decisions. (RECORDED: `C:\Users\MineTrackerWorker\repos\worker-lab\docs\PHASE3_SPEC.md`; VERIFIED: `AGENTS.md`)
+
+## 2. Current State
+
+- **Completed and verified:** The repository contains a synthetic read-only controller, strict framework identity pinning, bounded adapter invocation, lifecycle binding, and evidence verification modules. (VERIFIED: commits `ec53b1e` through `ca55e30`; `worker_lab/synthetic_read_only.py`, `framework_client.py`, `lifecycle.py`, `evidence.py`)
+- **Implemented but not freshly verified:** The controller invokes one sealed synthetic read-only test, prepares an invocation, validates framework identity, transitions an attempt, and records a candidate result path. (VERIFIED: source inspection; readiness UNKNOWN because not executed in this handoff)
+- **Framework-side implemented dependency:** The pinned adapter supports a separate final-message output file and uses it rather than normal diagnostic stderr as accepted proposal content. (VERIFIED: framework commit `3b03802`; `tools/codex_runtime.py`, `tools/worker_lab_adapter.py`)
+- **Partial work:** A successful end-to-end synthetic proposal after the final-message adapter pin is not retained as current verification evidence. (CHAT-ONLY: prior task history)
+- **Proposals/discussion:** Consolidation into an existing private `autonomous-coding-lab` repository is proposed, but architecture acceptance belongs to that consolidation task. (PROPOSED)
+- **Active unfinished work:** The intentional cleanup relocation remains uncommitted and must be classified before source import. (VERIFIED)
+
+## 3. Repository and Preservation State
+
+- Worker Lab has 17 tracked deletions, all historical Terra handoffs/reports relocated—not deleted—to `C:\Users\MineTrackerWorker\repos\Legacy\worker-lab-history`. (VERIFIED)
+- The Legacy folder contains 18 items, including the user history export. Its contents were not inspected. (VERIFIED)
+- Ignored local runtime/cache paths are `.phase3c-test-temp\`, `.phase3c-test-temp2\`, `.phase3c-test-temp3\`, `tests\__pycache__\`, and `worker_lab\__pycache__\`. (VERIFIED)
+- Git could not inspect `.pytest_cache\` because of a permission warning. Its contents and disposition are UNKNOWN. (VERIFIED)
+- No ordinary untracked files were reported by the current status inspection. (VERIFIED)
+- Nine local Worker Lab commits are not on `origin/main`; preserve them before any repository restructuring. (VERIFIED)
+- External synthetic-run roots under `C:\tmp\worker-lab-synthetic-20260829-*` were created during prior work. Their current contents are UNKNOWN and they must not be imported, deleted, or treated as authoritative evidence without inspection. (CHAT-ONLY)
+
+Must preserve the Legacy folder, its 18 moved files, all nine local commits, the framework pin, and any external synthetic-run data until consolidation explicitly classifies them.
+
+## 4. Architecture and Durable Decisions
+
+| Decision | Implementation state | Evidence label | Evidence | Consolidation effect |
+|---|---|---|---|---|
+| Worker Lab remains evaluation authority | IMPLEMENTED | RECORDED | `docs/PHASE3_SPEC.md`, `AGENTS.md` | Preserve as an internal authority boundary. |
+| Framework owns Codex/runtime security | IMPLEMENTED | RECORDED | `docs/PHASE3_SPEC.md` | Do not copy runtime-security code into Worker Lab. |
+| Adapter is a local JSON subprocess protocol | IMPLEMENTED | VERIFIED | `worker_lab/framework_client.py`; framework `tools/worker_lab_adapter.py` | Retain or replace behind a compatibility boundary. |
+| Framework identity is pinned by root, commit, adapter digest, Python identity, and Codex version | IMPLEMENTED | VERIFIED | `worker_lab/framework_client.py` | Absolute-root pinning will break on consolidation unless redesigned. |
+| First proof is one synthetic read-only proposal | IMPLEMENTED | VERIFIED | `worker_lab/synthetic_read_only.py` | Keep synthetic proof isolated from product repositories. |
+| Accepted proposal content comes from a final-message file, not stderr | IMPLEMENTED | VERIFIED | framework commit `3b03802` | Preserve the content/diagnostic separation. |
+| Repository separation is required for current Phase 3 identity checks | IMPLEMENTED | VERIFIED | `framework_client.py`; `AGENTS.md` | Conflicts with a one-repository consolidation and requires explicit redesign. |
+| Current documents say execution remains disabled | SUPERSEDED | RECORDED | `docs/START_HERE.md`, `docs/CURRENT_STATE.md` | Documentation conflicts with the now-present execution-capable synthetic controller. |
+
+## 5. Directory, Path, and Environment Assumptions
+
+- Worker Lab root: `C:\Users\MineTrackerWorker\repos\worker-lab`. (VERIFIED)
+- Framework root is hard-coded as `C:\Users\MineTrackerWorker\repos\autonomous-worker-framework`. (VERIFIED: `framework_client.py`)
+- Framework adapter relative path: `tools/worker_lab_adapter.py`. (VERIFIED)
+- Python executable is pinned to `C:\Program Files\Python312\python.exe`, CPython 3.12.10 AMD64. (VERIFIED)
+- Audited Codex version is pinned as `0.149.1`. (VERIFIED)
+- The controller launches the adapter with isolated Python flags: `-I -B`. (VERIFIED)
+- Synthetic runs require a new caller-supplied external root and create temporary authority/workspace data beneath it. (VERIFIED: `synthetic_read_only.py`)
+- Historical relocated material is at `C:\Users\MineTrackerWorker\repos\Legacy\worker-lab-history`; it is preservation data, not active source. (VERIFIED)
+- Existing `C:\tmp\worker-lab-synthetic-20260829-*` locations are historical runtime data. (CHAT-ONLY)
+
+## 6. Interfaces, Schemas, and Dependencies
+
+- `worker_lab.framework_client.call_adapter(...)`: Worker Lab’s bounded framework subprocess client. Compatibility is partially covered by focused tests. (VERIFIED)
+- `worker_lab.framework_client.fixed_command(...)`: exact adapter command construction. (VERIFIED)
+- `worker_lab.framework_client.inspect_configuration(...)` and `runtime_identity(...)`: framework identity and runtime evidence. (VERIFIED)
+- Adapter request schema: `worker-lab-framework-adapter-request:v1`. (VERIFIED)
+- Invocation record schema: `worker-lab-framework-invocation:v1`. (RECORDED: `docs/PHASE3_SPEC.md`)
+- Result record schema: `worker-lab-framework-result:v1`. (RECORDED: `docs/PHASE3_SPEC.md`)
+- `worker_lab.synthetic_read_only.run(run_root)`: synthetic read-only proof entry point. (VERIFIED)
+- `worker_lab.lifecycle.transition_attempt(...)` and `bind_authorized_invocation(...)`: attempt state authority. (VERIFIED)
+- `worker_lab.evidence.verify_evidence(...)`: contained evidence-file verification. (VERIFIED)
+- Dependency direction is Worker Lab controller → Framework adapter → Codex runtime. (RECORDED and VERIFIED)
+
+## 7. Roles, Authority, and Workflow
+
+- **Planner / Task Creator:** chooses curriculum, exercise, policy, and approved test definition. (RECORDED)
+- **Builder/Coder:** may implement bounded modules and exercise applications, but cannot alter its own evaluator expectations or security policy. (VERIFIED: `AGENTS.md`)
+- **Reviewer/Diagnostician:** reviews candidate changes and evidence; does not grant production authority by a passing test alone. (RECORDED)
+- **Trusted controller:** Worker Lab owns lifecycle, evidence, and acceptance decisions. (RECORDED)
+- **Framework runtime:** owns Codex authentication, sandboxing, process execution, and runtime validation. (RECORDED)
+- **Local model / cloud escalation:** model routing is framework-owned; Worker Lab records the resolved profile rather than controlling raw options. (RECORDED)
+- **Publication / merge:** excluded from Phase 3 and reserved for explicit authorization. (RECORDED)
+
+## 8. Tests and Validation Evidence
+
+| Test/suite/run | Exact command or run ID | Last result | Evidence label | What it proves | What it does not prove |
+|---|---|---|---|---|---|
+| Worker Lab focused tests | `python -m pytest -q --basetemp .testtmp tests/test_synthetic_read_only.py tests/test_framework_client.py tests/test_integration.py` | 39 passed | CHAT-ONLY | Focused controller, framework client, integration behavior at that time | Current state, full suite, live success |
+| Worker Lab focused tests after final pin | `pytest ... tests/test_framework_client.py tests/test_integration.py` | 37 passed | CHAT-ONLY | Focused pin/integration behavior at that time | Synthetic end-to-end execution and full suite |
+| Framework focused tests | `python -m pytest -q --basetemp .testtmp tests/test_worker_lab_adapter.py tests/test_codex_runtime.py` | 58 passed | CHAT-ONLY | Adapter/runtime behavior at that time | Worker Lab integration, full framework validation, production authority |
+| Framework Phase 3C milestone | retained documentation claim | 158-test gate passed | RECORDED | Historical claimed milestone status | Current dependency state or rerun validity |
+| Current handoff | Git/filesystem inspection only | no tests run | VERIFIED | Source identity and preservation state | Functional correctness |
+
+## 9. Known Problems and Technical Debt
+
+- Current Worker Lab identity checks will reject the dirty working tree caused by the uncommitted historical-file relocation. (VERIFIED)
+- Current Worker Lab source hard-codes the separate framework root, so a merged layout will fail identity validation until redesigned. (VERIFIED)
+- `docs/START_HERE.md` refers to a moved root-level Phase 3C handoff file and states execution remains disabled; this is stale against the current source and cleanup layout. (VERIFIED)
+- No current successful synthetic proposal is retained after the final-message adapter change. (CHAT-ONLY)
+- Full-suite and recovery/absence evidence should be repeated after architecture consolidation. (RECORDED)
+- `.pytest_cache\` could not be inspected due to permissions. (VERIFIED)
+- License/distribution status is UNKNOWN.
+
+## 10. Cross-Project Conflicts and Possible Duplication
+
+- The existing Phase 3 model deliberately separates Worker Lab from the framework, while the proposed destination is one consolidated repository. (VERIFIED and PROPOSED)
+- Absolute root, exact Git commit, and clean-tree checks conflict with source import/moves. (VERIFIED)
+- The destination repository may already own worker/task, GUI, prompt, model-routing, or persistence systems; their overlap is UNKNOWN pending H03/H04/H05 and merger-contract evidence.
+- Historical documentation and the relocated Terra reports may duplicate planning history held elsewhere. (VERIFIED)
+- The framework has no configured remote observed locally, while Worker Lab has a GitHub origin. (VERIFIED)
+
+## 11. Dangerous Assumptions
+
+- Assuming passing focused tests grant permission for worker execution or publication. (RECORDED)
+- Treating a provider response, stderr, or a process exit code as acceptable proposal evidence. The final-message boundary exists specifically to avoid this. (VERIFIED)
+- Importing the external synthetic roots, ignored cache data, or Legacy history into the consolidated source tree. (VERIFIED)
+- Deleting the current tracked deletions instead of preserving the Legacy copies and classifying their Git history. (VERIFIED)
+- Rewriting identity pins during merge without preserving the former exact commits and adapter digests. (VERIFIED)
+- Assuming current documentation accurately reflects current source authority. (VERIFIED)
+
+## 12. Must Preserve
+
+- Worker Lab commits `ec53b1e`, `64a2585`, `32b215b`, `ecce2f3`, `259330b`, `678ece9`, `b114977`, `6d63a18`, and `ca55e30`. (VERIFIED)
+- Worker Lab HEAD/tree identities stated in Handoff Metadata. (VERIFIED)
+- Framework commit `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` and tag `v0.2.6-worker-lab-final-message`. (VERIFIED)
+- `worker_lab/framework_client.py`, `synthetic_read_only.py`, `lifecycle.py`, and `evidence.py`. (VERIFIED)
+- Phase 3 schemas and ownership decisions in `C:\Users\MineTrackerWorker\repos\worker-lab\docs\PHASE3_SPEC.md`. (RECORDED)
+- `C:\Users\MineTrackerWorker\repos\Legacy\worker-lab-history`, including all 18 preserved items. (VERIFIED)
+- Any external synthetic-run roots until separately inspected and classified. (CHAT-ONLY)
+
+## 13. May Replace, Archive, or Discard
+
+- **Safe to replace after parity:** absolute framework-root pinning and subprocess placement, but only after equivalent identity, evidence, and authority protections are demonstrated. (PROPOSED)
+- **Historical material to archive but retain:** the 17 relocated Terra handoff/report files and user history export in `Legacy\worker-lab-history`. (VERIFIED)
+- **Generated/runtime material to exclude:** ignored phase test-temp directories and Python caches; external synthetic-run roots must remain outside source import. (VERIFIED)
+- **Disposition UNKNOWN:** `.pytest_cache\` because access was denied; licensing/distribution metadata; any source counterpart already present in the consolidation repository.
+
+No deletion is authorized.
+
+## 14. Recommended Canonical Direction
+
+**PROPOSED:** Preserve Worker Lab as an internal evaluation-controller package and preserve framework runtime security as a distinct internal package/service boundary. Replace absolute cross-repository root pins with a consolidation-owned resolver that still verifies exact component version, digest, path containment, and clean/known source identity.
+
+Keep synthetic execution isolated under an explicitly selected external run root. Keep historical handoffs outside active source, with a manifest or retained Git history rather than copying them into product code.
+
+## 15. Open Decisions
+
+- Whether the merged repository accepts the existing Worker Lab/Framework boundary or replaces it with an internal package boundary. Requires the merger contract and H03 evidence.
+- Which repository owns GUI/prompt interfaces and model-routing policy. Requires H04/H05 if applicable.
+- Whether the nine local Worker Lab commits become canonical history, are rebased, or are imported selectively. Requires consolidation-owner decision.
+- Whether current synthetic-run roots contain evidence worth retaining. Requires separate read-only inspection.
+- License/distribution treatment. Requires repository metadata or owner direction.
+- Whether a new successful synthetic read-only proof is required before import or after parity migration. Requires merger-contract acceptance.
+
+## 16. Pre-Consolidation Actions
+
+| Action | Owner | Reason | Readiness state | Verification method |
+|---|---|---|---|---|
+| Preserve the current Worker Lab commit/tree identities and nine local commits | Consolidation owner | Prevent loss during restructuring | PASS | Compare Git SHA/tree and `origin/main..HEAD` |
+| Classify the 17 tracked deletions and Legacy copies | Consolidation owner | Cleanup is intentionally uncommitted | PENDING | Compare Git status with `Legacy\worker-lab-history` manifest |
+| Inspect destination merger contract against this handoff | Consolidation owner | Destination architecture is authoritative | PENDING | Record conflict/resolution matrix |
+| Inventory destination worker/task/prompt/persistence systems | Consolidation owner | Avoid duplicate authority systems | PENDING | Compare H01 with H03/H04/H05 |
+| Design parity replacement for absolute framework pinning | Architecture owner | Current paths cannot survive consolidation | PENDING | Tests for identity, digest, containment, and clean-state checks |
+| Repeat focused and full validation after final architecture is selected | Validation owner | Existing results are not current consolidation proof | PENDING | Retained test reports and result paths |
+| Inspect external synthetic roots without importing or deleting them | Preservation owner | Determine whether retained evidence exists | PENDING | Read-only inventory and classification |
+
+## 17. First Actions for the Consolidation Task
+
+1. Compare this witness report with current Git evidence and the existing merger contract; stop before implementation or source import.
+2. Snapshot the Worker Lab and framework commits, trees, refs, and working-tree differences.
+3. Reconcile the 17 tracked deletions against `C:\Users\MineTrackerWorker\repos\Legacy\worker-lab-history`.
+4. Compare H01 interfaces and authority boundaries with H03 and any applicable H04/H05 handoffs.
+5. Identify all destination systems that overlap lifecycle, evidence, task control, prompts, runtime execution, or persistence.
+6. Decide whether the framework boundary remains a package boundary, service boundary, or is superseded with demonstrated parity.
+7. Create an accepted migration contract before moving any source files.
+8. Only after acceptance, import the selected source and run the agreed focused validation.
+
+## Pre-Merge Readiness Checklist
+
+| Item | Readiness state |
+|---|---|
+| exact source identity known | PASS |
+| working-tree differences classified | PENDING |
+| local-only commits protected | PASS |
+| generated/runtime data excluded | PASS |
+| credentials/private data excluded | PENDING |
+| license/distribution status known | UNKNOWN |
+| authority boundary documented | PASS |
+| interfaces and schemas inventoried | PASS |
+| path assumptions inventoried | PASS |
+| focused validation identified | PASS |
+| full validation identified | PENDING |
+| pending runs recorded without assumed outcome | PASS |
+| rollback identity available | PASS |
+| conflicts requiring other handoffs identified | PASS |
+| safe to begin source import | BLOCKED |
+
+## Consolidation Warning Summary
+
+- **VERIFIED:** Worker Lab is nine commits ahead of `origin/main`; these local commits must be preserved before restructuring.
+- **VERIFIED:** The working tree intentionally contains 17 tracked deletions because historical files were relocated to `C:\Users\MineTrackerWorker\repos\Legacy\worker-lab-history`; do not mistake this for deletion authorization.
+- **VERIFIED:** Current execution identity checks hard-code the separate framework root and exact framework commit/digest, so direct source import will break the current contract.
+- **VERIFIED:** The current source can execute a bounded synthetic controller, while active documents still state execution remains disabled; resolve this documentation/source conflict explicitly.
+- **CHAT-ONLY:** No retained successful end-to-end synthetic proposal exists after the final-message adapter change.
+- **UNKNOWN:** The destination repository’s architecture, licensing, and overlap with Worker Lab authority have not yet been reconciled.

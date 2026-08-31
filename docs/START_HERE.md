@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M1 — source audit and merger-contract review
+**Current milestone:** M1 accepted checkpoint; M2 not authorized
 **Execution authority:** Disabled
 
 ## First actions
@@ -10,9 +10,11 @@
 2. Read `CURRENT_STATE.md`.
 3. For migration work, read `MERGER_CONTRACT.md`, `SOURCE_INVENTORY.md`,
    `PATH_MIGRATION_LEDGER.md`, and the active milestone in `MILESTONES.md`.
-4. Read a source repository's own `AGENTS.md` and routing document before
+4. Read `handoffs/CONSOLIDATION_RECONCILIATION.md` for the current M1 evidence,
+   conflicts, proposed architecture boundaries, and user decisions.
+5. Read a source repository's own `AGENTS.md` and routing document before
    inspecting or importing that component.
-5. Stop if Git evidence and documentation disagree.
+6. Stop if Git evidence and documentation disagree.
 
 ## Authority order
 
@@ -26,7 +28,10 @@ Historical material is evidence, not current authority.
 
 ## Current boundary
 
-The repository shell and merger governance are complete. Source code must not be
-copied until M1 accepts the inventory, exact source snapshots, full-history
-import method, stable component paths, exclusions, license treatment, identity
-migration, and validation plan.
+The repository shell and M1 merger governance are accepted. The commit containing
+the accepted reconciliation is the M1 checkpoint. It authorizes no source import
+and no execution.
+
+M2 remains blocked until the framework recovery artifact is created and
+checksummed, source identities are reverified, and the user separately
+authorizes the bounded M2 exact-import operation.

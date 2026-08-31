@@ -9,18 +9,33 @@
 
 ## M1 — Audit and contract acceptance
 
+**Status:** Accepted 2026-08-30; checkpoint commit authorized
+
 - Complete the three-source inventory.
+- Inventory every supplied handoff and classify material claims.
+- Reconcile architecture conflicts, duplication, authority, provenance,
+  validation and rollback in `handoffs/CONSOLIDATION_RECONCILIATION.md`.
 - Classify every dirty, ignored, unreadable, generated, and historical category.
 - Decide license and history-preservation strategy.
 - Finalize initial directory paths and parity commands.
+- Accept or revise the proposed identity, task/evidence direction, model-routing,
+  recovery, and decision-supersession boundaries.
 - Review the updated merger contract before import.
 - Accept the standalone-to-monorepo identity migration boundary while keeping
   execution disabled.
 
 ## M2 — Execution framework import
 
+**Status:** Not authorized; recovery and source-reverification prerequisites remain
+
+- Begin from a clean, accepted M1 checkpoint commit.
+- Reverify source identities and create a checksummed framework recovery bundle
+  or mirror before importing the no-remote source.
 - Import the exact approved framework identity with provenance.
+- Preserve complete reachable ancestry and namespace source tags.
 - Preserve initial internal layout.
+- Prove imported subtree equality and untouched parity from a disposable
+  standalone reconstruction before adapting paths.
 - Repair only prefix-related paths required for parity.
 - Pass focused and milestone framework tests.
 - Review security-boundary parity.
@@ -37,10 +52,13 @@
 - Validate the internal framework interface without enabling execution.
 - Replace absolute standalone pins only through the reviewed component identity
   contract and focused substitution/drift tests.
+- Complete the cross-component invocation dependency closure only after Worker
+  Lab is present; M2 primitives do not authorize execution.
 
 ## M4 — Local Model Bench import
 
-- Finish and review the active benchmark.
+- Record the completed native-JSON run honestly and review selected semantic
+  evidence without treating its score as model authority.
 - Import code, prompt suites, selected evidence, and validation packets according
   to the approved inventory.
 - Exclude model binaries, full local run data, logs, and credentials.
@@ -51,6 +69,8 @@
 - Establish one current-state router and durable decision ledger.
 - Remove duplicated active facts by linking to one authoritative definition.
 - Map prompts, task contracts, evidence, failures, and model identities.
+- Add a minimal typed evidence-reference envelope only if integration tests show
+  a need; native component schemas remain authoritative for their payloads.
 - Archive historical documents without deleting provenance.
 
 ## M6 — Integrated program checkpoint

@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-30
-**Status:** M0 complete; M1 source audit in progress
+**Status:** M1 accepted; M2 prerequisites not started or authorized
 **Canonical repository:** Merger governance only; component authority has not transferred
 
 ## Target repository
@@ -16,12 +16,14 @@
 
 | Source | Verified HEAD | Observed state | Remote |
 |---|---|---|---|
-| Worker Lab | `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684` | `main` is 9 commits ahead; one untracked history file; unreadable test-temp directories | private GitHub remote |
+| Worker Lab | `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684` | `main` is 9 commits ahead; 17 unstaged tracked deletions; no ordinary untracked files; ignored/unreadable test residue | private GitHub remote |
 | Autonomous Worker Framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` / `v0.2.6-worker-lab-final-message` | local `main`; unreadable test-temp directories; no remote | none |
-| Local Model Bench | `4a023c8230365c3098a6dff71fa9623cac059cdd` | clean and synchronized; one active ignored benchmark run | public GitHub remote |
+| Local Model Bench | `4a023c8230365c3098a6dff71fa9623cac059cdd` | tracked tree clean and locally synchronized; native-JSON run completed in ignored local results | public GitHub remote recorded locally |
 
-These are audit observations, not import approvals. The unreadable directories
-and untracked history export will not be opened, removed, or copied during M0.
+These are audit observations, not import approvals. All 17 Worker Lab deletions
+have blob-equivalent copies under the separate Legacy history location. Their
+working-tree disposition, unreadable directories, ignored results, and
+historical material will not be cleaned, removed, or copied automatically.
 
 ## Existing boundary that must be preserved
 
@@ -55,9 +57,27 @@ component to silently assume another component's authority.
 - Benchmark profiles contain two machine-local llama.cpp/model paths. They are
   configuration, not portable defaults, and require later local-configuration
   treatment without importing the model binaries.
+- Local Model Bench's native-JSON Qwen 14B run completed 18/18 with a mechanical
+  score of 93.33% and zero hard failures. It remains ignored local evidence;
+  semantic role fitness and model selection are still unknown.
+- Worker Lab contains execution-capable synthetic read-only source, but active
+  ACL authority still disables execution. Capability does not transfer
+  authority.
+- `docs/handoffs/H01-Handoff.txt` is the accepted canonical H01 witness. The
+  malformed one-character-different `.md` duplicate was excluded from the
+  checkpoint after its difference was recorded.
+- The accepted fail-closed monorepo identity binds source provenance separately
+  from monorepo integration identity and scopes cleanliness to both participating
+  components plus a closed root/shared invocation dependency set.
+- Planner and Task Creator outputs remain untrusted until Worker Lab accepts and
+  authorizes them. Framework execution and benchmark evaluation remain
+  directional downstream boundaries.
 
 ## Next boundary
 
-Review the M1 source inventory, exact snapshot choices, history import method,
-license treatment, identity-contract migration, and per-component parity
-commands. No code import starts before that review is accepted.
+The M1 reconciliation and decisions are accepted in the checkpoint containing
+this document. M2 is not authorized. Before a separately authorized M2 exact
+import, create and checksum a framework recovery artifact, reverify source
+identities, and record the exact-import validation procedure that separates
+subtree equality, standalone reconstructed parity, and later in-monorepo prefix
+adaptation.

@@ -1,6 +1,6 @@
 # Source Inventory
 
-**Status:** M1 audit candidate; no component is approved for import
+**Status:** M1 inventory accepted; component imports require separate milestone authorization
 **Observed:** 2026-08-30
 
 Git-tracked snapshots are the only automatic import inputs. Working-tree,
@@ -11,9 +11,9 @@ unless this document explicitly selects it later.
 
 | Component | Exact observed HEAD | Tracked scope | Distribution | Principal review gate |
 |---|---|---:|---|---|
-| Worker Lab | `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684` | 85 files / 768,850 bytes / 43 commits | No license file; private internal use only | Select or publish nine local-only commits; migrate standalone identities |
-| Execution framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` | 38 files / 288,791 bytes / 33 commits | No license file; private internal use only | No remote; migrate repository-root identity safely |
-| Local Model Bench | `4a023c8230365c3098a6dff71fa9623cac059cdd` | 59 files / 252,116 bytes / 7 commits | MIT; preserve component license | Finish/review active ignored run and classify selected evidence |
+| Worker Lab | `ca55e30ccbcbf2318d73b3ef8a65f66bb9e1e684` | 85 files / 768,850 bytes / 43 commits | No license file; private internal use only | Preserve nine local-only commits; resolve 17-deletion disposition; migrate standalone identities |
+| Execution framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` | 38 files / 288,791 bytes / 33 commits | No license file; private internal use only | No remote; create recovery bundle and migrate repository-root identity safely |
+| Local Model Bench | `4a023c8230365c3098a6dff71fa9623cac059cdd` | 59 files / 252,116 bytes / 7 commits | MIT; preserve component license | Classify selected compact evidence; native run is complete but semantically unreviewed |
 
 File and byte counts are the exact `HEAD` trees, not filesystem counts.
 
@@ -56,8 +56,14 @@ models require a reviewed monorepo replacement before execution.
 
 ### Working-tree classification
 
-- `docs/8_27_26_ChatGPT_History` is untracked historical conversation material.
-  Existing authority explicitly excludes it; do not open or import it.
+- Exactly 17 tracked historical/task-report files are deleted in the working
+  tree. Each name has a blob-equivalent copy under the separate
+  `Legacy/worker-lab-history` location. These working-tree deletions are not part
+  of the selected HEAD tree and must not be committed, imported as deletions, or
+  restored automatically during M1.
+- `Legacy/worker-lab-history` contains one additional
+  `8_27_26_ChatGPT_History` file. It is historical conversation material and is
+  excluded from import.
 - `.phase3c-test-temp*` directories are unreadable test residue. They are not
   tracked and are excluded without cleaning or inspection.
 - `.venv/`, caches, `state/`, `evidence/`, `workspace/`, and temporary files are
@@ -81,10 +87,12 @@ historical counts do not set the expected current total.
 
 ### Import gate
 
-Before M3, accept the exact local-ahead snapshot or publish it to its private
-remote, record the selected tree identity, and complete the monorepo identity
-design. The untracked history export and unreadable directories are not blockers
-because they are outside the tracked snapshot and explicitly excluded.
+The exact local-ahead HEAD ancestry/tree and separate historical disposition of
+the 17 moved/deleted working-tree files are accepted for a future, separately
+authorized M3 import. Complete the monorepo identity implementation before that
+import. The current deletion state cannot silently change import content: the
+accepted exact HEAD tree includes those files. Legacy/chat history, ignored
+residue, and unreadable directories remain excluded.
 
 ## Autonomous Worker Framework
 
@@ -137,10 +145,13 @@ validation must pass before any prefix-aware validator or identity change.
 
 ### Import gate
 
-Record a recoverable exact local ancestry fetch, preserve all tags as provenance
-records without allowing tag-name collisions in the monorepo, and keep adapter
-execution disabled. M2 may import and run full parity; it may not silently
-authorize the new identity contract.
+Create and checksum a recoverable bundle or mirror before import because the
+framework has no remote. Preserve ancestry through a permanent merge parent or
+equivalent reachable non-squashed history, namespace source tags, and keep
+adapter execution disabled. Prove imported subtree equality, run untouched
+parity from a disposable standalone reconstruction, then run the in-monorepo
+suite to expose prefix-dependent failures for the separate adaptation commit.
+M2 may not silently authorize the new identity contract.
 
 ## Local Model Bench
 
@@ -179,9 +190,11 @@ provenance on import, then address portability as a separate configuration task.
   benchmark result trees are ignored/excluded.
 - Selected review reports from one completed smoke run are already tracked and
   belong to the import snapshot.
-- `results/background-20260830T033057-9d425311/` is the active ignored Qwen 14B
-  native-JSON retest. It must not be copied merely because M4 begins; select only
-  reviewed durable reports after completion.
+- `results/background-20260830T033057-9d425311/` is the completed ignored Qwen
+  14B native-JSON retest: 18/18 transport successes, 93.33% mechanical score,
+  zero hard failures, and bare parseable JSON. It remains local raw evidence and
+  must not be copied merely because M4 begins. Select only reviewed durable
+  reports; semantic role fitness remains unknown.
 - Model files and Ollama/llama.cpp installations remain outside the repository.
 
 ### Validation candidate
@@ -198,9 +211,10 @@ separate from the optional endpoint/model availability check.
 
 ### Import gate
 
-Finish and review the active run, decide which derived reports are durable, and
-preserve the MIT license. Do not import complete local run data, logs, model
-binaries, or machine installations.
+Decide which derived reports are durable, complete semantic review separately,
+and preserve the MIT license. The completed native run is not an M2 blocker and
+does not authorize model selection. Do not import complete local run data, logs,
+model binaries, or machine installations.
 
 ## Cross-component conclusions
 
@@ -213,3 +227,10 @@ binaries, or machine installations.
   code/config path assumptions are ledgered and repaired only in their assigned
   milestone.
 - The old repositories remain unchanged recovery sources throughout the merger.
+- Worker Lab owns accepted plans, permanent task/test identities, routing policy,
+  lifecycle, and evidence acceptance. Framework contracts transport and execute
+  exact authorized tasks. Benchmark schemas and IDs remain experimental.
+- Preserve native evidence schemas through M4. Directional adapters may create
+  candidate evidence or recommendations without upgrading authority. A minimal
+  typed evidence reference is deferred to M5 unless integration tests establish
+  an earlier need.
