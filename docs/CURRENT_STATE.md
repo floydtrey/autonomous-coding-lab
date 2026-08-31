@@ -1,7 +1,7 @@
 # Current State
 
 **Last updated:** 2026-08-31
-**Status:** M3 exact import complete; standalone parity failed on 12 runtime-identity fixture/workflow cases
+**Status:** M3 exact import and repaired standalone parity complete; cross-component adaptation pending
 **Canonical repository:** Merger governance plus exact framework and Worker Lab bytes; component authority has not transferred
 
 ## Target repository
@@ -161,9 +161,14 @@ come from older workflows/fixtures omitting the runtime identity now required
 for active attempt states. Exact evidence and failure groups are recorded in
 `WORKER_LAB_M3_RECOVERY.md` section 9.
 
-Parity is not complete. A separately authorized bounded source-parity repair
-must preserve the fail-closed runtime-identity invariant and prove the stale
-test/workflow corrections before any coordinated Worker/framework identity
-adaptation addresses P-006, completes bilateral P-007, or wires a new protocol.
-No repair, in-monorepo test, worker/model execution, adaptation, push, or
-publication is authorized by this checkpoint.
+Bounded repair commit `a7bbd4e9074d1e4be64f01e74b4471abee0fd95d`
+changed only the four stale test files and preserved the fail-closed production
+runtime-identity invariant. The tested standalone candidate tree and committed
+Worker subtree both equal `2c12c6ab1b18c9fef96fdaad82b6a40270e9ca16`.
+Focused validation passed 104 tests with five expected Windows symlink skips;
+the single T020 run passed 329 tests with seven expected skips.
+
+Standalone parity is complete. Coordinated Worker/framework identity adaptation
+to address P-006, complete bilateral P-007, and wire a new protocol remains a
+separately authorized gate. No worker/model execution, cross-component
+adaptation, push, or publication is authorized by this checkpoint.

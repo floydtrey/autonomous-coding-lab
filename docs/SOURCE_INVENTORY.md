@@ -1,6 +1,6 @@
 # Source Inventory
 
-**Status:** M3 exact Worker Lab import complete; standalone parity failed and bounded repair is pending
+**Status:** M3 exact Worker Lab import and repaired standalone parity complete; adaptation pending
 **Observed:** 2026-08-31
 
 Git-tracked snapshots are the only automatic import inputs. Working-tree,
@@ -98,13 +98,17 @@ The imported current tree excludes the 17 obsolete files; their prior blobs
 remain in preserved history. Legacy/chat history, ignored residue, and
 unreadable directories remain excluded.
 
-An exact standalone reconstruction passed 317 tests, skipped seven expected
-Windows symlink-capability cases, and failed 12 cases. The valid failures are
-source-snapshot test/workflow drift: production requires runtime identity for
-active attempts, while older CLI, evidence, validation, and workspace fixtures
-omit it. The exact import remains unchanged. A bounded parity repair requires
-separate authorization; cross-component adaptation and execution remain
-disabled.
+An exact standalone reconstruction initially exposed 12 source-snapshot
+test/workflow cases that omitted the runtime identity required for active
+attempts. Bounded repair commit
+`a7bbd4e9074d1e4be64f01e74b4471abee0fd95d` changed only the four affected test
+files and preserved production enforcement. Focused validation passed 104 tests
+with five expected Windows symlink skips; one full T020 run passed 329 tests
+with seven expected skips. The repaired Worker subtree is
+`2c12c6ab1b18c9fef96fdaad82b6a40270e9ca16`.
+
+Standalone parity is complete. Cross-component identity adaptation and
+execution remain disabled and require separate authorization.
 
 ## Autonomous Worker Framework
 

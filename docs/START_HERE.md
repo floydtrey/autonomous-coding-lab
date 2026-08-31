@@ -1,7 +1,7 @@
 # Start Here
 
 **Status:** Active migration router
-**Current milestone:** M3 exact import complete; standalone parity failed and repair is pending
+**Current milestone:** M3 exact import and standalone parity complete; identity adaptation pending
 **Execution authority:** Disabled
 
 ## First actions
@@ -52,7 +52,10 @@ M3-A. M3-B then imported the exact source tree, complete ancestry, and
 namespaced tags without running or adapting the component. An exact disposable
 standalone reconstruction then ran T020: 317 tests passed, seven expected
 Windows symlink-capability tests skipped, and 12 tests failed because older
-fixtures omit the now-required runtime identity for active attempts. The import
-remains exact, but parity is not complete. The next possible gate is a
-separately authorized bounded source-parity repair; identity/protocol adaptation
-remains blocked.
+fixtures omitted the now-required runtime identity for active attempts. Bounded
+repair commit `a7bbd4e9074d1e4be64f01e74b4471abee0fd95d` changed only those four stale
+test files while adding an explicit CLI fail-closed assertion. Focused
+validation passed 104 tests with five expected skips, and the single T020 run
+passed all 329 tests with seven expected skips. Standalone parity is complete.
+Cross-component path, identity, protocol, and bilateral-cleanliness adaptation
+remains separately authorized and disabled.

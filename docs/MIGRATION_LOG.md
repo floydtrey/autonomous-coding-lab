@@ -315,3 +315,28 @@ Resolution and next gates:
 - Removed both disposable repositories, the short temp tree, and all generated
   test artifacts after exact containment checks. Changed no component source or
   test, ran no worker/model/adapter, enabled no execution, and performed no push.
+
+## 2026-08-31 — Bounded Worker Lab standalone parity repair
+
+- Began from failed-parity checkpoint
+  `d373848b0b73539ff86145629b2f2db930b897d5` and changed only the four test
+  files responsible for the 12 runtime-identity failures.
+- Added valid runtime identity to active evidence/validation fixtures and the
+  workspace test transition. Updated the legacy CLI workflow to assert the
+  generic CLI rejects an unbound `RUNNING` transition before using its existing
+  test-only store/lifecycle seam.
+- Changed no production code and did not weaken the fail-closed
+  `runtime_identity` requirement.
+- Reproduced the exact four-file patch in a clean standalone repository derived
+  from ACL's imported Worker ref. The tested candidate tree was
+  `2c12c6ab1b18c9fef96fdaad82b6a40270e9ca16`.
+- Focused validation passed 104 tests with five expected Windows symlink skips
+  in 142.08 seconds. The single unchanged T020 run then passed 329 tests with
+  seven expected skips in 164.80 seconds.
+- Created repair commit `a7bbd4e9074d1e4be64f01e74b4471abee0fd95d`;
+  its Worker subtree exactly matches the tested candidate tree and its diff is
+  limited to the four authorized test paths.
+- Removed the disposable repository, temporary patch, pytest caches, and short
+  temp trees. ACL and source repositories remained clean. Ran no worker, model,
+  adapter, production execution, cross-component adaptation, network operation,
+  or push.

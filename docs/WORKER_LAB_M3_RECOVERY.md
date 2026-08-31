@@ -1,6 +1,6 @@
 # Worker Lab M3 Recovery and Exact-Import Preflight
 
-**Status:** VERIFIED import — standalone parity failed on 12 source-snapshot tests; repair not authorized
+**Status:** VERIFIED — exact import and repaired standalone parity complete; adaptation disabled
 **Observed:** 2026-08-31
 **Execution authority:** Disabled
 **Component import performed:** Yes — exact tracked source tree only
@@ -314,3 +314,52 @@ Parity is not complete. The next possible gate is a separately authorized,
 bounded Worker Lab parity repair that preserves the accepted runtime-identity
 invariant and updates only the stale workflows/fixtures proven by focused tests.
 No identity, protocol, path, or bilateral adaptation may begin first.
+
+## 10. Bounded standalone parity repair — verified complete
+
+The user separately authorized the repair from failed-parity checkpoint
+`d373848b0b73539ff86145629b2f2db930b897d5`. Repair commit
+`a7bbd4e9074d1e4be64f01e74b4471abee0fd95d` changes only:
+
+- `tests/test_cli.py`;
+- `tests/test_evidence.py`;
+- `tests/test_validation.py`; and
+- `tests/test_workspace_receipt.py`.
+
+No production file changed. The repair preserves the production invariant and
+updates only the stale tests:
+
+- active evidence and validation fixtures now carry a syntactically valid
+  runtime identity;
+- the workspace case supplies runtime identity to its direct test transition;
+  and
+- the legacy CLI workflow now asserts that generic CLI entry to `RUNNING`
+  fails with `ATTEMPT_RUNTIME_IDENTITY_REQUIRED`, then uses the existing
+  test-only store/lifecycle seam to establish a runtime-bound state before
+  continuing its legacy operator checks.
+
+The four-file patch was reproduced from the exact imported Worker history in a
+clean disposable standalone repository. Its candidate tree was
+`2c12c6ab1b18c9fef96fdaad82b6a40270e9ca16`. Before the ACL repair commit, the
+staged ACL Worker subtree exactly matched that tested tree.
+
+Validation used Python 3.12.10 and pytest 9.1.1 with short disposable temp
+roots:
+
+1. Focused affected files: 104 passed, five expected Windows symlink skips,
+   zero failures in 142.08 seconds.
+2. One unchanged T020 run: 329 passed, seven expected Windows symlink skips,
+   zero failures in 164.80 seconds.
+
+The repair commit has parent
+`d373848b0b73539ff86145629b2f2db930b897d5`, changes exactly the four authorized
+test paths, and retains Worker component tree
+`2c12c6ab1b18c9fef96fdaad82b6a40270e9ca16`. The disposable repository, patch,
+pytest caches, and both short temp trees were removed after exact containment
+checks. ACL and source repositories remained clean; no source repository,
+worker, model, adapter, production behavior, execution authority, network
+state, or remote was changed.
+
+Standalone Worker Lab parity is complete. Cross-component path, identity,
+protocol, and bilateral-cleanliness adaptation remains a separately authorized
+M3 gate.
