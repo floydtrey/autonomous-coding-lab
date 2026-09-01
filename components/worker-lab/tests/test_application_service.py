@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.test_integration import record, result_mapping
+from tests.test_integration import DIGEST, record, result_mapping
 from tests.test_cli import write_authority_fixture
 from tests.test_models import (
     attempt_mapping,
@@ -34,6 +34,7 @@ from worker_lab.models import (
     ExerciseRecord,
     FailureRecord,
 )
+from worker_lab.evidence import content_digest, evidence_identity_digest
 from worker_lab.policy import ContextManifest, PolicyRecord, RoleRecord
 from worker_lab.process_custody import (
     PROCESS_CUSTODY_SCHEMA,
@@ -185,6 +186,82 @@ def recovery_fixture(
     return lab, workspace_root, invocation_id, identity_digest
 
 
+def candidate_fixture(root: Path, *, retain_evidence: bool = False) -> tuple[Path, str]:
+    lab = populated_lab(root)
+    state = AtomicRecordStore(lab / "state")
+    for path in (lab / "state" / "evidence").glob("*.json"):
+        path.unlink()
+    content = b"retained candidate proposal\n"
+    proposal_digest = content_digest(content)
+    invocation = record(
+        state="DISPATCHING",
+        attempt_id="ATTEMPT-000001",
+        authorized_by="trusted-controller",
+        authorized_at="2026-08-28T00:00:00Z",
+    )
+    custody = ProcessCustodyRecord.from_mapping({
+        "schema_version": PROCESS_CUSTODY_SCHEMA,
+        "invocation_digest": invocation.identity_digest(),
+        "invocation_id": invocation.invocation_id,
+        "controller_pid": 1,
+        "controller_creation_time_100ns": 1,
+        "adapter_pid": None,
+        "adapter_creation_time_100ns": None,
+        "containment_mode": "windows-job-kill-on-close",
+        "workspace_content_digest": DIGEST,
+        "state": "ABSENCE_VERIFIED",
+        "request_sent": False,
+        "exit_code": None,
+        "active_process_count": 0,
+        "absence_verified_at": "2026-08-28T00:00:01Z",
+        "first_failure": None,
+    })
+    result_value = result_mapping(invocation)
+    result_value.update({
+        "proposal_digest": proposal_digest,
+        "output_digest": proposal_digest,
+        "content_reference": f"proposals/{proposal_digest[7:]}.txt",
+        "process_identity": custody.digest(),
+    })
+    result = ResultRecord.from_mapping(result_value)
+    invocation = InvocationRecord.from_mapping({
+        **invocation.to_dict(),
+        "state": "COMPLETED",
+        "result_digest": result.digest(),
+    })
+    attempt = AttemptRecord.from_mapping({
+        **attempt_mapping(),
+        "state": "CANDIDATE",
+        "runtime_identity": invocation.identity_digest(),
+        "candidate_digest": result.digest(),
+        "evaluator_catalog_digest": catalog().digest(),
+    })
+    state.write("attempts/ATTEMPT-000001.json", attempt)
+    state.write("invocations/INVOCATION-001.json", invocation)
+    state.write("results/INVOCATION-001.json", result)
+    state.write("process-custody/INVOCATION-001.json", custody)
+    state.write_bytes(result.content_reference, content)
+    if retain_evidence:
+        evidence_content = b'{"exit_code":0}\n'
+        evidence = evidence_mapping()
+        evidence.update({
+            "attempt_id": attempt.attempt_id,
+            "test_catalog_version": attempt.evaluator_catalog_version,
+            "test_catalog_digest": attempt.evaluator_catalog_digest,
+            "candidate_digest": attempt.candidate_digest,
+            "base_commit": attempt.starting_commit,
+            "test_id": "T001",
+            "content_path": "evidence-content/T001.json",
+        })
+        provisional = EvidenceRecord.from_mapping(evidence)
+        evidence["evidence_digest"] = evidence_identity_digest(
+            provisional, content_digest(evidence_content)
+        )
+        state.write(f"evidence/{evidence['evidence_digest'][7:]}.json", EvidenceRecord.from_mapping(evidence))
+        state.write_bytes("evidence-content/T001.json", evidence_content)
+    return lab, attempt.attempt_id
+
+
 def test_health_and_installation_status_are_non_mutating_and_disabled(tmp_path: Path) -> None:
     lab = populated_lab(tmp_path)
     before = snapshot(lab)
@@ -313,6 +390,50 @@ def test_cli_exposes_service_health_list_and_show(tmp_path: Path, capsys) -> Non
     shown = json.loads(capsys.readouterr().out)
     assert shown["summary"]["state"] == "pass"
     assert shown["record"]["invocation_id"] == "INVOCATION-001"
+
+
+def test_attempt_timeline_and_candidate_review_are_complete_non_mutating_queries(
+    tmp_path: Path, capsys
+) -> None:
+    lab, attempt_id = candidate_fixture(tmp_path, retain_evidence=True)
+    service = WorkerLabApplicationService(lab)
+    before = snapshot(lab)
+    timeline = service.show_attempt_timeline(attempt_id).to_dict()
+    assert timeline["schema_version"] == "worker-lab-service-attempt-timeline:v1"
+    assert timeline["attempt"]["summary"]["identity"] == attempt_id
+    assert [item["summary"]["identity"] for item in timeline["invocations"]] == ["INVOCATION-001"]
+    assert [item["summary"]["identity"] for item in timeline["results"]] == ["INVOCATION-001"]
+    assert [item["summary"]["identity"] for item in timeline["custody"]] == ["INVOCATION-001"]
+    review = service.review_candidate(attempt_id).to_dict()
+    assert review["schema_version"] == "worker-lab-service-candidate-review:v1"
+    assert review["candidate_digest"] == review["result"]["summary"]["record_digest"]
+    assert review["changed_paths"] == []
+    assert review["validation_stages"][0]["outcome"] == "pass"
+    assert len(review["evidence"]) == 1
+    assert snapshot(lab) == before
+
+    assert main(["--root", str(lab), "show-attempt-timeline", attempt_id]) == 0
+    assert json.loads(capsys.readouterr().out)["attempt"]["summary"]["identity"] == attempt_id
+    assert main(["--root", str(lab), "review-candidate", attempt_id]) == 0
+    assert json.loads(capsys.readouterr().out)["candidate_digest"] == review["candidate_digest"]
+
+
+def test_candidate_review_fails_closed_for_missing_or_conflicting_evidence(tmp_path: Path) -> None:
+    lab, attempt_id = candidate_fixture(tmp_path, retain_evidence=True)
+    evidence_path = next((lab / "state" / "evidence-content").glob("*.json"))
+    evidence_path.unlink()
+    with pytest.raises(LabValidationError) as error:
+        WorkerLabApplicationService(lab).review_candidate(attempt_id)
+    assert error.value.code == "EVIDENCE_PATH_INVALID"
+
+    lab, attempt_id = candidate_fixture(tmp_path)
+    result_path = lab / "state" / "results" / "INVOCATION-001.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result["attempt_id"] = "ATTEMPT-CONFLICT"
+    result_path.write_text(json.dumps(result), encoding="utf-8")
+    with pytest.raises(LabValidationError) as error:
+        WorkerLabApplicationService(lab).review_candidate(attempt_id)
+    assert error.value.code == "SERVICE_CANDIDATE_IDENTITY_INVALID"
 
 
 def test_attempt_workspace_service_returns_stable_operation_dtos(tmp_path: Path) -> None:

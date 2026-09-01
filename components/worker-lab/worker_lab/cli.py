@@ -68,6 +68,12 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("collection", choices=COLLECTIONS)
     command.add_argument("identity")
     command.set_defaults(handler=_service_show_record)
+    command = commands.add_parser("show-attempt-timeline")
+    command.add_argument("attempt_id")
+    command.set_defaults(handler=_service_show_attempt_timeline)
+    command = commands.add_parser("review-candidate")
+    command.add_argument("attempt_id")
+    command.set_defaults(handler=_service_review_candidate)
     command = commands.add_parser("prepare-invocation")
     command.add_argument("attempt_id")
     command.add_argument("--workspace-root", required=True, type=Path)
@@ -183,6 +189,14 @@ def _service_list_records(args: argparse.Namespace) -> str:
 
 def _service_show_record(args: argparse.Namespace) -> str:
     return _service(args).show_record(args.collection, args.identity).to_json()
+
+
+def _service_show_attempt_timeline(args: argparse.Namespace) -> str:
+    return _service(args).show_attempt_timeline(args.attempt_id).to_json()
+
+
+def _service_review_candidate(args: argparse.Namespace) -> str:
+    return _service(args).review_candidate(args.attempt_id).to_json()
 
 
 def _service_prepare_invocation(args: argparse.Namespace) -> str:

@@ -78,14 +78,14 @@
       "installed_tree": {
         "schema_version": "acl-installed-file-set:v1",
         "scope": "python-production-tree",
-        "digest": "sha256:2d50c93226689a4ab08d7adf52dd7df928bf059a256d88ada76245efea35a201",
+        "digest": "sha256:61f01988f8626dd0cf1ac449b7ddce6e849f3d2879aaed129e849b93d495d143",
         "files": [
           {"path": "worker_lab/__init__.py", "sha256": "sha256:419deb0e9b78261a5967710bb65a8d5ca6dca5caf05ef7f6e8a602cfc4911bd0"},
-          {"path": "worker_lab/application_service.py", "sha256": "sha256:521c9fc8174ae7bb263c0a9fd468ef639af014e8dcbd35e69ddc82c26b865737"},
+          {"path": "worker_lab/application_service.py", "sha256": "sha256:1e494215550ab1ea257076ad6723da4f7c782346e53ae9c3a0d7581bdcffc945"},
           {"path": "worker_lab/attempt_store.py", "sha256": "sha256:2a753d661e889ba8120899b8759aba00ebb79b4bf40ca86164a4b4f0fb845fcf"},
           {"path": "worker_lab/backup.py", "sha256": "sha256:e079a2ad1dd917aaaf94d1acc65ad2192c28be7f9c3df2ea1a40d0d8a0f61b82"},
           {"path": "worker_lab/canonical.py", "sha256": "sha256:661011f1e1a3344b361f1ff43079b698b9018195e3ba9170c21f8395977476ff"},
-          {"path": "worker_lab/cli.py", "sha256": "sha256:b72f03d34b6c6abf31f94441347c15ebdc46e1f992e5a8fadf3edad6d691564a"},
+          {"path": "worker_lab/cli.py", "sha256": "sha256:ddb1a225f7fe63e2f738ade8878b568a53b6c26cb2fb09054568a7b8a20a65fc"},
           {"path": "worker_lab/errors.py", "sha256": "sha256:8ec76e1ac70071f451df8b97db34e4e83051bcceaa77ec1ab8266a673c97c910"},
           {"path": "worker_lab/evidence.py", "sha256": "sha256:84f4cadaa178e266272b3778b2af49827a504a28938589a93d583030f275483a"},
           {"path": "worker_lab/framework_adapter.py", "sha256": "sha256:9bd16a3469d4fb32607fadad8c659c83280617e2de2b5e428e59f4441e3c381c"},

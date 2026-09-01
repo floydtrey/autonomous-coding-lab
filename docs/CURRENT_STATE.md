@@ -22,7 +22,7 @@ Phase 1 is complete. The consolidated repository now has a clean, remotely recov
 
 Phase 2 is complete. Exactly one authorized synthetic read-only Codex proposal ran through Worker Lab and the framework, reached `CANDIDATE`, retained exact evidence, left the disposable workspace unchanged, and ended with verified process absence. The installation was restored to disabled immediately afterward.
 
-Phase 3 is in progress. Its shared service now provides strict read-only queries; attempt/workspace lifecycle commands; durable invocation preparation, controller-bound authorization, terminal rejection, pre-dispatch cancellation, and fail-closed recovery after verified process absence; and backup, verification, and restore operations for CLI and future GUI clients. General dispatch, complete timelines, and candidate review have not yet moved behind that boundary, and execution remains disabled.
+Phase 3 is in progress. Its shared service now provides strict read-only queries; complete attempt timelines and candidate review; attempt/workspace lifecycle commands; durable invocation preparation, controller-bound authorization, terminal rejection, pre-dispatch cancellation, and fail-closed recovery after verified process absence; and backup, verification, and restore operations for CLI and future GUI clients. General dispatch has not moved behind that boundary, and execution remains disabled.
 
 ## Accepted Phase 1 checkpoint
 
@@ -192,6 +192,16 @@ Validation did not run a worker, model, adapter execution operation, or external
 - root inventory tools: 9 passed;
 - doctor reported manifest digest `sha256:d9409f9b28047a7f05ace3fd6d7cb414ca8b3b698eabaef7bad4406d3db66bc0`, Worker Lab digest `sha256:2d50c93226689a4ab08d7adf52dd7df928bf059a256d88ada76245efea35a201`, and `execution_ready: false`.
 
+## Current Phase 3 timeline and candidate-review checkpoint
+
+The current working tree adds the remaining read-only operator queries before general dispatch:
+
+- `show-attempt-timeline` returns the complete durable attempt view: attempt, workspace receipt, linked invocations, results, process custody, evidence, and failures;
+- `review-candidate` requires one exact completed invocation/result/custody chain, verifies the retained candidate content and every linked evidence record, and returns changed paths, validation stages, evidence, and the failure boundary;
+- both CLI commands use only `WorkerLabApplicationService`, never call private storage directly, and reject missing, corrupt, or conflicting durable records without mutation;
+- the installed Worker Lab identity is `sha256:61f01988f8626dd0cf1ac449b7ddce6e849f3d2879aaed129e849b93d495d143`; doctor reported manifest digest `sha256:d44c1bab6b6e3a27fb714da7960908cbe909a6e1b9bf653ecce72495233d7c66` and `execution_ready: false`;
+- focused application-service and CLI validation passed 36 tests; the Worker Lab component suite passed 359 tests with seven expected Windows symlink-capability skips.
+
 ## Proven component capabilities
 
 ### Worker Lab
@@ -221,14 +231,14 @@ A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON r
 ## Not yet available
 
 - A general workspace-write bridge from Worker Lab to the framework.
-- Application-service operations for general dispatch, complete attempt timelines, and candidate review.
+- Application-service operation for general dispatch.
 - A functional Worker Lab GUI.
 - Unsupervised local-model planning, task authorization, code review, publishing, or merging.
 - Production-project access or modification by workers.
 
 ## Immediate next gate
 
-Continue Phase 3 by adding complete attempt timelines and candidate review queries. Establish those operator controls before adding general dispatch. Execution remains disabled.
+The timeline and candidate-review query packet is complete on the current working tree. Phase 3 remains incomplete because general dispatch has not moved behind the service boundary. Execution remains disabled.
 
 The trusted dependency-ordered delivery plan for worker execution and the Worker Lab GUI is `docs/WORKPLAN.md`.
 

@@ -18,6 +18,7 @@ from .backup import (
     verify_backup as verify_durable_backup,
 )
 from .canonical import canonical_digest, canonical_json
+from .evidence import content_digest, verify_evidence
 from .errors import LabValidationError
 from .integration import (
     FRAMEWORK_CONTRACT_VERSION,
@@ -33,6 +34,7 @@ from .integration import (
     ResultRecord,
     transition_invocation,
 )
+from .framework_adapter import parse_result
 from .invocation_store import InvocationStore
 from .lifecycle import transition_attempt
 from .models import (
@@ -87,6 +89,8 @@ RECORD_DETAIL_SCHEMA = "worker-lab-service-record-detail:v1"
 OPERATION_RESULT_SCHEMA = "worker-lab-service-operation-result:v2"
 BACKUP_RESULT_SCHEMA = "worker-lab-service-backup-result:v1"
 RECOVERY_RESULT_SCHEMA = "worker-lab-service-recovery-result:v1"
+ATTEMPT_TIMELINE_SCHEMA = "worker-lab-service-attempt-timeline:v1"
+CANDIDATE_REVIEW_SCHEMA = "worker-lab-service-candidate-review:v1"
 RECOVERY_CLEANUP_OUTCOME = (
     "adapter absence and unchanged workspace verified; workspace retained"
 )
@@ -304,6 +308,66 @@ class RecoveryResultDTO:
         return canonical_json(self.to_dict())
 
 
+@dataclass(frozen=True)
+class AttemptTimelineDTO:
+    attempt: RecordDetailDTO
+    workspace: RecordDetailDTO | None
+    invocations: tuple[RecordDetailDTO, ...]
+    results: tuple[RecordDetailDTO, ...]
+    custody: tuple[RecordDetailDTO, ...]
+    evidence: tuple[RecordDetailDTO, ...]
+    failures: tuple[RecordDetailDTO, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": ATTEMPT_TIMELINE_SCHEMA,
+            "attempt": self.attempt.to_dict(),
+            "workspace": None if self.workspace is None else self.workspace.to_dict(),
+            "invocations": [item.to_dict() for item in self.invocations],
+            "results": [item.to_dict() for item in self.results],
+            "custody": [item.to_dict() for item in self.custody],
+            "evidence": [item.to_dict() for item in self.evidence],
+            "failures": [item.to_dict() for item in self.failures],
+        }
+
+    def to_json(self) -> str:
+        return canonical_json(self.to_dict())
+
+
+@dataclass(frozen=True)
+class CandidateReviewDTO:
+    candidate_digest: str
+    attempt: RecordDetailDTO
+    invocation: RecordDetailDTO
+    result: RecordDetailDTO
+    custody: RecordDetailDTO
+    proposal_content_digest: str
+    changed_paths: tuple[str, ...]
+    validation_stages: tuple[Mapping[str, Any], ...]
+    evidence: tuple[RecordDetailDTO, ...]
+    failures: tuple[RecordDetailDTO, ...]
+    first_failure_boundary: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": CANDIDATE_REVIEW_SCHEMA,
+            "candidate_digest": self.candidate_digest,
+            "attempt": self.attempt.to_dict(),
+            "invocation": self.invocation.to_dict(),
+            "result": self.result.to_dict(),
+            "custody": self.custody.to_dict(),
+            "proposal_content_digest": self.proposal_content_digest,
+            "changed_paths": list(self.changed_paths),
+            "validation_stages": [dict(item) for item in self.validation_stages],
+            "evidence": [item.to_dict() for item in self.evidence],
+            "failures": [item.to_dict() for item in self.failures],
+            "first_failure_boundary": self.first_failure_boundary,
+        }
+
+    def to_json(self) -> str:
+        return canonical_json(self.to_dict())
+
+
 class WorkerLabApplicationService:
     """Application boundary shared by operator clients and the future GUI."""
 
@@ -363,6 +427,88 @@ class WorkerLabApplicationService:
             raise LabValidationError("SERVICE_RECORD_DUPLICATE", "requested service identity is ambiguous")
         record = matches[0]
         return RecordDetailDTO(_summary(collection, record, spec), record.to_dict())
+
+    def show_attempt_timeline(self, attempt_id: str) -> AttemptTimelineDTO:
+        attempt_id = _identity(attempt_id)
+        self._require_present_data_root()
+        attempt = self.show_record("attempts", attempt_id)
+        records = self._attempt_records(attempt_id)
+        return AttemptTimelineDTO(
+            attempt,
+            records["workspace"],
+            records["invocations"],
+            records["results"],
+            records["custody"],
+            records["evidence"],
+            records["failures"],
+        )
+
+    def review_candidate(self, attempt_id: str) -> CandidateReviewDTO:
+        attempt_id = _identity(attempt_id)
+        self._require_present_data_root()
+        timeline = self.show_attempt_timeline(attempt_id)
+        attempt = AttemptRecord.from_mapping(timeline.attempt.record)
+        if attempt.candidate_digest is None:
+            raise LabValidationError(
+                "SERVICE_CANDIDATE_MISSING", "attempt has no retained candidate identity"
+            )
+        if len(timeline.invocations) != 1 or len(timeline.results) != 1 or len(timeline.custody) != 1:
+            raise LabValidationError(
+                "SERVICE_CANDIDATE_IDENTITY_INVALID",
+                "candidate requires exactly one invocation, result, and custody record",
+            )
+        invocation = InvocationRecord.from_mapping(timeline.invocations[0].record)
+        result = ResultRecord.from_mapping(timeline.results[0].record)
+        custody = ProcessCustodyRecord.from_mapping(timeline.custody[0].record)
+        if (
+            invocation.state is not InvocationState.COMPLETED
+            or invocation.result_digest != result.digest()
+            or attempt.candidate_digest != result.digest()
+            or attempt.runtime_identity != invocation.identity_digest()
+            or custody.invocation_id != invocation.invocation_id
+            or custody.invocation_digest != invocation.identity_digest()
+            or custody.state is not CustodyState.ABSENCE_VERIFIED
+            or result.process_identity != custody.digest()
+        ):
+            raise LabValidationError(
+                "SERVICE_CANDIDATE_IDENTITY_INVALID",
+                "candidate records do not share an exact durable identity",
+            )
+        try:
+            parse_result(canonical_json(result.to_dict()), invocation)
+        except LabValidationError as exc:
+            raise LabValidationError(
+                "SERVICE_CANDIDATE_IDENTITY_INVALID",
+                "candidate result differs from its invocation",
+            ) from exc
+        if result.content_reference is None:
+            raise LabValidationError(
+                "SERVICE_CANDIDATE_CONTENT_MISSING", "candidate content is not retained"
+            )
+        content = AtomicRecordStore(self.data_root / "state").read_bytes(result.content_reference)
+        retained_digest = content_digest(content)
+        if retained_digest != result.output_digest or retained_digest != result.proposal_digest:
+            raise LabValidationError(
+                "SERVICE_CANDIDATE_CONTENT_INVALID",
+                "candidate content differs from retained result digests",
+            )
+        evidence = tuple(
+            item for item in timeline.evidence
+            if verify_evidence(self.data_root, item.summary.identity).attempt_id == attempt_id
+        )
+        return CandidateReviewDTO(
+            attempt.candidate_digest,
+            timeline.attempt,
+            timeline.invocations[0],
+            timeline.results[0],
+            timeline.custody[0],
+            retained_digest,
+            result.changed_paths,
+            tuple(stage.to_dict() for stage in result.validation_stages),
+            evidence,
+            timeline.failures,
+            result.first_failure_boundary,
+        )
 
     def create_attempt(
         self,
@@ -927,6 +1073,67 @@ class WorkerLabApplicationService:
     def _store(self, spec: _CollectionSpec) -> AtomicRecordStore:
         return AtomicRecordStore(self.data_root / spec.storage_root)
 
+    def _attempt_records(self, attempt_id: str) -> dict[str, Any]:
+        state = AtomicRecordStore(self.data_root / "state")
+        workspace_path = f"workspaces/{attempt_id}.json"
+        try:
+            workspace_record = state.read(workspace_path, WorkspaceReceipt.from_mapping)
+        except LabValidationError as exc:
+            if exc.code != "STORAGE_RECORD_MISSING":
+                raise
+            workspace = None
+        else:
+            if workspace_record.attempt_id != attempt_id:
+                raise LabValidationError(
+                    "SERVICE_TIMELINE_IDENTITY_INVALID", "workspace receipt differs from attempt"
+                )
+            workspace = RecordDetailDTO(
+                _summary("workspace-receipts", workspace_record, _WORKSPACE_SPEC),
+                workspace_record.to_dict(),
+            )
+
+        invocations = self._records_for_attempt("invocations", attempt_id)
+        results = self._records_for_attempt("results", attempt_id)
+        evidence = self._records_for_attempt("evidence", attempt_id)
+        failures = self._records_for_attempt("failures", attempt_id)
+        invocation_ids = {item.summary.identity for item in invocations}
+        custody = tuple(
+            item for item in self._all_details("process-custody", _CUSTODY_SPEC)
+            if item.record["invocation_id"] in invocation_ids
+        )
+        for item in results:
+            if item.summary.identity not in invocation_ids:
+                raise LabValidationError(
+                    "SERVICE_TIMELINE_IDENTITY_INVALID", "result differs from durable invocation"
+                )
+        return {
+            "workspace": workspace,
+            "invocations": invocations,
+            "results": results,
+            "custody": custody,
+            "evidence": evidence,
+            "failures": failures,
+        }
+
+    def _records_for_attempt(self, collection: str, attempt_id: str) -> tuple[RecordDetailDTO, ...]:
+        spec = _collection(collection)
+        return tuple(
+            item for item in self._all_details(collection, spec)
+            if item.record["attempt_id"] == attempt_id
+        )
+
+    def _all_details(self, collection: str, spec: _CollectionSpec) -> tuple[RecordDetailDTO, ...]:
+        store = self._store(spec)
+        details = tuple(
+            RecordDetailDTO(_summary(collection, record, spec), record.to_dict())
+            for path in store.list_paths(spec.directory)
+            for record in (store.read(path, spec.loader),)
+        )
+        identities = [item.summary.identity for item in details]
+        if len(identities) != len(set(identities)):
+            raise LabValidationError("SERVICE_RECORD_DUPLICATE", "collection contains a duplicate identity")
+        return tuple(sorted(details, key=lambda item: item.summary.identity))
+
     def _data_root_state(self) -> str:
         if not self.data_root.exists():
             return "absent"
@@ -1262,6 +1469,14 @@ _COLLECTION_SPECS: Mapping[str, _CollectionSpec] = {
     "results": _CollectionSpec("state", "results", ResultRecord.from_mapping, lambda item: item.invocation_id, _state("process_outcome")),
     "roles": _CollectionSpec("curricula", "roles", RoleRecord.from_mapping, lambda item: _versioned(item.role_id, item.role_version), _none),
 }
+
+_WORKSPACE_SPEC = _CollectionSpec(
+    "state", "workspaces", WorkspaceReceipt.from_mapping, lambda item: item.attempt_id, _state("state")
+)
+_CUSTODY_SPEC = _CollectionSpec(
+    "state", "process-custody", ProcessCustodyRecord.from_mapping,
+    lambda item: item.invocation_id, _state("state"),
+)
 
 if tuple(sorted(_COLLECTION_SPECS)) != COLLECTIONS:
     raise RuntimeError("service collection declaration differs")
