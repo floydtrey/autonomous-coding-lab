@@ -6,7 +6,7 @@
 
 **Branch:** `main`
 
-**Last accepted Phase 3 implementation checkpoint:** `e505866ffe4467fe8e32cfc118978c695b8638a9`
+**Last accepted Phase 3 implementation checkpoint:** `e938a182c5fad1540b9ed68f4dfd471204caa90f`
 
 **Isolated GUI prototype checkpoint:** `a72f026d57b9d938c4ebba1987379482af4e39b3`
 
@@ -22,7 +22,7 @@ Phase 1 is complete. The consolidated repository now has a clean, remotely recov
 
 Phase 2 is complete. Exactly one authorized synthetic read-only Codex proposal ran through Worker Lab and the framework, reached `CANDIDATE`, retained exact evidence, left the disposable workspace unchanged, and ended with verified process absence. The installation was restored to disabled immediately afterward.
 
-Phase 3 is in progress. Its shared service now provides strict read-only queries; attempt/workspace lifecycle commands; durable invocation preparation, controller-bound authorization, terminal rejection, and controller-bound pre-dispatch cancellation; and backup, verification, and restore operations for CLI and future GUI clients. General dispatch, uncertain-process recovery, complete timelines, and candidate review have not yet moved behind that boundary, and execution remains disabled.
+Phase 3 is in progress. Its shared service now provides strict read-only queries; attempt/workspace lifecycle commands; durable invocation preparation, controller-bound authorization, terminal rejection, pre-dispatch cancellation, and fail-closed recovery after verified process absence; and backup, verification, and restore operations for CLI and future GUI clients. General dispatch, complete timelines, and candidate review have not yet moved behind that boundary, and execution remains disabled.
 
 ## Accepted Phase 1 checkpoint
 
@@ -172,6 +172,26 @@ Validation did not run a worker, model, adapter execution operation, or external
 - root inventory tools: 9 passed;
 - doctor reported manifest digest `sha256:ca3cd65c1eada0bb21881245be3d7c3bf27fcf936aabb8b64ae018f958ed082a`, Worker Lab digest `sha256:e327735568d0999fcf9bc1916967c6000433c611924c958d7ea4a09256c86c05`, and `execution_ready: false`.
 
+## Accepted Phase 3 recovery-service checkpoint
+
+Commit `e938a18` adds restart-safe invocation recovery without adding dispatch:
+
+- the recovery command requires the immutable invocation digest and the same validated controller that authorized it;
+- exact attempt, invocation, workspace receipt, workspace root/path, starting commit, and pre-launch content identities are revalidated before state changes;
+- a terminated dispatched process can gain absence proof only after the exact original controller is gone and its durable active-process count is zero;
+- custody whose own state is `UNCERTAIN` remains fail-closed and cannot be promoted into absence proof;
+- no result may exist, and any workspace change blocks recovery without transitioning durable state;
+- `DISPATCHING` is durably classified `UNCERTAIN` before terminal `ABORTED`, the running attempt is aborted with an explicit retained-workspace outcome, and partial writes can be completed safely on retry;
+- recovery-result v1 returns exact terminal attempt, invocation, custody, and unchanged-workspace evidence for CLI and future GUI clients.
+
+Validation did not run a worker, model, adapter execution operation, or external repository:
+
+- focused application-service suite: 20 passed;
+- Worker Lab full suite: 357 passed and seven expected Windows symlink-capability skips;
+- framework full suite, including independent manifest and adapter-contract coverage: 208 passed;
+- root inventory tools: 9 passed;
+- doctor reported manifest digest `sha256:d9409f9b28047a7f05ace3fd6d7cb414ca8b3b698eabaef7bad4406d3db66bc0`, Worker Lab digest `sha256:2d50c93226689a4ab08d7adf52dd7df928bf059a256d88ada76245efea35a201`, and `execution_ready: false`.
+
 ## Proven component capabilities
 
 ### Worker Lab
@@ -201,14 +221,14 @@ A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON r
 ## Not yet available
 
 - A general workspace-write bridge from Worker Lab to the framework.
-- Application-service operations for general dispatch, uncertain-process recovery, complete attempt timelines, and candidate review.
+- Application-service operations for general dispatch, complete attempt timelines, and candidate review.
 - A functional Worker Lab GUI.
 - Unsupervised local-model planning, task authorization, code review, publishing, or merging.
 - Production-project access or modification by workers.
 
 ## Immediate next gate
 
-Continue Phase 3 by adding fail-closed uncertain-process recovery orchestration, complete attempt timelines, and candidate review queries. Establish those operator controls before adding general dispatch. Execution remains disabled.
+Continue Phase 3 by adding complete attempt timelines and candidate review queries. Establish those operator controls before adding general dispatch. Execution remains disabled.
 
 The trusted dependency-ordered delivery plan for worker execution and the Worker Lab GUI is `docs/WORKPLAN.md`.
 

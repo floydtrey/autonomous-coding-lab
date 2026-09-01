@@ -16,7 +16,7 @@ Local Model Bench is peer/advisory infrastructure, not a runtime dependency of W
 
 The three source histories and component trees have been consolidated. The accepted Phase 1 runtime checkpoint is commit `5f6c41da132daa12f0bb8c4be054112d77ef7e54`; its current-state acceptance record is committed at `8c4f697`.
 
-Worker execution is currently **disabled**. Phase 2's guarded synthetic read-only proof completed successfully with one retained `CANDIDATE`, an unchanged disposable workspace, and verified process absence. Phase 3 is in progress: checkpoints `a288a15`, `cf9d45f`, `e776743`, and `e505866` establish shared queries, attempt/workspace lifecycle commands, guarded invocation preparation/authorization/rejection, controller-bound pre-dispatch cancellation, and backup/verify/restore operations. Recovery and review commands are next. A disconnected GUI design is preserved under `components/worker-lab/prototypes/`.
+Worker execution is currently **disabled**. Phase 2's guarded synthetic read-only proof completed successfully with one retained `CANDIDATE`, an unchanged disposable workspace, and verified process absence. Phase 3 is in progress: checkpoints `a288a15`, `cf9d45f`, `e776743`, `e505866`, and `e938a18` establish shared queries, attempt/workspace lifecycle commands, guarded invocation decisions, backup/verify/restore operations, and fail-closed recovery after verified process absence. Complete timelines and candidate review queries are next. A disconnected GUI design is preserved under `components/worker-lab/prototypes/`.
 
 Read [Start Here](docs/START_HERE.md) before changing the repository. The exact accepted and in-progress state is in [Current State](docs/CURRENT_STATE.md).
 
@@ -45,6 +45,7 @@ autonomous-coding-lab/
 - [Development](docs/DEVELOPMENT.md) — change and validation workflow
 - [Governance](docs/GOVERNANCE.md) — authority, identity, and acceptance rules
 - [Project Audit and Work Plan](docs/WORKPLAN.md) — trusted delivery sequence for workers and the GUI
+- [VS Code Handoff](docs/VS_CODE_HANDOFF.md) — concise resume point for the next Phase 3 slice
 - [Legacy index](docs/legacy/README.md) — where the pre-consolidation records went
 
 ## Safety summary
