@@ -1,61 +1,55 @@
 # Start Here
 
-**Status:** Active migration router
-**Current milestone:** M3 exact import and standalone parity complete; identity adaptation pending
-**Execution authority:** Disabled
-
-## First actions
-
-1. Verify this repository's path, branch, HEAD, remote, and working-tree state.
-2. Read `CURRENT_STATE.md`.
-3. For migration work, read `MERGER_CONTRACT.md`, `SOURCE_INVENTORY.md`,
-   `PATH_MIGRATION_LEDGER.md`, and the active milestone in `MILESTONES.md`.
-4. Read `handoffs/CONSOLIDATION_RECONCILIATION.md` for the current M1 evidence,
-   conflicts, accepted architecture boundaries, and user decisions.
-5. For M2 framework work, read `FRAMEWORK_M2_RECOVERY.md` before any import.
-6. For M3 Worker Lab work, read `WORKER_LAB_M3_RECOVERY.md` before any import.
-7. Read a source repository's own `AGENTS.md` and routing document before
-   inspecting or importing that component.
-8. Query `../migration/inventory/` for exact source-file, path, structure, and
-   connection evidence instead of repeating broad repository discovery.
-9. Stop if Git evidence and documentation disagree.
+This is the routing page for current Autonomous Coding Lab work. It is intentionally short so a new person or AI can acquire the right context without rereading the entire consolidation history.
 
 ## Authority order
 
-1. Current system, developer, and user instructions.
-2. Verified Git and filesystem evidence.
-3. This repository's accepted decisions and merger contract.
-4. Active source-repository authority until its transfer milestone passes.
-5. Historical reports, chats, and prior task summaries.
+When information conflicts, use this order:
 
-Historical material is evidence, not current authority.
+1. The user's current request and explicit approvals.
+2. Root `AGENTS.md`.
+3. `docs/CURRENT_STATE.md` for current repository status.
+4. The relevant current design or operating document.
+5. Current code, tests, configuration, and Git evidence.
+6. `migration/inventory/` as consolidation evidence.
+7. `docs/legacy/` as historical context only.
 
-## Current boundary
+Stop and resolve a conflict instead of silently choosing the more permissive interpretation.
 
-The repository shell and M1 merger governance are accepted. The commit containing
-the accepted reconciliation is the M1 checkpoint. It authorizes no source import
-and no execution.
+## Minimum startup
 
-The framework recovery artifact and source identities passed M2-A. M2-B imported
-the exact framework tree with complete reachable ancestry and namespaced tags.
-The untouched full suite passed from an exact disposable standalone
-reconstruction, and the prefixed in-monorepo full suite also passed. Focused
-testing proved the quick validator falsely selects no stages for monorepo-prefixed
-paths. The deterministic structural inventory classifies P-008 as the sole
-mechanical failure and records the remaining issues as known semantic/runtime
-gaps. P-008 is repaired and validated in the monorepo. The framework-only
-identity policy and unwired verifier now bind source provenance, monorepo
-integration evidence, exact paths/blobs, and the M2 dependency closure. Worker
-Lab identity, bilateral cleanliness, protocol wiring, and all execution remain
-deferred. Worker Lab recovery and complete-history reconstruction passed in
-M3-A. M3-B then imported the exact source tree, complete ancestry, and
-namespaced tags without running or adapting the component. An exact disposable
-standalone reconstruction then ran T020: 317 tests passed, seven expected
-Windows symlink-capability tests skipped, and 12 tests failed because older
-fixtures omitted the now-required runtime identity for active attempts. Bounded
-repair commit `a7bbd4e9074d1e4be64f01e74b4471abee0fd95d` changed only those four stale
-test files while adding an explicit CLI fail-closed assertion. Focused
-validation passed 104 tests with five expected skips, and the single T020 run
-passed all 329 tests with seven expected skips. Standalone parity is complete.
-Cross-component path, identity, protocol, and bilateral-cleanliness adaptation
-remains separately authorized and disabled.
+For every task:
+
+1. Read root `AGENTS.md` and this file.
+2. Read `docs/CURRENT_STATE.md`.
+3. Check the working tree before writing.
+4. Read one additional document based on the task below.
+
+## Task routing
+
+| Task | Read next |
+|---|---|
+| Understand component responsibilities or data flow | `docs/ARCHITECTURE.md` |
+| Install, inspect, run a benchmark, back up, or recover | `docs/OPERATIONS.md` |
+| Change code, tests, paths, or integration behavior | `docs/DEVELOPMENT.md` |
+| Decide authority, permissions, identity, acceptance, or publication | `docs/GOVERNANCE.md` |
+| Select or resume the implementation sequence toward workers and the GUI | `docs/WORKPLAN.md` |
+| Investigate why a consolidation choice was made | `docs/legacy/README.md`, then only the named historical record |
+
+## Current versus historical material
+
+The files directly under `docs/` are current. Files under `docs/legacy/` record earlier standalone repositories and the merger process. A legacy statement may explain a design decision, but it cannot override current code, current documentation, or current authority.
+
+The JSON files under `migration/inventory/` are deterministic evidence about source and integration trees. They are useful for identity and path investigations; they are not a work queue.
+
+## Freshness rules
+
+- `docs/CURRENT_STATE.md` must identify both the last accepted checkpoint and any unfinished working-tree changes.
+- Test counts certify only the commit or working tree on which they ran.
+- A prior worker execution proves capability, not permission for another execution.
+- A clean source snapshot does not prove the current monorepo working tree is clean.
+- Re-run a check only when its inputs changed, its evidence is missing, or the current task requires fresh proof.
+
+## Before acting
+
+State the bounded outcome. Identify which files or component are in scope. Decide what single validation gate is proportionate. Preserve unrelated work. Once the requested outcome and gate are complete, report and stop.

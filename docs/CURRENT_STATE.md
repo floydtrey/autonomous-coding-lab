@@ -1,190 +1,103 @@
 # Current State
 
 **Last updated:** 2026-08-31
-**Status:** M3 exact import and repaired standalone parity complete; cross-component adaptation pending
-**Canonical repository:** Merger governance plus exact framework and Worker Lab bytes; component authority has not transferred
 
-## Target repository
+**Repository:** `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
 
-- Local path: `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
-- Remote: private `floydtrey/autonomous-coding-lab`
-- Branch: `main`
-- Source code imported: exact framework tree at
-  `components/autonomous-worker-framework/` and exact Worker Lab tree at
-  `components/worker-lab/`
-- Worker execution authority: none
+**Branch:** `main`
 
-## Preliminary source identities
+**Last accepted checkpoint:** `d3e67b970e90eeb52dd854b5eda1f812232b05fe`
 
-| Source | Verified HEAD | Observed state | Remote |
-|---|---|---|---|
-| Worker Lab | `fddf0726b975a8192d5e126f109e6fc756f11b36` | `main` is 10 commits ahead; tracked worktree and index clean; ignored/unreadable test residue remains excluded | private GitHub remote |
-| Autonomous Worker Framework | `3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd` / `v0.2.6-worker-lab-final-message` | local `main`; unreadable test-temp directories; no remote | none |
-| Local Model Bench | `4a023c8230365c3098a6dff71fa9623cac059cdd` | tracked tree clean and locally synchronized; native-JSON run completed in ignored local results | public GitHub remote recorded locally |
+**Remote relationship at inspection:** local `main` was 107 commits ahead of `origin/main`
 
-These are audit observations, not import approvals. The user classified all 17
-obsolete Worker Lab `TERRA*.md` instruction/report files for removal, and Worker
-Lab commit `fddf0726b975a8192d5e126f109e6fc756f11b36` records their deletion plus
-three active-reference repairs. Legacy copies, unreadable directories, ignored
-results, and other historical material remain excluded from automatic import.
+**Execution authority:** disabled
 
-## Existing boundary that must be preserved
+## Plain-language status
 
-The framework has proven bounded execution capabilities. Worker Lab owns
-authority, lifecycle, curriculum, and evidence. Local Model Bench owns model and
-prompt evaluation. Bringing them into one repository does not allow one
-component to silently assume another component's authority.
+The consolidation succeeded: the complete histories and selected trees for the framework, Worker Lab, and Local Model Bench are in one repository. Their responsibilities remain separate internal trust boundaries.
 
-## M1 findings
+The repository is not yet at an accepted post-consolidation runtime checkpoint. The working tree now contains a completed documentation/archive replacement and a validated installation-identity v2 candidate, but neither has been committed or pushed. Nothing in those changes authorizes worker execution.
 
-- The first integration layout is accepted as `components/worker-lab/`,
-  `components/autonomous-worker-framework/`, and
-  `components/local-model-bench/`. These paths remain stable through M6.
-- Worker Lab and the framework have no detected Python imports between them.
-  Their live interface is a versioned canonical-JSON subprocess protocol.
-- Worker Lab pins the framework's standalone absolute path, standalone Git
-  commit, and root-relative adapter blob path.
-- The framework adapter independently assumes its component directory is the
-  Git repository root and requires the entire repository to be clean.
-- Those identity checks cannot be weakened or patched casually. Live execution
-  remains disabled after import until a reviewed monorepo identity contract
-  provides component-scoped paths, source provenance, blob identity, and scoped
-  cleanliness evidence.
-- Worker Lab requires Python 3.12. Local Model Bench requires Python 3.10 or
-  newer. The framework has no package metadata and is validated as root-relative
-  tools. Each component therefore keeps its own environment and commands during
-  migration.
-- Worker Lab and the framework have no license file. Their consolidation is
-  authorized only inside this private repository; public redistribution remains
-  undecided. Local Model Bench's MIT license must remain with that component.
-- Benchmark profiles contain two machine-local llama.cpp/model paths. They are
-  configuration, not portable defaults, and require later local-configuration
-  treatment without importing the model binaries.
-- Local Model Bench's native-JSON Qwen 14B run completed 18/18 with a mechanical
-  score of 93.33% and zero hard failures. It remains ignored local evidence;
-  semantic role fitness and model selection are still unknown.
-- Worker Lab contains execution-capable synthetic read-only source, but active
-  ACL authority still disables execution. Capability does not transfer
-  authority.
-- `docs/handoffs/H01-Handoff.txt` is the accepted canonical H01 witness. The
-  malformed one-character-different `.md` duplicate was excluded from the
-  checkpoint after its difference was recorded.
-- The accepted fail-closed monorepo identity binds source provenance separately
-  from monorepo integration identity and scopes cleanliness to both participating
-  components plus a closed root/shared invocation dependency set.
-- Planner and Task Creator outputs remain untrusted until Worker Lab accepts and
-  authorizes them. Framework execution and benchmark evaluation remain
-  directional downstream boundaries.
+## Accepted checkpoint evidence
 
-## Next boundary
+At or before the accepted checkpoint:
 
-The framework source identity, complete reachable ancestry, annotated tags, and
-external recovery bundle are verified in `FRAMEWORK_M2_RECOVERY.md`. The bundle
-SHA-256 is
-`5D14E8D34DA523C9719646CEB437833C4D9D56E31407D8C5BF2122BC7789779B`.
+- The framework source was imported with recoverable history and tags.
+- Its monorepo prefix repair was validated; the full framework gate recorded 197 passing tests at the identity milestone.
+- Worker Lab source was imported with recoverable history and tags.
+- Four stale test fixtures were repaired without weakening the production runtime-identity requirement. The accepted Worker Lab parity run recorded 329 passes and seven expected Windows capability skips.
+- The deterministic integration inventory parsed 40 framework files and 68 Worker Lab files with no parser failures at checkpoint `d28cbbb`.
+- Local Model Bench was imported as an exact component history at `d3e67b9` from source commit `4a023c8230365c3098a6dff71fa9623cac059cdd`.
 
-M2-B exact import commit
-`d1c95814bce512318c61a5745dcd684d87e3676a` has first parent M2-A checkpoint
-`bbc2e831328c841ae204e4fd6064202a18d3ee5d`, second parent framework source
-`3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd`, and exact imported subtree
-`35ecad05e60c664324a4f30d42a4f6b198181074`. No imported file was adapted.
+These figures are checkpoint evidence, not results from the current dirty working tree.
 
-Untouched standalone parity passed from a disposable reconstruction whose Git
-tree exactly matched `35ecad05e60c664324a4f30d42a4f6b198181074`:
-Python 3.12.10 compiled the framework and pytest 9.1.1 passed all 163 tests. The
-first test attempt was environment-invalid because pytest could not access its
-pre-existing default Windows temp directory; the unchanged documented command
-passed after `TEMP` and `TMP` were directed to a fresh disposable directory.
+## Current uncommitted work
 
-The unchanged full validator also passed from the prefixed component root: Python
-compilation passed and all 163 tests passed. A focused quick-validation probe
-against base `bbc2e831328c841ae204e4fd6064202a18d3ee5d` discovered 46 changed
-paths, including 38 framework paths carrying the monorepo prefix, but selected
-zero stages and returned success. This proves P-008: `_existing_files` and the
-changed-test selector expect component-relative paths.
+The working tree observed during this documentation rebuild contains:
 
-The deterministic Git-tree inventory under `migration/inventory/` now binds all
-165 tracked files across the three selected source snapshots to their blobs,
-destination paths, extracted structures, and typed path references. It records
-15 cross-component connections, one mechanical failure (P-008), 11 known
-semantic/runtime gaps, and no unknown parser failures. A repeat generation was
-byte-for-byte identical. The guarded repair plan names only
-`tools/local_validate.py` and its focused test file.
+- archived former root and component documentation under `docs/legacy/`;
+- this replacement active documentation set;
+- an untracked strict `config/installation-manifest.json` v2;
+- modifications to the framework adapter and Worker Lab integration files that replace standalone Git-root assumptions and content-as-commit compatibility fields with SHA-256 installed-component identities;
+- independent manifest parsers in Worker Lab and the framework adapter;
+- a Local Model Bench CRLF Markdown-heading repair and regression test;
+- deletion of the former component-local READMEs and design documents after their relocation to legacy storage.
 
-P-008 was repaired in commit
-`8985ff205b756a843fbfcce3ff61ea5f1638273a`. The quick selector now translates
-monorepo-root Git paths to component-relative paths, ignores paths outside the
-framework component, and fails closed if the component is outside Git's reported
-root. Nine focused tests passed, the full framework passed all 165 tests, and a
-fresh regeneration changed none of the eight immutable source-baseline JSON
-artifacts. `migration/inventory/resolutions.json` binds the exact repaired blobs
-and evidence without rewriting the source finding.
+The v2 manifest separates source commit/tree provenance from installed content. It records the complete two-file framework adapter dependency closure, the complete Worker Lab and Local Model Bench Python production trees, and exact Python/Codex paths, versions, and SHA-256 digests. Its activation policy keeps execution `DISABLED`, keeps Worker Lab `DEFERRED`, and is enforced independently by both sides before preflight or execution. Protocol v2 uses `worker_lab_installation_digest` and `framework_installation_digest`; it no longer places content hashes in `*_commit` fields.
 
-M2-S1 commit `6622c24ade7e08a66aa62d23837aad11ff08e0a4`
-introduced a canonical framework-only identity policy and strict parser. The
-policy separates immutable source provenance from future dynamic integration
-identity, declares the whole framework component plus its policy file as the M2
-dependency closure, keeps Worker Lab deferred, and cannot grant execution.
+## Current working-tree validation
 
-M2-S2 commit `57a298562de274cd4f989a2a5741861a5a5b56a8`
-added an unwired Git-backed verifier. Against that exact clean commit it bound
-the source/import/current trees, canonical framework prefix, committed and
-worktree adapter bytes, policy blob, and scoped tracked/untracked cleanliness.
-The resulting identity digest is
-`sha256:98dcf445573f11c7ea004cfd8ab2ecf9fcb7805769cdb41e33f7fb593de0a205`.
-Thirty-two focused tests and all 197 framework tests passed.
+No worker or model was run. With temporary output placed outside every Git repository:
 
-The v1 adapter protocol and CLI were not changed and do not consume the new
-verifier. Execution remains disabled.
+- root inventory tools: 9 passed;
+- framework compile gate: passed;
+- framework full suite: 208 passed;
+- Worker Lab full suite: 330 passed and seven expected Windows symlink-capability skips;
+- Local Model Bench: 13 passed, including the CRLF regression, and the baseline configuration validated;
+- 43 archived documentation files matched their accepted HEAD blobs;
+- both manifest consumers agreed on framework digest `sha256:81cc5608ec465133a8eb0bfe8a14ab744913ec4c35010b8cdf64f8cc9d61a6a3`, Worker Lab digest `sha256:a7d4d4eef3657bdd73f302a9fd11d150aa740bb052f16d083b04868725b9b6b2`, and disabled execution;
+- `git diff --check` passed.
 
-Worker Lab M3-A recovery and source-identity preflight are verified in
-`WORKER_LAB_M3_RECOVERY.md`. The accepted local-ahead tip is
-`fddf0726b975a8192d5e126f109e6fc756f11b36`, its tree is
-`5fe9e3f153b48543a57f3b9d1e339b3cd875930a`, and its complete 44-commit
-reachable history plus refs can be reconstructed from the external bundle with
-SHA-256
-`74445D0BAC13B4EC24B2036E6BB66927D3E5136DC3F206A2BB5019B023899F36`.
+This is working-tree evidence only. The Phase 1 clean-tree and remote-recovery gates remain unsatisfied because staging, committing, and pushing were not authorized.
 
-M3-B exact-import commit
-`057f6500585d6e692ad5330d6738bd5c08d13cc5` has first parent M3-A checkpoint
-`c4b85219a5082226ec9eae82e74c6d60cb84d6af`, second parent Worker Lab source
-`fddf0726b975a8192d5e126f109e6fc756f11b36`, and exact imported subtree
-`5fe9e3f153b48543a57f3b9d1e339b3cd875930a`. Its first-parent change set is
-exactly 68 additions below `components/worker-lab/`; no imported byte was
-adapted.
+## Proven component capabilities
 
-Untouched standalone parity reconstructed the exact source commit/tree and ran
-the immutable T020 command under Python 3.12.10 and pytest 9.1.1. After one
-environment-invalid long-path attempt, the valid short-temp run produced 317
-passes, seven expected Windows symlink skips, and 12 failures. All 12 failures
-come from older workflows/fixtures omitting the runtime identity now required
-for active attempt states. Exact evidence and failure groups are recorded in
-`WORKER_LAB_M3_RECOVERY.md` section 9.
+### Worker Lab
 
-Bounded repair commit `a7bbd4e9074d1e4be64f01e74b4471abee0fd95d`
-changed only the four stale test files and preserved the fail-closed production
-runtime-identity invariant. The tested standalone candidate tree and committed
-Worker subtree both equal `2c12c6ab1b18c9fef96fdaad82b6a40270e9ca16`.
-Focused validation passed 104 tests with five expected Windows symlink skips;
-the single T020 run passed 329 tests with seven expected skips.
+Worker Lab has strict, versioned records for curricula, policies, roles, exercises, attempts, evidence, failures, and test catalogs. It can validate authority, create attempts, prepare and verify isolated workspaces, manage lifecycle transitions, safely discard workspaces, verify evidence, and create/verify/restore durable backups.
 
-Standalone parity is complete. Coordinated Worker/framework identity adaptation
-to address P-006, complete bilateral P-007, and wire a new protocol remains a
-separately authorized gate. No worker/model execution, cross-component
-adaptation, push, or publication is authorized by this checkpoint.
+It is the control plane. It decides whether a task is valid and whether evidence is sufficient.
 
-The deterministic integration scanner now inventories the current imported
-component trees separately from their immutable source inventories. At clean
-checkpoint `d28cbbb43ae1cd09cfbd1d2fc016c63c12959916`, it parsed all 40 framework
-files and all 68 Worker Lab files with no parser failures. The source-to-current
-delta is exactly the already recorded framework P-008/identity additions and
-four Worker parity-test repairs; no file was removed.
+### Autonomous Worker Framework
 
-Current-tree analysis reports no active mechanical path failure. Four remaining
-findings reduce to one semantic boundary across
-`components/autonomous-worker-framework/tools/worker_lab_adapter.py` and
-`components/worker-lab/worker_lab/framework_client.py`: standalone Git identity,
-the absolute framework pin, and repository-root adapter object lookup. The
-guarded packet is recorded in
-`migration/inventory/integration-repair-plan.json`; automatic rewriting is
-disabled. This evidence does not authorize adapter wiring or execution.
+The framework has tested code for ChatGPT-managed Codex execution, API-key rejection, credential stripping, explicit sandbox modes, target-repository containment, timeouts, bounded output, trusted validation, candidate publication, and repository handoff.
+
+It is the execution/security engine. Capability in the code does not grant current permission to invoke it.
+
+### Local Model Bench
+
+Local Model Bench can run deterministic JSON or Markdown suites model-by-model through Ollama, managed llama.cpp/GGUF, or OpenAI-compatible local endpoints. It captures complete responses and timing/token metadata where supplied, checkpoints each case, resumes interrupted runs, evaluates result contracts, and supports unattended Windows runs.
+
+It is advisory infrastructure. It neither imports Worker Lab nor participates in the worker execution path.
+
+## Benchmark evidence
+
+The committed 24-request smoke run proved the harness and result-capture path. Its manual review found Qwen2.5-Coder 7B provisionally useful for further planner testing, DeepSeek-Coder 6.7B useful for additional narrow-repair tests, and StarCoder2 7B unsuitable for the tested roles.
+
+A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON retest were completed in the source benchmark workspace. The consolidation record reports 18/18 completion, 93.33% deterministic mechanical score, and zero hard failures for the Qwen 14B retest. Semantic role fitness remains unaccepted until human review is recorded.
+
+## Not yet available
+
+- A reviewed, accepted installed-component identity contract across both Worker Lab and the framework.
+- Authorized Worker Lab-to-framework worker execution in this monorepo.
+- Unsupervised local-model planning, task authorization, code review, publishing, or merging.
+- Production-project access or modification by workers.
+- A single packaged installer or unified operator interface.
+
+## Immediate next gate
+
+Review the documentation/archive replacement and installation-identity v2 candidate as separate bounded changes. If accepted and explicitly authorized, commit them without enabling execution, push the private remote, verify the clean working tree and remote checkpoint, and stop at the Phase 1 completion gate. Do not begin the Phase 2 read-only proof in the same change.
+
+The trusted dependency-ordered delivery plan for worker execution and the Worker Lab GUI is `docs/WORKPLAN.md`.
+
+Do not restart source recovery, import, or structural inventory work unless the underlying imported history or component paths change.
