@@ -45,13 +45,14 @@ stabilize merger identity
 
 - Repository: `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
 - Branch: `main`
-- Last accepted Phase 1 commit: `5f6c41da132daa12f0bb8c4be054112d77ef7e54`
+- Last accepted project checkpoint: `06a7d21f5cf06ef26b489a6e786521feaeb6fd21`
+- Accepted Phase 1 runtime checkpoint: `5f6c41da132daa12f0bb8c4be054112d77ef7e54`
 - Remote relationship at acceptance: local `main` and `origin/main` matched with zero divergence
 - Working tree at acceptance: clean
 - Installation manifest: committed and independently enforced by Worker Lab and the framework adapter
 - Worker execution policy: `DISABLED`
 - Phase 1: complete
-- Phase 2: next; real execution not yet authorized
+- Phase 2 readiness: complete at `06a7d21`; real execution not yet authorized
 
 Commit/push authority is separate from worker/model execution authority.
 
@@ -212,7 +213,7 @@ Completion gate:
 
 ### Phase 2 — Prove one real read-only worker
 
-**Status:** Next. Non-executing setup is authorized as normal project work; worker/model execution still requires separate explicit authorization.
+**Status:** Readiness controls accepted at `06a7d21`. The one real proof is next and still requires separate explicit worker/model authorization.
 
 **Objective:** Execute exactly one disposable, bounded read-only proposal through the consolidated installation.
 
@@ -346,7 +347,7 @@ Completion gate:
 
 The next implementation request should be:
 
-> Implement Phase 2's non-executing readiness path while execution remains disabled. Add a supported doctor/preflight operation and synthetic read-only operator command, require explicit controller identity, run directory, and one-time authorization, persist the authorization and activation evidence, add interruption/recovery tests, and stop before launching a worker or model unless that one bounded proof is separately and explicitly authorized.
+> Review and explicitly authorize exactly one disposable synthetic read-only proof. Name the controller identity and new external run directory, approve the exact one-time confirmation, temporarily activate only Worker Lab and the framework, run one proposal, verify process absence, unchanged workspace, exact retained evidence, `CANDIDATE` lifecycle state, and recovery behavior, then restore and verify disabled execution before accepting the proof.
 
 ## Change-control rules for this plan
 
