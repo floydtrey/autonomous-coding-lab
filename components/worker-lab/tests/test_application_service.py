@@ -16,10 +16,17 @@ from tests.test_models import (
 from tests.test_policy import context_mapping, policy_mapping, role_mapping
 from tests.test_test_catalog import catalog
 from worker_lab.application_service import COLLECTIONS, WorkerLabApplicationService
+from worker_lab.attempt_store import AttemptStore
 from worker_lab.backup import verify_backup
 from worker_lab.cli import main
 from worker_lab.errors import LabValidationError
-from worker_lab.integration import ResultRecord
+from worker_lab.integration import (
+    InvocationRecord,
+    InvocationState,
+    ResultRecord,
+    transition_invocation,
+)
+from worker_lab.invocation_store import InvocationStore
 from worker_lab.models import (
     AttemptRecord,
     CurriculumRecord,
@@ -28,7 +35,15 @@ from worker_lab.models import (
     FailureRecord,
 )
 from worker_lab.policy import ContextManifest, PolicyRecord, RoleRecord
+from worker_lab.process_custody import (
+    PROCESS_CUSTODY_SCHEMA,
+    CustodyState,
+    ProcessCustodyRecord,
+    ProcessCustodyStore,
+    transition_custody,
+)
 from worker_lab.storage import AtomicRecordStore
+from worker_lab.windows_job import workspace_content_digest
 
 
 def populated_lab(root: Path) -> Path:
@@ -65,6 +80,109 @@ def snapshot(root: Path) -> tuple[tuple[str, ...], dict[str, bytes]]:
         if path.is_file()
     }
     return directories, files
+
+
+def recovery_fixture(
+    root: Path,
+    *,
+    invocation_state: InvocationState = InvocationState.UNCERTAIN,
+    custody_state: CustodyState = CustodyState.ABSENCE_VERIFIED,
+) -> tuple[Path, Path, str, str]:
+    lab, target = write_authority_fixture(root)
+    workspace_root = root / "workspaces"
+    workspace_root.mkdir()
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-08-31T12:00:00Z",
+    )
+    attempt_id = service.create_attempt("record-model", 1, target).to_dict()["identity"]
+    service.prepare_workspace(attempt_id, target, workspace_root)
+    prepared = service.prepare_invocation(
+        attempt_id,
+        workspace_root,
+        "Prepare one deterministic recovery fixture without dispatching a process.",
+    ).to_dict()
+    invocation_id = prepared["identity"]
+    identity_digest = prepared["immutable_identity_digest"]
+    service.authorize_invocation(
+        invocation_id,
+        identity_digest,
+        "trusted-controller",
+    )
+    invocations = InvocationStore(lab / "state")
+    attempts = AttemptStore(lab / "state")
+    attempts.bind_authorized_invocation(
+        invocations,
+        invocation_id=invocation_id,
+        expected_invocation_identity=identity_digest,
+        occurred_at="2026-08-31T12:00:01Z",
+    )
+    authorized = invocations.read(invocation_id)
+    dispatching = transition_invocation(authorized, InvocationState.DISPATCHING)
+    invocations.save_transition(dispatching, expected_digest=authorized.digest())
+    if invocation_state is InvocationState.UNCERTAIN:
+        invocation = transition_invocation(dispatching, InvocationState.UNCERTAIN)
+        invocations.save_transition(invocation, expected_digest=dispatching.digest())
+    elif invocation_state is InvocationState.DISPATCHING:
+        invocation = dispatching
+    else:
+        raise AssertionError("unsupported recovery fixture invocation state")
+
+    custody_store = ProcessCustodyStore(lab / "state")
+    custody = ProcessCustodyRecord.from_mapping({
+        "schema_version": PROCESS_CUSTODY_SCHEMA,
+        "invocation_digest": identity_digest,
+        "invocation_id": invocation_id,
+        "controller_pid": 424242,
+        "controller_creation_time_100ns": 123456789,
+        "adapter_pid": None,
+        "adapter_creation_time_100ns": None,
+        "containment_mode": "windows-job-kill-on-close",
+        "workspace_content_digest": workspace_content_digest(workspace_root / attempt_id),
+        "state": "PREPARED",
+        "request_sent": False,
+        "exit_code": None,
+        "active_process_count": None,
+        "absence_verified_at": None,
+        "first_failure": None,
+    })
+    custody_store.create(custody)
+    assigned = transition_custody(
+        custody,
+        CustodyState.ASSIGNED,
+        adapter_pid=515151,
+        adapter_creation_time_100ns=987654321,
+    )
+    custody_store.save_transition(assigned, expected_digest=custody.digest())
+    dispatch_custody = transition_custody(assigned, CustodyState.DISPATCHING)
+    custody_store.save_transition(dispatch_custody, expected_digest=assigned.digest())
+    if custody_state is CustodyState.UNCERTAIN:
+        final_custody = transition_custody(
+            dispatch_custody,
+            CustodyState.UNCERTAIN,
+            active_process_count=0,
+            first_failure="INTEGRATION_OUTCOME_UNCERTAIN",
+        )
+    else:
+        terminated = transition_custody(
+            dispatch_custody,
+            CustodyState.TERMINATED,
+            exit_code=1,
+            active_process_count=0,
+            first_failure="INTEGRATION_OUTCOME_UNCERTAIN",
+        )
+        custody_store.save_transition(terminated, expected_digest=dispatch_custody.digest())
+        if custody_state is CustodyState.TERMINATED:
+            return lab, workspace_root, invocation_id, identity_digest
+        final_custody = transition_custody(
+            terminated,
+            CustodyState.ABSENCE_VERIFIED,
+            active_process_count=0,
+            absence_verified_at="2026-08-31T12:00:02Z",
+        )
+        dispatch_custody = terminated
+    custody_store.save_transition(final_custody, expected_digest=dispatch_custody.digest())
+    return lab, workspace_root, invocation_id, identity_digest
 
 
 def test_health_and_installation_status_are_non_mutating_and_disabled(tmp_path: Path) -> None:
@@ -420,6 +538,141 @@ def test_cli_exposes_controller_bound_invocation_cancellation(tmp_path: Path, ca
     assert cancelled["record"]["state"] == "ABORTED"
     assert not (lab / "state" / "results").exists()
     assert not (lab / "state" / "process-custody").exists()
+
+
+def test_recovery_requires_exact_absence_and_unchanged_workspace_and_is_idempotent(
+    tmp_path: Path,
+) -> None:
+    lab, workspace_root, invocation_id, identity_digest = recovery_fixture(
+        tmp_path,
+        custody_state=CustodyState.TERMINATED,
+    )
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-09-01T12:00:03Z",
+        process_probe=lambda _: None,
+    )
+    recovered = service.recover_invocation(
+        invocation_id,
+        identity_digest,
+        "trusted-controller",
+        workspace_root,
+    ).to_dict()
+    assert recovered["schema_version"] == "worker-lab-service-recovery-result:v1"
+    assert recovered["operation"] == "recover-invocation"
+    assert recovered["workspace_outcome"] == "unchanged-retained"
+    assert recovered["workspace"]["status"] == ""
+    assert recovered["custody"]["record"]["state"] == "ABSENCE_VERIFIED"
+    assert recovered["invocation"]["record"]["state"] == "ABORTED"
+    assert recovered["attempt"]["record"]["state"] == "ABORTED"
+    assert (workspace_root / recovered["attempt"]["record"]["attempt_id"]).is_dir()
+    assert not (lab / "state" / "results").exists()
+    assert service.recover_invocation(
+        invocation_id,
+        identity_digest,
+        "trusted-controller",
+        workspace_root,
+    ).to_dict() == recovered
+
+
+def test_recovery_rejects_wrong_authority_active_controller_and_uncertain_custody(
+    tmp_path: Path,
+) -> None:
+    lab, workspace_root, invocation_id, identity_digest = recovery_fixture(
+        tmp_path,
+        custody_state=CustodyState.TERMINATED,
+    )
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-09-01T12:00:03Z",
+        process_probe=lambda _: 123456789,
+    )
+    for digest, controller, code in (
+        ("sha256:" + "d" * 64, "trusted-controller", "INTEGRATION_IDENTITY_INVALID"),
+        (identity_digest, "different-controller", "OPERATOR_CONTROLLER_MISMATCH"),
+        (identity_digest, "trusted-controller", "OPERATOR_RECOVERY_ACTIVE"),
+    ):
+        with pytest.raises(LabValidationError) as error:
+            service.recover_invocation(
+                invocation_id,
+                digest,
+                controller,
+                workspace_root,
+            )
+        assert error.value.code == code
+    assert InvocationStore(lab / "state").read(invocation_id).state is InvocationState.UNCERTAIN
+    assert ProcessCustodyStore(lab / "state").read(invocation_id).state is CustodyState.TERMINATED
+
+    other = tmp_path / "uncertain"
+    other.mkdir()
+    uncertain_lab, uncertain_root, uncertain_id, uncertain_digest = recovery_fixture(
+        other,
+        custody_state=CustodyState.UNCERTAIN,
+    )
+    with pytest.raises(LabValidationError) as error:
+        WorkerLabApplicationService(uncertain_lab).recover_invocation(
+            uncertain_id,
+            uncertain_digest,
+            "trusted-controller",
+            uncertain_root,
+        )
+    assert error.value.code == "INTEGRATION_OUTCOME_UNCERTAIN"
+
+
+def test_recovery_rejects_changed_workspace_without_state_transition(tmp_path: Path) -> None:
+    lab, workspace_root, invocation_id, identity_digest = recovery_fixture(tmp_path)
+    invocation = InvocationStore(lab / "state").read(invocation_id)
+    workspace = workspace_root / invocation.attempt_id
+    (workspace / "README.md").write_text("changed during uncertain execution\n", encoding="utf-8")
+    with pytest.raises(LabValidationError) as error:
+        WorkerLabApplicationService(lab).recover_invocation(
+            invocation_id,
+            identity_digest,
+            "trusted-controller",
+            workspace_root,
+        )
+    assert error.value.code == "OPERATOR_RECOVERY_INVALID"
+    assert InvocationStore(lab / "state").read(invocation_id).state is InvocationState.UNCERTAIN
+    assert AttemptStore(lab / "state").read(invocation.attempt_id).state.value == "RUNNING"
+
+
+def test_recovery_finishes_a_partially_persisted_invocation_abort(tmp_path: Path) -> None:
+    lab, workspace_root, invocation_id, identity_digest = recovery_fixture(tmp_path)
+    invocations = InvocationStore(lab / "state")
+    uncertain = invocations.read(invocation_id)
+    aborted = transition_invocation(uncertain, InvocationState.ABORTED)
+    invocations.save_transition(aborted, expected_digest=uncertain.digest())
+
+    recovered = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-09-01T12:00:03Z",
+    ).recover_invocation(
+        invocation_id,
+        identity_digest,
+        "trusted-controller",
+        workspace_root,
+    ).to_dict()
+    assert recovered["invocation"]["record"]["state"] == "ABORTED"
+    assert recovered["attempt"]["record"]["state"] == "ABORTED"
+
+
+def test_cli_recovers_dispatching_invocation_from_verified_absence(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    lab, workspace_root, invocation_id, identity_digest = recovery_fixture(
+        tmp_path,
+        invocation_state=InvocationState.DISPATCHING,
+    )
+    assert main([
+        "--root", str(lab), "recover-invocation", invocation_id,
+        "--expected-identity-digest", identity_digest,
+        "--controller", "trusted-controller",
+        "--workspace-root", str(workspace_root),
+    ]) == 0
+    recovered = json.loads(capsys.readouterr().out)
+    assert recovered["invocation"]["record"]["state"] == "ABORTED"
+    assert recovered["attempt"]["record"]["state"] == "ABORTED"
 
 
 def test_backup_verify_and_restore_are_versioned_service_operations(tmp_path: Path) -> None:

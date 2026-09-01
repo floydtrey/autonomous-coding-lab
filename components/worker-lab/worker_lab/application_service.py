@@ -43,6 +43,8 @@ from .models import (
     EvidenceRecord,
     ExerciseRecord,
     FailureRecord,
+    WorkspaceReceipt,
+    WorkspaceReceiptState,
 )
 from .operator_control import (
     DoctorReport,
@@ -59,11 +61,22 @@ from .policy import (
 from .storage import AtomicRecordStore
 from .test_catalog import ChangeFacts, TestCatalog
 from .validation import attempt_task_digest
-from .workspace import discard_workspace, prepare_workspace, verify_workspace
+from .workspace import (
+    canonical_path_digest,
+    discard_workspace,
+    prepare_workspace,
+    verify_workspace,
+)
+from .process_custody import CustodyState, ProcessCustodyRecord, ProcessCustodyStore
 from .read_only_evidence import (
     READ_ONLY_EVALUATION_PLAN_SCHEMA,
     ReadOnlyEvaluationPlan,
     ReadOnlyEvaluationPlanStore,
+)
+from .windows_job import (
+    WorkspaceLaunchEvidence,
+    inspect_launch_workspace,
+    recover_absence_after_controller_exit,
 )
 
 
@@ -73,6 +86,10 @@ RECORD_LIST_SCHEMA = "worker-lab-service-record-list:v1"
 RECORD_DETAIL_SCHEMA = "worker-lab-service-record-detail:v1"
 OPERATION_RESULT_SCHEMA = "worker-lab-service-operation-result:v2"
 BACKUP_RESULT_SCHEMA = "worker-lab-service-backup-result:v1"
+RECOVERY_RESULT_SCHEMA = "worker-lab-service-recovery-result:v1"
+RECOVERY_CLEANUP_OUTCOME = (
+    "adapter absence and unchanged workspace verified; workspace retained"
+)
 
 COLLECTIONS = (
     "attempts",
@@ -247,14 +264,61 @@ class BackupResultDTO:
         return canonical_json(self.to_dict())
 
 
+@dataclass(frozen=True)
+class RecoveryResultDTO:
+    controller_identity: str
+    invocation: InvocationRecord
+    attempt: AttemptRecord
+    custody: ProcessCustodyRecord
+    workspace: WorkspaceLaunchEvidence
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": RECOVERY_RESULT_SCHEMA,
+            "operation": "recover-invocation",
+            "identity": self.invocation.invocation_id,
+            "immutable_identity_digest": self.invocation.identity_digest(),
+            "controller_identity": self.controller_identity,
+            "workspace_outcome": "unchanged-retained",
+            "workspace": {
+                "workspace_path_digest": self.workspace.workspace_path_digest,
+                "content_digest": self.workspace.content_digest,
+                "observed_head": self.workspace.observed_head,
+                "status": self.workspace.status,
+            },
+            "custody": {
+                "record_digest": self.custody.digest(),
+                "record": self.custody.to_dict(),
+            },
+            "invocation": {
+                "record_digest": self.invocation.digest(),
+                "record": self.invocation.to_dict(),
+            },
+            "attempt": {
+                "record_digest": self.attempt.digest(),
+                "record": self.attempt.to_dict(),
+            },
+        }
+
+    def to_json(self) -> str:
+        return canonical_json(self.to_dict())
+
+
 class WorkerLabApplicationService:
     """Application boundary shared by operator clients and the future GUI."""
 
-    def __init__(self, data_root: Path, *, clock: Callable[[], str] | None = None) -> None:
+    def __init__(
+        self,
+        data_root: Path,
+        *,
+        clock: Callable[[], str] | None = None,
+        process_probe: Callable[[int], int | None] | None = None,
+    ) -> None:
         if not isinstance(data_root, Path) or not data_root.is_absolute():
             raise LabValidationError("SERVICE_DATA_ROOT_INVALID", "service data root must be absolute")
         self.data_root = data_root
         self._clock = clock or _utc_now
+        self._process_probe = process_probe
 
     def installation_status(self) -> InstallationStatusDTO:
         _, report = inspect_installation()
@@ -661,6 +725,185 @@ class WorkerLabApplicationService:
             cancelled,
         )
 
+    def recover_invocation(
+        self,
+        invocation_id: str,
+        expected_identity_digest: str,
+        controller_identity: str,
+        workspace_root: Path,
+    ) -> RecoveryResultDTO:
+        invocation_id = _identity(invocation_id)
+        expected = _digest(expected_identity_digest)
+        controller = validate_controller_identity(controller_identity)
+        workspace_root = _absolute_path_argument(workspace_root, "workspace root")
+        self._require_present_data_root()
+
+        state_root = self.data_root / "state"
+        invocation_store = InvocationStore(state_root)
+        invocation = invocation_store.read(invocation_id)
+        if invocation.identity_digest() != expected:
+            raise LabValidationError(
+                "INTEGRATION_IDENTITY_INVALID",
+                "invocation identity differs from recovery command",
+            )
+        if invocation.authorized_by != controller:
+            raise LabValidationError(
+                "OPERATOR_CONTROLLER_MISMATCH",
+                "recovery controller differs from invocation authorization",
+            )
+        if invocation.state not in {
+            InvocationState.DISPATCHING,
+            InvocationState.UNCERTAIN,
+            InvocationState.ABORTED,
+        }:
+            raise LabValidationError(
+                "OPERATOR_RECOVERY_INVALID",
+                "invocation state is not recoverable",
+            )
+
+        attempt_store = AttemptStore(state_root)
+        attempt = attempt_store.read(invocation.attempt_id)
+        _validate_recovery_attempt_binding(attempt, invocation)
+        if attempt.state not in {AttemptState.RUNNING, AttemptState.ABORTED}:
+            raise LabValidationError(
+                "OPERATOR_RECOVERY_INVALID",
+                "attempt state is not recoverable",
+            )
+        if attempt.state is AttemptState.ABORTED:
+            if (
+                invocation.state is not InvocationState.ABORTED
+                or attempt.cleanup_outcome != RECOVERY_CLEANUP_OUTCOME
+            ):
+                raise LabValidationError(
+                    "OPERATOR_RECOVERY_INVALID",
+                    "terminal recovery records differ",
+                )
+
+        result_path = state_root / "results" / f"{invocation_id}.json"
+        if os.path.lexists(result_path):
+            raise LabValidationError(
+                "OPERATOR_RECOVERY_INVALID",
+                "uncertain invocation cannot retain a result record",
+            )
+
+        receipt = AtomicRecordStore(state_root).read(
+            f"workspaces/{attempt.attempt_id}.json",
+            WorkspaceReceipt.from_mapping,
+        )
+        workspace = inspect_launch_workspace(workspace_root / attempt.attempt_id)
+        _validate_recovery_workspace(
+            workspace_root,
+            workspace,
+            receipt,
+            attempt,
+            invocation,
+        )
+
+        custody_store = ProcessCustodyStore(state_root)
+        custody = custody_store.read(invocation_id)
+        if (
+            custody.invocation_id != invocation_id
+            or custody.invocation_digest != expected
+            or custody.adapter_pid is None
+            or custody.adapter_creation_time_100ns is None
+            or not custody.request_sent
+        ):
+            raise LabValidationError(
+                "OPERATOR_RECOVERY_INVALID",
+                "process custody is not bound to a dispatched invocation",
+            )
+        occurred_at = self._clock()
+        verified_custody = custody
+        if custody.state is CustodyState.TERMINATED:
+            recovery_arguments: dict[str, Any] = {"now": lambda: occurred_at}
+            if self._process_probe is not None:
+                recovery_arguments["probe"] = self._process_probe
+            recovered = recover_absence_after_controller_exit(
+                custody,
+                **recovery_arguments,
+            )
+            if recovered is None:
+                raise LabValidationError(
+                    "OPERATOR_RECOVERY_ACTIVE",
+                    "original controller process is still active",
+                )
+            _, verified_custody = recovered
+        elif custody.state is not CustodyState.ABSENCE_VERIFIED:
+            raise LabValidationError(
+                "INTEGRATION_OUTCOME_UNCERTAIN",
+                "process custody cannot prove adapter absence",
+            )
+        if (
+            verified_custody.active_process_count != 0
+            or verified_custody.absence_verified_at is None
+            or verified_custody.workspace_content_digest != workspace.content_digest
+        ):
+            raise LabValidationError(
+                "OPERATOR_RECOVERY_INVALID",
+                "workspace or process-absence evidence differs",
+            )
+
+        if attempt.state is AttemptState.RUNNING:
+            aborted_attempt = transition_attempt(
+                attempt,
+                AttemptState.ABORTED,
+                occurred_at=occurred_at,
+                cleanup_outcome=RECOVERY_CLEANUP_OUTCOME,
+            )
+        else:
+            aborted_attempt = attempt
+
+        if custody.state is CustodyState.TERMINATED:
+            custody_store.save_transition(
+                verified_custody,
+                expected_digest=custody.digest(),
+            )
+        current_invocation = invocation
+        if current_invocation.state is InvocationState.DISPATCHING:
+            uncertain = transition_invocation(
+                current_invocation,
+                InvocationState.UNCERTAIN,
+            )
+            invocation_store.save_transition(
+                uncertain,
+                expected_digest=current_invocation.digest(),
+            )
+            current_invocation = uncertain
+        if current_invocation.state is InvocationState.UNCERTAIN:
+            aborted_invocation = transition_invocation(
+                current_invocation,
+                InvocationState.ABORTED,
+            )
+            invocation_store.save_transition(
+                aborted_invocation,
+                expected_digest=current_invocation.digest(),
+            )
+            current_invocation = aborted_invocation
+        if attempt.state is AttemptState.RUNNING:
+            attempt_store.save_transition(aborted_attempt)
+
+        durable_custody = custody_store.read(invocation_id)
+        durable_invocation = invocation_store.read(invocation_id)
+        durable_attempt = attempt_store.read(attempt.attempt_id)
+        if (
+            durable_custody != verified_custody
+            or durable_invocation != current_invocation
+            or durable_attempt != aborted_attempt
+            or durable_invocation.state is not InvocationState.ABORTED
+            or durable_attempt.state is not AttemptState.ABORTED
+        ):
+            raise LabValidationError(
+                "OPERATOR_RECOVERY_INVALID",
+                "durable recovery records differ",
+            )
+        return RecoveryResultDTO(
+            controller,
+            durable_invocation,
+            durable_attempt,
+            durable_custody,
+            workspace,
+        )
+
     def create_backup(self, destination: Path) -> BackupResultDTO:
         destination = _absolute_path_argument(destination, "backup destination")
         self._require_present_data_root()
@@ -860,6 +1103,64 @@ def _validate_attempt_authority(
         required_capabilities=exercise.required_capabilities,
         temporary_denied_capabilities=exercise.temporary_denied_capabilities,
     )
+
+
+def _validate_recovery_attempt_binding(
+    attempt: AttemptRecord,
+    invocation: InvocationRecord,
+) -> None:
+    expected = (
+        invocation.attempt_id == attempt.attempt_id,
+        invocation.exercise_id == attempt.exercise_id,
+        invocation.exercise_version == attempt.exercise_version,
+        invocation.policy_id == attempt.policy_id,
+        invocation.policy_version == attempt.policy_version,
+        invocation.policy_digest == attempt.policy_digest,
+        invocation.role_id == attempt.role_id,
+        invocation.role_version == attempt.role_version,
+        invocation.role_digest == attempt.role_digest,
+        invocation.context_digest == attempt.context_digest,
+        invocation.task_digest == attempt.task_digest,
+        invocation.test_catalog_version == attempt.evaluator_catalog_version,
+        invocation.test_catalog_digest == attempt.evaluator_catalog_digest,
+        invocation.starting_commit == attempt.starting_commit,
+        invocation.sandbox_mode == attempt.sandbox_mode,
+        attempt.runtime_identity == invocation.identity_digest(),
+        attempt.candidate_digest is None,
+    )
+    if not all(expected):
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "recovery invocation differs from its running attempt",
+        )
+
+
+def _validate_recovery_workspace(
+    workspace_root: Path,
+    workspace: WorkspaceLaunchEvidence,
+    receipt: WorkspaceReceipt,
+    attempt: AttemptRecord,
+    invocation: InvocationRecord,
+) -> None:
+    if (
+        receipt.state is not WorkspaceReceiptState.PREPARED
+        or receipt.attempt_id != attempt.attempt_id
+        or receipt.exercise_id != attempt.exercise_id
+        or receipt.exercise_version != attempt.exercise_version
+        or receipt.template_commit != attempt.starting_commit
+        or receipt.digest() != invocation.workspace_receipt_digest
+        or receipt.workspace_root_digest != invocation.workspace_root_digest
+        or receipt.workspace_path_digest != invocation.workspace_path_digest
+        or receipt.workspace_relative_path != attempt.attempt_id
+        or canonical_path_digest(workspace_root) != invocation.workspace_root_digest
+        or workspace.workspace_path_digest != invocation.workspace_path_digest
+        or workspace.observed_head != invocation.starting_commit
+        or workspace.status
+    ):
+        raise LabValidationError(
+            "OPERATOR_RECOVERY_INVALID",
+            "workspace receipt or unchanged identity differs",
+        )
 
 
 def _validate_prepared_attempt(
