@@ -6,11 +6,12 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable, Mapping
 
 from .canonical import canonical_digest, canonical_json
 from .errors import LabValidationError
+from .installation_manifest import load_installation_manifest
 from .integration import (
     FRAMEWORK_CONTRACT_VERSION,
     InvocationOperation,
@@ -20,22 +21,12 @@ from .integration import (
 )
 
 
+ADAPTER_REQUEST_SCHEMA = "worker-lab-framework-adapter-request:v2"
 ADAPTER_RELATIVE_PATH = "tools/worker_lab_adapter.py"
-ADAPTER_REQUEST_SCHEMA = "worker-lab-framework-adapter-request:v1"
-PINNED_FRAMEWORK_ROOT = Path(r"C:\Users\MineTrackerWorker\repos\autonomous-worker-framework")
-PINNED_FRAMEWORK_COMMIT = "3b03802ced260ac437d7cfd7857a3a3f4b6bbbcd"
-PINNED_ADAPTER_DIGEST = "sha256:b9f53081d23b0c16f5b262dc900df1ac08a09fef12711c1f2b4fa98552eda558"
-PYTHON_EXECUTABLE = Path(r"C:\Program Files\Python312\python.exe")
-PYTHON_DIGEST = "sha256:4d6f5f81a4bca11191c4c7c6b43632694d0a4ce74e068619d8fdc161d469859a"
-PYTHON_VERSION = "3.12.10"
-PYTHON_IMPLEMENTATION = "CPython"
-PYTHON_ARCHITECTURE = "AMD64"
-AUDITED_CODEX_VERSION = "0.149.1"
 MAX_REQUEST_BYTES = 262_144
 MAX_PROMPT_BYTES = 32_768
 MAX_RESPONSE_BYTES = 65_536
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 AdapterRunner = Callable[[tuple[str, ...], bytes], bytes]
 _MODE_STATES = {
     "prepare": InvocationState.PREPARED,
@@ -54,22 +45,30 @@ _MODE_RESPONSE_FIELDS = {
 
 @dataclass(frozen=True)
 class FrameworkConfiguration:
+    manifest_path: Path
     framework_root: Path
-    framework_commit: str
+    framework_installation_digest: str
+    framework_files: tuple[tuple[str, str], ...]
     python_executable: Path
+    python_digest: str
+    python_version: str
+    python_implementation: str
+    python_architecture: str
     adapter_digest: str
     codex_launcher: Path
     codex_launcher_digest: str
+    codex_version: str
+    execution_authority: str
+    participant_states: Mapping[str, str]
 
 
 @dataclass(frozen=True)
 class FrameworkIdentityEvidence:
     framework_root: Path
-    framework_head: str
-    framework_status: str
+    framework_installation_digest: str
+    framework_files: tuple[tuple[str, str], ...]
     adapter_path: Path
-    adapter_worktree_digest: str
-    adapter_blob_digest: str
+    adapter_digest: str
     python_path: Path
     python_digest: str
     python_version: str
@@ -83,17 +82,24 @@ class FrameworkIdentityEvidence:
 @dataclass(frozen=True)
 class WorkerLabIdentityEvidence:
     worker_lab_root: Path
-    worker_lab_head: str
-    worker_lab_status: tuple[str, ...]
+    worker_lab_installation_digest: str
 
 
 def pinned_framework_configuration(
-    *, codex_launcher: Path, codex_launcher_digest: str,
+    *, manifest_path: Path | None = None,
 ) -> FrameworkConfiguration:
-    """Return the reviewed local framework identity plus separately audited launcher identity."""
+    """Load the reviewed installed-content and runtime identity without Git metadata."""
+    manifest = load_installation_manifest(manifest_path)
+    framework = manifest.components["autonomous-worker-framework"]
+    framework_files = tuple((item.path, item.digest) for item in framework.files)
+    adapter_digest = dict(framework_files)[ADAPTER_RELATIVE_PATH]
     return FrameworkConfiguration(
-        PINNED_FRAMEWORK_ROOT, PINNED_FRAMEWORK_COMMIT, PYTHON_EXECUTABLE,
-        PINNED_ADAPTER_DIGEST, codex_launcher, codex_launcher_digest,
+        manifest.path, manifest.installation_root / framework.root,
+        framework.installation_digest, framework_files,
+        manifest.python.path, manifest.python.digest, manifest.python.version,
+        manifest.python.implementation or "", manifest.python.architecture or "",
+        adapter_digest, manifest.codex.path, manifest.codex.digest, manifest.codex.version,
+        manifest.execution_authority, manifest.participants,
     )
 
 
@@ -107,6 +113,8 @@ def fixed_command(
         raise LabValidationError("INTEGRATION_OPERATION_INVALID", "unsupported adapter mode")
     _verify_pinned_framework(config)
     verify_configuration(config, evidence)
+    if mode != "prepare":
+        _require_execution_enabled(config)
     return (
         str(config.python_executable), "-I", "-B", str(config.framework_root / ADAPTER_RELATIVE_PATH),
         mode, "--protocol", FRAMEWORK_CONTRACT_VERSION,
@@ -127,8 +135,11 @@ def runtime_identity(
         ("prepare", "preflight", "execute-read-only"), "--protocol", FRAMEWORK_CONTRACT_VERSION,
     )
     return canonical_digest({
-        "schema_version": "worker-lab-runtime-identity:v1",
-        "framework_commit": config.framework_commit,
+        "schema_version": "worker-lab-runtime-identity:v2",
+        "framework_installation_digest": config.framework_installation_digest,
+        "framework_runtime_files": [
+            {"path": path, "sha256": digest} for path, digest in config.framework_files
+        ],
         "adapter_digest": config.adapter_digest,
         "adapter_contract_version": FRAMEWORK_CONTRACT_VERSION,
         "python_digest": evidence.python_digest,
@@ -163,6 +174,8 @@ def call_adapter(
         raise LabValidationError("INTEGRATION_EXECUTION_DISABLED", "an injected adapter runner is required")
     if mode not in _MODE_STATES or record.state is not _MODE_STATES[mode]:
         raise LabValidationError("INTEGRATION_AUTHORIZATION_INVALID", "adapter mode differs from invocation custody")
+    if mode != "prepare":
+        _require_execution_enabled(config)
     prompt_bytes = _bounded_utf8(prompt, MAX_PROMPT_BYTES, "prompt")
     if _bytes_digest(prompt_bytes) != record.prompt_digest:
         raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "prompt differs from sealed invocation")
@@ -201,85 +214,87 @@ def call_adapter(
 
 
 def verify_configuration(config: FrameworkConfiguration, evidence: FrameworkIdentityEvidence) -> None:
-    if not _SHA_RE.fullmatch(config.framework_commit):
-        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "framework commit is invalid")
-    for value in (config.adapter_digest, config.codex_launcher_digest):
+    for value in (
+        config.framework_installation_digest, config.adapter_digest, config.python_digest,
+        config.codex_launcher_digest,
+    ):
         if not _DIGEST_RE.fullmatch(value):
             raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "trusted digest is invalid")
     expected_adapter = config.framework_root / ADAPTER_RELATIVE_PATH
     expected = (
         _path_equal(evidence.framework_root, config.framework_root),
-        evidence.framework_head == config.framework_commit,
-        evidence.framework_status == "",
+        evidence.framework_installation_digest == config.framework_installation_digest,
+        evidence.framework_files == config.framework_files,
         _path_equal(evidence.adapter_path, expected_adapter),
-        evidence.adapter_worktree_digest == config.adapter_digest,
-        evidence.adapter_blob_digest == config.adapter_digest,
-        _path_equal(evidence.python_path, config.python_executable)
-        and _path_equal(config.python_executable, PYTHON_EXECUTABLE),
-        evidence.python_digest == PYTHON_DIGEST,
-        evidence.python_version == PYTHON_VERSION,
-        evidence.python_implementation == PYTHON_IMPLEMENTATION,
-        evidence.python_architecture == PYTHON_ARCHITECTURE,
+        evidence.adapter_digest == config.adapter_digest,
+        _path_equal(evidence.python_path, config.python_executable),
+        evidence.python_digest == config.python_digest,
+        evidence.python_version == config.python_version,
+        evidence.python_implementation == config.python_implementation,
+        evidence.python_architecture == config.python_architecture,
         _path_equal(evidence.codex_launcher_path, config.codex_launcher),
         evidence.codex_launcher_digest == config.codex_launcher_digest,
-        evidence.codex_version == AUDITED_CODEX_VERSION,
+        evidence.codex_version == config.codex_version,
     )
     if not all(expected):
         raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "framework runtime identity differs")
 
 
 def _verify_pinned_framework(config: FrameworkConfiguration) -> None:
-    if (
-        not _path_equal(config.framework_root, PINNED_FRAMEWORK_ROOT)
-        or config.framework_commit != PINNED_FRAMEWORK_COMMIT
-        or config.adapter_digest != PINNED_ADAPTER_DIGEST
-        or not _path_equal(config.python_executable, PYTHON_EXECUTABLE)
-    ):
+    if config != pinned_framework_configuration(manifest_path=config.manifest_path):
         raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "framework configuration is not the reviewed milestone")
 
 
 def inspect_configuration(config: FrameworkConfiguration) -> FrameworkIdentityEvidence:
+    _verify_pinned_framework(config)
     root = _canonical_unlinked(config.framework_root)
     python_path = _canonical_unlinked(config.python_executable)
     adapter_path = _canonical_unlinked(root / ADAPTER_RELATIVE_PATH)
     codex_path = _canonical_unlinked(config.codex_launcher)
-    head = _git(root, "rev-parse", "HEAD").decode("ascii").strip()
-    status = _git(root, "status", "--porcelain=v1", "--untracked-files=all").decode("utf-8")
-    blob = _git(root, "show", f"{config.framework_commit}:{ADAPTER_RELATIVE_PATH}")
+    actual_files = tuple(
+        (
+            relative,
+            _bytes_digest(_canonical_unlinked(root / Path(*PurePosixPath(relative).parts)).read_bytes()),
+        )
+        for relative, _ in config.framework_files
+    )
+    identity = canonical_digest([
+        {"path": path, "sha256": digest} for path, digest in actual_files
+    ])
     version = _run_python_identity(python_path)
     evidence = FrameworkIdentityEvidence(
-        root, head, status, adapter_path, _bytes_digest(adapter_path.read_bytes()),
-        _bytes_digest(blob), python_path, _bytes_digest(python_path.read_bytes()),
+        root, identity, actual_files, adapter_path, _bytes_digest(adapter_path.read_bytes()),
+        python_path, _bytes_digest(python_path.read_bytes()),
         version[0], version[1], version[2], codex_path, _bytes_digest(codex_path.read_bytes()),
-        _read_launcher_version(codex_path),
+        _read_launcher_version(codex_path, config.codex_version),
     )
     verify_configuration(config, evidence)
     return evidence
 
 
-def inspect_worker_lab_identity(root: Path, expected_commit: str) -> WorkerLabIdentityEvidence:
+def inspect_worker_lab_identity(root: Path, expected_digest: str) -> WorkerLabIdentityEvidence:
+    manifest = load_installation_manifest()
+    component = manifest.components["worker-lab"]
     canonical_root = _canonical_unlinked(root)
-    head = _git(canonical_root, "rev-parse", "HEAD").decode("ascii").strip()
-    status = tuple(
-        line for line in _git(
-            canonical_root, "status", "--porcelain=v1", "--untracked-files=all"
-        ).decode("utf-8").splitlines() if line
-    )
-    evidence = WorkerLabIdentityEvidence(canonical_root, head, status)
-    if head != expected_commit:
-        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "Worker Lab commit differs")
-    allowed = ("?? docs/8_27_26_ChatGPT_History",)
-    if any(line not in allowed for line in status) or len(status) != len(set(status)):
-        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "Worker Lab working tree differs")
+    configured_root = _canonical_unlinked(manifest.installation_root / component.root)
+    if not _path_equal(canonical_root, configured_root):
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "Worker Lab installation location differs")
+    evidence = WorkerLabIdentityEvidence(canonical_root, component.installation_digest)
+    if component.installation_digest != expected_digest:
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "Worker Lab content differs")
     return evidence
 
 
+def installed_worker_lab_identity(root: Path) -> str:
+    """Identify the installed Worker Lab package from the verified manifest file set."""
+    manifest = load_installation_manifest()
+    digest = manifest.components["worker-lab"].installation_digest
+    return inspect_worker_lab_identity(root, digest).worker_lab_installation_digest
+
+
 def verify_worker_lab_identity(record: InvocationRecord, evidence: WorkerLabIdentityEvidence) -> None:
-    if evidence.worker_lab_head != record.worker_lab_commit:
+    if evidence.worker_lab_installation_digest != record.worker_lab_installation_digest:
         raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "Worker Lab evidence differs")
-    allowed = ("?? docs/8_27_26_ChatGPT_History",)
-    if any(line not in allowed for line in evidence.worker_lab_status):
-        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "Worker Lab working tree differs")
 
 
 def _canonical_unlinked(path: Path) -> Path:
@@ -307,20 +322,6 @@ def _path_equal(left: Path, right: Path) -> bool:
     return os.path.normcase(os.path.normpath(str(left))) == os.path.normcase(os.path.normpath(str(right)))
 
 
-def _git(root: Path, *args: str) -> bytes:
-    environment = {"PATH": os.environ.get("PATH", ""), "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
-    # ``root`` is canonicalized and reparse-checked by the caller.  Scope the
-    # ownership exception to this exact inspected repository; never persist a
-    # broad user/global Git setting.
-    process = subprocess.run(
-        ["git", "-c", f"safe.directory={root}", *args], cwd=root, env=environment, stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30, check=False,
-    )
-    if process.returncode != 0:
-        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "framework Git identity check failed")
-    return process.stdout
-
-
 def _run_python_identity(executable: Path) -> tuple[str, str, str]:
     script = "import platform,sys;print(sys.version.split()[0]);print(platform.python_implementation());print(platform.machine())"
     process = subprocess.run(
@@ -333,16 +334,25 @@ def _run_python_identity(executable: Path) -> tuple[str, str, str]:
     return values[0], values[1], values[2]
 
 
-def _read_launcher_version(executable: Path) -> str:
+def _read_launcher_version(executable: Path, expected_version: str) -> str:
     """Verify only the pinned launcher version; authentication is never queried here."""
     process = subprocess.run(
         [str(executable), "--version"], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, timeout=30, check=False, encoding="utf-8",
     )
-    expected = f"codex-cli {AUDITED_CODEX_VERSION}"
+    expected = f"codex-cli {expected_version}"
     if process.returncode != 0 or expected not in process.stdout.strip():
         raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "Codex launcher version differs")
-    return AUDITED_CODEX_VERSION
+    return expected_version
+
+
+def _require_execution_enabled(config: FrameworkConfiguration) -> None:
+    if (
+        config.execution_authority != "ENABLED"
+        or config.participant_states.get("worker-lab") != "ACTIVE"
+        or config.participant_states.get("autonomous-worker-framework") != "ACTIVE"
+    ):
+        raise LabValidationError("INTEGRATION_EXECUTION_DISABLED", "installation policy disables worker execution")
 
 
 def _bounded_utf8(value: object, limit: int, name: str) -> bytes:

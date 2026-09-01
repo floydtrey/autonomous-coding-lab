@@ -24,8 +24,8 @@ from .errors import LabValidationError
 from .framework_adapter import accept_execute_response
 from .framework_client import (
     FRAMEWORK_CONTRACT_VERSION,
-    PINNED_FRAMEWORK_COMMIT,
     call_adapter,
+    installed_worker_lab_identity,
     inspect_configuration,
     inspect_worker_lab_identity,
     pinned_framework_configuration,
@@ -94,13 +94,11 @@ def run(run_root: Path) -> str:
     attempt = AttemptStore(lab / "state").read(attempt.attempt_id)
     invocation, prompt = _invocation(lab, attempt, records, receipt, workspace)
     invocations = InvocationStore(lab / "state")
-    launcher = _codex_launcher()
-    configuration = pinned_framework_configuration(
-        codex_launcher=launcher,
-        codex_launcher_digest=_digest_bytes(launcher.read_bytes()),
-    )
+    configuration = pinned_framework_configuration()
     framework_evidence = inspect_configuration(configuration)
-    worker_evidence = inspect_worker_lab_identity(Path(__file__).resolve().parents[1], invocation.worker_lab_commit)
+    worker_evidence = inspect_worker_lab_identity(
+        Path(__file__).resolve().parents[1], invocation.worker_lab_installation_digest,
+    )
     _direct_adapter_runner(
         invocation, configuration, "prepare", prompt, framework_evidence, worker_evidence,
     )
@@ -206,8 +204,9 @@ def _invocation(lab: Path, attempt: AttemptRecord, records: tuple[CurriculumReco
     plan = catalog.select(ChangeFacts(()), profile_ids=(SYNTHETIC_PROFILE_ID,))
     prompt = "Review the synthetic README and return one short plain-text improvement proposal. Do not modify files, run commands, include paths, URLs, credentials, or code fences."
     worker_root = Path(__file__).resolve().parents[1]
-    worker_commit = _git(worker_root, "rev-parse", "HEAD").decode("ascii").strip()
-    invocation = InvocationRecord.from_mapping({"schema_version": INVOCATION_SCHEMA, "invocation_id": "INVOCATION-" + uuid.uuid4().hex.upper(), "attempt_id": attempt.attempt_id, "operation": str(InvocationOperation.READ_ONLY_PROPOSAL), "exercise_id": exercise.exercise_id, "exercise_version": exercise.exercise_version, "exercise_digest": exercise.digest(), "policy_id": policy.policy_id, "policy_version": policy.policy_version, "policy_digest": policy.digest(), "role_id": role.role_id, "role_version": role.role_version, "role_digest": role.digest(), "context_manifest_id": context.manifest_id, "context_manifest_version": context.manifest_version, "context_digest": context.digest(), "task_digest": attempt.task_digest, "test_catalog_version": catalog.catalog_version, "test_catalog_digest": catalog.digest(), "test_plan_digest": canonical_digest(plan.to_dict()), "test_ids": list(plan.test_ids), "worker_lab_commit": worker_commit, "worker_lab_contract_version": WORKER_LAB_CONTRACT_VERSION, "framework_commit": PINNED_FRAMEWORK_COMMIT, "framework_contract_version": FRAMEWORK_CONTRACT_VERSION, "workspace_receipt_digest": receipt.digest(), "workspace_root_digest": receipt.workspace_root_digest, "workspace_path_digest": receipt.workspace_path_digest, "starting_commit": attempt.starting_commit, "sandbox_mode": "read-only", "runtime_profile_id": RUNTIME_PROFILE, "model": RUNTIME_MODEL, "reasoning_effort": RUNTIME_REASONING_EFFORT, "timeout_seconds": RUNTIME_TIMEOUT_SECONDS, "readable_paths": [{"path": "README.md", "digest": _digest_bytes((workspace / "README.md").read_bytes())}], "writable_paths": [], "prompt_digest": _digest_bytes(prompt.encode("utf-8")), "authorized_by": None, "authorized_at": None, "state": "PREPARED", "result_digest": None})
+    worker_digest = installed_worker_lab_identity(worker_root)
+    framework_digest = pinned_framework_configuration().framework_installation_digest
+    invocation = InvocationRecord.from_mapping({"schema_version": INVOCATION_SCHEMA, "invocation_id": "INVOCATION-" + uuid.uuid4().hex.upper(), "attempt_id": attempt.attempt_id, "operation": str(InvocationOperation.READ_ONLY_PROPOSAL), "exercise_id": exercise.exercise_id, "exercise_version": exercise.exercise_version, "exercise_digest": exercise.digest(), "policy_id": policy.policy_id, "policy_version": policy.policy_version, "policy_digest": policy.digest(), "role_id": role.role_id, "role_version": role.role_version, "role_digest": role.digest(), "context_manifest_id": context.manifest_id, "context_manifest_version": context.manifest_version, "context_digest": context.digest(), "task_digest": attempt.task_digest, "test_catalog_version": catalog.catalog_version, "test_catalog_digest": catalog.digest(), "test_plan_digest": canonical_digest(plan.to_dict()), "test_ids": list(plan.test_ids), "worker_lab_installation_digest": worker_digest, "worker_lab_contract_version": WORKER_LAB_CONTRACT_VERSION, "framework_installation_digest": framework_digest, "framework_contract_version": FRAMEWORK_CONTRACT_VERSION, "workspace_receipt_digest": receipt.digest(), "workspace_root_digest": receipt.workspace_root_digest, "workspace_path_digest": receipt.workspace_path_digest, "starting_commit": attempt.starting_commit, "sandbox_mode": "read-only", "runtime_profile_id": RUNTIME_PROFILE, "model": RUNTIME_MODEL, "reasoning_effort": RUNTIME_REASONING_EFFORT, "timeout_seconds": RUNTIME_TIMEOUT_SECONDS, "readable_paths": [{"path": "README.md", "digest": _digest_bytes((workspace / "README.md").read_bytes())}], "writable_paths": [], "prompt_digest": _digest_bytes(prompt.encode("utf-8")), "authorized_by": None, "authorized_at": None, "state": "PREPARED", "result_digest": None})
     sealed = ReadOnlyEvaluationPlan.from_mapping({"schema_version": READ_ONLY_EVALUATION_PLAN_SCHEMA, "invocation_id": invocation.invocation_id, "invocation_digest": invocation.identity_digest(), "catalog_version": catalog.catalog_version, "catalog_digest": catalog.digest(), "selected_profile_ids": list(plan.selected_profile_ids), "test_ids": list(plan.test_ids), "test_plan_digest": invocation.test_plan_digest, "changed_paths": [], "capabilities": [], "risk_flags": []})
     ReadOnlyEvaluationPlanStore(lab / "state").create(sealed)
     return invocation, prompt

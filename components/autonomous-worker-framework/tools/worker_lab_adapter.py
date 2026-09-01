@@ -17,31 +17,9 @@ from pathlib import PurePosixPath
 from pathlib import Path
 from typing import Any
 
-try:
-    from tools.codex_runtime import (
-        CodexRequest, check_chatgpt_auth, execute_codex_bounded, sanitized_codex_environment,
-    )
-except ModuleNotFoundError:  # direct isolated-script execution support
-    # ``-I`` deliberately removes the script directory from ``sys.path``.
-    # Load only the adjacent, framework-owned runtime by exact file identity;
-    # this neither broadens import search nor imports anything from Worker Lab.
-    _runtime_spec = importlib.util.spec_from_file_location(
-        "worker_lab_adapter_codex_runtime", Path(__file__).with_name("codex_runtime.py")
-    )
-    if _runtime_spec is None or _runtime_spec.loader is None:  # pragma: no cover - filesystem failure
-        raise RuntimeError("framework Codex runtime is unavailable")
-    _runtime_module = importlib.util.module_from_spec(_runtime_spec)
-    sys.modules[_runtime_spec.name] = _runtime_module
-    _runtime_spec.loader.exec_module(_runtime_module)
-    CodexRequest = _runtime_module.CodexRequest
-    check_chatgpt_auth = _runtime_module.check_chatgpt_auth
-    execute_codex_bounded = _runtime_module.execute_codex_bounded
-    sanitized_codex_environment = _runtime_module.sanitized_codex_environment
-
-
-PROTOCOL = "worker-lab-framework-adapter:v1"
-REQUEST_SCHEMA = "worker-lab-framework-adapter-request:v1"
-INVOCATION_SCHEMA = "worker-lab-framework-invocation:v1"
+PROTOCOL = "worker-lab-framework-adapter:v2"
+REQUEST_SCHEMA = "worker-lab-framework-adapter-request:v2"
+INVOCATION_SCHEMA = "worker-lab-framework-invocation:v2"
 MAX_REQUEST_BYTES = 262_144
 MAX_PROMPT_BYTES = 32_768
 MAX_RESPONSE_BYTES = 65_536
@@ -55,8 +33,8 @@ _INVOCATION_FIELDS = {
     "exercise_version", "exercise_digest", "policy_id", "policy_version", "policy_digest",
     "role_id", "role_version", "role_digest", "context_manifest_id", "context_manifest_version",
     "context_digest", "task_digest", "test_catalog_version", "test_catalog_digest",
-    "test_plan_digest", "test_ids", "worker_lab_commit", "worker_lab_contract_version",
-    "framework_commit", "framework_contract_version", "workspace_receipt_digest",
+    "test_plan_digest", "test_ids", "worker_lab_installation_digest", "worker_lab_contract_version",
+    "framework_installation_digest", "framework_contract_version", "workspace_receipt_digest",
     "workspace_root_digest", "workspace_path_digest", "starting_commit", "sandbox_mode",
     "runtime_profile_id", "model", "reasoning_effort", "timeout_seconds", "readable_paths",
     "writable_paths", "prompt_digest", "authorized_by", "authorized_at", "state", "result_digest",
@@ -77,6 +55,26 @@ class AdapterExecution:
     returncode: int = 0
 
 
+@dataclass(frozen=True)
+class InstalledRuntime:
+    manifest_path: Path
+    installation_root: Path
+    framework_root: Path
+    framework_installation_digest: str
+    framework_files: tuple[tuple[str, str], ...]
+    adapter_digest: str
+    python_path: Path
+    python_digest: str
+    python_version: str
+    python_implementation: str
+    python_architecture: str
+    codex_path: Path
+    codex_digest: str
+    codex_version: str
+    execution_authority: str
+    participant_states: Mapping[str, str]
+
+
 Executor = Callable[[str], AdapterExecution]
 
 
@@ -94,7 +92,7 @@ def invocation_identity(value: Mapping[str, Any]) -> str:
     for field in ("authorized_by", "authorized_at", "state", "result_digest"):
         immutable.pop(field)
     return digest({
-        "schema_version": "worker-lab-framework-invocation-identity:v1",
+        "schema_version": "worker-lab-framework-invocation-identity:v2",
         "invocation": immutable,
     })
 
@@ -197,7 +195,7 @@ def _validate_invocation(value: Mapping[str, Any]) -> None:
         "reasoning_effort": "medium",
         "timeout_seconds": 900,
         "framework_contract_version": PROTOCOL,
-        "worker_lab_contract_version": "worker-lab-framework-client:v1",
+        "worker_lab_contract_version": "worker-lab-framework-client:v2",
     }
     if any(value.get(name) != expected for name, expected in exact.items()):
         raise AdapterError("INTEGRATION_RUNTIME_FORBIDDEN", "invocation runtime or contract differs")
@@ -235,7 +233,7 @@ def _validate_invocation(value: Mapping[str, Any]) -> None:
     for name in digest_fields:
         if value[name] is not None:
             _digest(value[name], name)
-    for name in ("worker_lab_commit", "framework_commit", "starting_commit"):
+    for name in ("starting_commit",):
         item = value.get(name)
         if not isinstance(item, str) or len(item) != 40 or any(char not in "0123456789abcdef" for char in item):
             raise AdapterError("INTEGRATION_IDENTITY_INVALID", f"{name} is invalid")
@@ -340,37 +338,51 @@ def _timestamp(value: object) -> str:
     return value
 
 
-def local_runtime_identity(invocation: Mapping[str, Any], *, version_reader: Callable[[str], str] | None = None) -> tuple[str, str]:
-    framework_root = Path(__file__).resolve().parents[1]
-    adapter_path = Path(__file__).resolve()
-    head = _git(framework_root, "rev-parse", "HEAD").decode("ascii").strip()
-    status = _git(framework_root, "status", "--porcelain=v1", "--untracked-files=all").decode("utf-8")
-    if head != invocation["framework_commit"] or status:
-        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "framework repository identity differs")
-    blob = _git(framework_root, "show", f"{head}:tools/worker_lab_adapter.py")
-    adapter_digest = digest(adapter_path.read_bytes())
-    if digest(blob) != adapter_digest:
-        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "adapter bytes differ from framework commit")
-    clean_env = sanitized_codex_environment(os.environ)
+def local_runtime_identity(
+    invocation: Mapping[str, Any],
+    *,
+    version_reader: Callable[[str], str] | None = None,
+    installed: InstalledRuntime | None = None,
+) -> tuple[str, str]:
+    installation = installed or _installed_adapter_identity()
+    if installation.framework_installation_digest != invocation["framework_installation_digest"]:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "framework installation identity differs")
+    python_path = Path(sys.executable).resolve(strict=True)
+    if (
+        not _path_equal(python_path, installation.python_path)
+        or digest(python_path.read_bytes()) != installation.python_digest
+        or sys.version.split()[0] != installation.python_version
+        or __import__("platform").python_implementation() != installation.python_implementation
+        or __import__("platform").machine() != installation.python_architecture
+    ):
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "Python runtime identity differs")
+    runtime_module = _framework_runtime(installation)
+    clean_env = runtime_module.sanitized_codex_environment(os.environ)
     launcher = shutil.which("codex", path=clean_env.get("PATH"))
     if launcher is None:
         raise AdapterError("CODEX_UNAVAILABLE", "could not resolve audited Codex launcher")
+    launcher_path = Path(launcher).resolve(strict=True)
+    if not _path_equal(launcher_path, installation.codex_path) or digest(launcher_path.read_bytes()) != installation.codex_digest:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "Codex launcher identity differs")
     version = (version_reader or _read_launcher_version)(launcher)
-    if version != "0.149.1":
+    if version != installation.codex_version:
         raise AdapterError("CODEX_VERSION_INVALID", "audited Codex launcher version differs")
-    launcher_digest = digest(Path(launcher).resolve().read_bytes())
-    python_digest = digest(Path(sys.executable).resolve().read_bytes())
     command_base = (
         "python", "-I", "-B", "tools/worker_lab_adapter.py",
         ("prepare", "preflight", "execute-read-only"), "--protocol", PROTOCOL,
     )
     identity = digest({
-        "schema_version": "worker-lab-runtime-identity:v1", "framework_commit": head,
-        "adapter_digest": adapter_digest, "adapter_contract_version": PROTOCOL,
-        "python_digest": python_digest, "python_version": sys.version.split()[0],
+        "schema_version": "worker-lab-runtime-identity:v2",
+        "framework_installation_digest": installation.framework_installation_digest,
+        "framework_runtime_files": [
+            {"path": path, "sha256": file_digest}
+            for path, file_digest in installation.framework_files
+        ],
+        "adapter_digest": installation.adapter_digest, "adapter_contract_version": PROTOCOL,
+        "python_digest": installation.python_digest, "python_version": sys.version.split()[0],
         "python_implementation": __import__("platform").python_implementation(),
         "python_architecture": __import__("platform").machine(),
-        "codex_launcher_digest": launcher_digest, "codex_version": version,
+        "codex_launcher_digest": installation.codex_digest, "codex_version": version,
         "environment_policy": "framework-sanitized-environment:v1",
         "runtime_profile": RUNTIME_PROFILE, "operation": invocation["operation"],
         "sandbox": invocation["sandbox_mode"], "windows_sandbox": "elevated",
@@ -390,11 +402,12 @@ def _read_launcher_version(launcher: str) -> str:
 
 
 def _execute_production(prompt: str, framework_root: Path, launcher: str) -> AdapterExecution:
+    runtime_module = _framework_runtime(_installed_adapter_identity())
     descriptor, output_name = tempfile.mkstemp(prefix="worker-lab-final-", suffix=".txt")
     os.close(descriptor)
     output_path = Path(output_name)
     try:
-        execution = execute_codex_bounded(CodexRequest(
+        execution = runtime_module.execute_codex_bounded(runtime_module.CodexRequest(
             prompt=prompt, target_repo=Path.cwd(), framework_repo=framework_root,
             sandbox="read-only", model="gpt-5.6-terra", reasoning_effort="medium",
             timeout_seconds=900, output_last_message=output_path,
@@ -429,13 +442,18 @@ def main(argv: list[str] | None = None) -> int:
     raw = sys.stdin.buffer.read(MAX_REQUEST_BYTES + 1)
     try:
         invocation, _ = parse_request(raw)
-        runtime, launcher = local_runtime_identity(invocation)
+        installed = _installed_adapter_identity()
+        _require_execution_policy(installed, args.mode)
+        runtime, launcher = local_runtime_identity(invocation, installed=installed)
         if args.mode == "prepare":
             response = prepare(raw, runtime_identity=runtime)
         elif args.mode == "preflight":
+            runtime_module = _framework_runtime(installed)
             response = preflight(
                 raw, runtime_identity=runtime,
-                checker=lambda: check_chatgpt_auth(environment=os.environ, executable=launcher),
+                checker=lambda: runtime_module.check_chatgpt_auth(
+                    environment=os.environ, executable=launcher,
+                ),
             )
         else:
             response = execute_read_only(
@@ -456,19 +474,188 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _git(root: Path, *args: str) -> bytes:
-    environment = {"PATH": os.environ.get("PATH", ""), "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
-    # The controller has already resolved and reparse-checked ``root`` before
-    # invoking this helper.  Passing only that exact path to Git avoids a
-    # sandbox-account ownership false positive without enabling a global or
-    # user-controlled safe-directory exception.
-    process = subprocess.run(
-        ["git", "-c", f"safe.directory={root}", *args], cwd=root, env=environment, stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30, check=False,
+def _installed_adapter_identity(
+    *,
+    manifest_path: Path | None = None,
+    adapter_path: Path | None = None,
+) -> InstalledRuntime:
+    adapter_path = (adapter_path or Path(__file__)).resolve()
+    installation_root = manifest_path.parent.parent if manifest_path is not None else adapter_path.parents[3]
+    manifest_path = manifest_path or installation_root / "config" / "installation-manifest.json"
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"), object_pairs_hook=_unique_object,
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installation manifest is invalid") from exc
+    root = _manifest_object(manifest, {
+        "schema_version", "installation_id", "source_provenance", "activation_policy",
+        "components", "runtimes", "integrity",
+    })
+    if root["schema_version"] != "acl-installation-manifest:v2" or root["installation_id"] != "acl-development":
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installation manifest version or identity differs")
+    component_names = {
+        "autonomous-worker-framework", "worker-lab", "local-model-bench",
+    }
+    sources = _manifest_object(root["source_provenance"], component_names)
+    for name in component_names:
+        source = _manifest_object(sources[name], {"repository_id", "source_commit", "source_tree"})
+        if source["repository_id"] != name:
+            raise AdapterError("INTEGRATION_IDENTITY_INVALID", "source provenance identity differs")
+        for field in ("source_commit", "source_tree"):
+            value = source[field]
+            if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
+                raise AdapterError("INTEGRATION_IDENTITY_INVALID", "source provenance is invalid")
+    policy = _manifest_object(root["activation_policy"], {"policy_id", "execution_authority", "participants"})
+    if policy["policy_id"] != "acl-installation-activation:v1" or policy["execution_authority"] not in {"DISABLED", "ENABLED"}:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installation activation policy differs")
+    participants = _manifest_object(policy["participants"], component_names)
+    if (
+        participants["autonomous-worker-framework"] not in {"ACTIVE", "AVAILABLE"}
+        or participants["worker-lab"] not in {"ACTIVE", "DEFERRED"}
+        or participants["local-model-bench"] != "ADVISORY"
+    ):
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installation participant state differs")
+    components = _manifest_object(root["components"], component_names)
+    parsed_components: dict[str, tuple[Path, str, tuple[tuple[str, str], ...], Mapping[str, Any]]] = {}
+    for name in component_names:
+        component = _manifest_object(
+            components[name], {"root", "production_root", "installed_tree", "entrypoints"},
+        )
+        component_root = _contained_path(installation_root, _manifest_relative_path(component["root"]), directory=True)
+        production_root = _manifest_relative_path(component["production_root"])
+        tree = _manifest_object(component["installed_tree"], {"schema_version", "scope", "digest", "files"})
+        if tree["schema_version"] != "acl-installed-file-set:v1" or tree["scope"] not in {
+            "runtime-dependency-closure", "python-production-tree",
+        }:
+            raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installed file-set contract differs")
+        files_raw = tree["files"]
+        if not isinstance(files_raw, list) or not files_raw:
+            raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installed file set is empty")
+        files: list[tuple[str, str]] = []
+        for raw_file in files_raw:
+            item = _manifest_object(raw_file, {"path", "sha256"})
+            files.append((_manifest_relative_path(item["path"]).as_posix(), _digest(item["sha256"], "installed file digest")))
+        file_tuple = tuple(files)
+        if tuple(path for path, _ in file_tuple) != tuple(sorted({path for path, _ in file_tuple})):
+            raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installed file set is not sorted and unique")
+        expected_tree_digest = digest([{"path": path, "sha256": value} for path, value in file_tuple])
+        if _digest(tree["digest"], "installed tree digest") != expected_tree_digest:
+            raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installed file-set digest differs")
+        prefix = PurePosixPath(production_root.as_posix())
+        if any(PurePosixPath(path).parts[:len(prefix.parts)] != prefix.parts for path, _ in file_tuple):
+            raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installed file escapes production root")
+        entries = _manifest_object(
+            component["entrypoints"], {"worker-lab-adapter"} if name == "autonomous-worker-framework" else set(),
+        )
+        parsed_components[name] = (component_root, tree["scope"], file_tuple, entries)
+    framework_root, framework_scope, framework_files, framework_entrypoints = parsed_components["autonomous-worker-framework"]
+    if (
+        framework_scope != "runtime-dependency-closure"
+        or framework_files != (
+            ("tools/codex_runtime.py", dict(framework_files).get("tools/codex_runtime.py", "")),
+            ("tools/worker_lab_adapter.py", dict(framework_files).get("tools/worker_lab_adapter.py", "")),
+        )
+        or framework_entrypoints.get("worker-lab-adapter") != "tools/worker_lab_adapter.py"
+    ):
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "framework runtime closure is incomplete")
+    for name in ("worker-lab", "local-model-bench"):
+        if parsed_components[name][1] != "python-production-tree":
+            raise AdapterError("INTEGRATION_IDENTITY_INVALID", "component production-tree scope differs")
+    for relative, expected_digest in framework_files:
+        installed_file = _contained_path(framework_root, Path(*PurePosixPath(relative).parts), directory=False)
+        if digest(installed_file.read_bytes()) != expected_digest:
+            raise AdapterError("INTEGRATION_IDENTITY_INVALID", "framework runtime dependency differs")
+    declared_adapter = _contained_path(framework_root, Path("tools") / "worker_lab_adapter.py", directory=False)
+    if not _path_equal(framework_root, adapter_path.parents[1]) or not _path_equal(declared_adapter, adapter_path):
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "adapter location differs from installation manifest")
+    runtimes = _manifest_object(root["runtimes"], {"python", "codex"})
+    python_raw = _manifest_object(runtimes["python"], {"path", "sha256", "version", "implementation", "architecture"})
+    codex_raw = _manifest_object(runtimes["codex"], {"path", "sha256", "version"})
+    python_path = _manifest_absolute_path(python_raw["path"])
+    codex_path = _manifest_absolute_path(codex_raw["path"])
+    integrity = _manifest_object(root["integrity"], {"algorithm", "file_set_algorithm", "path_policy"})
+    if integrity != {
+        "algorithm": "sha256",
+        "file_set_algorithm": "acl-installed-file-set:v1",
+        "path_policy": "installation-relative-no-traversal:v1",
+    }:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installation integrity policy differs")
+    return InstalledRuntime(
+        manifest_path, installation_root, framework_root,
+        digest([{"path": path, "sha256": value} for path, value in framework_files]),
+        framework_files, dict(framework_files)["tools/worker_lab_adapter.py"],
+        python_path, _digest(python_raw["sha256"], "Python digest"), _text(python_raw["version"], "Python version"),
+        _text(python_raw["implementation"], "Python implementation"), _text(python_raw["architecture"], "Python architecture"),
+        codex_path, _digest(codex_raw["sha256"], "Codex digest"), _text(codex_raw["version"], "Codex version"),
+        policy["execution_authority"], participants,
     )
-    if process.returncode != 0:
-        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "framework Git identity check failed")
-    return process.stdout
+
+
+def _require_execution_policy(installed: InstalledRuntime, mode: str) -> None:
+    if mode == "prepare":
+        return
+    if (
+        installed.execution_authority != "ENABLED"
+        or installed.participant_states.get("worker-lab") != "ACTIVE"
+        or installed.participant_states.get("autonomous-worker-framework") != "ACTIVE"
+    ):
+        raise AdapterError("INTEGRATION_EXECUTION_DISABLED", "installation policy disables worker execution")
+
+
+def _framework_runtime(installed: InstalledRuntime):
+    runtime_path = _contained_path(installed.framework_root, Path("tools") / "codex_runtime.py", directory=False)
+    if digest(runtime_path.read_bytes()) != dict(installed.framework_files)["tools/codex_runtime.py"]:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "framework runtime dependency differs")
+    module_name = "worker_lab_adapter_codex_runtime"
+    spec = importlib.util.spec_from_file_location(module_name, runtime_path)
+    if spec is None or spec.loader is None:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "framework Codex runtime is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _manifest_object(value: Any, fields: set[str]) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping) or set(value) != fields:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installation manifest fields are invalid")
+    return value
+
+
+def _manifest_relative_path(value: Any) -> Path:
+    text = _text(value, "installation path")
+    pure = PurePosixPath(text)
+    if pure.is_absolute() or pure.as_posix() != text or text == "." or ".." in pure.parts or ":" in pure.parts[0] or "\\" in text:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installation path is invalid")
+    return Path(*pure.parts)
+
+
+def _manifest_absolute_path(value: Any) -> Path:
+    path = Path(_text(value, "runtime path"))
+    if not path.is_absolute() or ".." in path.parts:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "runtime path is invalid")
+    return path
+
+
+def _contained_path(root: Path, relative: Path, *, directory: bool) -> Path:
+    try:
+        root_resolved = root.resolve(strict=True)
+        candidate = (root_resolved / relative).resolve(strict=True)
+    except OSError as exc:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installed path is unavailable") from exc
+    if not candidate.is_relative_to(root_resolved) or (candidate.is_dir() if directory else candidate.is_file()) is not True:
+        raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installed path escapes its root")
+    current = Path(candidate.anchor)
+    for part in candidate.parts[1:]:
+        current /= part
+        if getattr(os.lstat(current), "st_file_attributes", 0) & 0x400:
+            raise AdapterError("INTEGRATION_IDENTITY_INVALID", "installed path uses a reparse point")
+    return candidate
+
+
+def _path_equal(left: Path, right: Path) -> bool:
+    return os.path.normcase(os.path.normpath(str(left))) == os.path.normcase(os.path.normpath(str(right)))
 
 
 if __name__ == "__main__":

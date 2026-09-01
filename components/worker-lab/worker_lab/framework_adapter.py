@@ -14,7 +14,7 @@ from .models import WorkspaceReceipt, WorkspaceReceiptState
 from .storage import AtomicRecordStore
 
 
-ADAPTER_COMMAND = ("worker-lab-framework-adapter", "prepare", "--protocol", "worker-lab-framework-invocation:v1")
+ADAPTER_COMMAND = ("worker-lab-framework-adapter", "prepare", "--protocol", "worker-lab-framework-invocation:v2")
 MAX_ADAPTER_RESPONSE_BYTES = 65_536
 MAX_PROPOSAL_BYTES = 32_768
 AdapterRunner = Callable[[tuple[str, ...], str], str | bytes]
@@ -95,7 +95,7 @@ def parse_result(value: str | bytes, record: InvocationRecord, *, custody_digest
         or result.invocation_id != record.invocation_id
         or result.attempt_id != record.attempt_id
         or result.operation != record.operation
-        or result.framework_commit != record.framework_commit
+        or result.framework_installation_digest != record.framework_installation_digest
         or result.framework_contract_version != record.framework_contract_version
         or result.runtime_profile_id != record.runtime_profile_id
         or result.prompt_digest != record.prompt_digest
@@ -302,9 +302,9 @@ def accept_execute_response(
         raise LabValidationError("INTEGRATION_RESULT_INVALID", "independent test evidence differs")
     reference = f"proposals/{content_digest[7:]}.txt"
     result = ResultRecord.from_mapping({
-        "schema_version": "worker-lab-framework-result:v1", "invocation_digest": record.identity_digest(),
+        "schema_version": "worker-lab-framework-result:v2", "invocation_digest": record.identity_digest(),
         "request_digest": record.identity_digest(), "invocation_id": record.invocation_id, "attempt_id": record.attempt_id,
-        "operation": str(record.operation), "framework_commit": record.framework_commit,
+        "operation": str(record.operation), "framework_installation_digest": record.framework_installation_digest,
         "framework_contract_version": record.framework_contract_version, "runtime_profile_id": record.runtime_profile_id,
         "runtime_identity": runtime_identity, "prompt_digest": record.prompt_digest,
         "test_catalog_version": record.test_catalog_version, "test_catalog_digest": record.test_catalog_digest,

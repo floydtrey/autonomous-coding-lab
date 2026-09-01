@@ -10,14 +10,14 @@ from .canonical import canonical_digest
 from .errors import LabValidationError
 
 
-INVOCATION_SCHEMA = "worker-lab-framework-invocation:v1"
-RESULT_SCHEMA = "worker-lab-framework-result:v1"
+INVOCATION_SCHEMA = "worker-lab-framework-invocation:v2"
+RESULT_SCHEMA = "worker-lab-framework-result:v2"
 RUNTIME_PROFILE = "terra-medium:v1"
 RUNTIME_MODEL = "gpt-5.6-terra"
 RUNTIME_REASONING_EFFORT = "medium"
 RUNTIME_TIMEOUT_SECONDS = 900
-WORKER_LAB_CONTRACT_VERSION = "worker-lab-framework-client:v1"
-FRAMEWORK_CONTRACT_VERSION = "worker-lab-framework-adapter:v1"
+WORKER_LAB_CONTRACT_VERSION = "worker-lab-framework-client:v2"
+FRAMEWORK_CONTRACT_VERSION = "worker-lab-framework-adapter:v2"
 MAX_STRUCTURED_TEXT_BYTES = 2_048
 MAX_CONTENT_REFERENCE_BYTES = 256
 
@@ -88,9 +88,9 @@ class InvocationRecord:
     test_catalog_digest: str
     test_plan_digest: str
     test_ids: tuple[str, ...]
-    worker_lab_commit: str
+    worker_lab_installation_digest: str
     worker_lab_contract_version: str
-    framework_commit: str
+    framework_installation_digest: str
     framework_contract_version: str
     workspace_receipt_digest: str
     workspace_root_digest: str
@@ -127,7 +127,7 @@ class InvocationRecord:
         for field in ("authorized_by", "authorized_at", "state", "result_digest"):
             value.pop(field)
         return canonical_digest({
-            "schema_version": "worker-lab-framework-invocation-identity:v1",
+            "schema_version": "worker-lab-framework-invocation-identity:v2",
             "invocation": value,
         })
 
@@ -150,9 +150,9 @@ class InvocationRecord:
             _id(data["role_id"]), _positive(data["role_version"]), _digest(data["role_digest"]),
             _id(data["context_manifest_id"]), _positive(data["context_manifest_version"]), _digest(data["context_digest"]),
             _digest(data["task_digest"]), _text(data["test_catalog_version"]), _digest(data["test_catalog_digest"]),
-            _digest(data["test_plan_digest"]), _texts(data["test_ids"]), _sha(data["worker_lab_commit"]),
+            _digest(data["test_plan_digest"]), _texts(data["test_ids"]), _digest(data["worker_lab_installation_digest"]),
             _exact(data["worker_lab_contract_version"], WORKER_LAB_CONTRACT_VERSION, "worker_lab_contract_version"),
-            _sha(data["framework_commit"]),
+            _digest(data["framework_installation_digest"]),
             _exact(data["framework_contract_version"], FRAMEWORK_CONTRACT_VERSION, "framework_contract_version"),
             _digest(data["workspace_receipt_digest"]), _digest(data["workspace_root_digest"]),
             _digest(data["workspace_path_digest"]), _sha(data["starting_commit"]), _text(data["sandbox_mode"]),
@@ -192,7 +192,7 @@ class ResultRecord:
     invocation_id: str
     attempt_id: str
     operation: InvocationOperation
-    framework_commit: str
+    framework_installation_digest: str
     framework_contract_version: str
     runtime_profile_id: str
     runtime_identity: str
@@ -245,7 +245,7 @@ class ResultRecord:
         stages = _stages(data["validation_stages"])
         result = cls(
             _exact(data["schema_version"], RESULT_SCHEMA, "schema_version"), _digest(data["invocation_digest"]),
-            _digest(data["request_digest"]), _id(data["invocation_id"]), _id(data["attempt_id"]), operation, _sha(data["framework_commit"]),
+            _digest(data["request_digest"]), _id(data["invocation_id"]), _id(data["attempt_id"]), operation, _digest(data["framework_installation_digest"]),
             _exact(data["framework_contract_version"], FRAMEWORK_CONTRACT_VERSION, "framework_contract_version"),
             _exact(data["runtime_profile_id"], RUNTIME_PROFILE, "runtime_profile_id"), _digest(data["runtime_identity"]),
             _digest(data["prompt_digest"]), _text(data["test_catalog_version"]), _digest(data["test_catalog_digest"]),
