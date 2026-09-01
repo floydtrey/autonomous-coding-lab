@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import subprocess
@@ -10,9 +11,23 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Protocol
 
 from .attempt_store import AttemptStore
-from .canonical import canonical_json
+from .canonical import canonical_digest, canonical_json
 from .errors import LabValidationError
-from .integration import InvocationRecord, ResultRecord
+from .integration import (
+    FRAMEWORK_CONTRACT_VERSION,
+    INVOCATION_SCHEMA,
+    RUNTIME_MODEL,
+    RUNTIME_PROFILE,
+    RUNTIME_REASONING_EFFORT,
+    RUNTIME_TIMEOUT_SECONDS,
+    WORKER_LAB_CONTRACT_VERSION,
+    InvocationOperation,
+    InvocationRecord,
+    InvocationState,
+    ResultRecord,
+    transition_invocation,
+)
+from .invocation_store import InvocationStore
 from .lifecycle import transition_attempt
 from .models import (
     ATTEMPT_SCHEMA,
@@ -23,7 +38,11 @@ from .models import (
     ExerciseRecord,
     FailureRecord,
 )
-from .operator_control import DoctorReport, inspect_installation
+from .operator_control import (
+    DoctorReport,
+    inspect_installation,
+    validate_controller_identity,
+)
 from .policy import (
     ContextManifest,
     PolicyRecord,
@@ -32,16 +51,21 @@ from .policy import (
     verify_context_files,
 )
 from .storage import AtomicRecordStore
-from .test_catalog import TestCatalog
+from .test_catalog import ChangeFacts, TestCatalog
 from .validation import attempt_task_digest
 from .workspace import discard_workspace, prepare_workspace, verify_workspace
+from .read_only_evidence import (
+    READ_ONLY_EVALUATION_PLAN_SCHEMA,
+    ReadOnlyEvaluationPlan,
+    ReadOnlyEvaluationPlanStore,
+)
 
 
 HEALTH_SCHEMA = "worker-lab-service-health:v1"
 INSTALLATION_STATUS_SCHEMA = "worker-lab-service-installation-status:v1"
 RECORD_LIST_SCHEMA = "worker-lab-service-record-list:v1"
 RECORD_DETAIL_SCHEMA = "worker-lab-service-record-detail:v1"
-OPERATION_RESULT_SCHEMA = "worker-lab-service-operation-result:v1"
+OPERATION_RESULT_SCHEMA = "worker-lab-service-operation-result:v2"
 
 COLLECTIONS = (
     "attempts",
@@ -59,6 +83,8 @@ COLLECTIONS = (
 
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:._@-]{1,127}$")
 _DEFINITION_ID_RE = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
+_DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_MAX_PROMPT_BYTES = 32_768
 
 
 class _Record(Protocol):
@@ -173,6 +199,7 @@ class OperationResultDTO:
     resource_type: str
     identity: str
     record_digest: str
+    immutable_identity_digest: str | None
     record: Mapping[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
@@ -182,6 +209,7 @@ class OperationResultDTO:
             "resource_type": self.resource_type,
             "identity": self.identity,
             "record_digest": self.record_digest,
+            "immutable_identity_digest": self.immutable_identity_digest,
             "record": dict(self.record),
         }
 
@@ -392,6 +420,190 @@ class WorkerLabApplicationService:
         attempts.save_transition(updated)
         return _operation_result("transition-attempt", "attempt", attempt_id, updated)
 
+    def prepare_invocation(
+        self,
+        attempt_id: str,
+        workspace_root: Path,
+        prompt: str,
+    ) -> OperationResultDTO:
+        attempt_id = _identity(attempt_id)
+        workspace_root = _path_argument(workspace_root, "workspace root")
+        prompt_bytes = _prompt_bytes(prompt)
+        self._require_present_data_root()
+        attempt = AttemptStore(self.data_root / "state").read(attempt_id)
+        if attempt.state is not AttemptState.READY:
+            raise LabValidationError(
+                "INTEGRATION_ATTEMPT_STATE_INVALID",
+                "invocation preparation requires a READY attempt",
+            )
+        invocation_store = InvocationStore(self.data_root / "state")
+        for path in invocation_store.records.list_paths("invocations"):
+            existing = invocation_store.records.read(path, InvocationRecord.from_mapping)
+            if existing.attempt_id == attempt_id:
+                raise LabValidationError(
+                    "INTEGRATION_INVOCATION_EXISTS",
+                    "attempt already has a durable invocation",
+                )
+        definitions = AtomicRecordStore(self.data_root / "curricula")
+        exercise = definitions.read(
+            f"exercises/{attempt.exercise_id}/v{attempt.exercise_version}.json",
+            ExerciseRecord.from_mapping,
+        )
+        policy = definitions.read(
+            f"policies/{attempt.policy_id}/v{attempt.policy_version}.json",
+            PolicyRecord.from_mapping,
+        )
+        role = definitions.read(
+            f"roles/{attempt.role_id}/v{attempt.role_version}.json",
+            RoleRecord.from_mapping,
+        )
+        context = definitions.read(
+            f"contexts/{exercise.context_manifest_id}/v{exercise.context_manifest_version}.json",
+            ContextManifest.from_mapping,
+        )
+        catalog = definitions.read(
+            f"catalogs/{attempt.evaluator_catalog_version}.json",
+            TestCatalog.from_mapping,
+        )
+        _validate_prepared_attempt(attempt, exercise, policy, role, context, catalog)
+        receipt = verify_workspace(self.data_root, attempt_id, workspace_root)
+        plan = catalog.select(ChangeFacts(()), profile_ids=exercise.test_profile_ids)
+        manifest, _ = inspect_installation()
+        operation = (
+            InvocationOperation.READ_ONLY_PROPOSAL
+            if attempt.sandbox_mode == "read-only"
+            else InvocationOperation.WORKSPACE_WRITE_CODE_TASK
+        )
+        invocation = InvocationRecord.from_mapping({
+            "schema_version": INVOCATION_SCHEMA,
+            "invocation_id": "INVOCATION-" + uuid.uuid4().hex.upper(),
+            "attempt_id": attempt.attempt_id,
+            "operation": str(operation),
+            "exercise_id": exercise.exercise_id,
+            "exercise_version": exercise.exercise_version,
+            "exercise_digest": exercise.digest(),
+            "policy_id": policy.policy_id,
+            "policy_version": policy.policy_version,
+            "policy_digest": policy.digest(),
+            "role_id": role.role_id,
+            "role_version": role.role_version,
+            "role_digest": role.digest(),
+            "context_manifest_id": context.manifest_id,
+            "context_manifest_version": context.manifest_version,
+            "context_digest": context.digest(),
+            "task_digest": attempt.task_digest,
+            "test_catalog_version": catalog.catalog_version,
+            "test_catalog_digest": catalog.digest(),
+            "test_plan_digest": canonical_digest(plan.to_dict()),
+            "test_ids": list(plan.test_ids),
+            "worker_lab_installation_digest": manifest.components["worker-lab"].installation_digest,
+            "worker_lab_contract_version": WORKER_LAB_CONTRACT_VERSION,
+            "framework_installation_digest": manifest.components[
+                "autonomous-worker-framework"
+            ].installation_digest,
+            "framework_contract_version": FRAMEWORK_CONTRACT_VERSION,
+            "workspace_receipt_digest": receipt.digest(),
+            "workspace_root_digest": receipt.workspace_root_digest,
+            "workspace_path_digest": receipt.workspace_path_digest,
+            "starting_commit": attempt.starting_commit,
+            "sandbox_mode": attempt.sandbox_mode,
+            "runtime_profile_id": RUNTIME_PROFILE,
+            "model": RUNTIME_MODEL,
+            "reasoning_effort": RUNTIME_REASONING_EFFORT,
+            "timeout_seconds": RUNTIME_TIMEOUT_SECONDS,
+            "readable_paths": [
+                {"path": item.path, "digest": item.digest} for item in context.files
+            ],
+            "writable_paths": (
+                []
+                if operation is InvocationOperation.READ_ONLY_PROPOSAL
+                else list(exercise.writable_paths)
+            ),
+            "prompt_digest": _bytes_digest(prompt_bytes),
+            "authorized_by": None,
+            "authorized_at": None,
+            "state": "PREPARED",
+            "result_digest": None,
+        })
+        _store_prompt(self.data_root / "state", prompt_bytes)
+        if operation is InvocationOperation.READ_ONLY_PROPOSAL:
+            sealed = ReadOnlyEvaluationPlan.from_mapping({
+                "schema_version": READ_ONLY_EVALUATION_PLAN_SCHEMA,
+                "invocation_id": invocation.invocation_id,
+                "invocation_digest": invocation.identity_digest(),
+                "catalog_version": catalog.catalog_version,
+                "catalog_digest": catalog.digest(),
+                "selected_profile_ids": list(plan.selected_profile_ids),
+                "test_ids": list(plan.test_ids),
+                "test_plan_digest": invocation.test_plan_digest,
+                "changed_paths": [],
+                "capabilities": [],
+                "risk_flags": [],
+            })
+            ReadOnlyEvaluationPlanStore(self.data_root / "state").create(sealed)
+        invocation_store.create(invocation)
+        return _operation_result(
+            "prepare-invocation",
+            "invocation",
+            invocation.invocation_id,
+            invocation,
+        )
+
+    def authorize_invocation(
+        self,
+        invocation_id: str,
+        expected_identity_digest: str,
+        controller_identity: str,
+    ) -> OperationResultDTO:
+        invocation_id = _identity(invocation_id)
+        expected = _digest(expected_identity_digest)
+        controller = validate_controller_identity(controller_identity)
+        self._require_present_data_root()
+        store = InvocationStore(self.data_root / "state")
+        current = store.read(invocation_id)
+        if current.identity_digest() != expected:
+            raise LabValidationError(
+                "INTEGRATION_IDENTITY_INVALID",
+                "invocation identity differs from authorization command",
+            )
+        authorized = transition_invocation(
+            current,
+            InvocationState.AUTHORIZED,
+            authorized_by=controller,
+            authorized_at=self._clock(),
+        )
+        store.save_transition(authorized, expected_digest=current.digest())
+        return _operation_result(
+            "authorize-invocation",
+            "invocation",
+            invocation_id,
+            authorized,
+        )
+
+    def reject_invocation(
+        self,
+        invocation_id: str,
+        expected_identity_digest: str,
+    ) -> OperationResultDTO:
+        invocation_id = _identity(invocation_id)
+        expected = _digest(expected_identity_digest)
+        self._require_present_data_root()
+        store = InvocationStore(self.data_root / "state")
+        current = store.read(invocation_id)
+        if current.identity_digest() != expected:
+            raise LabValidationError(
+                "INTEGRATION_IDENTITY_INVALID",
+                "invocation identity differs from rejection command",
+            )
+        rejected = transition_invocation(current, InvocationState.REJECTED)
+        store.save_transition(rejected, expected_digest=current.digest())
+        return _operation_result(
+            "reject-invocation",
+            "invocation",
+            invocation_id,
+            rejected,
+        )
+
     def _store(self, spec: _CollectionSpec) -> AtomicRecordStore:
         return AtomicRecordStore(self.data_root / spec.storage_root)
 
@@ -460,6 +672,36 @@ def _path_argument(value: Any, name: str) -> Path:
     return value
 
 
+def _digest(value: Any) -> str:
+    if not isinstance(value, str) or not _DIGEST_RE.fullmatch(value):
+        raise LabValidationError("SERVICE_COMMAND_INVALID", "expected identity digest is invalid")
+    return value
+
+
+def _prompt_bytes(value: Any) -> bytes:
+    if not isinstance(value, str) or not value.strip():
+        raise LabValidationError("SERVICE_COMMAND_INVALID", "prompt must be non-empty text")
+    try:
+        encoded = value.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise LabValidationError("SERVICE_COMMAND_INVALID", "prompt must be UTF-8 text") from exc
+    if b"\x00" in encoded or len(encoded) > _MAX_PROMPT_BYTES:
+        raise LabValidationError("SERVICE_COMMAND_INVALID", "prompt is invalid or oversized")
+    return encoded
+
+
+def _bytes_digest(value: bytes) -> str:
+    return "sha256:" + hashlib.sha256(value).hexdigest()
+
+
+def _store_prompt(state_root: Path, prompt: bytes) -> None:
+    digest = _bytes_digest(prompt)
+    AtomicRecordStore(state_root).write_bytes(
+        f"prompts/{digest.removeprefix('sha256:')}.txt",
+        prompt,
+    )
+
+
 def _state(name: str) -> State:
     def read(record: _Record) -> str | None:
         value = getattr(record, name)
@@ -488,6 +730,7 @@ def _operation_result(
         resource_type,
         _identity(identity),
         record.digest(),
+        record.identity_digest() if isinstance(record, InvocationRecord) else None,
         record.to_dict(),
     )
 
@@ -533,6 +776,39 @@ def _validate_attempt_authority(
         required_capabilities=exercise.required_capabilities,
         temporary_denied_capabilities=exercise.temporary_denied_capabilities,
     )
+
+
+def _validate_prepared_attempt(
+    attempt: AttemptRecord,
+    exercise: ExerciseRecord,
+    policy: PolicyRecord,
+    role: RoleRecord,
+    context: ContextManifest,
+    catalog: TestCatalog,
+) -> None:
+    _validate_attempt_authority(exercise, policy, role, context, catalog)
+    expected = (
+        attempt.curriculum_id == exercise.curriculum_id,
+        attempt.exercise_id == exercise.exercise_id,
+        attempt.exercise_version == exercise.exercise_version,
+        attempt.starting_commit == exercise.template_commit,
+        attempt.context_digest == context.digest(),
+        attempt.task_digest == attempt_task_digest(exercise, policy, role, context, catalog),
+        attempt.policy_id == policy.policy_id,
+        attempt.policy_version == policy.policy_version,
+        attempt.policy_digest == policy.digest(),
+        attempt.role_id == role.role_id,
+        attempt.role_version == role.role_version,
+        attempt.role_digest == role.digest(),
+        attempt.sandbox_mode == exercise.sandbox_mode,
+        attempt.evaluator_catalog_version == catalog.catalog_version,
+        attempt.evaluator_catalog_digest == catalog.digest(),
+    )
+    if not all(expected):
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "attempt identity differs from protected invocation definitions",
+        )
 
 
 def _validate_target_repository(

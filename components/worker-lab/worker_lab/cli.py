@@ -69,6 +69,20 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("collection", choices=COLLECTIONS)
     command.add_argument("identity")
     command.set_defaults(handler=_service_show_record)
+    command = commands.add_parser("prepare-invocation")
+    command.add_argument("attempt_id")
+    command.add_argument("--workspace-root", required=True, type=Path)
+    command.add_argument("--prompt-file", required=True, type=Path)
+    command.set_defaults(handler=_service_prepare_invocation)
+    command = commands.add_parser("authorize-invocation")
+    command.add_argument("invocation_id")
+    command.add_argument("--expected-identity-digest", required=True)
+    command.add_argument("--controller", required=True)
+    command.set_defaults(handler=_service_authorize_invocation)
+    command = commands.add_parser("reject-invocation")
+    command.add_argument("invocation_id")
+    command.add_argument("--expected-identity-digest", required=True)
+    command.set_defaults(handler=_service_reject_invocation)
     command = commands.add_parser("doctor")
     command.set_defaults(handler=_doctor)
     command = commands.add_parser("synthetic-read-only")
@@ -159,6 +173,30 @@ def _service_list_records(args: argparse.Namespace) -> str:
 
 def _service_show_record(args: argparse.Namespace) -> str:
     return _service(args).show_record(args.collection, args.identity).to_json()
+
+
+def _service_prepare_invocation(args: argparse.Namespace) -> str:
+    prompt = args.prompt_file.read_text(encoding="utf-8")
+    return _service(args).prepare_invocation(
+        args.attempt_id,
+        args.workspace_root,
+        prompt,
+    ).to_json()
+
+
+def _service_authorize_invocation(args: argparse.Namespace) -> str:
+    return _service(args).authorize_invocation(
+        args.invocation_id,
+        args.expected_identity_digest,
+        args.controller,
+    ).to_json()
+
+
+def _service_reject_invocation(args: argparse.Namespace) -> str:
+    return _service(args).reject_invocation(
+        args.invocation_id,
+        args.expected_identity_digest,
+    ).to_json()
 
 
 def _doctor(args: argparse.Namespace) -> str:

@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -207,7 +208,7 @@ def test_attempt_workspace_service_returns_stable_operation_dtos(tmp_path: Path)
     service = WorkerLabApplicationService(lab, clock=lambda: next(times))
 
     created = service.create_attempt("record-model", 1, target).to_dict()
-    assert created["schema_version"] == "worker-lab-service-operation-result:v1"
+    assert created["schema_version"] == "worker-lab-service-operation-result:v2"
     assert created["operation"] == "create-attempt"
     assert created["resource_type"] == "attempt"
     assert created["identity"] == created["record"]["attempt_id"]
@@ -266,3 +267,96 @@ def test_mutating_service_rejects_unsafe_command_input_before_writing(tmp_path: 
             service.create_attempt(exercise_id, version, repository)  # type: ignore[arg-type]
         assert error.value.code == "SERVICE_COMMAND_INVALID"
     assert not (lab / "state").exists()
+
+
+def test_invocation_prepare_authorize_and_reject_are_durable_without_dispatch(
+    tmp_path: Path,
+) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    times = iter((
+        "2026-09-01T12:00:00Z",
+        "2026-09-01T12:00:01Z",
+        "2026-09-01T12:00:02Z",
+        "2026-09-01T12:00:03Z",
+        "2026-09-01T12:00:04Z",
+    ))
+    service = WorkerLabApplicationService(lab, clock=lambda: next(times))
+    first = service.create_attempt("record-model", 1, target).to_dict()["identity"]
+    service.prepare_workspace(first, target, workspace_root)
+    prompt = "Implement the sealed record-model exercise without exceeding its writable paths."
+    prepared = service.prepare_invocation(first, workspace_root, prompt).to_dict()
+    invocation_id = prepared["identity"]
+    identity_digest = prepared["immutable_identity_digest"]
+    assert prepared["operation"] == "prepare-invocation"
+    assert prepared["record"]["state"] == "PREPARED"
+    assert prepared["record"]["operation"] == "workspace-write-code-task"
+    assert prepared["record"]["writable_paths"]
+    prompt_digest = "sha256:" + hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+    assert prepared["record"]["prompt_digest"] == prompt_digest
+    assert (
+        lab / "state" / "prompts" / f"{prompt_digest.removeprefix('sha256:')}.txt"
+    ).read_text(encoding="utf-8") == prompt
+    with pytest.raises(LabValidationError) as error:
+        service.prepare_invocation(first, workspace_root, "A competing prompt.\n")
+    assert error.value.code == "INTEGRATION_INVOCATION_EXISTS"
+    assert len(tuple((lab / "state" / "prompts").glob("*.txt"))) == 1
+
+    with pytest.raises(LabValidationError) as error:
+        service.authorize_invocation(invocation_id, "sha256:" + "f" * 64, "trusted-controller")
+    assert error.value.code == "INTEGRATION_IDENTITY_INVALID"
+    with pytest.raises(LabValidationError) as error:
+        service.authorize_invocation(invocation_id, identity_digest, "bad controller")
+    assert error.value.code == "OPERATOR_CONTROLLER_INVALID"
+    assert service.show_record("invocations", invocation_id).to_dict()["record"]["state"] == "PREPARED"
+
+    authorized = service.authorize_invocation(
+        invocation_id,
+        identity_digest,
+        "trusted-controller",
+    ).to_dict()
+    assert authorized["record"]["state"] == "AUTHORIZED"
+    assert authorized["record"]["authorized_by"] == "trusted-controller"
+    assert authorized["immutable_identity_digest"] == identity_digest
+    with pytest.raises(LabValidationError) as error:
+        service.reject_invocation(invocation_id, identity_digest)
+    assert error.value.code == "INTEGRATION_TRANSITION_INVALID"
+
+    second = service.create_attempt("record-model", 1, target).to_dict()["identity"]
+    service.prepare_workspace(second, target, workspace_root)
+    second_prepared = service.prepare_invocation(second, workspace_root, prompt).to_dict()
+    rejected = service.reject_invocation(
+        second_prepared["identity"],
+        second_prepared["immutable_identity_digest"],
+    ).to_dict()
+    assert rejected["record"]["state"] == "REJECTED"
+    assert not (lab / "state" / "results").exists()
+    assert not (lab / "state" / "process-custody").exists()
+
+
+def test_cli_exposes_prepare_and_reject_invocation_without_dispatch(tmp_path: Path, capsys) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-09-01T12:00:00Z",
+    )
+    attempt_id = service.create_attempt("record-model", 1, target).to_dict()["identity"]
+    service.prepare_workspace(attempt_id, target, workspace_root)
+    prompt_file = tmp_path / "prompt.txt"
+    prompt_file.write_text("Prepare the bounded code-task invocation only.", encoding="utf-8")
+
+    assert main([
+        "--root", str(lab), "prepare-invocation", attempt_id,
+        "--workspace-root", str(workspace_root), "--prompt-file", str(prompt_file),
+    ]) == 0
+    prepared = json.loads(capsys.readouterr().out)
+    assert prepared["schema_version"] == "worker-lab-service-operation-result:v2"
+    assert prepared["record"]["state"] == "PREPARED"
+    assert main([
+        "--root", str(lab), "reject-invocation", prepared["identity"],
+        "--expected-identity-digest", prepared["immutable_identity_digest"],
+    ]) == 0
+    assert json.loads(capsys.readouterr().out)["record"]["state"] == "REJECTED"
