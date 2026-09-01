@@ -6,7 +6,7 @@
 
 **Branch:** `main`
 
-**Last accepted Phase 3 implementation checkpoint:** `cf9d45fffdc9309e131739aec03586365d634b35`
+**Last accepted Phase 3 implementation checkpoint:** `e77674372b1158dda110f25ecbe1ee8ee0e452c6`
 
 **Isolated GUI prototype checkpoint:** `a72f026d57b9d938c4ebba1987379482af4e39b3`
 
@@ -22,7 +22,7 @@ Phase 1 is complete. The consolidated repository now has a clean, remotely recov
 
 Phase 2 is complete. Exactly one authorized synthetic read-only Codex proposal ran through Worker Lab and the framework, reached `CANDIDATE`, retained exact evidence, left the disposable workspace unchanged, and ended with verified process absence. The installation was restored to disabled immediately afterward.
 
-Phase 3 is in progress. Its shared service now provides strict read-only queries plus attempt creation, workspace preparation/verification/disposal, and guarded attempt transitions for CLI and future GUI clients. Invocation preparation, authorization, rejection, recovery, and review operations have not yet moved behind that boundary, and execution remains disabled.
+Phase 3 is in progress. Its shared service now provides strict read-only queries; attempt/workspace lifecycle commands; and durable invocation preparation, controller-bound authorization, and terminal rejection for CLI and future GUI clients. Dispatch, cancellation/recovery, review, and backup operations have not yet moved behind that boundary, and execution remains disabled.
 
 ## Accepted Phase 1 checkpoint
 
@@ -132,6 +132,27 @@ Validation did not run a worker or model:
 
 Commit `a72f026` preserves the user's 15-file Tkinter design under `components/worker-lab/prototypes/gui-shell/`. It parses and imports as an isolated prototype, has no production entrypoint, does not connect to the application service, and is excluded from the protected production-tree identity.
 
+## Accepted Phase 3 invocation-command checkpoint
+
+Commit `e776743` adds invocation preparation and decision commands without adding execution:
+
+- `prepare-invocation` strictly revalidates the READY attempt, protected definitions, verified workspace receipt, test plan, and installed identities;
+- exact prompt bytes are bounded, content-addressed, and retained for restart-safe reconstruction;
+- a single attempt cannot accumulate competing invocation envelopes;
+- operation-result v2 adds the immutable invocation identity without silently changing the accepted v1 DTO;
+- authorization requires that exact immutable digest and a validated controller identity;
+- rejection requires the same digest and is terminal;
+- CLI commands expose preparation, authorization, and rejection without calling an adapter or process runner.
+
+Validation did not run a worker or model:
+
+- final focused service suite: 12 passed;
+- Worker Lab full suite: 349 passed and seven expected Windows symlink-capability skips;
+- framework compile gate and full suite: passed, 208 tests;
+- final bilateral adapter check: 36 passed;
+- root inventory tools: 9 passed;
+- doctor reported manifest digest `sha256:3409e5b447d74017b20c58d3259aa22b45c2428d0c412d4e0f3f671150ff4f8d`, Worker Lab digest `sha256:f39de294d5399149549a3e4dedaf1d395615ac97d800118ab9144f4a8dadfd94`, and `execution_ready: false`.
+
 ## Proven component capabilities
 
 ### Worker Lab
@@ -161,14 +182,14 @@ A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON r
 ## Not yet available
 
 - A general workspace-write bridge from Worker Lab to the framework.
-- Mutating application-service operations for invocations, recovery, review, backup, and restore.
+- Application-service operations for dispatch, cancellation/recovery, review, backup, and restore.
 - A functional Worker Lab GUI.
 - Unsupervised local-model planning, task authorization, code review, publishing, or merging.
 - Production-project access or modification by workers.
 
 ## Immediate next gate
 
-Continue Phase 3 by adding invocation preparation, authorization, and rejection to the shared application service with controller-bound command DTOs and legal/prohibited transition tests. Do not add dispatch yet. Execution remains disabled.
+Continue Phase 3 by adding fail-closed invocation cancellation/abort and recovery orchestration, complete attempt timelines, candidate review queries, and backup/restore service methods. Establish those operator controls before adding general dispatch. Execution remains disabled.
 
 The trusted dependency-ordered delivery plan for worker execution and the Worker Lab GUI is `docs/WORKPLAN.md`.
 
