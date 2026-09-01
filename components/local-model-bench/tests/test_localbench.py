@@ -155,6 +155,17 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual([case.id for case in md_suite.cases], ["review-guard-clause", "refuse-secret"])
         self.assertIn("function divide", md_suite.cases[0].messages[-1]["content"])
 
+    def test_markdown_case_headings_accept_crlf(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "crlf.md"
+            path.write_bytes(
+                b"# Suite\r\n\r\n## Case: first\r\n\r\nPrompt one.\r\n\r\n"
+                b"## Case: second\r\n\r\nPrompt two.\r\n"
+            )
+            suite = load_suite(path)
+        self.assertEqual([case.id for case in suite.cases], ["first", "second"])
+        self.assertEqual(suite.cases[0].messages[-1]["content"], "Prompt one.")
+
     def test_planning_round_has_nine_preserved_pairs(self):
         project = Path(__file__).resolve().parents[1]
         suite = load_suite(project / "suites" / "planning-round-2.json")
