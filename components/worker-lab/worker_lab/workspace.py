@@ -299,7 +299,10 @@ def prepare_workspace(
         _assert_no_reparse_components(staging_parent)
         staged_workspace = staging_parent / "workspace"
         _git(
-            ["clone", "--no-local", "--no-hardlinks", "--no-checkout", "--", str(source), str(staged_workspace)],
+            [
+                "-c", "core.autocrlf=false", "clone", "--no-local", "--no-hardlinks",
+                "--no-checkout", "--", str(source), str(staged_workspace),
+            ],
             "clone template",
             run_process,
             git_timeout_seconds,
