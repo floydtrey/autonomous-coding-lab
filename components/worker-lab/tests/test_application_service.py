@@ -16,6 +16,7 @@ from tests.test_models import (
 from tests.test_policy import context_mapping, policy_mapping, role_mapping
 from tests.test_test_catalog import catalog
 from worker_lab.application_service import COLLECTIONS, WorkerLabApplicationService
+from worker_lab.backup import verify_backup
 from worker_lab.cli import main
 from worker_lab.errors import LabValidationError
 from worker_lab.integration import ResultRecord
@@ -323,6 +324,32 @@ def test_invocation_prepare_authorize_and_reject_are_durable_without_dispatch(
         service.reject_invocation(invocation_id, identity_digest)
     assert error.value.code == "INTEGRATION_TRANSITION_INVALID"
 
+    with pytest.raises(LabValidationError) as error:
+        service.cancel_invocation(
+            invocation_id,
+            identity_digest,
+            "different-controller",
+        )
+    assert error.value.code == "OPERATOR_CONTROLLER_MISMATCH"
+    with pytest.raises(LabValidationError) as error:
+        service.cancel_invocation(
+            invocation_id,
+            "sha256:" + "e" * 64,
+            "trusted-controller",
+        )
+    assert error.value.code == "INTEGRATION_IDENTITY_INVALID"
+    cancelled = service.cancel_invocation(
+        invocation_id,
+        identity_digest,
+        "trusted-controller",
+    ).to_dict()
+    assert cancelled["operation"] == "cancel-invocation"
+    assert cancelled["record"]["state"] == "ABORTED"
+    assert cancelled["record"]["authorized_by"] == "trusted-controller"
+    with pytest.raises(LabValidationError) as error:
+        service.cancel_invocation(invocation_id, identity_digest, "trusted-controller")
+    assert error.value.code == "INTEGRATION_TRANSITION_INVALID"
+
     second = service.create_attempt("record-model", 1, target).to_dict()["identity"]
     service.prepare_workspace(second, target, workspace_root)
     second_prepared = service.prepare_invocation(second, workspace_root, prompt).to_dict()
@@ -360,3 +387,71 @@ def test_cli_exposes_prepare_and_reject_invocation_without_dispatch(tmp_path: Pa
         "--expected-identity-digest", prepared["immutable_identity_digest"],
     ]) == 0
     assert json.loads(capsys.readouterr().out)["record"]["state"] == "REJECTED"
+
+
+def test_cli_exposes_controller_bound_invocation_cancellation(tmp_path: Path, capsys) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-09-01T12:00:00Z",
+    )
+    attempt_id = service.create_attempt("record-model", 1, target).to_dict()["identity"]
+    service.prepare_workspace(attempt_id, target, workspace_root)
+    prepared = service.prepare_invocation(
+        attempt_id,
+        workspace_root,
+        "Prepare the bounded invocation for cancellation.",
+    ).to_dict()
+    service.authorize_invocation(
+        prepared["identity"],
+        prepared["immutable_identity_digest"],
+        "trusted-controller",
+    )
+
+    assert main([
+        "--root", str(lab), "cancel-invocation", prepared["identity"],
+        "--expected-identity-digest", prepared["immutable_identity_digest"],
+        "--controller", "trusted-controller",
+    ]) == 0
+    cancelled = json.loads(capsys.readouterr().out)
+    assert cancelled["operation"] == "cancel-invocation"
+    assert cancelled["record"]["state"] == "ABORTED"
+    assert not (lab / "state" / "results").exists()
+    assert not (lab / "state" / "process-custody").exists()
+
+
+def test_backup_verify_and_restore_are_versioned_service_operations(tmp_path: Path) -> None:
+    lab = populated_lab(tmp_path)
+    service = WorkerLabApplicationService(lab)
+    destination = tmp_path / "backup"
+    created = service.create_backup(destination).to_dict()
+    assert created["schema_version"] == "worker-lab-service-backup-result:v1"
+    assert created["operation"] == "create-backup"
+    assert created["file_count"] == len(created["manifest"]["files"])
+    assert created["manifest_digest"].startswith("sha256:")
+    assert verify_backup(destination).to_dict() == created["manifest"]
+
+    verified = service.verify_backup(destination).to_dict()
+    assert verified["operation"] == "verify-backup"
+    assert verified["manifest_digest"] == created["manifest_digest"]
+
+    restored = tmp_path / "restored"
+    result = service.restore_backup(destination, restored).to_dict()
+    assert result["operation"] == "restore-backup"
+    assert result["manifest_digest"] == created["manifest_digest"]
+    assert snapshot(restored) == snapshot(lab)
+
+
+def test_backup_service_rejects_non_path_and_relative_arguments(tmp_path: Path) -> None:
+    lab = populated_lab(tmp_path)
+    service = WorkerLabApplicationService(lab)
+    for operation in (
+        lambda: service.create_backup(Path("relative-backup")),
+        lambda: service.verify_backup("not-a-path"),  # type: ignore[arg-type]
+        lambda: service.restore_backup(tmp_path / "missing", Path("relative-restore")),
+    ):
+        with pytest.raises(LabValidationError) as error:
+            operation()
+        assert error.value.code == "SERVICE_COMMAND_INVALID"

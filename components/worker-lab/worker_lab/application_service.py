@@ -11,6 +11,12 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Protocol
 
 from .attempt_store import AttemptStore
+from .backup import (
+    BackupManifest,
+    create_backup as create_durable_backup,
+    restore_backup as restore_durable_backup,
+    verify_backup as verify_durable_backup,
+)
 from .canonical import canonical_digest, canonical_json
 from .errors import LabValidationError
 from .integration import (
@@ -66,6 +72,7 @@ INSTALLATION_STATUS_SCHEMA = "worker-lab-service-installation-status:v1"
 RECORD_LIST_SCHEMA = "worker-lab-service-record-list:v1"
 RECORD_DETAIL_SCHEMA = "worker-lab-service-record-detail:v1"
 OPERATION_RESULT_SCHEMA = "worker-lab-service-operation-result:v2"
+BACKUP_RESULT_SCHEMA = "worker-lab-service-backup-result:v1"
 
 COLLECTIONS = (
     "attempts",
@@ -219,6 +226,25 @@ class OperationResultDTO:
     def record_json(self) -> str:
         """Preserve the established CLI record shape while clients adopt the DTO."""
         return canonical_json(dict(self.record))
+
+
+@dataclass(frozen=True)
+class BackupResultDTO:
+    operation: str
+    manifest: BackupManifest
+
+    def to_dict(self) -> dict[str, Any]:
+        record = self.manifest.to_dict()
+        return {
+            "schema_version": BACKUP_RESULT_SCHEMA,
+            "operation": self.operation,
+            "manifest_digest": canonical_digest(record),
+            "file_count": len(self.manifest.files),
+            "manifest": record,
+        }
+
+    def to_json(self) -> str:
+        return canonical_json(self.to_dict())
 
 
 class WorkerLabApplicationService:
@@ -604,6 +630,57 @@ class WorkerLabApplicationService:
             rejected,
         )
 
+    def cancel_invocation(
+        self,
+        invocation_id: str,
+        expected_identity_digest: str,
+        controller_identity: str,
+    ) -> OperationResultDTO:
+        invocation_id = _identity(invocation_id)
+        expected = _digest(expected_identity_digest)
+        controller = validate_controller_identity(controller_identity)
+        self._require_present_data_root()
+        store = InvocationStore(self.data_root / "state")
+        current = store.read(invocation_id)
+        if current.identity_digest() != expected:
+            raise LabValidationError(
+                "INTEGRATION_IDENTITY_INVALID",
+                "invocation identity differs from cancellation command",
+            )
+        if current.state is InvocationState.AUTHORIZED and current.authorized_by != controller:
+            raise LabValidationError(
+                "OPERATOR_CONTROLLER_MISMATCH",
+                "cancellation controller differs from invocation authorization",
+            )
+        cancelled = transition_invocation(current, InvocationState.ABORTED)
+        store.save_transition(cancelled, expected_digest=current.digest())
+        return _operation_result(
+            "cancel-invocation",
+            "invocation",
+            invocation_id,
+            cancelled,
+        )
+
+    def create_backup(self, destination: Path) -> BackupResultDTO:
+        destination = _absolute_path_argument(destination, "backup destination")
+        self._require_present_data_root()
+        return BackupResultDTO(
+            "create-backup",
+            create_durable_backup(self.data_root, destination),
+        )
+
+    def verify_backup(self, backup: Path) -> BackupResultDTO:
+        backup = _absolute_path_argument(backup, "backup path")
+        return BackupResultDTO("verify-backup", verify_durable_backup(backup))
+
+    def restore_backup(self, backup: Path, destination: Path) -> BackupResultDTO:
+        backup = _absolute_path_argument(backup, "backup path")
+        destination = _absolute_path_argument(destination, "restore destination")
+        return BackupResultDTO(
+            "restore-backup",
+            restore_durable_backup(backup, destination),
+        )
+
     def _store(self, spec: _CollectionSpec) -> AtomicRecordStore:
         return AtomicRecordStore(self.data_root / spec.storage_root)
 
@@ -669,6 +746,13 @@ def _positive_version(value: Any) -> int:
 def _path_argument(value: Any, name: str) -> Path:
     if not isinstance(value, Path):
         raise LabValidationError("SERVICE_COMMAND_INVALID", f"{name} must be a path")
+    return value
+
+
+def _absolute_path_argument(value: Any, name: str) -> Path:
+    value = _path_argument(value, name)
+    if not value.is_absolute():
+        raise LabValidationError("SERVICE_COMMAND_INVALID", f"{name} must be absolute")
     return value
 
 

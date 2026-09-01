@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .application_service import COLLECTIONS, WorkerLabApplicationService
-from .backup import create_backup, restore_backup, verify_backup
 from .attempt_store import AttemptStore
 from .evidence import verify_evidence
 from .errors import LabValidationError
@@ -83,6 +82,11 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("invocation_id")
     command.add_argument("--expected-identity-digest", required=True)
     command.set_defaults(handler=_service_reject_invocation)
+    command = commands.add_parser("cancel-invocation")
+    command.add_argument("invocation_id")
+    command.add_argument("--expected-identity-digest", required=True)
+    command.add_argument("--controller", required=True)
+    command.set_defaults(handler=_service_cancel_invocation)
     command = commands.add_parser("doctor")
     command.set_defaults(handler=_doctor)
     command = commands.add_parser("synthetic-read-only")
@@ -144,14 +148,14 @@ def _parser() -> argparse.ArgumentParser:
     command.set_defaults(handler=_verify_evidence)
     command = commands.add_parser("backup")
     command.add_argument("destination", type=Path)
-    command.set_defaults(handler=lambda args: _backup(args))
+    command.set_defaults(handler=_service_create_backup)
     command = commands.add_parser("verify-backup")
     command.add_argument("path", type=Path)
-    command.set_defaults(handler=lambda args: _verified(verify_backup(args.path)))
+    command.set_defaults(handler=_service_verify_backup)
     command = commands.add_parser("restore")
     command.add_argument("backup", type=Path)
     command.add_argument("destination", type=Path)
-    command.set_defaults(handler=lambda args: _verified(restore_backup(args.backup, args.destination)))
+    command.set_defaults(handler=_service_restore_backup)
     return parser
 
 
@@ -196,6 +200,14 @@ def _service_reject_invocation(args: argparse.Namespace) -> str:
     return _service(args).reject_invocation(
         args.invocation_id,
         args.expected_identity_digest,
+    ).to_json()
+
+
+def _service_cancel_invocation(args: argparse.Namespace) -> str:
+    return _service(args).cancel_invocation(
+        args.invocation_id,
+        args.expected_identity_digest,
+        args.controller,
     ).to_json()
 
 
@@ -308,12 +320,22 @@ def _verify_evidence(args: argparse.Namespace) -> str:
     return f"VERIFIED {record.evidence_digest}"
 
 
-def _backup(args: argparse.Namespace) -> str:
-    return _verified(create_backup(args.root, args.destination))
+def _service_create_backup(args: argparse.Namespace) -> str:
+    return _verified(_service(args).create_backup(args.destination.absolute()))
 
 
-def _verified(manifest: Any) -> str:
-    return f"VERIFIED {len(manifest.files)} files"
+def _service_verify_backup(args: argparse.Namespace) -> str:
+    return _verified(_service(args).verify_backup(args.path.absolute()))
+
+
+def _service_restore_backup(args: argparse.Namespace) -> str:
+    return _verified(
+        _service(args).restore_backup(args.backup.absolute(), args.destination.absolute())
+    )
+
+
+def _verified(result: Any) -> str:
+    return f"VERIFIED {result.to_dict()['file_count']} files"
 
 
 def _now() -> str:
