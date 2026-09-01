@@ -17,7 +17,10 @@ RUNTIME_MODEL = "gpt-5.6-terra"
 RUNTIME_REASONING_EFFORT = "medium"
 RUNTIME_TIMEOUT_SECONDS = 900
 WORKER_LAB_CONTRACT_VERSION = "worker-lab-framework-client:v2"
+# Version 2 remains the immutable read-only protocol.  Workspace writes use a
+# deliberately separate version so a v2 consumer cannot acquire write behavior.
 FRAMEWORK_CONTRACT_VERSION = "worker-lab-framework-adapter:v2"
+WORKSPACE_WRITE_FRAMEWORK_CONTRACT_VERSION = "worker-lab-framework-adapter:v3"
 MAX_STRUCTURED_TEXT_BYTES = 2_048
 MAX_CONTENT_REFERENCE_BYTES = 256
 
@@ -153,7 +156,7 @@ class InvocationRecord:
             _digest(data["test_plan_digest"]), _texts(data["test_ids"]), _digest(data["worker_lab_installation_digest"]),
             _exact(data["worker_lab_contract_version"], WORKER_LAB_CONTRACT_VERSION, "worker_lab_contract_version"),
             _digest(data["framework_installation_digest"]),
-            _exact(data["framework_contract_version"], FRAMEWORK_CONTRACT_VERSION, "framework_contract_version"),
+            _framework_contract_version(data["framework_contract_version"], operation),
             _digest(data["workspace_receipt_digest"]), _digest(data["workspace_root_digest"]),
             _digest(data["workspace_path_digest"]), _sha(data["starting_commit"]), _text(data["sandbox_mode"]),
             _exact(data["runtime_profile_id"], RUNTIME_PROFILE, "runtime_profile_id"), _text(data["model"]),
@@ -246,7 +249,7 @@ class ResultRecord:
         result = cls(
             _exact(data["schema_version"], RESULT_SCHEMA, "schema_version"), _digest(data["invocation_digest"]),
             _digest(data["request_digest"]), _id(data["invocation_id"]), _id(data["attempt_id"]), operation, _digest(data["framework_installation_digest"]),
-            _exact(data["framework_contract_version"], FRAMEWORK_CONTRACT_VERSION, "framework_contract_version"),
+            _framework_contract_version(data["framework_contract_version"], operation),
             _exact(data["runtime_profile_id"], RUNTIME_PROFILE, "runtime_profile_id"), _digest(data["runtime_identity"]),
             _digest(data["prompt_digest"]), _text(data["test_catalog_version"]), _digest(data["test_catalog_digest"]),
             _digest(data["test_plan_digest"]), _texts(data["test_ids"]), _digest(data["workspace_receipt_digest"]),
@@ -341,8 +344,22 @@ def _validate_result(result: ResultRecord) -> None:
             result.proposal_digest is None or result.process_identity is None or result.content_reference is None
         ):
             raise LabValidationError("INTEGRATION_RESULT_INVALID", "accepted proposal requires custody and content evidence")
-    elif result.proposal_digest is not None:
-        raise LabValidationError("INTEGRATION_RESULT_INVALID", "code task cannot report proposal content")
+    else:
+        if result.proposal_digest is not None:
+            raise LabValidationError("INTEGRATION_RESULT_INVALID", "code task cannot report proposal content")
+        if result.process_outcome == "pass" and (
+            result.process_identity is None
+            or result.workspace_state != "changed"
+            or not result.changed_paths
+            or result.candidate_digest is None
+            or result.content_reference is None
+            or tuple(stage.test_id for stage in result.validation_stages) != result.test_ids
+            or any(stage.outcome != "pass" or stage.failure_code is not None for stage in result.validation_stages)
+        ):
+            raise LabValidationError(
+                "INTEGRATION_RESULT_INVALID",
+                "accepted code task requires candidate, custody, and complete validation evidence",
+            )
 
 
 def _object(value: Any, expected: set[str]) -> Mapping[str, Any]:
@@ -388,6 +405,15 @@ def _exact(value: Any, expected: str, field: str) -> str:
     if text != expected:
         raise LabValidationError("INTEGRATION_VERSION_INVALID", f"unsupported {field}")
     return text
+
+
+def _framework_contract_version(value: Any, operation: InvocationOperation) -> str:
+    expected = (
+        FRAMEWORK_CONTRACT_VERSION
+        if operation is InvocationOperation.READ_ONLY_PROPOSAL
+        else WORKSPACE_WRITE_FRAMEWORK_CONTRACT_VERSION
+    )
+    return _exact(value, expected, "framework_contract_version")
 
 
 def _id(value: Any) -> str:

@@ -20,6 +20,7 @@ from worker_lab.test_catalog import (
 )
 from worker_lab.integration import (
     FRAMEWORK_CONTRACT_VERSION,
+    WORKSPACE_WRITE_FRAMEWORK_CONTRACT_VERSION,
     INVOCATION_SCHEMA,
     RUNTIME_PROFILE,
     WORKER_LAB_CONTRACT_VERSION,
@@ -77,7 +78,11 @@ def record(*, operation="read-only-proposal", state="PREPARED", writable_paths=(
         "context_digest": DIGEST, "task_digest": DIGEST, "test_catalog_version": "worker-lab-v3",
         "test_catalog_digest": DIGEST, "test_plan_digest": DIGEST, "test_ids": ["T001"], "worker_lab_installation_digest": DIGEST,
         "worker_lab_contract_version": WORKER_LAB_CONTRACT_VERSION, "framework_installation_digest": DIGEST,
-        "framework_contract_version": FRAMEWORK_CONTRACT_VERSION, "workspace_receipt_digest": DIGEST,
+        "framework_contract_version": (
+            FRAMEWORK_CONTRACT_VERSION
+            if operation == "read-only-proposal"
+            else WORKSPACE_WRITE_FRAMEWORK_CONTRACT_VERSION
+        ), "workspace_receipt_digest": DIGEST,
         "workspace_root_digest": DIGEST, "workspace_path_digest": DIGEST, "starting_commit": SHA,
         "sandbox_mode": "read-only" if operation == "read-only-proposal" else "workspace-write",
         "runtime_profile_id": RUNTIME_PROFILE, "model": RUNTIME_MODEL,

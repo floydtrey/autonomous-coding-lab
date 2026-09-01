@@ -14,6 +14,7 @@ from .errors import LabValidationError
 from .installation_manifest import load_installation_manifest
 from .integration import (
     FRAMEWORK_CONTRACT_VERSION,
+    WORKSPACE_WRITE_FRAMEWORK_CONTRACT_VERSION,
     InvocationOperation,
     InvocationRecord,
     InvocationState,
@@ -22,6 +23,7 @@ from .integration import (
 
 
 ADAPTER_REQUEST_SCHEMA = "worker-lab-framework-adapter-request:v2"
+WORKSPACE_WRITE_ADAPTER_REQUEST_SCHEMA = "worker-lab-framework-workspace-write-request:v1"
 ADAPTER_RELATIVE_PATH = "tools/worker_lab_adapter.py"
 MAX_REQUEST_BYTES = 262_144
 MAX_PROMPT_BYTES = 32_768
@@ -32,6 +34,7 @@ _MODE_STATES = {
     "prepare": InvocationState.PREPARED,
     "preflight": InvocationState.AUTHORIZED,
     "execute-read-only": InvocationState.DISPATCHING,
+    "execute-workspace-write": InvocationState.DISPATCHING,
 }
 _MODE_RESPONSE_FIELDS = {
     "prepare": frozenset({"invocation_digest", "prompt_digest", "runtime_identity"}),
@@ -39,6 +42,10 @@ _MODE_RESPONSE_FIELDS = {
     "execute-read-only": frozenset({
         "invocation_digest", "prompt_digest", "runtime_identity", "proposal_digest",
         "output_digest", "proposal_content", "stdout_bytes", "stderr_bytes",
+    }),
+    "execute-workspace-write": frozenset({
+        "invocation_digest", "prompt_digest", "runtime_identity", "task_digest",
+        "context_digest", "candidate_digest", "changed_paths",
     }),
 }
 
@@ -109,7 +116,7 @@ def fixed_command(
     *,
     evidence: FrameworkIdentityEvidence,
 ) -> tuple[str, ...]:
-    if mode not in {"prepare", "preflight", "execute-read-only"}:
+    if mode not in {"prepare", "preflight", "execute-read-only", "execute-workspace-write"}:
         raise LabValidationError("INTEGRATION_OPERATION_INVALID", "unsupported adapter mode")
     _verify_pinned_framework(config)
     verify_configuration(config, evidence)
@@ -117,7 +124,15 @@ def fixed_command(
         _require_execution_enabled(config)
     return (
         str(config.python_executable), "-I", "-B", str(config.framework_root / ADAPTER_RELATIVE_PATH),
-        mode, "--protocol", FRAMEWORK_CONTRACT_VERSION,
+        mode, "--protocol", _adapter_protocol(mode),
+    )
+
+
+def _adapter_protocol(mode: str) -> str:
+    return (
+        WORKSPACE_WRITE_FRAMEWORK_CONTRACT_VERSION
+        if mode == "execute-workspace-write"
+        else FRAMEWORK_CONTRACT_VERSION
     )
 
 
@@ -127,12 +142,20 @@ def runtime_identity(
     *,
     evidence: FrameworkIdentityEvidence,
 ) -> str:
-    if invocation.operation is not InvocationOperation.READ_ONLY_PROPOSAL or invocation.sandbox_mode != "read-only":
-        raise LabValidationError("INTEGRATION_OPERATION_INVALID", "Batch 3C supports read-only invocation only")
+    if invocation.operation is InvocationOperation.READ_ONLY_PROPOSAL:
+        expected_protocol = FRAMEWORK_CONTRACT_VERSION
+        modes = ("prepare", "preflight", "execute-read-only")
+    elif invocation.operation is InvocationOperation.WORKSPACE_WRITE_CODE_TASK:
+        expected_protocol = WORKSPACE_WRITE_FRAMEWORK_CONTRACT_VERSION
+        modes = ("execute-workspace-write",)
+    else:
+        raise LabValidationError("INTEGRATION_OPERATION_INVALID", "invocation operation is unsupported")
+    if invocation.framework_contract_version != expected_protocol:
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "invocation adapter contract differs")
     verify_configuration(config, evidence)
     command_base = (
         "python", "-I", "-B", ADAPTER_RELATIVE_PATH,
-        ("prepare", "preflight", "execute-read-only"), "--protocol", FRAMEWORK_CONTRACT_VERSION,
+        modes, "--protocol", expected_protocol,
     )
     return canonical_digest({
         "schema_version": "worker-lab-runtime-identity:v2",
@@ -141,7 +164,7 @@ def runtime_identity(
             {"path": path, "sha256": digest} for path, digest in config.framework_files
         ],
         "adapter_digest": config.adapter_digest,
-        "adapter_contract_version": FRAMEWORK_CONTRACT_VERSION,
+        "adapter_contract_version": expected_protocol,
         "python_digest": evidence.python_digest,
         "python_version": evidence.python_version,
         "python_implementation": evidence.python_implementation,
@@ -210,6 +233,64 @@ def call_adapter(
     expected_runtime = runtime_identity(config, record, evidence=evidence)
     if decoded.get("runtime_identity") != expected_runtime:
         raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "adapter runtime identity differs")
+    return response
+
+
+def call_workspace_write_adapter(
+    record: InvocationRecord,
+    config: FrameworkConfiguration,
+    *,
+    prompt: str,
+    workspace_write: Mapping[str, object],
+    evidence: FrameworkIdentityEvidence,
+    worker_lab_evidence: WorkerLabIdentityEvidence,
+    runner: AdapterRunner | None = None,
+) -> bytes:
+    """Call only the separately versioned write bridge with a sealed contract."""
+    if runner is None:
+        raise LabValidationError("INTEGRATION_EXECUTION_DISABLED", "an injected adapter runner is required")
+    if (
+        record.operation is not InvocationOperation.WORKSPACE_WRITE_CODE_TASK
+        or record.state is not InvocationState.DISPATCHING
+        or record.framework_contract_version != WORKSPACE_WRITE_FRAMEWORK_CONTRACT_VERSION
+    ):
+        raise LabValidationError("INTEGRATION_AUTHORIZATION_INVALID", "workspace-write invocation custody differs")
+    if not isinstance(workspace_write, Mapping):
+        raise LabValidationError("INTEGRATION_RESULT_INVALID", "workspace-write task contract is invalid")
+    _require_execution_enabled(config)
+    prompt_bytes = _bounded_utf8(prompt, MAX_PROMPT_BYTES, "prompt")
+    if _bytes_digest(prompt_bytes) != record.prompt_digest:
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "prompt differs from sealed invocation")
+    verify_worker_lab_identity(record, worker_lab_evidence)
+    command = fixed_command(config, "execute-workspace-write", evidence=evidence)
+    payload = canonical_json({
+        "schema_version": WORKSPACE_WRITE_ADAPTER_REQUEST_SCHEMA,
+        "invocation": record.to_dict(),
+        "prompt": prompt,
+        "workspace_write": dict(workspace_write),
+    }).encode("utf-8")
+    if len(payload) > MAX_REQUEST_BYTES:
+        raise LabValidationError("INTEGRATION_RESULT_INVALID", "workspace-write request exceeds limit")
+    response = runner(command, payload)
+    if not isinstance(response, bytes) or not response or len(response) > MAX_RESPONSE_BYTES:
+        raise LabValidationError("INTEGRATION_RESULT_INVALID", "adapter response is invalid")
+    try:
+        decoded = json.loads(response.decode("utf-8"))
+        canonical_response = canonical_json(decoded).encode("utf-8")
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise LabValidationError("INTEGRATION_RESULT_INVALID", "adapter response is not canonical JSON") from exc
+    if not isinstance(decoded, Mapping) or set(decoded) != _MODE_RESPONSE_FIELDS["execute-workspace-write"] or canonical_response != response:
+        raise LabValidationError("INTEGRATION_RESULT_INVALID", "workspace-write response fields are invalid")
+    if (
+        decoded.get("invocation_digest") != record.identity_digest()
+        or decoded.get("prompt_digest") != record.prompt_digest
+        or decoded.get("runtime_identity") != runtime_identity(config, record, evidence=evidence)
+        or decoded.get("changed_paths") != list(record.writable_paths)
+    ):
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "workspace-write response differs from invocation")
+    for field in ("task_digest", "context_digest", "candidate_digest"):
+        if not _DIGEST_RE.fullmatch(str(decoded.get(field))):
+            raise LabValidationError("INTEGRATION_RESULT_INVALID", "workspace-write response digest is invalid")
     return response
 
 

@@ -6,7 +6,7 @@
 
 **Branch:** `main`
 
-**Last accepted Phase 3 implementation checkpoint:** `f69bfad`
+**Last accepted Phase 3 implementation checkpoint:** `00b1769`
 
 **Isolated GUI prototype checkpoint:** `a72f026d57b9d938c4ebba1987379482af4e39b3`
 
@@ -22,9 +22,20 @@ Phase 1 is complete. The consolidated repository now has a clean, remotely recov
 
 Phase 2 is complete. Exactly one authorized synthetic read-only Codex proposal ran through Worker Lab and the framework, reached `CANDIDATE`, retained exact evidence, left the disposable workspace unchanged, and ended with verified process absence. The installation was restored to disabled immediately afterward.
 
-Phase 3 is complete on the current validated working tree. Its shared service provides strict read-only queries; complete attempt timelines and candidate review; attempt/workspace lifecycle commands; durable invocation preparation, controller-bound authorization, terminal rejection, pre-dispatch cancellation, read-only dispatch, and fail-closed recovery after verified process absence; and backup, verification, and restore operations for CLI and future GUI clients. Execution remains disabled.
+Phase 3 is complete at `00b1769`. Its shared service provides strict read-only queries; complete attempt timelines and candidate review; attempt/workspace lifecycle commands; durable invocation preparation, controller-bound authorization, terminal rejection, pre-dispatch cancellation, read-only dispatch, and fail-closed recovery after verified process absence; and backup, verification, and restore operations for CLI and future GUI clients. Execution remains disabled.
 
-The current validated working tree completes the read-only dispatch packet. `dispatch-invocation` reloads exact authorization, controller, attempt, workspace, prompt, runtime, custody, and result identities; invokes the framework client, adapter, Windows Job, and sealed read-only-evidence primitives only after the execution gate; and leaves failed outcomes recoverable. Deterministic injected tests cover disabled non-mutation, candidate acceptance, malformed/mismatched results, and recovery without launching an adapter, worker, or model.
+The accepted Phase 3 working tree completes the read-only dispatch packet. `dispatch-invocation` reloads exact authorization, controller, attempt, workspace, prompt, runtime, custody, and result identities; invokes the framework client, adapter, Windows Job, and sealed read-only-evidence primitives only after the execution gate; and leaves failed outcomes recoverable.
+
+## Phase 4 implementation-only working tree
+
+The current unaccepted working tree begins the workspace-write bridge; it is not a Phase 4 proof or completion claim.
+
+- The read-only `worker-lab-framework-adapter:v2` protocol remains unchanged and rejects workspace-write operations. The separate `worker-lab-framework-adapter:v3` operation accepts only the versioned workspace-write task contract.
+- The framework reconstructs and validates its consumer profile/context packet, existing `code_task`, candidate-content, and repository-handoff primitives. It returns only canonical, bounded candidate identity evidence.
+- `WorkerLabApplicationService.dispatch_invocation` routes an authorized workspace-write invocation through the same gate-first lifecycle and Windows Job custody boundary as read-only dispatch, then accepts a candidate only after exact path, HEAD, diff, sealed-test, custody, and retained candidate-manifest checks.
+- Production execution remains disabled. The implementation was exercised only through deterministic injected adapters against test repositories; no worker, Codex, model, adapter execution mode, or external/product repository ran.
+
+Current current-tree validation: framework bridge tests **63 passed**; framework compile/full validation **213 passed**; Worker Lab application-service/framework-client/integration tests **70 passed**; Worker Lab full suite **369 passed** with seven expected Windows symlink-capability skips. The manifest now identifies framework runtime closure `sha256:b9c1061422b0cb28e94086f070ddf8fe4bf4c7a744b7e8589af2dca2b87de1f8` and Worker Lab production tree `sha256:7ec7255a1853b21ed4888846b0063565d2898505ab6535e07f174d4809a4fd99`; execution remains disabled. This is current-working-tree evidence only, not an accepted checkpoint.
 
 ## Accepted Phase 1 checkpoint
 
@@ -204,9 +215,9 @@ Commit `f69bfad` adds the remaining read-only operator queries before general di
 - the installed Worker Lab identity is `sha256:61f01988f8626dd0cf1ac449b7ddce6e849f3d2879aaed129e849b93d495d143`; doctor reported manifest digest `sha256:d44c1bab6b6e3a27fb714da7960908cbe909a6e1b9bf653ecce72495233d7c66` and `execution_ready: false`;
 - focused application-service and CLI validation passed 36 tests; the Worker Lab component suite passed 359 tests with seven expected Windows symlink-capability skips.
 
-## Current Phase 3 general-dispatch completion checkpoint
+## Accepted Phase 3 general-dispatch completion checkpoint
 
-The current validated working tree completes the Phase 3 application-service gate:
+The accepted Phase 3 working tree completes the application-service gate:
 
 - `dispatch-invocation` is the CLI/service-owned read-only dispatch path; it revalidates authorization, controller, protected definitions, workspace, prompt, runtime, custody, result, and candidate identities;
 - the committed disabled policy is enforced before any durable dispatch transition, adapter call, or evaluator; the production framework-client, Windows Job, and sealed-evidence path is therefore unreachable without separate execution authority;
@@ -243,14 +254,14 @@ A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON r
 ## Not yet available
 
 - A general workspace-write bridge from Worker Lab to the framework.
-- Workspace-write dispatch bridge (Phase 4).
+- A production-authorized or real-proof workspace-write dispatch bridge (Phase 4 implementation is unaccepted).
 - A functional Worker Lab GUI.
 - Unsupervised local-model planning, task authorization, code review, publishing, or merging.
 - Production-project access or modification by workers.
 
 ## Immediate next gate
 
-Phase 3 is complete on the current validated working tree. The next implementation stage is Phase 4’s versioned workspace-write bridge; it requires a separately bounded request and must not enable execution merely because the Phase 3 service is complete.
+Phase 3 is complete at `00b1769`; the current unaccepted working tree implements, but does not prove or complete, the Phase 4 bridge. Any real workspace-write proof requires new explicit authorization that names one disposable repository outside this installation, its exact starting commit and writable/readable paths, the controller, the one task/test plan, and the temporary activation procedure. It must separately authorize changing activation policy from disabled, prohibit commit/push/pull-request/merge and product-repository access, require post-run custody absence plus candidate review, and restore disabled execution afterward. No such authorization is currently present.
 
 The trusted dependency-ordered delivery plan for worker execution and the Worker Lab GUI is `docs/WORKPLAN.md`.
 

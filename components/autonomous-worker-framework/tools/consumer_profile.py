@@ -32,6 +32,27 @@ class ValidationCommand:
         value["argv"] = list(self.argv)
         return value
 
+    @classmethod
+    def from_mapping(cls, value: Any) -> "ValidationCommand":
+        if not isinstance(value, dict) or set(value) != {"name", "argv", "timeout_seconds"}:
+            raise ConsumerProfileError("CONTEXT_PROFILE_INVALID", "validation command fields are invalid")
+        name = value["name"]
+        argv = value["argv"]
+        timeout = value["timeout_seconds"]
+        if (
+            not isinstance(name, str)
+            or not name.strip()
+            or name != name.strip()
+            or not isinstance(argv, list)
+            or not argv
+            or any(not isinstance(item, str) or not item or "\x00" in item for item in argv)
+            or isinstance(timeout, bool)
+            or not isinstance(timeout, int)
+            or timeout <= 0
+        ):
+            raise ConsumerProfileError("CONTEXT_PROFILE_INVALID", "validation command is invalid")
+        return cls(name, tuple(argv), timeout)
+
 
 @dataclass(frozen=True)
 class ConsumerProfile:
@@ -56,6 +77,44 @@ class ConsumerProfile:
 
     def digest(self) -> str:
         return _digest(self.to_dict())
+
+    @classmethod
+    def from_mapping(cls, value: Any) -> "ConsumerProfile":
+        fields = {
+            "version", "consumer", "authority_paths", "protected_prefixes",
+            "protected_exact", "product_invariants", "full_validation",
+        }
+        if not isinstance(value, dict) or set(value) != fields:
+            raise ConsumerProfileError("CONTEXT_PROFILE_INVALID", "consumer profile fields are invalid")
+        version = value["version"]
+        consumer = value["consumer"]
+        if (
+            version != PROFILE_VERSION
+            or not isinstance(consumer, str)
+            or not consumer.strip()
+            or consumer != consumer.strip()
+            or "\x00" in consumer
+        ):
+            raise ConsumerProfileError("CONTEXT_PROFILE_INVALID", "consumer profile identity is invalid")
+        authority = _normalized_paths(
+            value["authority_paths"], "authority_paths", require_nonempty=True, require_sorted=True
+        )
+        prefixes = _normalized_paths(
+            value["protected_prefixes"], "protected_prefixes", require_nonempty=False, require_sorted=True
+        )
+        exact = _normalized_paths(
+            value["protected_exact"], "protected_exact", require_nonempty=False, require_sorted=True
+        )
+        invariants = _texts(value["product_invariants"], "product_invariants")
+        commands = value["full_validation"]
+        if not isinstance(commands, list) or not commands:
+            raise ConsumerProfileError("CONTEXT_PROFILE_INVALID", "profile validation commands are required")
+        parsed_commands = tuple(ValidationCommand.from_mapping(item) for item in commands)
+        if len({item.name for item in parsed_commands}) != len(parsed_commands):
+            raise ConsumerProfileError("CONTEXT_PROFILE_INVALID", "profile validation command names must be unique")
+        return cls(
+            PROFILE_VERSION, consumer, authority, prefixes, exact, invariants, parsed_commands,
+        )
 
 
 @dataclass(frozen=True)
@@ -264,6 +323,17 @@ def _normalized_paths(
     if require_sorted and paths != tuple(sorted(paths)):
         raise ConsumerProfileError("CONTEXT_SCOPE_INVALID", f"{field} must be sorted and unique")
     return paths
+
+
+def _texts(value: Any, field: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or not value:
+        raise ConsumerProfileError("CONTEXT_PROFILE_INVALID", f"{field} must be a non-empty array")
+    items = tuple(value)
+    if any(not isinstance(item, str) or not item.strip() or item != item.strip() or "\x00" in item for item in items):
+        raise ConsumerProfileError("CONTEXT_PROFILE_INVALID", f"{field} contains invalid text")
+    if items != tuple(sorted(set(items))):
+        raise ConsumerProfileError("CONTEXT_PROFILE_INVALID", f"{field} must be sorted and unique")
+    return items
 
 
 def _repo_path(value: str, field: str) -> str:

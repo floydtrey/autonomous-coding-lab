@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
+import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
@@ -17,6 +19,15 @@ from .storage import AtomicRecordStore
 ADAPTER_COMMAND = ("worker-lab-framework-adapter", "prepare", "--protocol", "worker-lab-framework-invocation:v2")
 MAX_ADAPTER_RESPONSE_BYTES = 65_536
 MAX_PROPOSAL_BYTES = 32_768
+WORKSPACE_WRITE_RESPONSE_FIELDS = {
+    "invocation_digest",
+    "prompt_digest",
+    "runtime_identity",
+    "task_digest",
+    "context_digest",
+    "candidate_digest",
+    "changed_paths",
+}
 AdapterRunner = Callable[[tuple[str, ...], str], str | bytes]
 
 
@@ -160,6 +171,84 @@ def _proposal_bytes(value: bytes | str) -> bytes:
     if any(marker in text for marker in ("openai_api_key", "codex_api_key", "github_token", "gh_token", "authorization:", "bearer ", "\\\\", "//", ":\\", ":/")):
         raise LabValidationError("INTEGRATION_RESULT_INVALID", "proposal contains forbidden content")
     return encoded
+
+
+def _workspace_changed_paths(workspace_path: Path, starting_commit: str) -> tuple[str, ...]:
+    commands = (
+        ("diff", "--name-only", "--diff-filter=ACDMRT", starting_commit),
+        ("ls-files", "--others", "--exclude-standard"),
+    )
+    found: set[str] = set()
+    environment = {
+        "PATH": os.environ.get("PATH", ""),
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_OPTIONAL_LOCKS": "0",
+    }
+    for command in commands:
+        process = subprocess.run(
+            ("git", "-c", f"core.hooksPath={os.devnull}", "-c", "credential.helper=", *command),
+            cwd=workspace_path,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            check=False,
+        )
+        if process.returncode:
+            raise LabValidationError("INTEGRATION_BOUNDARY_FAILED", "candidate path inspection failed")
+        for path in process.stdout.splitlines():
+            _relative_path(path)
+            found.add(path)
+    check = subprocess.run(
+        (
+            "git",
+            "-c",
+            "core.whitespace=trailing-space,space-before-tab,cr-at-eol",
+            "diff",
+            "--check",
+        ),
+        cwd=workspace_path,
+        env=environment,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
+        check=False,
+    )
+    if check.returncode:
+        raise LabValidationError("INTEGRATION_BOUNDARY_FAILED", "candidate diff integrity failed")
+    return tuple(sorted(found))
+
+
+def _relative_path(value: object) -> str:
+    if not isinstance(value, str) or not value or value != value.strip() or "\\" in value:
+        raise LabValidationError("INTEGRATION_SCOPE_INVALID", "candidate path is invalid")
+    candidate = PurePosixPath(value)
+    if (
+        candidate.is_absolute()
+        or value.startswith("/")
+        or ".." in candidate.parts
+        or candidate.as_posix() != value
+        or value == "."
+        or ":" in candidate.parts[0]
+    ):
+        raise LabValidationError("INTEGRATION_SCOPE_INVALID", "candidate path is invalid")
+    return value
+
+
+def _is_digest(value: object) -> bool:
+    return isinstance(value, str) and len(value) == 71 and value.startswith("sha256:") and all(
+        character in "0123456789abcdef" for character in value[7:]
+    )
 
 
 @dataclass(frozen=True)
@@ -320,6 +409,129 @@ def accept_execute_response(
         "content_reference": reference, "retryable": False,
     })
     return ProposalStore(state_root).store(result, content)
+
+
+def accept_workspace_write_response(
+    value: bytes,
+    record: InvocationRecord,
+    custody: ProcessCustodyRecord,
+    *,
+    runtime_identity: str,
+    started_at: str,
+    ended_at: str,
+    state_root: Path,
+    custody_store: ProcessCustodyStore,
+    workspace_path: Path,
+    validation_stages: tuple[ValidationStage, ...],
+) -> ResultRecord:
+    """Accept a v3 framework code-task response only after independent evidence."""
+    if record.operation.value != "workspace-write-code-task":
+        raise LabValidationError("INTEGRATION_OPERATION_INVALID", "workspace-write response differs from invocation")
+    if not isinstance(custody, ProcessCustodyRecord) or custody_store.read(custody.invocation_id) != custody:
+        raise LabValidationError("INTEGRATION_OUTCOME_UNCERTAIN", "custody must be the exact durable final record")
+    if (
+        custody.invocation_id != record.invocation_id
+        or custody.invocation_digest != record.identity_digest()
+        or custody.adapter_pid is None
+        or custody.adapter_creation_time_100ns is None
+        or not custody.request_sent
+        or custody.state is not CustodyState.ABSENCE_VERIFIED
+        or custody.active_process_count != 0
+        or custody.exit_code != 0
+        or custody.first_failure is not None
+    ):
+        raise LabValidationError("INTEGRATION_OUTCOME_UNCERTAIN", "custody is not a complete verified success")
+    if not isinstance(value, bytes) or not value or len(value) > MAX_ADAPTER_RESPONSE_BYTES:
+        raise LabValidationError("INTEGRATION_RESULT_INVALID", "adapter response is invalid")
+    try:
+        decoded = json.loads(value.decode("utf-8"), object_pairs_hook=_unique_object)
+        canonical = canonical_json(decoded).encode("utf-8")
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise LabValidationError("INTEGRATION_RESULT_INVALID", "workspace-write response is not canonical JSON") from exc
+    if not isinstance(decoded, dict) or set(decoded) != WORKSPACE_WRITE_RESPONSE_FIELDS or canonical != value:
+        raise LabValidationError("INTEGRATION_FIELDS_INVALID", "workspace-write response fields are invalid")
+    if (
+        decoded["invocation_digest"] != record.identity_digest()
+        or decoded["prompt_digest"] != record.prompt_digest
+        or decoded["runtime_identity"] != runtime_identity
+        or not all(_is_digest(decoded[field]) for field in ("task_digest", "context_digest", "candidate_digest"))
+    ):
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "workspace-write response identity differs")
+    paths = _workspace_changed_paths(workspace_path, record.starting_commit)
+    if (
+        decoded["changed_paths"] != list(record.writable_paths)
+        or paths != record.writable_paths
+    ):
+        raise LabValidationError("INTEGRATION_SCOPE_INVALID", "candidate paths differ from the authorized write scope")
+    workspace = inspect_acceptance_workspace(
+        record, state_root=state_root, workspace_path=workspace_path,
+    )
+    if workspace.observed_head != record.starting_commit:
+        raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "workspace HEAD differs from invocation")
+    if (
+        tuple(stage.test_id for stage in validation_stages) != record.test_ids
+        or any(stage.outcome != "pass" or stage.failure_code is not None for stage in validation_stages)
+    ):
+        raise LabValidationError("INTEGRATION_RESULT_INVALID", "sealed test evidence differs")
+    manifest = {
+        "schema_version": "worker-lab-workspace-write-candidate:v1",
+        "invocation_digest": record.identity_digest(),
+        "framework_candidate_digest": decoded["candidate_digest"],
+        "changed_paths": list(paths),
+        "workspace_content_digest": workspace.workspace_content_digest,
+    }
+    encoded_manifest = canonical_json(manifest).encode("utf-8")
+    retained_digest = "sha256:" + hashlib.sha256(encoded_manifest).hexdigest()
+    reference = f"candidates/{retained_digest[7:]}.json"
+    records = AtomicRecordStore(state_root)
+    try:
+        existing = records.read_bytes(reference)
+    except LabValidationError as exc:
+        if exc.code != "STORAGE_RECORD_MISSING":
+            raise
+        records.write_bytes(reference, encoded_manifest)
+    else:
+        if existing != encoded_manifest:
+            raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "content-addressed candidate differs")
+    return ResultRecord.from_mapping({
+        "schema_version": "worker-lab-framework-result:v2",
+        "invocation_digest": record.identity_digest(),
+        "request_digest": record.identity_digest(),
+        "invocation_id": record.invocation_id,
+        "attempt_id": record.attempt_id,
+        "operation": str(record.operation),
+        "framework_installation_digest": record.framework_installation_digest,
+        "framework_contract_version": record.framework_contract_version,
+        "runtime_profile_id": record.runtime_profile_id,
+        "runtime_identity": runtime_identity,
+        "prompt_digest": record.prompt_digest,
+        "test_catalog_version": record.test_catalog_version,
+        "test_catalog_digest": record.test_catalog_digest,
+        "test_plan_digest": record.test_plan_digest,
+        "test_ids": list(record.test_ids),
+        "workspace_receipt_digest": record.workspace_receipt_digest,
+        "workspace_root_digest": record.workspace_root_digest,
+        "workspace_path_digest": record.workspace_path_digest,
+        "starting_commit": record.starting_commit,
+        "observed_head": workspace.observed_head,
+        "process_outcome": "pass",
+        "process_identity": custody.digest(),
+        "process_started_at": started_at,
+        "process_ended_at": ended_at,
+        "workspace_state": "changed",
+        "changed_paths": list(paths),
+        "proposal_digest": None,
+        "candidate_digest": retained_digest,
+        "validation_stages": [stage.to_dict() for stage in validation_stages],
+        "first_failure_boundary": None,
+        "failure_code": None,
+        "expected": "authorized candidate paths and sealed validation",
+        "observed": "authorized candidate paths and sealed validation",
+        "containment_outcome": "absence-verified",
+        "output_digest": "sha256:" + hashlib.sha256(value).hexdigest(),
+        "content_reference": reference,
+        "retryable": False,
+    })
 
 
 def _digest(value: object) -> str:

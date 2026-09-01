@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -22,6 +23,7 @@ from .evidence import content_digest, verify_evidence
 from .errors import LabValidationError
 from .integration import (
     FRAMEWORK_CONTRACT_VERSION,
+    WORKSPACE_WRITE_FRAMEWORK_CONTRACT_VERSION,
     INVOCATION_SCHEMA,
     RUNTIME_MODEL,
     RUNTIME_PROFILE,
@@ -32,11 +34,17 @@ from .integration import (
     InvocationRecord,
     InvocationState,
     ResultRecord,
+    ValidationStage,
     transition_invocation,
 )
-from .framework_adapter import accept_execute_response, parse_result
+from .framework_adapter import (
+    accept_execute_response,
+    accept_workspace_write_response,
+    parse_result,
+)
 from .framework_client import (
     call_adapter,
+    call_workspace_write_adapter,
     inspect_configuration,
     inspect_worker_lab_identity,
     pinned_framework_configuration,
@@ -89,6 +97,7 @@ from .windows_job import (
     WorkspaceLaunchEvidence,
     inspect_launch_workspace,
     recover_absence_after_controller_exit,
+    workspace_content_digest,
 )
 
 
@@ -101,6 +110,7 @@ BACKUP_RESULT_SCHEMA = "worker-lab-service-backup-result:v1"
 RECOVERY_RESULT_SCHEMA = "worker-lab-service-recovery-result:v1"
 ATTEMPT_TIMELINE_SCHEMA = "worker-lab-service-attempt-timeline:v1"
 CANDIDATE_REVIEW_SCHEMA = "worker-lab-service-candidate-review:v1"
+WORKSPACE_WRITE_CANDIDATE_REVIEW_SCHEMA = "worker-lab-service-candidate-review:v2"
 RECOVERY_CLEANUP_OUTCOME = (
     "adapter absence and unchanged workspace verified; workspace retained"
 )
@@ -138,6 +148,10 @@ Identity = Callable[[_Record], str]
 State = Callable[[_Record], str | None]
 ReadOnlyAdapter = Callable[
     [InvocationRecord, str, Path, ProcessCustodyStore],
+    tuple[bytes, str],
+]
+WorkspaceWriteAdapter = Callable[
+    [InvocationRecord, str, Path, ProcessCustodyStore, Mapping[str, object]],
     tuple[bytes, str],
 ]
 SealedTestExecutor = Callable[[TestDefinition, Path], int]
@@ -351,6 +365,7 @@ class AttemptTimelineDTO:
 
 @dataclass(frozen=True)
 class CandidateReviewDTO:
+    schema_version: str
     candidate_digest: str
     attempt: RecordDetailDTO
     invocation: RecordDetailDTO
@@ -364,20 +379,25 @@ class CandidateReviewDTO:
     first_failure_boundary: str | None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "schema_version": CANDIDATE_REVIEW_SCHEMA,
+        value = {
+            "schema_version": self.schema_version,
             "candidate_digest": self.candidate_digest,
             "attempt": self.attempt.to_dict(),
             "invocation": self.invocation.to_dict(),
             "result": self.result.to_dict(),
             "custody": self.custody.to_dict(),
-            "proposal_content_digest": self.proposal_content_digest,
             "changed_paths": list(self.changed_paths),
             "validation_stages": [dict(item) for item in self.validation_stages],
             "evidence": [item.to_dict() for item in self.evidence],
             "failures": [item.to_dict() for item in self.failures],
             "first_failure_boundary": self.first_failure_boundary,
         }
+        value[
+            "proposal_content_digest"
+            if self.schema_version == CANDIDATE_REVIEW_SCHEMA
+            else "candidate_content_digest"
+        ] = self.proposal_content_digest
+        return value
 
     def to_json(self) -> str:
         return canonical_json(self.to_dict())
@@ -393,18 +413,22 @@ class WorkerLabApplicationService:
         clock: Callable[[], str] | None = None,
         process_probe: Callable[[int], int | None] | None = None,
         read_only_adapter: ReadOnlyAdapter | None = None,
+        workspace_write_adapter: WorkspaceWriteAdapter | None = None,
         sealed_test_executor: SealedTestExecutor | None = None,
     ) -> None:
         if not isinstance(data_root, Path) or not data_root.is_absolute():
             raise LabValidationError("SERVICE_DATA_ROOT_INVALID", "service data root must be absolute")
         if read_only_adapter is not None and not callable(read_only_adapter):
             raise LabValidationError("SERVICE_COMMAND_INVALID", "read-only adapter must be callable")
+        if workspace_write_adapter is not None and not callable(workspace_write_adapter):
+            raise LabValidationError("SERVICE_COMMAND_INVALID", "workspace-write adapter must be callable")
         if sealed_test_executor is not None and not callable(sealed_test_executor):
             raise LabValidationError("SERVICE_COMMAND_INVALID", "sealed test executor must be callable")
         self.data_root = data_root
         self._clock = clock or _utc_now
         self._process_probe = process_probe
         self._read_only_adapter = read_only_adapter or _execute_read_only_adapter
+        self._workspace_write_adapter = workspace_write_adapter or _execute_workspace_write_adapter
         self._sealed_test_executor = sealed_test_executor or _run_sealed_test
 
     def installation_status(self) -> InstallationStatusDTO:
@@ -509,17 +533,25 @@ class WorkerLabApplicationService:
                 "SERVICE_CANDIDATE_CONTENT_MISSING", "candidate content is not retained"
             )
         content = AtomicRecordStore(self.data_root / "state").read_bytes(result.content_reference)
-        retained_digest = content_digest(content)
-        if retained_digest != result.output_digest or retained_digest != result.proposal_digest:
-            raise LabValidationError(
-                "SERVICE_CANDIDATE_CONTENT_INVALID",
-                "candidate content differs from retained result digests",
+        if invocation.operation is InvocationOperation.READ_ONLY_PROPOSAL:
+            review_schema = CANDIDATE_REVIEW_SCHEMA
+            retained_digest = content_digest(content)
+            if retained_digest != result.output_digest or retained_digest != result.proposal_digest:
+                raise LabValidationError(
+                    "SERVICE_CANDIDATE_CONTENT_INVALID",
+                    "candidate content differs from retained result digests",
+                )
+        else:
+            review_schema = WORKSPACE_WRITE_CANDIDATE_REVIEW_SCHEMA
+            retained_digest = _verify_workspace_write_candidate_manifest(
+                content, invocation, result,
             )
         evidence = tuple(
             item for item in timeline.evidence
             if verify_evidence(self.data_root, item.summary.identity).attempt_id == attempt_id
         )
         return CandidateReviewDTO(
+            review_schema,
             attempt.candidate_digest,
             timeline.attempt,
             timeline.invocations[0],
@@ -726,7 +758,14 @@ class WorkerLabApplicationService:
         )
         _validate_prepared_attempt(attempt, exercise, policy, role, context, catalog)
         receipt = verify_workspace(self.data_root, attempt_id, workspace_root)
-        plan = catalog.select(ChangeFacts(()), profile_ids=exercise.test_profile_ids)
+        plan = catalog.select(
+            ChangeFacts(
+                ()
+                if attempt.sandbox_mode == "read-only"
+                else exercise.writable_paths
+            ),
+            profile_ids=exercise.test_profile_ids,
+        )
         manifest, _ = inspect_installation()
         operation = (
             InvocationOperation.READ_ONLY_PROPOSAL
@@ -760,7 +799,11 @@ class WorkerLabApplicationService:
             "framework_installation_digest": manifest.components[
                 "autonomous-worker-framework"
             ].installation_digest,
-            "framework_contract_version": FRAMEWORK_CONTRACT_VERSION,
+            "framework_contract_version": (
+                FRAMEWORK_CONTRACT_VERSION
+                if operation is InvocationOperation.READ_ONLY_PROPOSAL
+                else WORKSPACE_WRITE_FRAMEWORK_CONTRACT_VERSION
+            ),
             "workspace_receipt_digest": receipt.digest(),
             "workspace_root_digest": receipt.workspace_root_digest,
             "workspace_path_digest": receipt.workspace_path_digest,
@@ -926,16 +969,18 @@ class WorkerLabApplicationService:
             )
         attempt = AttemptStore(self.data_root / "state").read(invocation.attempt_id)
         _validate_dispatch_attempt_binding(attempt, invocation)
-        _validate_dispatch_definitions(self.data_root, attempt, invocation)
+        exercise, policy, role, context, catalog = _validate_dispatch_definitions(
+            self.data_root, attempt, invocation,
+        )
         manifest, _ = inspect_installation()
         require_execution_enabled(manifest)
-        if (
-            invocation.operation is not InvocationOperation.READ_ONLY_PROPOSAL
-            or invocation.sandbox_mode != "read-only"
-        ):
+        if invocation.operation not in {
+            InvocationOperation.READ_ONLY_PROPOSAL,
+            InvocationOperation.WORKSPACE_WRITE_CODE_TASK,
+        }:
             raise LabValidationError(
                 "INTEGRATION_OPERATION_INVALID",
-                "service dispatch supports read-only proposals only",
+                "service dispatch operation is unsupported",
             )
         receipt = verify_workspace(self.data_root, attempt.attempt_id, workspace_root)
         if (
@@ -952,6 +997,11 @@ class WorkerLabApplicationService:
         _require_no_dispatch_artifacts(state_root, invocation_id)
         prompt = _load_prompt(state_root, invocation)
         workspace_path = workspace_root / attempt.attempt_id
+        workspace_write = (
+            _workspace_write_contract(invocation, exercise, policy, role, context, catalog)
+            if invocation.operation is InvocationOperation.WORKSPACE_WRITE_CODE_TASK
+            else None
+        )
         invocation_store = InvocationStore(state_root)
         attempt_store = AttemptStore(state_root)
         running = attempt_store.bind_authorized_invocation(
@@ -967,29 +1017,58 @@ class WorkerLabApplicationService:
         )
         custody_store = ProcessCustodyStore(state_root)
         started_at = self._clock()
-        response, observed_runtime_identity = self._read_only_adapter(
-            dispatching,
-            prompt,
-            workspace_path,
-            custody_store,
-        )
+        if dispatching.operation is InvocationOperation.READ_ONLY_PROPOSAL:
+            response, observed_runtime_identity = self._read_only_adapter(
+                dispatching,
+                prompt,
+                workspace_path,
+                custody_store,
+            )
+        else:
+            assert workspace_write is not None
+            response, observed_runtime_identity = self._workspace_write_adapter(
+                dispatching,
+                prompt,
+                workspace_path,
+                custody_store,
+                workspace_write,
+            )
         ended_at = self._clock()
         custody = custody_store.read(invocation_id)
-        result = accept_execute_response(
-            response,
-            dispatching,
-            custody,
-            runtime_identity=_digest(observed_runtime_identity),
-            started_at=started_at,
-            ended_at=ended_at,
-            state_root=state_root,
-            custody_store=custody_store,
-            evidence_collector=ReadOnlyEvidenceCollector(
+        if dispatching.operation is InvocationOperation.READ_ONLY_PROPOSAL:
+            result = accept_execute_response(
+                response,
+                dispatching,
+                custody,
+                runtime_identity=_digest(observed_runtime_identity),
+                started_at=started_at,
+                ended_at=ended_at,
                 state_root=state_root,
+                custody_store=custody_store,
+                evidence_collector=ReadOnlyEvidenceCollector(
+                    state_root=state_root,
+                    workspace_path=workspace_path,
+                    test_executor=self._sealed_test_executor,
+                ),
+            )
+        else:
+            result = accept_workspace_write_response(
+                response,
+                dispatching,
+                custody,
+                runtime_identity=_digest(observed_runtime_identity),
+                started_at=started_at,
+                ended_at=ended_at,
+                state_root=state_root,
+                custody_store=custody_store,
                 workspace_path=workspace_path,
-                test_executor=self._sealed_test_executor,
-            ),
-        )
+                validation_stages=_run_workspace_write_tests(
+                    dispatching,
+                    catalog,
+                    workspace_path,
+                    self._sealed_test_executor,
+                ),
+            )
         AtomicRecordStore(state_root).write(f"results/{invocation_id}.json", result)
         completed = transition_invocation(
             dispatching,
@@ -1459,6 +1538,192 @@ def _execute_read_only_adapter(
     return response, observed_runtime_identity
 
 
+def _execute_workspace_write_adapter(
+    invocation: InvocationRecord,
+    prompt: str,
+    workspace_path: Path,
+    custody_store: ProcessCustodyStore,
+    workspace_write: Mapping[str, object],
+) -> tuple[bytes, str]:
+    """Use the framework's v3 code-task bridge only after service gate admission."""
+    configuration = pinned_framework_configuration()
+    if configuration.framework_installation_digest != invocation.framework_installation_digest:
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "framework installation differs from invocation",
+        )
+    framework_evidence = inspect_configuration(configuration)
+    worker_evidence = inspect_worker_lab_identity(
+        Path(__file__).resolve().parents[1],
+        invocation.worker_lab_installation_digest,
+    )
+    observed_runtime_identity = runtime_identity(
+        configuration,
+        invocation,
+        evidence=framework_evidence,
+    )
+    runner = WindowsJobAdapterRunner(
+        custody_store,
+        invocation=invocation,
+        timeout_seconds=invocation.timeout_seconds,
+        workspace_path=workspace_path,
+    )
+    response = call_workspace_write_adapter(
+        invocation,
+        configuration,
+        prompt=prompt,
+        workspace_write=workspace_write,
+        evidence=framework_evidence,
+        worker_lab_evidence=worker_evidence,
+        runner=runner,
+    )
+    return response, observed_runtime_identity
+
+
+def _workspace_write_contract(
+    invocation: InvocationRecord,
+    exercise: ExerciseRecord,
+    policy: PolicyRecord,
+    role: RoleRecord,
+    context: ContextManifest,
+    catalog: TestCatalog,
+) -> Mapping[str, object]:
+    readable_paths = tuple(item.path for item in invocation.readable_paths)
+    if set(readable_paths).intersection(invocation.writable_paths):
+        raise LabValidationError(
+            "INTEGRATION_SCOPE_INVALID",
+            "workspace-write readable and writable paths must not overlap",
+        )
+    definitions = {definition.test_id: definition for definition in catalog.tests}
+    try:
+        selected = tuple(definitions[test_id] for test_id in invocation.test_ids)
+    except KeyError as exc:
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "workspace-write test plan references an unavailable test",
+        ) from exc
+    if any(definition.runner is not TestRunner.COMMAND for definition in selected):
+        raise LabValidationError(
+            "INTEGRATION_EVALUATOR_INVALID",
+            "workspace-write bridge supports protected command tests only",
+        )
+    invariants = tuple(sorted({
+        *(item.statement for item in policy.invariants),
+        role.purpose,
+        *exercise.prohibited_shortcuts,
+    }))
+    return {
+        "schema_version": "worker-lab-framework-workspace-write-task:v1",
+        "invocation_digest": invocation.identity_digest(),
+        "objective": exercise.objective,
+        "acceptance_criteria": list(exercise.acceptance_criteria),
+        "consumer_profile": {
+            "version": "consumer-profile:v1",
+            "consumer": f"worker-lab-{role.role_id}",
+            "authority_paths": list(readable_paths),
+            "protected_prefixes": [],
+            "protected_exact": list(exercise.protected_paths),
+            "product_invariants": list(invariants),
+            "full_validation": [
+                {
+                    "name": definition.test_id,
+                    "argv": list(definition.command),
+                    "timeout_seconds": 30,
+                }
+                for definition in selected
+            ],
+        },
+        "test_ids": list(invocation.test_ids),
+        "writable_paths": list(invocation.writable_paths),
+    }
+
+
+def _run_workspace_write_tests(
+    invocation: InvocationRecord,
+    catalog: TestCatalog,
+    workspace_path: Path,
+    executor: SealedTestExecutor,
+) -> tuple[ValidationStage, ...]:
+    definitions = {definition.test_id: definition for definition in catalog.tests}
+    try:
+        selected = tuple(definitions[test_id] for test_id in invocation.test_ids)
+    except KeyError as exc:
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "workspace-write validation test is unavailable",
+        ) from exc
+    if any(definition.runner is not TestRunner.COMMAND for definition in selected):
+        raise LabValidationError(
+            "INTEGRATION_EVALUATOR_INVALID",
+            "workspace-write bridge supports protected command tests only",
+        )
+    before = workspace_content_digest(workspace_path)
+    stages: list[ValidationStage] = []
+    for definition in selected:
+        try:
+            exit_code = executor(definition, workspace_path)
+        except (LabValidationError, OSError, TimeoutError) as exc:
+            raise LabValidationError(
+                "INTEGRATION_VALIDATION_FAILED",
+                "sealed workspace-write evaluator did not complete",
+            ) from exc
+        if isinstance(exit_code, bool) or not isinstance(exit_code, int) or exit_code != 0:
+            raise LabValidationError(
+                "INTEGRATION_VALIDATION_FAILED",
+                "sealed workspace-write evaluator reported failure",
+            )
+        stages.append(ValidationStage(definition.test_id, "pass", None))
+    if workspace_content_digest(workspace_path) != before:
+        raise LabValidationError(
+            "INTEGRATION_BOUNDARY_FAILED",
+            "sealed workspace-write validation changed the candidate",
+        )
+    return tuple(stages)
+
+
+def _verify_workspace_write_candidate_manifest(
+    content: bytes,
+    invocation: InvocationRecord,
+    result: ResultRecord,
+) -> str:
+    if result.candidate_digest is None:
+        raise LabValidationError(
+            "SERVICE_CANDIDATE_CONTENT_INVALID",
+            "workspace-write result has no retained candidate identity",
+        )
+    try:
+        decoded = json.loads(content.decode("utf-8"))
+        canonical = canonical_json(decoded).encode("utf-8")
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise LabValidationError(
+            "SERVICE_CANDIDATE_CONTENT_INVALID",
+            "workspace-write candidate manifest is invalid",
+        ) from exc
+    fields = {
+        "schema_version",
+        "invocation_digest",
+        "framework_candidate_digest",
+        "changed_paths",
+        "workspace_content_digest",
+    }
+    if (
+        not isinstance(decoded, dict)
+        or set(decoded) != fields
+        or canonical != content
+        or content_digest(content) != result.candidate_digest
+        or decoded["schema_version"] != "worker-lab-workspace-write-candidate:v1"
+        or decoded["invocation_digest"] != invocation.identity_digest()
+        or decoded["changed_paths"] != list(result.changed_paths)
+        or not _DIGEST_RE.fullmatch(str(decoded["framework_candidate_digest"]))
+        or not _DIGEST_RE.fullmatch(str(decoded["workspace_content_digest"]))
+    ):
+        raise LabValidationError(
+            "SERVICE_CANDIDATE_CONTENT_INVALID",
+            "workspace-write candidate manifest differs from durable result",
+        )
+    return decoded["framework_candidate_digest"]
+
+
 def _run_sealed_test(definition: TestDefinition, workspace_path: Path) -> int:
     """Run only a protected command test after the read-only adapter is absent."""
     if definition.runner is not TestRunner.COMMAND:
@@ -1624,7 +1889,7 @@ def _validate_dispatch_definitions(
     data_root: Path,
     attempt: AttemptRecord,
     invocation: InvocationRecord,
-) -> None:
+) -> tuple[ExerciseRecord, PolicyRecord, RoleRecord, ContextManifest, TestCatalog]:
     definitions = AtomicRecordStore(data_root / "curricula")
     exercise = definitions.read(
         f"exercises/{invocation.exercise_id}/v{invocation.exercise_version}.json",
@@ -1659,9 +1924,28 @@ def _validate_dispatch_definitions(
             "INTEGRATION_IDENTITY_INVALID",
             "invocation differs from protected dispatch definitions",
         )
-    ReadOnlyEvaluationPlanStore(data_root / "state").read(
-        invocation.invocation_id,
-    ).validate(invocation, catalog)
+    if invocation.operation is InvocationOperation.READ_ONLY_PROPOSAL:
+        ReadOnlyEvaluationPlanStore(data_root / "state").read(
+            invocation.invocation_id,
+        ).validate(invocation, catalog)
+    elif invocation.operation is InvocationOperation.WORKSPACE_WRITE_CODE_TASK:
+        plan = catalog.select(
+            ChangeFacts(invocation.writable_paths),
+            profile_ids=exercise.test_profile_ids,
+        )
+        if (
+            plan.catalog_version != invocation.test_catalog_version
+            or plan.catalog_digest != invocation.test_catalog_digest
+            or plan.test_ids != invocation.test_ids
+            or canonical_digest(plan.to_dict()) != invocation.test_plan_digest
+        ):
+            raise LabValidationError(
+                "INTEGRATION_IDENTITY_INVALID",
+                "workspace-write test plan differs from protected definitions",
+            )
+    else:
+        raise LabValidationError("INTEGRATION_OPERATION_INVALID", "dispatch operation is unsupported")
+    return exercise, policy, role, context, catalog
 
 
 def _validate_running_dispatch_binding(

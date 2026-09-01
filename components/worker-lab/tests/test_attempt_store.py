@@ -116,7 +116,9 @@ def test_running_binding_reloads_exact_authorized_invocation(tmp_path: Path) -> 
         "context_digest": ready.context_digest, "task_digest": ready.task_digest,
         "test_catalog_version": ready.evaluator_catalog_version,
         "test_catalog_digest": ready.evaluator_catalog_digest, "starting_commit": ready.starting_commit,
-        "sandbox_mode": ready.sandbox_mode, "operation": "workspace-write-code-task", "writable_paths": ["app.py"],
+        "sandbox_mode": ready.sandbox_mode, "operation": "workspace-write-code-task",
+        "framework_contract_version": "worker-lab-framework-adapter:v3",
+        "writable_paths": ["app.py"],
     })
     prepared = InvocationRecord.from_mapping(value)
     invocations.create(prepared)

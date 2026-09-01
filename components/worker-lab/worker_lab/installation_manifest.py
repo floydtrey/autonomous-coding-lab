@@ -19,6 +19,16 @@ _COMPONENTS = (
     "local-model-bench",
     "worker-lab",
 )
+_FRAMEWORK_RUNTIME_FILES = (
+    "tools/code_task.py",
+    "tools/codex_runtime.py",
+    "tools/consumer_profile.py",
+    "tools/local_worker_harness.py",
+    "tools/repository_handoff.py",
+    "tools/worker_lab_adapter.py",
+    "tools/worker_result.py",
+    "tools/workspace_write_adapter.py",
+)
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
@@ -179,9 +189,7 @@ def _parse_components(
         entrypoints = {key: _relative_path(item) for key, item in entrypoints_raw.items()}
         component = InstalledComponent(root, production_root, tree["scope"], tree["digest"], files, entrypoints)
         if name == "autonomous-worker-framework":
-            if component.scope != "runtime-dependency-closure" or paths != (
-                "tools/codex_runtime.py", "tools/worker_lab_adapter.py",
-            ) or entrypoints["worker-lab-adapter"] != "tools/worker_lab_adapter.py":
+            if component.scope != "runtime-dependency-closure" or paths != _FRAMEWORK_RUNTIME_FILES or entrypoints["worker-lab-adapter"] != "tools/worker_lab_adapter.py":
                 raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "framework runtime closure is incomplete")
         elif component.scope != "python-production-tree":
             raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "component production-tree scope differs")

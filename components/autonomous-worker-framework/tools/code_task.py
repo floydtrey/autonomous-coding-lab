@@ -10,15 +10,34 @@ from typing import Any, Callable, Sequence
 try:
     from tools.codex_runtime import CodexExecution, CodexRequest, execute_codex
     from tools.consumer_profile import (
+        ConsumerProfile,
+        MINE_TRACKER_PROFILE,
         ValidationCommand,
         WorkerContextPacket,
         verify_context_packet,
     )
-    from tools.local_worker_harness import changed_paths, repository_head
+    from tools.local_worker_harness import candidate_content_digest, changed_paths, repository_head
+    from tools.repository_handoff import RepositoryHandoff, build_repository_handoff
+    from tools.worker_result import (
+        BoundaryResult,
+        ValidationResult,
+        ValidationStage,
+        WorkerResult,
+        WorkerStatus,
+        validate_worker_result,
+    )
 except ModuleNotFoundError:  # direct execution support
     from codex_runtime import CodexExecution, CodexRequest, execute_codex  # type: ignore
-    from consumer_profile import ValidationCommand, WorkerContextPacket, verify_context_packet  # type: ignore
-    from local_worker_harness import changed_paths, repository_head  # type: ignore
+    from consumer_profile import (  # type: ignore
+        ConsumerProfile, MINE_TRACKER_PROFILE, ValidationCommand, WorkerContextPacket,
+        verify_context_packet,
+    )
+    from local_worker_harness import candidate_content_digest, changed_paths, repository_head  # type: ignore
+    from repository_handoff import RepositoryHandoff, build_repository_handoff  # type: ignore
+    from worker_result import (  # type: ignore
+        BoundaryResult, ValidationResult, ValidationStage, WorkerResult, WorkerStatus,
+        validate_worker_result,
+    )
 
 
 CODE_TASK_VERSION = "code-task:v1"
@@ -82,6 +101,14 @@ class CodeTaskResult:
         return json.dumps(value, **options)
 
 
+@dataclass(frozen=True)
+class CodeTaskHandoff:
+    """The framework-owned candidate proof produced after a successful code task."""
+
+    worker_result: WorkerResult
+    repository_handoff: RepositoryHandoff
+
+
 Executor = Callable[[CodexRequest], CodexExecution]
 
 
@@ -125,9 +152,10 @@ def run_code_task(
     repo_root: Path,
     framework_repo: Path,
     executor: Executor = execute_codex,
+    profile: ConsumerProfile = MINE_TRACKER_PROFILE,
 ) -> CodeTaskResult:
     _verify_contract(contract, packet)
-    verify_context_packet(packet, repo_root)
+    verify_context_packet(packet, repo_root, profile=profile)
     execution = executor(
         CodexRequest(
             prompt=_implementation_prompt(contract, packet),
@@ -157,6 +185,49 @@ def run_code_task(
         full_validation=full,
         ready_for_handoff=True,
     )
+
+
+def build_code_task_handoff(
+    contract: CodeTaskContract,
+    result: CodeTaskResult,
+    *,
+    repo_root: Path,
+) -> CodeTaskHandoff:
+    """Convert a completed code-task result into independently rechecked handoff proof."""
+    if (
+        result.task_digest != contract.digest()
+        or result.context_digest != contract.context_digest
+        or result.repository_head != contract.repository_head
+        or result.changed_paths != contract.expected_changed_paths
+        or not result.ready_for_handoff
+    ):
+        raise CodeTaskError("CODE_TASK_RESULT_INVALID", "code-task result differs from its sealed contract")
+    candidate_digest = candidate_content_digest(repo_root, result.changed_paths)
+    worker_result = WorkerResult(
+        contract_version="worker-result:v1",
+        task_id=contract.task_id,
+        consumer=contract.consumer,
+        task_contract_digest=contract.digest(),
+        base_sha=contract.repository_head,
+        candidate_sha=None,
+        candidate_content_digest=candidate_digest,
+        workspace_state="dirty-candidate",
+        changed_paths=result.changed_paths,
+        patch_boundary=BoundaryResult("pass"),
+        quick_validation=ValidationResult(
+            "pass",
+            tuple(ValidationStage(name, "pass") for name, _ in result.quick_validation),
+        ),
+        full_validation=ValidationResult(
+            "pass",
+            tuple(ValidationStage(name, "pass") for name, _ in result.full_validation),
+        ),
+        worker=WorkerStatus("pass"),
+        first_failure=None,
+        ready_for_repository_handoff=True,
+    )
+    validate_worker_result(worker_result)
+    return CodeTaskHandoff(worker_result, build_repository_handoff(worker_result, repo_root))
 
 
 def _verify_contract(contract: CodeTaskContract, packet: WorkerContextPacket) -> None:

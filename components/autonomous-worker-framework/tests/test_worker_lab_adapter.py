@@ -13,6 +13,11 @@ from tools.worker_lab_adapter import (
     REQUEST_SCHEMA, AdapterError, AdapterExecution, MAX_PROPOSAL_BYTES, canonical_json, digest,
     execute_read_only, invocation_identity, prepare, preflight,
 )
+from tools.workspace_write_adapter import (
+    REQUEST_SCHEMA as WORKSPACE_WRITE_REQUEST_SCHEMA,
+    TASK_SCHEMA as WORKSPACE_WRITE_TASK_SCHEMA,
+    execute_workspace_write,
+)
 
 
 DIGEST = "sha256:" + "a" * 64
@@ -166,7 +171,16 @@ def _installation_fixture(tmp_path):
         "config",
     ):
         (tmp_path / relative).mkdir(parents=True, exist_ok=True)
-    for name in ("codex_runtime.py", "worker_lab_adapter.py"):
+    for name in (
+        "code_task.py",
+        "codex_runtime.py",
+        "consumer_profile.py",
+        "local_worker_harness.py",
+        "repository_handoff.py",
+        "worker_lab_adapter.py",
+        "worker_result.py",
+        "workspace_write_adapter.py",
+    ):
         shutil.copy2(
             source_root / "components" / "autonomous-worker-framework" / "tools" / name,
             tmp_path / "components" / "autonomous-worker-framework" / "tools" / name,
@@ -263,3 +277,153 @@ def test_production_retains_only_the_final_message_not_cli_stderr(monkeypatch, t
     result = adapter._execute_production("prompt", tmp_path, "codex")
     assert result == AdapterExecution(b"proposal", b"", 0)
     assert observed[0] is not None and not observed[0].exists()
+
+
+def _workspace_write_request(root, *, state="DISPATCHING", **updates):
+    value = invocation(
+        state,
+        operation="workspace-write-code-task",
+        sandbox_mode="workspace-write",
+        framework_contract_version=adapter.WORKSPACE_WRITE_PROTOCOL,
+        readable_paths=[{"path": "README.md", "digest": "sha256:" + "b" * 64}],
+        writable_paths=["tests/test_assets.py"],
+    )
+    value.update(updates.pop("invocation", {}))
+    request_value = {
+        "schema_version": WORKSPACE_WRITE_REQUEST_SCHEMA,
+        "invocation": value,
+        "prompt": PROMPT,
+        "workspace_write": {
+            "schema_version": WORKSPACE_WRITE_TASK_SCHEMA,
+            "invocation_digest": invocation_identity(value),
+            "objective": "Change one bounded test fixture.",
+            "acceptance_criteria": ["The target fixture is updated."],
+            "consumer_profile": {
+                "version": "consumer-profile:v1",
+                "consumer": "worker-lab-role",
+                "authority_paths": ["README.md"],
+                "protected_prefixes": [],
+                "protected_exact": [],
+                "product_invariants": ["Bounded candidate only."],
+                "full_validation": [{
+                    "name": "T001",
+                    "argv": ["git", "diff", "--check"],
+                    "timeout_seconds": 10,
+                }],
+            },
+            "test_ids": ["T001"],
+            "writable_paths": ["tests/test_assets.py"],
+        },
+    }
+    request_value.update(updates)
+    return request_value
+
+
+def _workspace_write_repo(tmp_path):
+    root = tmp_path / "workspace-write"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.name", "Fixture"], cwd=root, check=True)
+    subprocess.run(["git", "config", "user.email", "fixture@example.invalid"], cwd=root, check=True)
+    (root / "README.md").write_text("authority\n", encoding="utf-8")
+    (root / "tests").mkdir()
+    (root / "tests" / "test_assets.py").write_text("VALUE = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "baseline"], cwd=root, check=True)
+    return root
+
+
+def test_workspace_write_v3_reuses_context_code_task_and_handoff_primitives(tmp_path, monkeypatch):
+    root = _workspace_write_repo(tmp_path)
+    request_value = _workspace_write_request(root)
+
+    def executor(_):
+        (root / "tests" / "test_assets.py").write_text("VALUE = 2\n", encoding="utf-8")
+        return CodexExecution(("codex",), 0, "done", "")
+
+    monkeypatch.chdir(root)
+    response = json.loads(execute_workspace_write(
+        canonical_json(request_value),
+        runtime_identity=DIGEST,
+        executor=executor,
+        framework_root=tmp_path / "framework",
+    ))
+    assert response["invocation_digest"] == invocation_identity(request_value["invocation"])
+    assert response["changed_paths"] == ["tests/test_assets.py"]
+    assert response["candidate_digest"].startswith("sha256:")
+
+
+@pytest.mark.parametrize(
+    ("mutation", "code"),
+    [
+        ({"invocation": {"state": "AUTHORIZED"}}, "INTEGRATION_AUTHORIZATION_INVALID"),
+        ({"workspace_write": {"unexpected": True}}, "INTEGRATION_FIELDS_INVALID"),
+    ],
+)
+def test_workspace_write_v3_rejects_bad_state_and_malformed_contract(tmp_path, mutation, code):
+    root = _workspace_write_repo(tmp_path)
+    request_value = _workspace_write_request(root)
+    for key, value in mutation.items():
+        if key == "invocation":
+            request_value[key].update(value)
+            request_value["workspace_write"]["invocation_digest"] = invocation_identity(request_value[key])
+        else:
+            request_value[key].update(value)
+    with pytest.raises(AdapterError) as error:
+        execute_workspace_write(
+            canonical_json(request_value),
+            runtime_identity=DIGEST,
+            executor=lambda _: (_ for _ in ()).throw(AssertionError("must not execute")),
+            framework_root=tmp_path / "framework",
+        )
+    assert error.value.code == code
+
+
+def test_workspace_write_v3_rejects_scope_and_does_not_mutate_without_executor(tmp_path):
+    root = _workspace_write_repo(tmp_path)
+    request_value = _workspace_write_request(root)
+    request_value["invocation"]["readable_paths"] = [{
+        "path": "tests/test_assets.py",
+        "digest": "sha256:" + "b" * 64,
+    }]
+    request_value["workspace_write"]["consumer_profile"]["authority_paths"] = ["tests/test_assets.py"]
+    request_value["workspace_write"]["invocation_digest"] = invocation_identity(request_value["invocation"])
+    with pytest.raises(AdapterError) as error:
+        execute_workspace_write(
+            canonical_json(request_value),
+            runtime_identity=DIGEST,
+            executor=lambda _: (_ for _ in ()).throw(AssertionError("must not execute")),
+            framework_root=tmp_path / "framework",
+        )
+    assert error.value.code == "INTEGRATION_SCOPE_FAILED"
+    before = (root / "tests" / "test_assets.py").read_bytes()
+    with pytest.raises(AdapterError) as error:
+        execute_workspace_write(
+            canonical_json(_workspace_write_request(root)),
+            runtime_identity=DIGEST,
+            executor=None,
+            framework_root=tmp_path / "framework",
+        )
+    assert error.value.code == "INTEGRATION_EXECUTION_DISABLED"
+    assert (root / "tests" / "test_assets.py").read_bytes() == before
+
+
+def test_workspace_write_v3_cli_keeps_runtime_unreachable_while_disabled(tmp_path, monkeypatch):
+    root = _workspace_write_repo(tmp_path)
+    raw = canonical_json(_workspace_write_request(root)).encode("utf-8")
+    stdin = type("Input", (), {"buffer": io.BytesIO(raw)})()
+    stdout = type("Output", (), {"buffer": io.BytesIO()})()
+    monkeypatch.setattr(sys, "stdin", stdin)
+    monkeypatch.setattr(sys, "stdout", stdout)
+    reached_runtime = []
+    monkeypatch.setattr(
+        adapter,
+        "local_runtime_identity",
+        lambda *args, **kwargs: reached_runtime.append(True),
+    )
+    assert adapter.main(["execute-workspace-write", "--protocol", adapter.WORKSPACE_WRITE_PROTOCOL]) == 1
+    assert json.loads(stdout.buffer.getvalue()) == {
+        "failure_code": "INTEGRATION_EXECUTION_DISABLED",
+        "retryable": False,
+    }
+    assert not reached_runtime

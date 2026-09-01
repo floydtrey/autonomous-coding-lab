@@ -17,7 +17,10 @@ from pathlib import PurePosixPath
 from pathlib import Path
 from typing import Any
 
+# v2 is permanently read-only.  The write bridge deliberately uses v3 so a
+# v2 request can never be interpreted as an authorization for workspace writes.
 PROTOCOL = "worker-lab-framework-adapter:v2"
+WORKSPACE_WRITE_PROTOCOL = "worker-lab-framework-adapter:v3"
 REQUEST_SCHEMA = "worker-lab-framework-adapter-request:v2"
 INVOCATION_SCHEMA = "worker-lab-framework-invocation:v2"
 MAX_REQUEST_BYTES = 262_144
@@ -39,6 +42,16 @@ _INVOCATION_FIELDS = {
     "runtime_profile_id", "model", "reasoning_effort", "timeout_seconds", "readable_paths",
     "writable_paths", "prompt_digest", "authorized_by", "authorized_at", "state", "result_digest",
 }
+_RUNTIME_FILES = (
+    "tools/code_task.py",
+    "tools/codex_runtime.py",
+    "tools/consumer_profile.py",
+    "tools/local_worker_harness.py",
+    "tools/repository_handoff.py",
+    "tools/worker_lab_adapter.py",
+    "tools/worker_result.py",
+    "tools/workspace_write_adapter.py",
+)
 
 
 class AdapterError(ValueError):
@@ -116,7 +129,7 @@ def parse_request(raw: bytes | str) -> tuple[dict[str, Any], str]:
     invocation = value["invocation"]
     if not isinstance(invocation, dict) or set(invocation) != _INVOCATION_FIELDS:
         raise AdapterError("INTEGRATION_FIELDS_INVALID", "invocation fields are invalid")
-    _validate_invocation(invocation)
+    _validate_invocation(invocation, operation="read-only-proposal")
     prompt = value["prompt"]
     prompt_bytes = _bounded_bytes(prompt, MAX_PROMPT_BYTES, "prompt")
     _reject_sensitive_content(prompt_bytes)
@@ -185,16 +198,25 @@ def execute_read_only(raw: bytes | str, *, runtime_identity: str, executor: Exec
     })
 
 
-def _validate_invocation(value: Mapping[str, Any]) -> None:
+def validate_workspace_write_invocation(value: Mapping[str, Any]) -> None:
+    """Validate the v3 write operation without admitting it to the v2 parser."""
+    _validate_invocation(value, operation="workspace-write-code-task")
+
+
+def _validate_invocation(value: Mapping[str, Any], *, operation: str) -> None:
+    if operation not in {"read-only-proposal", "workspace-write-code-task"}:
+        raise AdapterError("INTEGRATION_OPERATION_INVALID", "adapter operation is unsupported")
+    sandbox = "read-only" if operation == "read-only-proposal" else "workspace-write"
+    protocol = PROTOCOL if operation == "read-only-proposal" else WORKSPACE_WRITE_PROTOCOL
     exact = {
         "schema_version": INVOCATION_SCHEMA,
-        "operation": "read-only-proposal",
-        "sandbox_mode": "read-only",
+        "operation": operation,
+        "sandbox_mode": sandbox,
         "runtime_profile_id": RUNTIME_PROFILE,
         "model": "gpt-5.6-terra",
         "reasoning_effort": "medium",
         "timeout_seconds": 900,
-        "framework_contract_version": PROTOCOL,
+        "framework_contract_version": protocol,
         "worker_lab_contract_version": "worker-lab-framework-client:v2",
     }
     if any(value.get(name) != expected for name, expected in exact.items()):
@@ -209,8 +231,12 @@ def _validate_invocation(value: Mapping[str, Any]) -> None:
     ):
         _positive_integer(value.get(name), name)
     _text(value.get("test_catalog_version"), "test catalog version")
-    if value.get("writable_paths") != []:
+    if operation == "read-only-proposal" and value.get("writable_paths") != []:
         raise AdapterError("INTEGRATION_SCOPE_FAILED", "read-only proposal cannot contain writable paths")
+    if operation == "workspace-write-code-task" and (
+        not isinstance(value.get("writable_paths"), list) or not value["writable_paths"]
+    ):
+        raise AdapterError("INTEGRATION_SCOPE_FAILED", "workspace-write task requires writable paths")
     if not isinstance(value.get("readable_paths"), list) or not value["readable_paths"]:
         raise AdapterError("INTEGRATION_SCOPE_FAILED", "read-only proposal requires readable paths")
     seen_paths = []
@@ -221,6 +247,16 @@ def _validate_invocation(value: Mapping[str, Any]) -> None:
         _digest(item["digest"], "readable path digest")
     if seen_paths != sorted(set(seen_paths)):
         raise AdapterError("INTEGRATION_SCOPE_FAILED", "readable paths must be sorted and unique")
+    writable_paths: list[str] = []
+    for item in value["writable_paths"]:
+        writable_paths.append(_relative_path(item))
+    if writable_paths != sorted(set(writable_paths)):
+        raise AdapterError("INTEGRATION_SCOPE_FAILED", "writable paths must be sorted and unique")
+    if set(seen_paths).intersection(writable_paths):
+        raise AdapterError(
+            "INTEGRATION_SCOPE_FAILED",
+            "workspace-write readable and writable paths must not overlap",
+        )
     test_ids = value.get("test_ids")
     if (
         not isinstance(test_ids, list)
@@ -367,9 +403,16 @@ def local_runtime_identity(
     version = (version_reader or _read_launcher_version)(launcher)
     if version != installation.codex_version:
         raise AdapterError("CODEX_VERSION_INVALID", "audited Codex launcher version differs")
+    write_operation = invocation["operation"] == "workspace-write-code-task"
+    protocol = WORKSPACE_WRITE_PROTOCOL if write_operation else PROTOCOL
+    modes = (
+        ("execute-workspace-write",)
+        if write_operation
+        else ("prepare", "preflight", "execute-read-only")
+    )
     command_base = (
         "python", "-I", "-B", "tools/worker_lab_adapter.py",
-        ("prepare", "preflight", "execute-read-only"), "--protocol", PROTOCOL,
+        modes, "--protocol", protocol,
     )
     identity = digest({
         "schema_version": "worker-lab-runtime-identity:v2",
@@ -434,14 +477,29 @@ def _execute_production(prompt: str, framework_root: Path, launcher: str) -> Ada
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Strict Worker Lab framework adapter")
-    parser.add_argument("mode", choices=("prepare", "preflight", "execute-read-only"))
+    parser.add_argument("mode", choices=("prepare", "preflight", "execute-read-only", "execute-workspace-write"))
     parser.add_argument("--protocol", required=True)
     args = parser.parse_args(argv)
-    if args.protocol != PROTOCOL:
+    expected_protocol = WORKSPACE_WRITE_PROTOCOL if args.mode == "execute-workspace-write" else PROTOCOL
+    if args.protocol != expected_protocol:
         return 2
     raw = sys.stdin.buffer.read(MAX_REQUEST_BYTES + 1)
     try:
-        invocation, _ = parse_request(raw)
+        if args.mode == "execute-workspace-write":
+            try:
+                from tools.workspace_write_adapter import (
+                    execute_workspace_write,
+                    parse_workspace_write_request,
+                )
+            except ModuleNotFoundError:
+                from workspace_write_adapter import (  # type: ignore
+                    execute_workspace_write,
+                    parse_workspace_write_request,
+                )
+
+            invocation, _ = parse_workspace_write_request(raw)
+        else:
+            invocation, _ = parse_request(raw)
         installed = _installed_adapter_identity()
         _require_execution_policy(installed, args.mode)
         runtime, launcher = local_runtime_identity(invocation, installed=installed)
@@ -455,12 +513,22 @@ def main(argv: list[str] | None = None) -> int:
                     environment=os.environ, executable=launcher,
                 ),
             )
-        else:
+        elif args.mode == "execute-read-only":
             response = execute_read_only(
                 raw, runtime_identity=runtime,
                 executor=lambda prompt: _execute_production(
                     prompt, Path(__file__).resolve().parents[1], launcher
                 ),
+            )
+        else:
+            response = execute_workspace_write(
+                raw,
+                runtime_identity=runtime,
+                executor=lambda request: _framework_runtime(installed).execute_codex_bounded(
+                    request,
+                    executable=launcher,
+                ),
+                framework_root=Path(__file__).resolve().parents[1],
             )
     except Exception as exc:
         # Framework runtime failures already expose stable categories such as
@@ -552,10 +620,7 @@ def _installed_adapter_identity(
     framework_root, framework_scope, framework_files, framework_entrypoints = parsed_components["autonomous-worker-framework"]
     if (
         framework_scope != "runtime-dependency-closure"
-        or framework_files != (
-            ("tools/codex_runtime.py", dict(framework_files).get("tools/codex_runtime.py", "")),
-            ("tools/worker_lab_adapter.py", dict(framework_files).get("tools/worker_lab_adapter.py", "")),
-        )
+        or tuple(path for path, _ in framework_files) != _RUNTIME_FILES
         or framework_entrypoints.get("worker-lab-adapter") != "tools/worker_lab_adapter.py"
     ):
         raise AdapterError("INTEGRATION_IDENTITY_INVALID", "framework runtime closure is incomplete")

@@ -202,6 +202,71 @@ def dispatch_fixture(
     )
 
 
+def workspace_write_dispatch_fixture(
+    tmp_path: Path,
+    *,
+    adapter,
+    process_probe=None,
+) -> tuple[WorkerLabApplicationService, Path, str, str]:
+    lab, target = write_authority_fixture(tmp_path)
+    context_path = lab / "curricula" / "contexts" / "record-model-context" / "v1.json"
+    context = json.loads(context_path.read_text(encoding="utf-8"))
+    context["files"] = [context["files"][0]]
+    context_path.write_text(json.dumps(context), encoding="utf-8")
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-09-01T12:00:00Z",
+        process_probe=process_probe,
+        workspace_write_adapter=adapter,
+        sealed_test_executor=lambda definition, workspace: 0,
+    )
+    attempt_id = service.create_attempt("record-model", 1, target).to_dict()["identity"]
+    service.prepare_workspace(attempt_id, target, workspace_root)
+    prepared = service.prepare_invocation(
+        attempt_id,
+        workspace_root,
+        "Implement the authorized workspace-write fixture.",
+    ).to_dict()
+    service.authorize_invocation(
+        prepared["identity"],
+        prepared["immutable_identity_digest"],
+        "trusted-controller",
+    )
+    return (
+        service,
+        workspace_root,
+        prepared["identity"],
+        prepared["immutable_identity_digest"],
+    )
+
+
+def workspace_write_response(invocation, runtime: str) -> bytes:
+    return canonical_json({
+        "invocation_digest": invocation.identity_digest(),
+        "prompt_digest": invocation.prompt_digest,
+        "runtime_identity": runtime,
+        "task_digest": "sha256:" + "c" * 64,
+        "context_digest": "sha256:" + "d" * 64,
+        "candidate_digest": "sha256:" + "e" * 64,
+        "changed_paths": list(invocation.writable_paths),
+    }).encode("utf-8")
+
+
+def injected_workspace_write_adapter(*, response: bytes, mutate=None, runtime: str = "sha256:" + "b" * 64):
+    read_only = injected_read_only_adapter(response=response, runtime_identity=runtime)
+
+    def dispatch(invocation, prompt, workspace_path, custody_store, contract):
+        assert contract["schema_version"] == "worker-lab-framework-workspace-write-task:v1"
+        assert contract["invocation_digest"] == invocation.identity_digest()
+        if mutate is not None:
+            mutate(workspace_path)
+        return read_only(invocation, prompt, workspace_path, custody_store)
+
+    return dispatch
+
+
 def recovery_fixture(
     root: Path,
     *,
@@ -868,6 +933,169 @@ def test_dispatch_injected_read_only_flow_reaches_candidate(
     )
     assert result.invocation_digest == identity_digest
     assert result.runtime_identity == runtime
+
+
+def test_dispatch_injected_workspace_write_flow_reaches_reviewable_candidate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = "sha256:" + "b" * 64
+
+    def mutate(workspace: Path) -> None:
+        (workspace / "record_ledger" / "models.py").write_text("# changed model\n", encoding="utf-8")
+        (workspace / "tests").mkdir(exist_ok=True)
+        (workspace / "tests" / "test_models.py").write_text("VALUE = 2\n", encoding="utf-8")
+
+    def adapter(invocation, prompt, workspace_path, custody_store, contract):
+        return injected_workspace_write_adapter(
+            response=workspace_write_response(invocation, runtime),
+            mutate=mutate,
+            runtime=runtime,
+        )(invocation, prompt, workspace_path, custody_store, contract)
+
+    service, workspace_root, invocation_id, identity_digest = workspace_write_dispatch_fixture(
+        tmp_path, adapter=adapter,
+    )
+    enable_dispatch_for_injected_test(monkeypatch)
+    dispatched = service.dispatch_invocation(
+        invocation_id, identity_digest, "trusted-controller", workspace_root,
+    )
+    assert dispatched.record["state"] == "CANDIDATE"
+    result = AtomicRecordStore(service.data_root / "state").read(
+        f"results/{invocation_id}.json", ResultRecord.from_mapping,
+    )
+    assert result.operation.value == "workspace-write-code-task"
+    assert result.workspace_state == "changed"
+    assert result.changed_paths == ("record_ledger/models.py", "tests/test_models.py")
+    assert result.candidate_digest is not None
+    assert result.content_reference is not None
+    review = service.review_candidate(dispatched.identity).to_dict()
+    assert review["schema_version"] == "worker-lab-service-candidate-review:v2"
+    assert review["candidate_content_digest"] == "sha256:" + "e" * 64
+    assert review["changed_paths"] == ["record_ledger/models.py", "tests/test_models.py"]
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_code"),
+    [
+        ("identity", "INTEGRATION_IDENTITY_INVALID"),
+        ("malformed", "INTEGRATION_FIELDS_INVALID"),
+        ("scope", "INTEGRATION_SCOPE_INVALID"),
+    ],
+)
+def test_workspace_write_dispatch_rejects_injected_identity_scope_and_malformed_results(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+    expected_code: str,
+) -> None:
+    runtime = "sha256:" + "b" * 64
+
+    def adapter(invocation, prompt, workspace_path, custody_store, contract):
+        if kind == "malformed":
+            response = b"{}"
+        else:
+            response_value = json.loads(workspace_write_response(invocation, runtime))
+            if kind == "identity":
+                response_value["prompt_digest"] = "sha256:" + "c" * 64
+            else:
+                (workspace_path / "unexpected.py").write_text("outside scope\n", encoding="utf-8")
+            response = canonical_json(response_value).encode("utf-8")
+        return injected_workspace_write_adapter(
+            response=response,
+            runtime=runtime,
+        )(invocation, prompt, workspace_path, custody_store, contract)
+
+    service, workspace_root, invocation_id, identity_digest = workspace_write_dispatch_fixture(
+        tmp_path, adapter=adapter,
+    )
+    enable_dispatch_for_injected_test(monkeypatch)
+    with pytest.raises(LabValidationError) as error:
+        service.dispatch_invocation(
+            invocation_id, identity_digest, "trusted-controller", workspace_root,
+        )
+    assert error.value.code == expected_code
+    assert InvocationStore(service.data_root / "state").read(
+        invocation_id,
+    ).state is InvocationState.DISPATCHING
+    durable = InvocationStore(service.data_root / "state").read(invocation_id)
+    assert AttemptStore(service.data_root / "state").read(
+        durable.attempt_id,
+    ).state is AttemptState.RUNNING
+    assert ProcessCustodyStore(service.data_root / "state").read(
+        invocation_id,
+    ).state is CustodyState.ABSENCE_VERIFIED
+    assert not (service.data_root / "state" / "results" / f"{invocation_id}.json").exists()
+
+
+def test_workspace_write_dispatch_stays_non_mutating_while_disabled_and_recovers_bad_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter_called = False
+
+    def adapter(*_):
+        nonlocal adapter_called
+        adapter_called = True
+        raise AssertionError("disabled policy must not call the workspace-write adapter")
+
+    service, workspace_root, invocation_id, identity_digest = workspace_write_dispatch_fixture(
+        tmp_path, adapter=adapter, process_probe=lambda _: None,
+    )
+    before = snapshot(service.data_root)
+    with pytest.raises(LabValidationError) as error:
+        service.dispatch_invocation(
+            invocation_id, identity_digest, "trusted-controller", workspace_root,
+        )
+    assert error.value.code == "INTEGRATION_EXECUTION_DISABLED"
+    assert not adapter_called
+    assert snapshot(service.data_root) == before
+
+    runtime = "sha256:" + "b" * 64
+    failing_service, failing_root, failing_id, failing_digest = workspace_write_dispatch_fixture(
+        tmp_path / "recovery",
+        adapter=lambda invocation, prompt, workspace, custody, contract: injected_workspace_write_adapter(
+            response=b"{}",
+            runtime=runtime,
+        )(invocation, prompt, workspace, custody, contract),
+        process_probe=lambda _: None,
+    )
+    enable_dispatch_for_injected_test(monkeypatch)
+    with pytest.raises(LabValidationError) as error:
+        failing_service.dispatch_invocation(
+            failing_id, failing_digest, "trusted-controller", failing_root,
+        )
+    assert error.value.code == "INTEGRATION_FIELDS_INVALID"
+    recovered = failing_service.recover_invocation(
+        failing_id, failing_digest, "trusted-controller", failing_root,
+    )
+    assert recovered.invocation.state is InvocationState.ABORTED
+    assert recovered.attempt.state is AttemptState.ABORTED
+
+
+def test_workspace_write_dispatch_rejects_terminal_invocation_state_before_adapter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called = False
+
+    def adapter(*_):
+        nonlocal called
+        called = True
+        raise AssertionError("terminal invocation must not dispatch")
+
+    service, workspace_root, invocation_id, identity_digest = workspace_write_dispatch_fixture(
+        tmp_path, adapter=adapter,
+    )
+    service.cancel_invocation(invocation_id, identity_digest, "trusted-controller")
+    enable_dispatch_for_injected_test(monkeypatch)
+    with pytest.raises(LabValidationError) as error:
+        service.dispatch_invocation(
+            invocation_id, identity_digest, "trusted-controller", workspace_root,
+        )
+    assert error.value.code == "INTEGRATION_AUTHORIZATION_INVALID"
+    assert not called
+    assert not (service.data_root / "state" / "process-custody").exists()
 
 
 @pytest.mark.parametrize(
