@@ -30,11 +30,12 @@ def test_agent_router_enforces_scope_and_authority_boundaries():
     assert "Local Model Bench outputs are advisory" in agents
 
 
-def test_current_state_separates_checkpoint_from_unfinished_work():
+def test_current_state_records_accepted_checkpoint_and_remaining_work():
     current = _read("docs/CURRENT_STATE.md")
-    assert "## Accepted checkpoint evidence" in current
-    assert "## Current uncommitted work" in current
+    assert "## Accepted Phase 1 checkpoint" in current
+    assert "## Phase 1 validation evidence" in current
     assert "## Not yet available" in current
+    assert "5f6c41da132daa12f0bb8c4be054112d77ef7e54" in current
     assert "Execution authority:** disabled" in current
 
 

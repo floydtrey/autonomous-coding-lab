@@ -6,46 +6,29 @@
 
 **Branch:** `main`
 
-**Last accepted checkpoint:** `d3e67b970e90eeb52dd854b5eda1f812232b05fe`
+**Last accepted checkpoint:** `5f6c41da132daa12f0bb8c4be054112d77ef7e54`
 
-**Remote relationship at inspection:** local `main` was 107 commits ahead of `origin/main`
+**Remote relationship at acceptance:** local `main` and `origin/main` matched with zero divergence
 
 **Execution authority:** disabled
 
 ## Plain-language status
 
-The consolidation succeeded: the complete histories and selected trees for the framework, Worker Lab, and Local Model Bench are in one repository. Their responsibilities remain separate internal trust boundaries.
+Phase 1 is complete. The consolidated repository now has a clean, remotely recoverable checkpoint with strict installed-component identity, current active documentation, preserved legacy records, and passing root/component validation. No worker or model was run.
 
-The repository is not yet at an accepted post-consolidation runtime checkpoint. The working tree now contains a completed documentation/archive replacement and a validated installation-identity v2 candidate, but neither has been committed or pushed. Nothing in those changes authorizes worker execution.
+Phase 2 is next. Its first work is non-executing operator infrastructure: a doctor/preflight command, a supported synthetic read-only command, explicit controller/run-directory/one-time authorization inputs, and durable authorization/activation evidence. Commit and push authority does not enable worker/model execution; the one-run proof still requires separate explicit authorization.
 
-## Accepted checkpoint evidence
+## Accepted Phase 1 checkpoint
 
-At or before the accepted checkpoint:
+The accepted checkpoint consists of these bounded commits:
 
-- The framework source was imported with recoverable history and tags.
-- Its monorepo prefix repair was validated; the full framework gate recorded 197 passing tests at the identity milestone.
-- Worker Lab source was imported with recoverable history and tags.
-- Four stale test fixtures were repaired without weakening the production runtime-identity requirement. The accepted Worker Lab parity run recorded 329 passes and seven expected Windows capability skips.
-- The deterministic integration inventory parsed 40 framework files and 68 Worker Lab files with no parser failures at checkpoint `d28cbbb`.
-- Local Model Bench was imported as an exact component history at `d3e67b9` from source commit `4a023c8230365c3098a6dff71fa9623cac059cdd`.
+- `4678c87` — strict installation identity v2 and bilateral protocol update;
+- `591ae42` — Local Model Bench CRLF Markdown-heading compatibility repair;
+- `5f6c41d` — active-documentation consolidation and byte-preserved legacy archive.
 
-These figures are checkpoint evidence, not results from the current dirty working tree.
+At acceptance, the working tree was clean; local `main` and `origin/main` both resolved to `5f6c41da132daa12f0bb8c4be054112d77ef7e54`; remote divergence was `0 0`; and execution remained disabled.
 
-## Current uncommitted work
-
-The working tree observed during this documentation rebuild contains:
-
-- archived former root and component documentation under `docs/legacy/`;
-- this replacement active documentation set;
-- an untracked strict `config/installation-manifest.json` v2;
-- modifications to the framework adapter and Worker Lab integration files that replace standalone Git-root assumptions and content-as-commit compatibility fields with SHA-256 installed-component identities;
-- independent manifest parsers in Worker Lab and the framework adapter;
-- a Local Model Bench CRLF Markdown-heading repair and regression test;
-- deletion of the former component-local READMEs and design documents after their relocation to legacy storage.
-
-The v2 manifest separates source commit/tree provenance from installed content. It records the complete two-file framework adapter dependency closure, the complete Worker Lab and Local Model Bench Python production trees, and exact Python/Codex paths, versions, and SHA-256 digests. Its activation policy keeps execution `DISABLED`, keeps Worker Lab `DEFERRED`, and is enforced independently by both sides before preflight or execution. Protocol v2 uses `worker_lab_installation_digest` and `framework_installation_digest`; it no longer places content hashes in `*_commit` fields.
-
-## Current working-tree validation
+## Phase 1 validation evidence
 
 No worker or model was run. With temporary output placed outside every Git repository:
 
@@ -54,11 +37,12 @@ No worker or model was run. With temporary output placed outside every Git repos
 - framework full suite: 208 passed;
 - Worker Lab full suite: 330 passed and seven expected Windows symlink-capability skips;
 - Local Model Bench: 13 passed, including the CRLF regression, and the baseline configuration validated;
-- 43 archived documentation files matched their accepted HEAD blobs;
+- framework documentation contract: 5 passed after the active-document update;
+- 43 archived documentation files matched their accepted source blobs and were committed as 100% renames;
 - both manifest consumers agreed on framework digest `sha256:81cc5608ec465133a8eb0bfe8a14ab744913ec4c35010b8cdf64f8cc9d61a6a3`, Worker Lab digest `sha256:a7d4d4eef3657bdd73f302a9fd11d150aa740bb052f16d083b04868725b9b6b2`, and disabled execution;
 - `git diff --check` passed.
 
-This is working-tree evidence only. The Phase 1 clean-tree and remote-recovery gates remain unsatisfied because staging, committing, and pushing were not authorized.
+This evidence is accepted at checkpoint `5f6c41d`.
 
 ## Proven component capabilities
 
@@ -88,15 +72,16 @@ A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON r
 
 ## Not yet available
 
-- A reviewed, accepted installed-component identity contract across both Worker Lab and the framework.
-- Authorized Worker Lab-to-framework worker execution in this monorepo.
+- An accepted real Worker Lab-to-framework execution proof in this monorepo.
+- A general workspace-write bridge from Worker Lab to the framework.
+- A shared application-service interface for CLI and GUI clients.
+- A functional Worker Lab GUI.
 - Unsupervised local-model planning, task authorization, code review, publishing, or merging.
 - Production-project access or modification by workers.
-- A single packaged installer or unified operator interface.
 
 ## Immediate next gate
 
-Review the documentation/archive replacement and installation-identity v2 candidate as separate bounded changes. If accepted and explicitly authorized, commit them without enabling execution, push the private remote, verify the clean working tree and remote checkpoint, and stop at the Phase 1 completion gate. Do not begin the Phase 2 read-only proof in the same change.
+Implement and test Phase 2's non-executing doctor and operator/authorization infrastructure while the installation policy remains disabled. Before the one real synthetic read-only attempt, obtain explicit authorization naming that bounded proof and its temporary activation terms. After the proof, verify exact retained evidence, an unchanged disposable workspace, process absence, lifecycle recovery, and restored disabled state.
 
 The trusted dependency-ordered delivery plan for worker execution and the Worker Lab GUI is `docs/WORKPLAN.md`.
 

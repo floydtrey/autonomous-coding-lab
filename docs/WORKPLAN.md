@@ -19,15 +19,16 @@ This work plan governs sequencing and completion gates. It does not itself autho
 
 ## Executive assessment
 
-The consolidation preserved three substantial components, but the repository is not yet a runnable integrated product.
+Phase 1 produced an accepted, remotely recoverable consolidated checkpoint. The repository is not yet a runnable integrated product because real execution has not been authorized or proven.
 
 - Worker Lab has strong authority, record, lifecycle, storage, workspace, evidence, and recovery foundations.
 - The framework has strong security, Codex runtime, code-task, validation, candidate, and handoff foundations.
 - Local Model Bench is functional advisory infrastructure and is not a runtime dependency.
-- A guarded synthetic read-only execution path is nearly complete.
+- Installation identity v2 is strict, bilateral, and enforced while execution remains disabled.
+- A guarded synthetic read-only execution path is nearly complete but has not been run after consolidation.
 - Workspace-write coding-worker execution exists in the framework but is not connected to Worker Lab.
 - No functional Worker Lab GUI or shared application-service interface exists.
-- The merger's installation-identity adaptation is unfinished and currently breaks identity-focused tests.
+- The next gate is one explicitly authorized, disposable read-only proof after its non-executing operator controls are complete.
 
 The shortest safe path is:
 
@@ -40,18 +41,19 @@ stabilize merger identity
         -> add local planning as an advisory proposal path
 ```
 
-## Repository state at audit
+## Current plan status
 
 - Repository: `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
 - Branch: `main`
-- Last accepted commit: `d3e67b970e90eeb52dd854b5eda1f812232b05fe`
-- Remote relationship observed: local `main` was 107 commits ahead of `origin/main`
-- Working tree: documentation archive/replacement plus unfinished runtime-identity changes
-- Installation manifest: present but untracked
+- Last accepted Phase 1 commit: `5f6c41da132daa12f0bb8c4be054112d77ef7e54`
+- Remote relationship at acceptance: local `main` and `origin/main` matched with zero divergence
+- Working tree at acceptance: clean
+- Installation manifest: committed and independently enforced by Worker Lab and the framework adapter
 - Worker execution policy: `DISABLED`
-- Worker Lab participant state in the accepted monorepo policy: deferred
+- Phase 1: complete
+- Phase 2: next; real execution not yet authorized
 
-The current working tree must not be described as an accepted runtime checkpoint until the work below is separated, reviewed, validated, committed, and backed up remotely.
+Commit/push authority is separate from worker/model execution authority.
 
 ## Completed foundations
 
@@ -107,40 +109,22 @@ Implemented foundations include:
 - response, model, timing, token, and throughput metadata where available;
 - deterministic evaluation reports and reviewable result structures.
 
-## Audit validation evidence
+## Phase 1 validation evidence
 
-The audit did not run Codex workers or local models.
+Phase 1 validation did not run Codex workers or local models.
 
 | Area | Current audit result | Interpretation |
 |---|---:|---|
 | Root inventory tools | 9 passed | Root inspection utilities are healthy |
-| Framework suite | 206 passed, 1 failed | One stale identity test still expects the removed Git helper |
-| Worker Lab identity and synthetic tests | 2 passed, 18 failed | Tests were not adapted to the changed identity evidence contract |
-| Worker Lab last accepted full checkpoint | 329 passed, 7 expected skips | Valid evidence for the pre-adaptation checkpoint only |
-| Local Model Bench | 11 passed, 1 error | Markdown case headings fail on a CRLF Windows checkout |
-| Active documentation checks | Passed | Active links, archive mapping, and focused documentation tests passed |
+| Framework compile gate | Passed | Imported framework sources compile |
+| Framework suite | 208 passed | Identity v2 and disabled-policy enforcement are accepted |
+| Worker Lab suite | 330 passed, 7 expected skips | Skips are Windows symlink-capability cases |
+| Local Model Bench | 13 passed | CRLF Markdown parsing is repaired and covered |
+| Active documentation checks | 5 passed | Active links and documentation contract are healthy |
 
-A full current Worker Lab count was not accepted during the audit because its containment tests require a disposable directory outside every Git repository and the available audit path was unsuitable. Environment-invalid failures were excluded rather than reported as product defects.
+The Worker Lab suite ran from a valid short disposable path outside every Git repository. The installation consumers agreed on complete runtime-closure digests and rejected disabled execution and identity substitution.
 
-## Current blocking problems
-
-### P0 — Split and incomplete installation identity
-
-The accepted monorepo policy and the draft installation manifest are separate identity systems:
-
-- `config/monorepo-identity.json` declares execution disabled and Worker Lab deferred.
-- The draft runtime path uses `config/installation-manifest.json` and does not consume that activation policy.
-- The manifest pins only the framework adapter, not its imported runtime dependency closure.
-- Worker Lab computes its current Python-tree digest but has no approved expected digest in the manifest.
-- The current Python executable is dynamically accepted rather than compared with an approved installation identity.
-- SHA-1 content identities occupy fields still named `framework_commit` and `worker_lab_commit` even though they are not commits.
-- Worker Lab's manifest load is not a strict, fail-closed parser and occurs during module import.
-
-This is the first implementation blocker.
-
-### P0 — Identity implementation and tests disagree
-
-Production identity structures were changed without updating the bilateral tests or adding the required manifest-negative cases. The current identity adaptation cannot be accepted by changing fixtures alone; the security contract must first be settled.
+## Remaining blocking problems
 
 ### P1 — No general operator execution path
 
@@ -170,10 +154,6 @@ Protected policy, roles, and test catalogs exist, but no committed active curric
 
 The CLI cannot create/list/authorize/reject/dispatch/recover invocations, list results, show a complete attempt timeline, cancel a run, or review a candidate. These actions need a stable application-service layer before the GUI is connected.
 
-### P1 — Local Model Bench CRLF defect
-
-The Markdown suite heading parser does not accept Windows CRLF line endings. The committed JSON suites remain usable, but the advertised Markdown path is currently broken on this checkout.
-
 ### P2 — Worker Lab GUI absent
 
 The Tkinter file under Local Model Bench is a disposable prompt-learning experiment, not a Worker Lab GUI. There is no dashboard, task editor, authorization view, worker status display, candidate review screen, or GUI-to-service connection.
@@ -202,6 +182,8 @@ The installed Qwen, DeepSeek, Phi-4, and Vera models are used only through Local
 
 ### Phase 1 — Stabilize the merger
 
+**Status:** Complete at `5f6c41da132daa12f0bb8c4be054112d77ef7e54`.
+
 **Objective:** Produce one clean, testable, remotely recoverable post-consolidation checkpoint while execution remains disabled.
 
 Work:
@@ -229,6 +211,8 @@ Completion gate:
 - remote contains the accepted checkpoint.
 
 ### Phase 2 — Prove one real read-only worker
+
+**Status:** Next. Non-executing setup is authorized as normal project work; worker/model execution still requires separate explicit authorization.
 
 **Objective:** Execute exactly one disposable, bounded read-only proposal through the consolidated installation.
 
@@ -362,7 +346,7 @@ Completion gate:
 
 The next implementation request should be:
 
-> Stabilize the Autonomous Coding Lab installation identity while execution remains disabled. Define and implement one strict versioned installation manifest consumed independently by Worker Lab and the framework, preserve source provenance separately from installed content identity, cover the complete runtime dependency closure, update the bilateral identity tests, fix the Local Model Bench CRLF Markdown parser, run the root and all component suites once from valid environments, update current-state evidence, and stop before any worker/model execution, commit, or push unless those actions are separately authorized.
+> Implement Phase 2's non-executing readiness path while execution remains disabled. Add a supported doctor/preflight operation and synthetic read-only operator command, require explicit controller identity, run directory, and one-time authorization, persist the authorization and activation evidence, add interruption/recovery tests, and stop before launching a worker or model unless that one bounded proof is separately and explicitly authorized.
 
 ## Change-control rules for this plan
 
