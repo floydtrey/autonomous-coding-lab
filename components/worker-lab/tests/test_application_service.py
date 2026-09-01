@@ -1,9 +1,12 @@
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+import worker_lab.application_service as application_service_module
+from worker_lab.canonical import canonical_json
 from tests.test_integration import DIGEST, record, result_mapping
 from tests.test_cli import write_authority_fixture
 from tests.test_models import (
@@ -29,6 +32,7 @@ from worker_lab.integration import (
 from worker_lab.invocation_store import InvocationStore
 from worker_lab.models import (
     AttemptRecord,
+    AttemptState,
     CurriculumRecord,
     EvidenceRecord,
     ExerciseRecord,
@@ -81,6 +85,121 @@ def snapshot(root: Path) -> tuple[tuple[str, ...], dict[str, bytes]]:
         if path.is_file()
     }
     return directories, files
+
+
+def enable_dispatch_for_injected_test(monkeypatch: pytest.MonkeyPatch) -> None:
+    manifest, report = application_service_module.inspect_installation()
+    monkeypatch.setattr(
+        application_service_module,
+        "inspect_installation",
+        lambda: (
+            replace(
+                manifest,
+                execution_authority="ENABLED",
+                participants={
+                    "autonomous-worker-framework": "ACTIVE",
+                    "local-model-bench": "ADVISORY",
+                    "worker-lab": "ACTIVE",
+                },
+            ),
+            report,
+        ),
+    )
+
+
+def injected_read_only_adapter(
+    *,
+    response: bytes,
+    runtime_identity: str = "sha256:" + "b" * 64,
+):
+    def dispatch(invocation, prompt, workspace_path, custody_store):
+        assert invocation.state is InvocationState.DISPATCHING
+        assert prompt
+        prepared = ProcessCustodyRecord.from_mapping({
+            "schema_version": PROCESS_CUSTODY_SCHEMA,
+            "invocation_digest": invocation.identity_digest(),
+            "invocation_id": invocation.invocation_id,
+            "controller_pid": 424242,
+            "controller_creation_time_100ns": 123456789,
+            "adapter_pid": None,
+            "adapter_creation_time_100ns": None,
+            "containment_mode": "windows-job-kill-on-close",
+            "workspace_content_digest": workspace_content_digest(workspace_path),
+            "state": "PREPARED",
+            "request_sent": False,
+            "exit_code": None,
+            "active_process_count": None,
+            "absence_verified_at": None,
+            "first_failure": None,
+        })
+        custody_store.create(prepared)
+        assigned = transition_custody(
+            prepared,
+            CustodyState.ASSIGNED,
+            adapter_pid=515151,
+            adapter_creation_time_100ns=987654321,
+        )
+        custody_store.save_transition(assigned, expected_digest=prepared.digest())
+        dispatching = transition_custody(assigned, CustodyState.DISPATCHING)
+        custody_store.save_transition(dispatching, expected_digest=assigned.digest())
+        exited = transition_custody(
+            dispatching,
+            CustodyState.EXITED,
+            exit_code=0,
+            active_process_count=0,
+        )
+        custody_store.save_transition(exited, expected_digest=dispatching.digest())
+        absent = transition_custody(
+            exited,
+            CustodyState.ABSENCE_VERIFIED,
+            active_process_count=0,
+            absence_verified_at="2026-09-01T12:00:00Z",
+        )
+        custody_store.save_transition(absent, expected_digest=exited.digest())
+        return response, runtime_identity
+
+    return dispatch
+
+
+def dispatch_fixture(
+    tmp_path: Path,
+    *,
+    adapter,
+    process_probe=None,
+) -> tuple[WorkerLabApplicationService, Path, str, str]:
+    lab, target = write_authority_fixture(tmp_path)
+    exercise_path = lab / "curricula" / "exercises" / "record-model" / "v1.json"
+    exercise = json.loads(exercise_path.read_text(encoding="utf-8"))
+    exercise["sandbox_mode"] = "read-only"
+    exercise["writable_paths"] = ["README.md"]
+    exercise_path.write_text(json.dumps(exercise), encoding="utf-8")
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-09-01T12:00:00Z",
+        process_probe=process_probe,
+        read_only_adapter=adapter,
+        sealed_test_executor=lambda definition, workspace: 0,
+    )
+    attempt_id = service.create_attempt("record-model", 1, target).to_dict()["identity"]
+    service.prepare_workspace(attempt_id, target, workspace_root)
+    prepared = service.prepare_invocation(
+        attempt_id,
+        workspace_root,
+        "Prepare a deterministic injected read-only dispatch fixture.",
+    ).to_dict()
+    service.authorize_invocation(
+        prepared["identity"],
+        prepared["immutable_identity_digest"],
+        "trusted-controller",
+    )
+    return (
+        service,
+        workspace_root,
+        prepared["identity"],
+        prepared["immutable_identity_digest"],
+    )
 
 
 def recovery_fixture(
@@ -659,6 +778,165 @@ def test_cli_exposes_controller_bound_invocation_cancellation(tmp_path: Path, ca
     assert cancelled["record"]["state"] == "ABORTED"
     assert not (lab / "state" / "results").exists()
     assert not (lab / "state" / "process-custody").exists()
+
+
+def test_dispatch_admission_fails_before_state_or_adapter_execution_while_disabled(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    adapter_called = False
+
+    def adapter(*_):
+        nonlocal adapter_called
+        adapter_called = True
+        raise AssertionError("disabled dispatch must not call an adapter")
+
+    service, workspace_root, invocation_id, identity_digest = dispatch_fixture(
+        tmp_path,
+        adapter=adapter,
+    )
+    before = snapshot(service.data_root)
+    with pytest.raises(LabValidationError) as error:
+        service.dispatch_invocation(
+            invocation_id,
+            identity_digest,
+            "trusted-controller",
+            workspace_root,
+        )
+    assert error.value.code == "INTEGRATION_EXECUTION_DISABLED"
+    assert snapshot(service.data_root) == before
+    assert not adapter_called
+    assert not (service.data_root / "state" / "process-custody").exists()
+
+    assert main([
+        "--root", str(service.data_root), "dispatch-invocation", invocation_id,
+        "--expected-identity-digest", identity_digest,
+        "--controller", "trusted-controller", "--workspace-root", str(workspace_root),
+    ]) == 2
+    assert "ERROR INTEGRATION_EXECUTION_DISABLED" in capsys.readouterr().err
+
+
+def test_dispatch_injected_read_only_flow_reaches_candidate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = "sha256:" + "b" * 64
+
+    def adapter(invocation, prompt, workspace_path, custody_store):
+        content = "Return one bounded read-only proposal."
+        digest = content_digest(content.encode("utf-8"))
+        response = canonical_json({
+            "invocation_digest": invocation.identity_digest(),
+            "prompt_digest": invocation.prompt_digest,
+            "runtime_identity": runtime,
+            "proposal_digest": digest,
+            "output_digest": digest,
+            "proposal_content": content,
+            "stdout_bytes": len(content.encode("utf-8")),
+            "stderr_bytes": 0,
+        }).encode("utf-8")
+        return injected_read_only_adapter(
+            response=response,
+            runtime_identity=runtime,
+        )(invocation, prompt, workspace_path, custody_store)
+
+    service, workspace_root, invocation_id, identity_digest = dispatch_fixture(
+        tmp_path,
+        adapter=adapter,
+    )
+    enable_dispatch_for_injected_test(monkeypatch)
+
+    dispatched = service.dispatch_invocation(
+        invocation_id,
+        identity_digest,
+        "trusted-controller",
+        workspace_root,
+    )
+
+    assert dispatched.operation == "dispatch-invocation"
+    assert dispatched.resource_type == "attempt"
+    assert dispatched.record["state"] == "CANDIDATE"
+    invocation = InvocationStore(service.data_root / "state").read(invocation_id)
+    assert invocation.state is InvocationState.COMPLETED
+    assert invocation.result_digest is not None
+    custody = ProcessCustodyStore(service.data_root / "state").read(invocation_id)
+    assert custody.state is CustodyState.ABSENCE_VERIFIED
+    assert custody.invocation_digest == identity_digest
+    result = AtomicRecordStore(service.data_root / "state").read(
+        f"results/{invocation_id}.json",
+        ResultRecord.from_mapping,
+    )
+    assert result.invocation_digest == identity_digest
+    assert result.runtime_identity == runtime
+
+
+@pytest.mark.parametrize(
+    ("response_kind", "expected_code"),
+    [
+        ("malformed", "INTEGRATION_FIELDS_INVALID"),
+        ("mismatched", "INTEGRATION_IDENTITY_INVALID"),
+    ],
+)
+def test_dispatch_rejects_injected_bad_outcome_and_retains_recovery_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    response_kind: str,
+    expected_code: str,
+) -> None:
+    runtime = "sha256:" + "b" * 64
+
+    def adapter(invocation, prompt, workspace_path, custody_store):
+        if response_kind == "malformed":
+            response = b"{}"
+        else:
+            response = canonical_json({
+                "invocation_digest": invocation.identity_digest(),
+                "prompt_digest": "sha256:" + "c" * 64,
+                "runtime_identity": runtime,
+                "proposal_digest": "sha256:" + "d" * 64,
+                "output_digest": "sha256:" + "d" * 64,
+                "proposal_content": "mismatched proposal",
+                "stdout_bytes": len("mismatched proposal".encode("utf-8")),
+                "stderr_bytes": 0,
+            }).encode("utf-8")
+        return injected_read_only_adapter(
+            response=response,
+            runtime_identity=runtime,
+        )(invocation, prompt, workspace_path, custody_store)
+
+    service, workspace_root, invocation_id, identity_digest = dispatch_fixture(
+        tmp_path,
+        adapter=adapter,
+        process_probe=lambda pid: None,
+    )
+    enable_dispatch_for_injected_test(monkeypatch)
+
+    with pytest.raises(LabValidationError) as error:
+        service.dispatch_invocation(
+            invocation_id,
+            identity_digest,
+            "trusted-controller",
+            workspace_root,
+        )
+    assert error.value.code == expected_code
+    durable_invocation = InvocationStore(service.data_root / "state").read(invocation_id)
+    assert durable_invocation.state is InvocationState.DISPATCHING
+    assert AttemptStore(service.data_root / "state").read(
+        durable_invocation.attempt_id,
+    ).state is AttemptState.RUNNING
+    assert ProcessCustodyStore(service.data_root / "state").read(
+        invocation_id,
+    ).state is CustodyState.ABSENCE_VERIFIED
+    assert not (service.data_root / "state" / "results" / f"{invocation_id}.json").exists()
+
+    recovered = service.recover_invocation(
+        invocation_id,
+        identity_digest,
+        "trusted-controller",
+        workspace_root,
+    )
+    assert recovered.invocation.state is InvocationState.ABORTED
+    assert recovered.attempt.state is AttemptState.ABORTED
 
 
 def test_recovery_requires_exact_absence_and_unchanged_workspace_and_is_idempotent(

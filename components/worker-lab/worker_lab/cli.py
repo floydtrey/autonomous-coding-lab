@@ -93,6 +93,12 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("--expected-identity-digest", required=True)
     command.add_argument("--controller", required=True)
     command.set_defaults(handler=_service_cancel_invocation)
+    command = commands.add_parser("dispatch-invocation")
+    command.add_argument("invocation_id")
+    command.add_argument("--expected-identity-digest", required=True)
+    command.add_argument("--controller", required=True)
+    command.add_argument("--workspace-root", required=True, type=Path)
+    command.set_defaults(handler=_service_dispatch_invocation)
     command = commands.add_parser("recover-invocation")
     command.add_argument("invocation_id")
     command.add_argument("--expected-identity-digest", required=True)
@@ -228,6 +234,15 @@ def _service_cancel_invocation(args: argparse.Namespace) -> str:
         args.invocation_id,
         args.expected_identity_digest,
         args.controller,
+    ).to_json()
+
+
+def _service_dispatch_invocation(args: argparse.Namespace) -> str:
+    return _service(args).dispatch_invocation(
+        args.invocation_id,
+        args.expected_identity_digest,
+        args.controller,
+        args.workspace_root.absolute(),
     ).to_json()
 
 

@@ -29,7 +29,7 @@ Phase 1 produced an accepted, remotely recoverable consolidated checkpoint, and 
 - A strict shared application service now exposes non-mutating queries, attempt/workspace lifecycle, guarded invocation decisions, fail-closed recovery after verified process absence, and backup/verify/restore operations through the CLI.
 - Workspace-write coding-worker execution exists in the framework but is not connected to Worker Lab.
 - No functional Worker Lab GUI exists; a disconnected visual prototype is preserved outside the production package.
-- The next gate is complete attempt timelines and candidate review through the shared service.
+- The shared Worker Lab application-service completion gate is satisfied on the current validated working tree; the next stage is the separately bounded workspace-write bridge.
 
 The shortest safe path is:
 
@@ -46,7 +46,7 @@ stabilize merger identity
 
 - Repository: `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
 - Branch: `main`
-- Last accepted Phase 3 implementation checkpoint: `e938a182c5fad1540b9ed68f4dfd471204caa90f`
+- Last accepted Phase 3 implementation checkpoint: `f69bfad`
 - Isolated GUI prototype checkpoint: `a72f026d57b9d938c4ebba1987379482af4e39b3`
 - Phase 2 proof record checkpoint: `01620a817e13ee4032aeee6c2997a1487496d872`
 - Accepted Phase 1 runtime checkpoint: `5f6c41da132daa12f0bb8c4be054112d77ef7e54`
@@ -56,7 +56,7 @@ stabilize merger identity
 - Worker execution policy: `DISABLED`
 - Phase 1: complete
 - Phase 2: complete; retained attempt `SYNTHETIC-545B69F603DB4806AAB5107A1D8EDCAB` reached `CANDIDATE`
-- Phase 3: in progress; query `a288a15`, attempt/workspace `cf9d45f`, invocation-command `e776743`, cancellation/backup-service `e505866`, and recovery-service `e938a18` checkpoints accepted
+- Phase 3: complete on the current validated working tree; query `a288a15`, attempt/workspace `cf9d45f`, invocation-command `e776743`, cancellation/backup-service `e505866`, recovery-service `e938a18`, and timeline/candidate-review `f69bfad` checkpoints accepted
 
 Commit/push authority is separate from worker/model execution authority.
 
@@ -147,7 +147,7 @@ Protected policy, roles, and test catalogs exist, but no committed active curric
 
 ### P1 — Operator surface incomplete
 
-The shared CLI service now provides health, installation-status, strict list/show queries, attempt/workspace lifecycle, guarded invocation preparation/authorization/rejection, controller-bound pre-dispatch cancellation, fail-closed recovery after verified process absence, and backup/verify/restore operations. It cannot yet dispatch, show a complete attempt timeline, or review a candidate. These actions must move behind the same application-service layer before the GUI is connected.
+The shared CLI service now provides health, installation-status, strict list/show queries, complete attempt timelines, candidate review, attempt/workspace lifecycle, guarded invocation preparation/authorization/rejection, controller-bound pre-dispatch cancellation, service-owned read-only dispatch, fail-closed recovery after verified process absence, and backup/verify/restore operations. `dispatch-invocation` is closed by the disabled-policy gate before every durable transition or adapter path, and the workspace-write bridge remains Phase 4 work.
 
 ### P2 — Worker Lab GUI absent
 
@@ -231,7 +231,7 @@ Completion gate:
 
 ### Phase 3 — Create the application service
 
-**Status:** In progress. Queries are accepted at `a288a15`, attempt/workspace lifecycle at `cf9d45f`, invocation preparation/authorization/rejection at `e776743`, pre-dispatch cancellation plus backup operations at `e505866`, and recovery at `e938a18`; dispatch, timelines, and review remain.
+**Status:** Complete on the current validated working tree. Queries are accepted at `a288a15`, attempt/workspace lifecycle at `cf9d45f`, invocation preparation/authorization/rejection at `e776743`, pre-dispatch cancellation plus backup operations at `e505866`, recovery at `e938a18`, timelines/candidate review at `f69bfad`, and the current packet adds service-owned read-only general dispatch.
 
 **Objective:** Give CLI and GUI one stable, tested interface to Worker Lab behavior.
 
@@ -341,9 +341,7 @@ Completion gate:
 
 ## Immediate work packet
 
-The next implementation request should be:
-
-> Continue Phase 3 while execution remains disabled. Add complete attempt timelines and candidate review queries to the shared Worker Lab application service; validate exact cross-record identity, non-mutating query behavior, and corrupt/missing evidence paths before adding general dispatch.
+The next implementation request should begin Phase 4 with a separately bounded versioned workspace-write bridge. It must reuse the framework code-task runtime; bind objective, readable/writable paths, acceptance criteria, tests, target commit, runtime, and authorization; preserve fail-closed process custody and recovery; and keep execution disabled until separately authorized.
 
 ## Change-control rules for this plan
 

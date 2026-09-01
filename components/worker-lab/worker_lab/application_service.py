@@ -34,7 +34,14 @@ from .integration import (
     ResultRecord,
     transition_invocation,
 )
-from .framework_adapter import parse_result
+from .framework_adapter import accept_execute_response, parse_result
+from .framework_client import (
+    call_adapter,
+    inspect_configuration,
+    inspect_worker_lab_identity,
+    pinned_framework_configuration,
+    runtime_identity,
+)
 from .invocation_store import InvocationStore
 from .lifecycle import transition_attempt
 from .models import (
@@ -53,6 +60,7 @@ from .operator_control import (
     inspect_installation,
     validate_controller_identity,
 )
+from .installation_manifest import require_execution_enabled
 from .policy import (
     ContextManifest,
     PolicyRecord,
@@ -61,7 +69,7 @@ from .policy import (
     verify_context_files,
 )
 from .storage import AtomicRecordStore
-from .test_catalog import ChangeFacts, TestCatalog
+from .test_catalog import ChangeFacts, TestCatalog, TestDefinition, TestRunner
 from .validation import attempt_task_digest
 from .workspace import (
     canonical_path_digest,
@@ -72,10 +80,12 @@ from .workspace import (
 from .process_custody import CustodyState, ProcessCustodyRecord, ProcessCustodyStore
 from .read_only_evidence import (
     READ_ONLY_EVALUATION_PLAN_SCHEMA,
+    ReadOnlyEvidenceCollector,
     ReadOnlyEvaluationPlan,
     ReadOnlyEvaluationPlanStore,
 )
 from .windows_job import (
+    WindowsJobAdapterRunner,
     WorkspaceLaunchEvidence,
     inspect_launch_workspace,
     recover_absence_after_controller_exit,
@@ -126,6 +136,11 @@ class _Record(Protocol):
 Loader = Callable[[Any], _Record]
 Identity = Callable[[_Record], str]
 State = Callable[[_Record], str | None]
+ReadOnlyAdapter = Callable[
+    [InvocationRecord, str, Path, ProcessCustodyStore],
+    tuple[bytes, str],
+]
+SealedTestExecutor = Callable[[TestDefinition, Path], int]
 
 
 @dataclass(frozen=True)
@@ -377,12 +392,20 @@ class WorkerLabApplicationService:
         *,
         clock: Callable[[], str] | None = None,
         process_probe: Callable[[int], int | None] | None = None,
+        read_only_adapter: ReadOnlyAdapter | None = None,
+        sealed_test_executor: SealedTestExecutor | None = None,
     ) -> None:
         if not isinstance(data_root, Path) or not data_root.is_absolute():
             raise LabValidationError("SERVICE_DATA_ROOT_INVALID", "service data root must be absolute")
+        if read_only_adapter is not None and not callable(read_only_adapter):
+            raise LabValidationError("SERVICE_COMMAND_INVALID", "read-only adapter must be callable")
+        if sealed_test_executor is not None and not callable(sealed_test_executor):
+            raise LabValidationError("SERVICE_COMMAND_INVALID", "sealed test executor must be callable")
         self.data_root = data_root
         self._clock = clock or _utc_now
         self._process_probe = process_probe
+        self._read_only_adapter = read_only_adapter or _execute_read_only_adapter
+        self._sealed_test_executor = sealed_test_executor or _run_sealed_test
 
     def installation_status(self) -> InstallationStatusDTO:
         _, report = inspect_installation()
@@ -871,6 +894,128 @@ class WorkerLabApplicationService:
             cancelled,
         )
 
+    def dispatch_invocation(
+        self,
+        invocation_id: str,
+        expected_identity_digest: str,
+        controller_identity: str,
+        workspace_root: Path,
+    ) -> OperationResultDTO:
+        """Dispatch one exact read-only invocation through the sealed primitives."""
+        invocation_id = _identity(invocation_id)
+        expected = _digest(expected_identity_digest)
+        controller = validate_controller_identity(controller_identity)
+        workspace_root = _absolute_path_argument(workspace_root, "workspace root")
+        self._require_present_data_root()
+        invocation_store = InvocationStore(self.data_root / "state")
+        invocation = invocation_store.read(invocation_id)
+        if invocation.identity_digest() != expected:
+            raise LabValidationError(
+                "INTEGRATION_IDENTITY_INVALID",
+                "invocation identity differs from dispatch command",
+            )
+        if invocation.state is not InvocationState.AUTHORIZED:
+            raise LabValidationError(
+                "INTEGRATION_AUTHORIZATION_INVALID",
+                "dispatch requires an authorized invocation",
+            )
+        if invocation.authorized_by != controller:
+            raise LabValidationError(
+                "OPERATOR_CONTROLLER_MISMATCH",
+                "dispatch controller differs from invocation authorization",
+            )
+        attempt = AttemptStore(self.data_root / "state").read(invocation.attempt_id)
+        _validate_dispatch_attempt_binding(attempt, invocation)
+        _validate_dispatch_definitions(self.data_root, attempt, invocation)
+        manifest, _ = inspect_installation()
+        require_execution_enabled(manifest)
+        if (
+            invocation.operation is not InvocationOperation.READ_ONLY_PROPOSAL
+            or invocation.sandbox_mode != "read-only"
+        ):
+            raise LabValidationError(
+                "INTEGRATION_OPERATION_INVALID",
+                "service dispatch supports read-only proposals only",
+            )
+        receipt = verify_workspace(self.data_root, attempt.attempt_id, workspace_root)
+        if (
+            receipt.digest() != invocation.workspace_receipt_digest
+            or receipt.workspace_root_digest != invocation.workspace_root_digest
+            or receipt.workspace_path_digest != invocation.workspace_path_digest
+        ):
+            raise LabValidationError(
+                "INTEGRATION_IDENTITY_INVALID",
+                "verified workspace differs from invocation",
+            )
+
+        state_root = self.data_root / "state"
+        _require_no_dispatch_artifacts(state_root, invocation_id)
+        prompt = _load_prompt(state_root, invocation)
+        workspace_path = workspace_root / attempt.attempt_id
+        invocation_store = InvocationStore(state_root)
+        attempt_store = AttemptStore(state_root)
+        running = attempt_store.bind_authorized_invocation(
+            invocation_store,
+            invocation_id=invocation_id,
+            expected_invocation_identity=expected,
+            occurred_at=self._clock(),
+        )
+        dispatching = transition_invocation(invocation, InvocationState.DISPATCHING)
+        invocation_store.save_transition(
+            dispatching,
+            expected_digest=invocation.digest(),
+        )
+        custody_store = ProcessCustodyStore(state_root)
+        started_at = self._clock()
+        response, observed_runtime_identity = self._read_only_adapter(
+            dispatching,
+            prompt,
+            workspace_path,
+            custody_store,
+        )
+        ended_at = self._clock()
+        custody = custody_store.read(invocation_id)
+        result = accept_execute_response(
+            response,
+            dispatching,
+            custody,
+            runtime_identity=_digest(observed_runtime_identity),
+            started_at=started_at,
+            ended_at=ended_at,
+            state_root=state_root,
+            custody_store=custody_store,
+            evidence_collector=ReadOnlyEvidenceCollector(
+                state_root=state_root,
+                workspace_path=workspace_path,
+                test_executor=self._sealed_test_executor,
+            ),
+        )
+        AtomicRecordStore(state_root).write(f"results/{invocation_id}.json", result)
+        completed = transition_invocation(
+            dispatching,
+            InvocationState.COMPLETED,
+            result_digest=result.digest(),
+        )
+        invocation_store.save_transition(
+            completed,
+            expected_digest=dispatching.digest(),
+        )
+        running = attempt_store.read(attempt.attempt_id)
+        _validate_running_dispatch_binding(running, completed)
+        candidate = transition_attempt(
+            running,
+            AttemptState.CANDIDATE,
+            occurred_at=self._clock(),
+            candidate_digest=result.digest(),
+        )
+        attempt_store.save_transition(candidate)
+        return _operation_result(
+            "dispatch-invocation",
+            "attempt",
+            candidate.attempt_id,
+            candidate,
+        )
+
     def recover_invocation(
         self,
         invocation_id: str,
@@ -1236,6 +1381,109 @@ def _store_prompt(state_root: Path, prompt: bytes) -> None:
     )
 
 
+def _load_prompt(state_root: Path, invocation: InvocationRecord) -> str:
+    """Reload the exact sealed prompt instead of accepting controller-provided text."""
+    try:
+        prompt = AtomicRecordStore(state_root).read_bytes(
+            f"prompts/{invocation.prompt_digest.removeprefix('sha256:')}.txt",
+        )
+    except LabValidationError:
+        raise
+    if _bytes_digest(prompt) != invocation.prompt_digest:
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "retained prompt differs from invocation",
+        )
+    try:
+        return prompt.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "retained prompt is not UTF-8",
+        ) from exc
+
+
+def _require_no_dispatch_artifacts(state_root: Path, invocation_id: str) -> None:
+    store = AtomicRecordStore(state_root)
+    artifacts: tuple[tuple[str, Loader], ...] = (
+        (f"results/{invocation_id}.json", ResultRecord.from_mapping),
+        (f"process-custody/{invocation_id}.json", ProcessCustodyRecord.from_mapping),
+    )
+    for path, loader in artifacts:
+        if os.path.lexists(state_root / path):
+            store.read(path, loader)
+            raise LabValidationError(
+                "INTEGRATION_AUTHORIZATION_INVALID",
+                "invocation already has durable dispatch evidence",
+            )
+
+
+def _execute_read_only_adapter(
+    invocation: InvocationRecord,
+    prompt: str,
+    workspace_path: Path,
+    custody_store: ProcessCustodyStore,
+) -> tuple[bytes, str]:
+    """Use the framework client and Job Object runner for an enabled production dispatch."""
+    configuration = pinned_framework_configuration()
+    if configuration.framework_installation_digest != invocation.framework_installation_digest:
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "framework installation differs from invocation",
+        )
+    framework_evidence = inspect_configuration(configuration)
+    worker_evidence = inspect_worker_lab_identity(
+        Path(__file__).resolve().parents[1],
+        invocation.worker_lab_installation_digest,
+    )
+    observed_runtime_identity = runtime_identity(
+        configuration,
+        invocation,
+        evidence=framework_evidence,
+    )
+    runner = WindowsJobAdapterRunner(
+        custody_store,
+        invocation=invocation,
+        timeout_seconds=invocation.timeout_seconds,
+        workspace_path=workspace_path,
+    )
+    response = call_adapter(
+        invocation,
+        configuration,
+        "execute-read-only",
+        prompt=prompt,
+        evidence=framework_evidence,
+        worker_lab_evidence=worker_evidence,
+        runner=runner,
+    )
+    return response, observed_runtime_identity
+
+
+def _run_sealed_test(definition: TestDefinition, workspace_path: Path) -> int:
+    """Run only a protected command test after the read-only adapter is absent."""
+    if definition.runner is not TestRunner.COMMAND:
+        raise LabValidationError(
+            "INTEGRATION_EVALUATOR_INVALID",
+            "read-only dispatch supports protected command tests only",
+        )
+    try:
+        process = subprocess.run(
+            list(definition.command),
+            cwd=workspace_path,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise LabValidationError(
+            "INTEGRATION_VALIDATION_FAILED",
+            "sealed evaluator did not complete",
+        ) from exc
+    return process.returncode
+
+
 def _state(name: str) -> State:
     def read(record: _Record) -> str | None:
         value = getattr(record, name)
@@ -1339,6 +1587,112 @@ def _validate_recovery_attempt_binding(
         raise LabValidationError(
             "INTEGRATION_IDENTITY_INVALID",
             "recovery invocation differs from its running attempt",
+        )
+
+
+def _validate_dispatch_attempt_binding(
+    attempt: AttemptRecord,
+    invocation: InvocationRecord,
+) -> None:
+    if (
+        attempt.state is not AttemptState.READY
+        or attempt.runtime_identity is not None
+        or attempt.candidate_digest is not None
+        or invocation.attempt_id != attempt.attempt_id
+        or invocation.exercise_id != attempt.exercise_id
+        or invocation.exercise_version != attempt.exercise_version
+        or invocation.policy_id != attempt.policy_id
+        or invocation.policy_version != attempt.policy_version
+        or invocation.policy_digest != attempt.policy_digest
+        or invocation.role_id != attempt.role_id
+        or invocation.role_version != attempt.role_version
+        or invocation.role_digest != attempt.role_digest
+        or invocation.context_digest != attempt.context_digest
+        or invocation.task_digest != attempt.task_digest
+        or invocation.test_catalog_version != attempt.evaluator_catalog_version
+        or invocation.test_catalog_digest != attempt.evaluator_catalog_digest
+        or invocation.starting_commit != attempt.starting_commit
+        or invocation.sandbox_mode != attempt.sandbox_mode
+    ):
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "authorized invocation differs from dispatch attempt",
+        )
+
+
+def _validate_dispatch_definitions(
+    data_root: Path,
+    attempt: AttemptRecord,
+    invocation: InvocationRecord,
+) -> None:
+    definitions = AtomicRecordStore(data_root / "curricula")
+    exercise = definitions.read(
+        f"exercises/{invocation.exercise_id}/v{invocation.exercise_version}.json",
+        ExerciseRecord.from_mapping,
+    )
+    policy = definitions.read(
+        f"policies/{invocation.policy_id}/v{invocation.policy_version}.json",
+        PolicyRecord.from_mapping,
+    )
+    role = definitions.read(
+        f"roles/{invocation.role_id}/v{invocation.role_version}.json",
+        RoleRecord.from_mapping,
+    )
+    context = definitions.read(
+        "contexts/"
+        f"{invocation.context_manifest_id}/v{invocation.context_manifest_version}.json",
+        ContextManifest.from_mapping,
+    )
+    catalog = definitions.read(
+        f"catalogs/{invocation.test_catalog_version}.json",
+        TestCatalog.from_mapping,
+    )
+    _validate_prepared_attempt(attempt, exercise, policy, role, context, catalog)
+    if (
+        invocation.exercise_digest != exercise.digest()
+        or invocation.policy_digest != policy.digest()
+        or invocation.role_digest != role.digest()
+        or invocation.context_digest != context.digest()
+        or invocation.test_catalog_digest != catalog.digest()
+    ):
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "invocation differs from protected dispatch definitions",
+        )
+    ReadOnlyEvaluationPlanStore(data_root / "state").read(
+        invocation.invocation_id,
+    ).validate(invocation, catalog)
+
+
+def _validate_running_dispatch_binding(
+    attempt: AttemptRecord,
+    invocation: InvocationRecord,
+) -> None:
+    if (
+        attempt.state is not AttemptState.RUNNING
+        or attempt.runtime_identity != invocation.identity_digest()
+        or attempt.candidate_digest is not None
+        or invocation.state is not InvocationState.COMPLETED
+        or invocation.result_digest is None
+        or invocation.attempt_id != attempt.attempt_id
+        or invocation.exercise_id != attempt.exercise_id
+        or invocation.exercise_version != attempt.exercise_version
+        or invocation.policy_id != attempt.policy_id
+        or invocation.policy_version != attempt.policy_version
+        or invocation.policy_digest != attempt.policy_digest
+        or invocation.role_id != attempt.role_id
+        or invocation.role_version != attempt.role_version
+        or invocation.role_digest != attempt.role_digest
+        or invocation.context_digest != attempt.context_digest
+        or invocation.task_digest != attempt.task_digest
+        or invocation.test_catalog_version != attempt.evaluator_catalog_version
+        or invocation.test_catalog_digest != attempt.evaluator_catalog_digest
+        or invocation.starting_commit != attempt.starting_commit
+        or invocation.sandbox_mode != attempt.sandbox_mode
+    ):
+        raise LabValidationError(
+            "INTEGRATION_IDENTITY_INVALID",
+            "completed invocation differs from running attempt",
         )
 
 
