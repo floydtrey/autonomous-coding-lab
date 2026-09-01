@@ -53,7 +53,7 @@ python -m worker_lab.cli synthetic-read-only `
   --authorize-once AUTHORIZE-SYNTHETIC-READ-ONLY-ONCE
 ```
 
-This command is not standing authority. With the committed disabled policy it returns `INTEGRATION_EXECUTION_DISABLED` before creating the run directory or launching any subprocess. A separately reviewed proof procedure must temporarily activate only Worker Lab and the framework, name the exact run, and restore disabled policy afterward.
+This command is not standing authority. With the committed disabled policy it returns `INTEGRATION_EXECUTION_DISABLED` before creating the run directory or launching any subprocess. The accepted Phase 2 proof temporarily activated only Worker Lab and the framework, ran once, and restored disabled policy; future runs must preserve the same bounded authority and evidence controls.
 
 When an authorized run is admitted, Worker Lab writes strict activation and one-time authorization evidence before adapter preflight. The authorization is bound to the controller, canonical run-directory digest, invocation identity, installed component digests, and pinned runtime identities. Reusing the same directory is rejected.
 
@@ -134,4 +134,4 @@ Before committing results:
 
 ## Worker execution gate
 
-Do not call `worker_lab_adapter.py execute-read-only`, the guarded synthetic command, or any workspace-write path as routine operation. The first proof procedure must name the accepted installation identity, controller, one-time authorization, disposable run directory, synthetic target and commit, sandbox, test catalog, stop conditions, and explicit human approval. Until that procedure is reviewed and authorized, execution remains disabled.
+Do not call `worker_lab_adapter.py execute-read-only`, the guarded synthetic command, or any workspace-write path as routine operation. Each run must name the accepted installation identity, controller, one-time authorization, disposable run directory or target, sandbox, test catalog, stop conditions, and applicable authority. The committed default remains disabled even after a successful proof.

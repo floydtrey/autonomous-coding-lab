@@ -19,16 +19,16 @@ This work plan governs sequencing and completion gates. It does not itself autho
 
 ## Executive assessment
 
-Phase 1 produced an accepted, remotely recoverable consolidated checkpoint. The repository is not yet a runnable integrated product because real execution has not been authorized or proven.
+Phase 1 produced an accepted, remotely recoverable consolidated checkpoint, and Phase 2 proved one real disposable read-only run. The repository is not yet a general runnable product because the application service and workspace-write bridge remain incomplete.
 
 - Worker Lab has strong authority, record, lifecycle, storage, workspace, evidence, and recovery foundations.
 - The framework has strong security, Codex runtime, code-task, validation, candidate, and handoff foundations.
 - Local Model Bench is functional advisory infrastructure and is not a runtime dependency.
 - Installation identity v2 is strict, bilateral, and enforced while execution remains disabled.
-- A guarded synthetic read-only execution path is nearly complete but has not been run after consolidation.
+- The guarded synthetic read-only path is proven with one retained `CANDIDATE`, unchanged workspace, and verified process absence.
 - Workspace-write coding-worker execution exists in the framework but is not connected to Worker Lab.
 - No functional Worker Lab GUI or shared application-service interface exists.
-- The next gate is one explicitly authorized, disposable read-only proof after its non-executing operator controls are complete.
+- The next gate is the shared application service used by both CLI and the future GUI.
 
 The shortest safe path is:
 
@@ -45,14 +45,15 @@ stabilize merger identity
 
 - Repository: `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
 - Branch: `main`
-- Last accepted project checkpoint: `06a7d21f5cf06ef26b489a6e786521feaeb6fd21`
+- Last accepted repository checkpoint before the proof: `782b9a7dcbfd7f511ac708ce3859405434a11505`
 - Accepted Phase 1 runtime checkpoint: `5f6c41da132daa12f0bb8c4be054112d77ef7e54`
 - Remote relationship at acceptance: local `main` and `origin/main` matched with zero divergence
 - Working tree at acceptance: clean
 - Installation manifest: committed and independently enforced by Worker Lab and the framework adapter
 - Worker execution policy: `DISABLED`
 - Phase 1: complete
-- Phase 2 readiness: complete at `06a7d21`; real execution not yet authorized
+- Phase 2: complete; retained attempt `SYNTHETIC-545B69F603DB4806AAB5107A1D8EDCAB` reached `CANDIDATE`
+- Phase 3: next
 
 Commit/push authority is separate from worker/model execution authority.
 
@@ -127,16 +128,6 @@ The Worker Lab suite ran from a valid short disposable path outside every Git re
 
 ## Remaining blocking problems
 
-### P1 — No general operator execution path
-
-`worker_lab.synthetic_read_only.run()` contains a nearly complete real read-only flow, but it:
-
-- has no supported CLI or root launcher;
-- creates one hardcoded synthetic curriculum and exercise;
-- treats entry into the function as authority and records a fixed controller name;
-- does not consume the accepted disabled activation policy;
-- has not been proven after the merger identity adaptation.
-
 ### P1 — Workspace-write worker bridge missing
 
 Worker Lab recognizes `workspace-write-code-task`, and the framework separately implements bounded workspace-write code tasks. The adapter supports only `execute-read-only` and rejects non-read-only operations. Missing work includes:
@@ -169,9 +160,9 @@ The installed Qwen, DeepSeek, Phi-4, and Vera models are used only through Local
 |---|---|---|
 | Human scope -> planner proposal | Benchmark-only | Add an advisory planner interface later |
 | Planner proposal -> authorized Worker Lab task | Missing | Schema validation, ambiguity handling, human approval, record creation |
-| Worker Lab read-only invocation -> framework | Partial | Finish identity, expose operator command, run one real proof |
+| Worker Lab read-only invocation -> framework | Proven for synthetic path | Generalize only through the application service |
 | Worker Lab workspace-write invocation -> framework code task | Missing | Protocol v2 and adapter bridge |
-| Framework result -> Worker Lab read-only evidence | Implemented for synthetic path | Re-prove after identity repair |
+| Framework result -> Worker Lab read-only evidence | Proven for synthetic path | Preserve the accepted identity/evidence boundary |
 | Framework result -> write-candidate evidence | Missing | Changed-path/test/candidate collector |
 | Candidate -> trusted review | Library primitives only | Application service and operator commands |
 | Candidate -> commit/publish/merge | Framework primitives exist | Keep separate and approval-gated; not an initial GUI requirement |
@@ -213,7 +204,7 @@ Completion gate:
 
 ### Phase 2 — Prove one real read-only worker
 
-**Status:** Readiness controls accepted at `06a7d21`. The one real proof is next and still requires separate explicit worker/model authorization.
+**Status:** Complete. Attempt `SYNTHETIC-545B69F603DB4806AAB5107A1D8EDCAB` reached `CANDIDATE`; the workspace remained unchanged; process absence was verified; and execution returned to disabled.
 
 **Objective:** Execute exactly one disposable, bounded read-only proposal through the consolidated installation.
 
@@ -236,6 +227,8 @@ Completion gate:
 - execution returns to disabled after the proof if a temporary activation was used.
 
 ### Phase 3 — Create the application service
+
+**Status:** Next.
 
 **Objective:** Give CLI and GUI one stable, tested interface to Worker Lab behavior.
 
@@ -347,7 +340,7 @@ Completion gate:
 
 The next implementation request should be:
 
-> Review and explicitly authorize exactly one disposable synthetic read-only proof. Name the controller identity and new external run directory, approve the exact one-time confirmation, temporarily activate only Worker Lab and the framework, run one proposal, verify process absence, unchanged workspace, exact retained evidence, `CANDIDATE` lifecycle state, and recovery behavior, then restore and verify disabled execution before accepting the proof.
+> Begin Phase 3 with a shared Worker Lab application-service interface while execution remains disabled. Add strict non-mutating health, installation-status, list, and show operations for definitions and durable attempt/invocation/result/evidence state; expose them through the CLI; define stable DTOs for the future GUI; and add fail-closed tests before implementing mutating lifecycle commands.
 
 ## Change-control rules for this plan
 

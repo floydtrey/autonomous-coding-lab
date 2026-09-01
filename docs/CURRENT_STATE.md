@@ -6,7 +6,7 @@
 
 **Branch:** `main`
 
-**Last accepted checkpoint:** `06a7d21f5cf06ef26b489a6e786521feaeb6fd21`
+**Last accepted repository checkpoint before the proof:** `782b9a7dcbfd7f511ac708ce3859405434a11505`
 
 **Remote relationship at acceptance:** local `main` and `origin/main` matched with zero divergence
 
@@ -16,7 +16,7 @@
 
 Phase 1 is complete. The consolidated repository now has a clean, remotely recoverable checkpoint with strict installed-component identity, current active documentation, preserved legacy records, and passing root/component validation. No worker or model was run.
 
-Phase 2 readiness is complete. The accepted operator surface now has a non-executing doctor, a guarded synthetic read-only command, explicit controller/run-directory/one-time authorization inputs, durable activation/authorization evidence, and fail-closed interruption recovery. The one-run proof still requires separate explicit worker/model authorization.
+Phase 2 is complete. Exactly one authorized synthetic read-only Codex proposal ran through Worker Lab and the framework, reached `CANDIDATE`, retained exact evidence, left the disposable workspace unchanged, and ended with verified process absence. The installation was restored to disabled immediately afterward.
 
 ## Accepted Phase 1 checkpoint
 
@@ -64,6 +64,25 @@ Validation for this checkpoint did not run a worker or model:
 - doctor reported Worker Lab digest `sha256:a98085ec33a89616e388a490382c25043088c79196c5a3a671d46e07ca5670cf` and `execution_ready: false`;
 - local `main` and `origin/main` matched after the readiness commit was pushed.
 
+## Accepted Phase 2 proof
+
+The bounded proof used controller `codex-primary-controller` and external run directory `C:\Users\MineTrackerWorker\Documents\ChatGPT\Autonomous Coding Lab\phase2-proof-20260831-01`. The retained run contains exactly one attempt, invocation, result, proposal, and process-custody record.
+
+- attempt: `SYNTHETIC-545B69F603DB4806AAB5107A1D8EDCAB`, state `CANDIDATE`;
+- invocation: `INVOCATION-3F76D29A63C74917BE8387CCA81EE995`, state `COMPLETED`;
+- authorization: `AUTHORIZATION-B2BA9B0F7F364E648C23F48EFF69CB37`, bound to the controller, run-directory digest, activation evidence, and invocation;
+- result/candidate digest: `sha256:ae7c1ef757d61bdb89b84b60ea2326d3871113184b3481d7b0298135131d4e2a`;
+- proposal digest: `sha256:2b8e11c4a51e5f316132841be9d4aaa116b224078fc7774339ad54cc2d8ee1cc`, matching the retained proposal bytes;
+- activation manifest digest: `sha256:3e67ea4937c46deefa90070632c560242fdda1c98ae69033507887a1b58ffbfd`, with only Worker Lab and the framework active and Local Model Bench advisory;
+- workspace: detached at synthetic commit `9c97b63df9569848c7f56c5e8df56bfa6b1abd2a`, unchanged, zero changed paths, and no remotes;
+- sealed validation: `T001` passed;
+- custody: `ABSENCE_VERIFIED`, zero active processes at `2026-09-01T02:31:24Z`;
+- external product repositories accessed: none;
+- verified durable backup: 14 files under the retained run directory, manifest SHA-256 `3cb8c9a55806d8b858ff1ab6fd3b2220f42563d20214ba5b062868d64eda6a87`;
+- post-proof doctor: manifest digest `sha256:2ffd73d1a6edf49ea906393de7dd89411a9d94c62d1cddb574f246aa3382a826`, `execution_ready: false`, Worker Lab deferred, framework available.
+
+Interruption and recovery behavior remains covered by the accepted deterministic tests; recovery was not applied to the successful retained candidate.
+
 ## Proven component capabilities
 
 ### Worker Lab
@@ -92,7 +111,6 @@ A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON r
 
 ## Not yet available
 
-- An accepted real Worker Lab-to-framework execution proof in this monorepo.
 - A general workspace-write bridge from Worker Lab to the framework.
 - A shared application-service interface for CLI and GUI clients.
 - A functional Worker Lab GUI.
@@ -101,7 +119,7 @@ A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON r
 
 ## Immediate next gate
 
-Obtain explicit authorization for exactly one synthetic read-only proof. That authorization must name the controller identity, new external run directory, one-time confirmation, temporary activation of Worker Lab/framework only, and the requirement to restore disabled policy immediately afterward. Then verify exact retained evidence, an unchanged disposable workspace, process absence, lifecycle state, and restored disabled installation state.
+Begin Phase 3 by defining a shared application-service interface over the accepted Worker Lab stores and lifecycle operations. The first packet should be non-mutating health/list/show queries and strict DTOs shared by CLI and the future GUI; execution remains disabled while that interface is established.
 
 The trusted dependency-ordered delivery plan for worker execution and the Worker Lab GUI is `docs/WORKPLAN.md`.
 
