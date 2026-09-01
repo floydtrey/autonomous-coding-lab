@@ -26,16 +26,16 @@ Phase 3 is complete at `00b1769`. Its shared service provides strict read-only q
 
 The accepted Phase 3 working tree completes the read-only dispatch packet. `dispatch-invocation` reloads exact authorization, controller, attempt, workspace, prompt, runtime, custody, and result identities; invokes the framework client, adapter, Windows Job, and sealed read-only-evidence primitives only after the execution gate; and leaves failed outcomes recoverable.
 
-## Phase 4 implementation-only working tree
+## Accepted Phase 4 implementation bridge checkpoint
 
-The current unaccepted working tree begins the workspace-write bridge; it is not a Phase 4 proof or completion claim.
+Commit `8862880` establishes the workspace-write bridge; it is not a Phase 4 proof or completion claim.
 
 - The read-only `worker-lab-framework-adapter:v2` protocol remains unchanged and rejects workspace-write operations. The separate `worker-lab-framework-adapter:v3` operation accepts only the versioned workspace-write task contract.
 - The framework reconstructs and validates its consumer profile/context packet, existing `code_task`, candidate-content, and repository-handoff primitives. It returns only canonical, bounded candidate identity evidence.
 - `WorkerLabApplicationService.dispatch_invocation` routes an authorized workspace-write invocation through the same gate-first lifecycle and Windows Job custody boundary as read-only dispatch, then accepts a candidate only after exact path, HEAD, diff, sealed-test, custody, and retained candidate-manifest checks.
 - Production execution remains disabled. The implementation was exercised only through deterministic injected adapters against test repositories; no worker, Codex, model, adapter execution mode, or external/product repository ran.
 
-Current current-tree validation: framework bridge tests **63 passed**; framework compile/full validation **213 passed**; Worker Lab application-service/framework-client/integration tests **70 passed**; Worker Lab full suite **369 passed** with seven expected Windows symlink-capability skips. The manifest now identifies framework runtime closure `sha256:b9c1061422b0cb28e94086f070ddf8fe4bf4c7a744b7e8589af2dca2b87de1f8` and Worker Lab production tree `sha256:7ec7255a1853b21ed4888846b0063565d2898505ab6535e07f174d4809a4fd99`; execution remains disabled. This is current-working-tree evidence only, not an accepted checkpoint.
+Validation: framework bridge tests **63 passed**; framework compile/full validation **213 passed**; Worker Lab application-service/framework-client/integration tests **70 passed**; Worker Lab full suite **369 passed** with seven expected Windows symlink-capability skips. The manifest identifies framework runtime closure `sha256:b9c1061422b0cb28e94086f070ddf8fe4bf4c7a744b7e8589af2dca2b87de1f8` and Worker Lab production tree `sha256:7ec7255a1853b21ed4888846b0063565d2898505ab6535e07f174d4809a4fd99`; execution remains disabled. This implementation checkpoint is accepted, but it does not prove or complete Phase 4.
 
 ## Accepted Phase 1 checkpoint
 
