@@ -14,9 +14,9 @@ Local Model Bench is peer/advisory infrastructure, not a runtime dependency of W
 
 ## Current status
 
-The three source histories and component trees have been consolidated. The last accepted checkpoint is commit `d3e67b970e90eeb52dd854b5eda1f812232b05fe`.
+The three source histories and component trees have been consolidated. The accepted Phase 1 runtime checkpoint is commit `5f6c41da132daa12f0bb8c4be054112d77ef7e54`; its current-state acceptance record is committed at `8c4f697`.
 
-Worker execution is currently **disabled**. The working tree contains a validated installation-identity v2 candidate and a completed documentation/archive replacement. Those changes are not an accepted runtime checkpoint until they are reviewed, committed, and recovered on the private remote.
+Worker execution is currently **disabled**. Phase 2 operator-readiness work may add non-executing inspection, authorization, and recovery controls, but no worker or model may run without separate explicit authority for the bounded proof.
 
 Read [Start Here](docs/START_HERE.md) before changing the repository. The exact accepted and in-progress state is in [Current State](docs/CURRENT_STATE.md).
 

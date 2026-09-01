@@ -1,6 +1,6 @@
 # Operations
 
-This guide covers safe local inspection and benchmark operation on Windows. Worker execution remains disabled and is intentionally not presented as a normal operator command.
+This guide covers safe local inspection and benchmark operation on Windows. Worker execution remains disabled. The synthetic proof command is documented so its authority boundary can be reviewed, but it fails before creating a run directory while the installation policy is disabled.
 
 Run commands from `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab` unless a section says otherwise.
 
@@ -30,14 +30,42 @@ From `components\worker-lab` with a Python 3.12 environment:
 
 ```powershell
 python -m worker_lab.cli --help
+python -m worker_lab.cli doctor
 python -m worker_lab.cli --root <lab-data-root> list-curricula
 python -m worker_lab.cli validate-definition <definition.json>
 python -m worker_lab.cli verify-backup <backup-directory>
 ```
 
-Creating attempts or workspaces changes durable state and requires an explicit task. No Worker Lab CLI command currently authorizes framework execution.
+`doctor` verifies the strict installation manifest, complete component file sets, and pinned Python/Codex identities. It does not launch the framework adapter, Codex, or a local model. An `execution_ready` value of `false` is the expected result while policy is disabled.
+
+Creating attempts or workspaces changes durable state and requires an explicit task. The existence of a CLI command does not authorize framework execution.
 
 Backups include durable `curricula/` and `state/` data only. Source code, repository internals, caches, and disposable workspaces are not backup content.
+
+## Synthetic read-only proof boundary
+
+The supported Phase 2 command requires all three operator inputs: a new absolute run directory outside every Git repository, a stable controller identity, and the exact one-time confirmation phrase.
+
+```powershell
+python -m worker_lab.cli synthetic-read-only `
+  --run-directory C:\worker-lab-runs\phase2-proof `
+  --controller <controller-identity> `
+  --authorize-once AUTHORIZE-SYNTHETIC-READ-ONLY-ONCE
+```
+
+This command is not standing authority. With the committed disabled policy it returns `INTEGRATION_EXECUTION_DISABLED` before creating the run directory or launching any subprocess. A separately reviewed proof procedure must temporarily activate only Worker Lab and the framework, name the exact run, and restore disabled policy afterward.
+
+When an authorized run is admitted, Worker Lab writes strict activation and one-time authorization evidence before adapter preflight. The authorization is bound to the controller, canonical run-directory digest, invocation identity, installed component digests, and pinned runtime identities. Reusing the same directory is rejected.
+
+For a recorded interrupted run, recovery is explicit and does not activate execution:
+
+```powershell
+python -m worker_lab.cli recover-synthetic-read-only `
+  --run-directory C:\worker-lab-runs\phase2-proof `
+  --controller <same-controller-identity>
+```
+
+Pre-dispatch recovery verifies the unchanged workspace, terminates the durable invocation, removes the disposable workspace, and records the aborted attempt. Post-dispatch recovery proceeds only from exact process-custody absence evidence and an unchanged workspace; uncertainty remains fail-closed.
 
 ## Local Model Bench setup
 
@@ -106,4 +134,4 @@ Before committing results:
 
 ## Worker execution gate
 
-Do not call `worker_lab_adapter.py execute-read-only` or any workspace-write path from routine operations. A future execution procedure must name the accepted installation identity, authorized attempt, target repository and commit, sandbox, test catalog, stop conditions, and human approval. Until that procedure is reviewed, execution remains disabled.
+Do not call `worker_lab_adapter.py execute-read-only`, the guarded synthetic command, or any workspace-write path as routine operation. The first proof procedure must name the accepted installation identity, controller, one-time authorization, disposable run directory, synthetic target and commit, sandbox, test catalog, stop conditions, and explicit human approval. Until that procedure is reviewed and authorized, execution remains disabled.

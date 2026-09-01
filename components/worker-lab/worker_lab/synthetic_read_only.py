@@ -43,6 +43,7 @@ from .integration import (
     InvocationState,
     transition_invocation,
 )
+from .installation_manifest import require_execution_enabled
 from .invocation_store import InvocationStore
 from .lifecycle import transition_attempt
 from .models import (
@@ -56,7 +57,18 @@ from .models import (
     WorkspaceReceipt,
 )
 from .policy import CONTEXT_MANIFEST_SCHEMA, POLICY_SCHEMA, ROLE_SCHEMA, ContextManifest, PolicyRecord, RoleRecord
-from .process_custody import ProcessCustodyStore
+from .process_custody import CustodyState, ProcessCustodyStore
+from .operator_control import (
+    RecoveryEvidence,
+    inspect_installation,
+    persist_operator_evidence,
+    read_operator_evidence,
+    require_one_time_confirmation,
+    run_directory_digest,
+    validate_controller_identity,
+    validate_existing_run_directory,
+    validate_new_run_directory,
+)
 from .read_only_evidence import (
     READ_ONLY_EVALUATION_PLAN_SCHEMA,
     ReadOnlyEvaluationPlan,
@@ -66,8 +78,12 @@ from .read_only_evidence import (
 from .storage import AtomicRecordStore
 from .test_catalog import CATALOG_SCHEMA, ChangeFacts, CostClass, TestCatalog, TestDefinition, TestMode, TestProfile, TestRunner
 from .validation import attempt_task_digest
-from .windows_job import WindowsJobAdapterRunner
-from .workspace import prepare_workspace
+from .windows_job import (
+    WindowsJobAdapterRunner,
+    inspect_launch_workspace,
+    recover_absence_after_controller_exit,
+)
+from .workspace import discard_workspace, prepare_workspace, verify_workspace
 
 
 SYNTHETIC_CATALOG_VERSION = "synthetic-read-only-v1"
@@ -75,13 +91,18 @@ SYNTHETIC_PROFILE_ID = "READ_ONLY_INVOCATION:v1"
 SYNTHETIC_TEST_ID = "T001"
 
 
-def run(run_root: Path) -> str:
+def run(run_root: Path, *, controller_identity: str, authorization: str) -> str:
     """Create and execute exactly one isolated read-only synthetic proposal.
 
     ``run_root`` must not exist.  Its durable evidence is retained there for
     review.  This function is the only production entry point in this module.
     """
-    root = _new_root(run_root)
+    controller = validate_controller_identity(controller_identity)
+    require_one_time_confirmation(authorization)
+    manifest, doctor = inspect_installation()
+    validated_root = validate_new_run_directory(run_root, manifest.installation_root)
+    require_execution_enabled(manifest)
+    root = _new_root(validated_root)
     template = root / "template"
     lab = root / "lab"
     workspace_root = root / "workspaces"
@@ -99,13 +120,24 @@ def run(run_root: Path) -> str:
     worker_evidence = inspect_worker_lab_identity(
         Path(__file__).resolve().parents[1], invocation.worker_lab_installation_digest,
     )
+    invocations.create(invocation)
+    observed_at = _now()
+    persist_operator_evidence(
+        lab / "state",
+        manifest=manifest,
+        report=doctor,
+        run_directory=root,
+        controller_identity=controller,
+        invocation_id=invocation.invocation_id,
+        invocation_digest=invocation.identity_digest(),
+        observed_at=observed_at,
+    )
     _direct_adapter_runner(
         invocation, configuration, "prepare", prompt, framework_evidence, worker_evidence,
     )
-    invocations.create(invocation)
     authorized = transition_invocation(
-        invocation, InvocationState.AUTHORIZED, authorized_by="trusted-controller",
-        authorized_at=_now(),
+        invocation, InvocationState.AUTHORIZED, authorized_by=controller,
+        authorized_at=observed_at,
     )
     invocations.save_transition(authorized, expected_digest=invocation.digest())
     _direct_adapter_runner(
@@ -150,10 +182,104 @@ def run(run_root: Path) -> str:
     return canonical_json(result.to_dict())
 
 
+def recover(run_root: Path, *, controller_identity: str) -> str:
+    """Recover a recorded synthetic interruption without granting new execution authority."""
+    controller = validate_controller_identity(controller_identity)
+    manifest, _ = inspect_installation()
+    root = validate_existing_run_directory(run_root, manifest.installation_root)
+    lab = root / "lab"
+    workspace_root = root / "workspaces"
+    activation, authorization = read_operator_evidence(lab / "state")
+    if (
+        authorization.controller_identity != controller
+        or authorization.run_directory_digest != run_directory_digest(root)
+        or activation.execution_authority != "ENABLED"
+        or activation.participant_states.get("worker-lab") != "ACTIVE"
+        or activation.participant_states.get("autonomous-worker-framework") != "ACTIVE"
+    ):
+        raise LabValidationError("OPERATOR_EVIDENCE_INVALID", "recovery authority evidence differs")
+
+    invocations = InvocationStore(lab / "state")
+    invocation = invocations.read(authorization.invocation_id)
+    if invocation.identity_digest() != authorization.invocation_digest:
+        raise LabValidationError("OPERATOR_EVIDENCE_INVALID", "recovery invocation identity differs")
+    attempts = AttemptStore(lab / "state")
+    attempt = attempts.read(invocation.attempt_id)
+    occurred_at = _now()
+
+    if attempt.state is AttemptState.READY:
+        verify_workspace(lab, attempt.attempt_id, workspace_root)
+        if invocation.state is InvocationState.PREPARED:
+            stopped = transition_invocation(invocation, InvocationState.REJECTED)
+        elif invocation.state is InvocationState.AUTHORIZED:
+            stopped = transition_invocation(invocation, InvocationState.ABORTED)
+        else:
+            raise LabValidationError("OPERATOR_RECOVERY_INVALID", "pre-dispatch invocation state is not recoverable")
+        invocations.save_transition(stopped, expected_digest=invocation.digest())
+        aborted = discard_workspace(
+            lab,
+            attempt.attempt_id,
+            workspace_root,
+            "verified pre-dispatch interruption; workspace removed",
+            occurred_at=occurred_at,
+        )
+        workspace_outcome = "removed after verified pre-dispatch interruption"
+    elif attempt.state is AttemptState.RUNNING:
+        custody_store = ProcessCustodyStore(lab / "state")
+        custody = custody_store.read(invocation.invocation_id)
+        if custody.state is not CustodyState.ABSENCE_VERIFIED:
+            recovered = recover_absence_after_controller_exit(custody)
+            if recovered is None:
+                raise LabValidationError("OPERATOR_RECOVERY_ACTIVE", "original controller is still active")
+            _, verified = recovered
+            custody_store.save_transition(verified, expected_digest=custody.digest())
+            custody = verified
+        workspace = inspect_launch_workspace(workspace_root / attempt.attempt_id)
+        if (
+            custody.state is not CustodyState.ABSENCE_VERIFIED
+            or workspace.workspace_path_digest != invocation.workspace_path_digest
+            or workspace.content_digest != custody.workspace_content_digest
+            or workspace.observed_head != invocation.starting_commit
+            or workspace.status
+        ):
+            raise LabValidationError("OPERATOR_RECOVERY_INVALID", "workspace or custody evidence differs")
+        if invocation.state is InvocationState.DISPATCHING:
+            uncertain = transition_invocation(invocation, InvocationState.UNCERTAIN)
+            invocations.save_transition(uncertain, expected_digest=invocation.digest())
+        elif invocation.state is InvocationState.UNCERTAIN:
+            uncertain = invocation
+        else:
+            raise LabValidationError("OPERATOR_RECOVERY_INVALID", "running invocation state is not recoverable")
+        stopped = transition_invocation(uncertain, InvocationState.ABORTED)
+        invocations.save_transition(stopped, expected_digest=uncertain.digest())
+        aborted = transition_attempt(
+            attempt,
+            AttemptState.ABORTED,
+            occurred_at=occurred_at,
+            cleanup_outcome="adapter absence and unchanged workspace verified; workspace retained",
+        )
+        attempts.save_transition(aborted)
+        workspace_outcome = "unchanged workspace retained after verified process absence"
+    else:
+        raise LabValidationError("OPERATOR_RECOVERY_INVALID", "attempt state is not recoverable")
+
+    evidence = RecoveryEvidence(
+        authorization.authorization_id,
+        controller,
+        aborted.attempt_id,
+        stopped.invocation_id,
+        str(stopped.state),
+        str(aborted.state),
+        workspace_outcome,
+        occurred_at,
+    )
+    AtomicRecordStore(lab / "state").write("operator/recovery.json", evidence)
+    return evidence.to_json()
+
+
 def _new_root(root: Path) -> Path:
     if root.exists() or os.path.lexists(root):
         raise LabValidationError("SYNTHETIC_RUN_ROOT_EXISTS", "synthetic run root must not already exist")
-    root.parent.mkdir(parents=True, exist_ok=True)
     root.mkdir()
     return root.resolve(strict=True)
 
