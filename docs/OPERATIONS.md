@@ -46,6 +46,8 @@ The Phase 3 service queries emit canonical versioned JSON for CLI and future GUI
 
 Creating attempts or workspaces changes durable state and requires an explicit task. The existence of a CLI command does not authorize framework execution.
 
+`create-attempt`, `prepare-workspace`, `verify-workspace`, `transition-attempt`, and `discard-workspace` now use the same application service intended for future GUI clients. The service returns a versioned operation-result DTO internally while the CLI preserves its established record-shaped JSON output. These commands create or change durable state, but they do not create, authorize, or dispatch an invocation.
+
 Backups include durable `curricula/` and `state/` data only. Source code, repository internals, caches, and disposable workspaces are not backup content.
 
 ## Synthetic read-only proof boundary

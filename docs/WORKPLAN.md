@@ -26,10 +26,10 @@ Phase 1 produced an accepted, remotely recoverable consolidated checkpoint, and 
 - Local Model Bench is functional advisory infrastructure and is not a runtime dependency.
 - Installation identity v2 is strict, bilateral, and enforced while execution remains disabled.
 - The guarded synthetic read-only path is proven with one retained `CANDIDATE`, unchanged workspace, and verified process absence.
-- A strict shared application service now exposes non-mutating health, installation-status, list, and show operations through the CLI.
+- A strict shared application service now exposes non-mutating queries and the existing attempt/workspace lifecycle through the CLI.
 - Workspace-write coding-worker execution exists in the framework but is not connected to Worker Lab.
-- No functional Worker Lab GUI exists, and mutating lifecycle operations have not yet moved behind the shared service.
-- The next gate is the mutating application-service command boundary used by both CLI and the future GUI.
+- No functional Worker Lab GUI exists; a disconnected visual prototype is preserved outside the production package.
+- The next gate is the invocation preparation/authorization/rejection service boundary used by both CLI and the future GUI.
 
 The shortest safe path is:
 
@@ -46,7 +46,8 @@ stabilize merger identity
 
 - Repository: `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
 - Branch: `main`
-- Last accepted repository checkpoint: `a288a1507360b527253f603dfeea95b6ef86f589`
+- Last accepted Phase 3 implementation checkpoint: `cf9d45fffdc9309e131739aec03586365d634b35`
+- Isolated GUI prototype checkpoint: `a72f026d57b9d938c4ebba1987379482af4e39b3`
 - Phase 2 proof record checkpoint: `01620a817e13ee4032aeee6c2997a1487496d872`
 - Accepted Phase 1 runtime checkpoint: `5f6c41da132daa12f0bb8c4be054112d77ef7e54`
 - Remote relationship at acceptance: local `main` and `origin/main` matched with zero divergence
@@ -55,7 +56,7 @@ stabilize merger identity
 - Worker execution policy: `DISABLED`
 - Phase 1: complete
 - Phase 2: complete; retained attempt `SYNTHETIC-545B69F603DB4806AAB5107A1D8EDCAB` reached `CANDIDATE`
-- Phase 3: in progress; read-only application-service checkpoint accepted at `a288a15`
+- Phase 3: in progress; read-only checkpoint `a288a15` and attempt/workspace checkpoint `cf9d45f` accepted
 
 Commit/push authority is separate from worker/model execution authority.
 
@@ -146,11 +147,11 @@ Protected policy, roles, and test catalogs exist, but no committed active curric
 
 ### P1 — Operator surface incomplete
 
-The shared CLI service now provides health, installation-status, and strict list/show queries. It cannot yet create/authorize/reject/dispatch/recover invocations, show a complete attempt timeline, cancel a run, or review a candidate. These actions must move behind the same application-service layer before the GUI is connected.
+The shared CLI service now provides health, installation-status, strict list/show queries, attempt creation, workspace preparation/verification/disposal, and guarded attempt transitions. It cannot yet create/authorize/reject/dispatch/recover invocations, show a complete attempt timeline, cancel a run, or review a candidate. These actions must move behind the same application-service layer before the GUI is connected.
 
 ### P2 — Worker Lab GUI absent
 
-The Tkinter file under Local Model Bench is a disposable prompt-learning experiment, not a Worker Lab GUI. There is no dashboard, task editor, authorization view, worker status display, candidate review screen, or GUI-to-service connection.
+An isolated 15-file Tkinter visual prototype exists under `components/worker-lab/prototypes/gui-shell/`. It is not packaged, has no production entrypoint, and is not connected to Worker Lab state or actions. There is still no functional task editor, authorization flow, worker status source, candidate review flow, or GUI-to-service connection.
 
 ### P2 — Local models are not Worker Lab providers
 
@@ -168,7 +169,7 @@ The installed Qwen, DeepSeek, Phi-4, and Vera models are used only through Local
 | Framework result -> write-candidate evidence | Missing | Changed-path/test/candidate collector |
 | Candidate -> trusted review | Library primitives only | Application service and operator commands |
 | Candidate -> commit/publish/merge | Framework primitives exist | Keep separate and approval-gated; not an initial GUI requirement |
-| Worker Lab state -> GUI | Read-only service ready | Connect the GUI after mutating service commands stabilize |
+| Worker Lab state -> GUI | Read-only service and visual prototype ready | Connect the prototype after mutating service commands stabilize |
 | GUI actions -> Worker Lab lifecycle | Missing | Command service with authorization and recovery gates |
 | Local Model Bench -> Worker Lab role selection | Manual/advisory | Retain manual review first; automate only after role evidence is accepted |
 
@@ -230,7 +231,7 @@ Completion gate:
 
 ### Phase 3 — Create the application service
 
-**Status:** In progress. The read-only health/installation/list/show checkpoint is accepted at `a288a15`; mutating lifecycle operations remain.
+**Status:** In progress. Read-only health/installation/list/show is accepted at `a288a15`, and attempt/workspace lifecycle commands are accepted at `cf9d45f`; invocation, recovery, review, and backup command operations remain.
 
 **Objective:** Give CLI and GUI one stable, tested interface to Worker Lab behavior.
 
@@ -342,7 +343,7 @@ Completion gate:
 
 The next implementation request should be:
 
-> Continue Phase 3 while execution remains disabled. Move existing attempt creation, workspace preparation, lifecycle transition, cleanup, and invocation preparation/authorization/rejection behind the shared Worker Lab application service; expose strict command DTOs through the CLI; and test legal and prohibited lifecycle paths before adding any new dispatch operation.
+> Continue Phase 3 while execution remains disabled. Add invocation preparation, authorization, and rejection to the shared Worker Lab application service; bind authorization to a validated controller and exact invocation identity; expose stable command results through the CLI; and test legal and prohibited transitions before adding dispatch.
 
 ## Change-control rules for this plan
 

@@ -1,12 +1,14 @@
 # Current State
 
-**Last updated:** 2026-08-31
+**Last updated:** 2026-09-01
 
 **Repository:** `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
 
 **Branch:** `main`
 
-**Last accepted repository checkpoint:** `a288a1507360b527253f603dfeea95b6ef86f589`
+**Last accepted Phase 3 implementation checkpoint:** `cf9d45fffdc9309e131739aec03586365d634b35`
+
+**Isolated GUI prototype checkpoint:** `a72f026d57b9d938c4ebba1987379482af4e39b3`
 
 **Phase 2 proof record checkpoint:** `01620a817e13ee4032aeee6c2997a1487496d872`
 
@@ -20,7 +22,7 @@ Phase 1 is complete. The consolidated repository now has a clean, remotely recov
 
 Phase 2 is complete. Exactly one authorized synthetic read-only Codex proposal ran through Worker Lab and the framework, reached `CANDIDATE`, retained exact evidence, left the disposable workspace unchanged, and ended with verified process absence. The installation was restored to disabled immediately afterward.
 
-Phase 3 is in progress. Its first checkpoint provides one strict read-only application-service boundary for CLI and future GUI clients. Mutating attempt and invocation lifecycle operations have not yet moved behind that boundary, and execution remains disabled.
+Phase 3 is in progress. Its shared service now provides strict read-only queries plus attempt creation, workspace preparation/verification/disposal, and guarded attempt transitions for CLI and future GUI clients. Invocation preparation, authorization, rejection, recovery, and review operations have not yet moved behind that boundary, and execution remains disabled.
 
 ## Accepted Phase 1 checkpoint
 
@@ -109,6 +111,27 @@ Validation did not run a worker or model:
 - installation status reported manifest digest `sha256:79edaae89f8f5b19d8bd12df1c31d8f7161b2b24999e0d8dee4d669e01cb8976` and Worker Lab digest `sha256:2705bb48173bcfff22d43a5014ae75d62513910684a155dba5ba87b8a7564884`;
 - local `main` and `origin/main` matched at the code checkpoint with zero divergence.
 
+## Accepted Phase 3 attempt/workspace service checkpoint
+
+Commit `cf9d45f` moves the existing attempt and workspace lifecycle behind the shared service without adding an execution path:
+
+- versioned `worker-lab-service-operation-result:v1` DTOs expose the affected record, identity, type, and digest to future clients;
+- `create-attempt`, `prepare-workspace`, `verify-workspace`, `transition-attempt`, and `discard-workspace` route through the service while preserving established CLI JSON;
+- malformed command values and unresolved authority fail before durable state is created;
+- receipt-bound workspaces cannot be bypassed with a generic abort transition;
+- the packet creates no invocation and grants no dispatch authority.
+
+Validation did not run a worker or model:
+
+- focused service/CLI/operator suite: 27 passed;
+- Worker Lab full suite: 347 passed and seven expected Windows symlink-capability skips;
+- framework compile gate and full suite: passed, 208 tests;
+- final bilateral adapter check with a valid short temp path: 36 passed;
+- root inventory tools: 9 passed;
+- doctor reported manifest digest `sha256:ed71ac462cedba9f96bafd5ee01ab750809e3ec0753b9ed6a6ed021f62e41eae`, Worker Lab digest `sha256:9f51aeb953cc689cd160a9e03fd31575fec3825b0b2b5f14713a028632f34fa4`, and `execution_ready: false`.
+
+Commit `a72f026` preserves the user's 15-file Tkinter design under `components/worker-lab/prototypes/gui-shell/`. It parses and imports as an isolated prototype, has no production entrypoint, does not connect to the application service, and is excluded from the protected production-tree identity.
+
 ## Proven component capabilities
 
 ### Worker Lab
@@ -138,14 +161,14 @@ A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON r
 ## Not yet available
 
 - A general workspace-write bridge from Worker Lab to the framework.
-- Mutating application-service operations for attempts, invocations, recovery, review, backup, and restore.
+- Mutating application-service operations for invocations, recovery, review, backup, and restore.
 - A functional Worker Lab GUI.
 - Unsupervised local-model planning, task authorization, code review, publishing, or merging.
 - Production-project access or modification by workers.
 
 ## Immediate next gate
 
-Continue Phase 3 by moving existing attempt creation, workspace preparation, lifecycle transition, cleanup, and invocation preparation/authorization/rejection behind the shared application service. Add strict command DTOs and legal/prohibited-path tests before exposing any new dispatch path. Execution remains disabled.
+Continue Phase 3 by adding invocation preparation, authorization, and rejection to the shared application service with controller-bound command DTOs and legal/prohibited transition tests. Do not add dispatch yet. Execution remains disabled.
 
 The trusted dependency-ordered delivery plan for worker execution and the Worker Lab GUI is `docs/WORKPLAN.md`.
 
