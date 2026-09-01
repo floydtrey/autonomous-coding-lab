@@ -6,7 +6,9 @@
 
 **Branch:** `main`
 
-**Last accepted repository checkpoint before the proof:** `782b9a7dcbfd7f511ac708ce3859405434a11505`
+**Last accepted repository checkpoint:** `a288a1507360b527253f603dfeea95b6ef86f589`
+
+**Phase 2 proof record checkpoint:** `01620a817e13ee4032aeee6c2997a1487496d872`
 
 **Remote relationship at acceptance:** local `main` and `origin/main` matched with zero divergence
 
@@ -17,6 +19,8 @@
 Phase 1 is complete. The consolidated repository now has a clean, remotely recoverable checkpoint with strict installed-component identity, current active documentation, preserved legacy records, and passing root/component validation. No worker or model was run.
 
 Phase 2 is complete. Exactly one authorized synthetic read-only Codex proposal ran through Worker Lab and the framework, reached `CANDIDATE`, retained exact evidence, left the disposable workspace unchanged, and ended with verified process absence. The installation was restored to disabled immediately afterward.
+
+Phase 3 is in progress. Its first checkpoint provides one strict read-only application-service boundary for CLI and future GUI clients. Mutating attempt and invocation lifecycle operations have not yet moved behind that boundary, and execution remains disabled.
 
 ## Accepted Phase 1 checkpoint
 
@@ -83,6 +87,28 @@ The bounded proof used controller `codex-primary-controller` and external run di
 
 Interruption and recovery behavior remains covered by the accepted deterministic tests; recovery was not applied to the successful retained candidate.
 
+## Accepted Phase 3 read-only service checkpoint
+
+Commit `a288a15` establishes the first shared Worker Lab application-service boundary:
+
+- versioned health, installation-status, record-list, and record-detail DTOs;
+- non-mutating list/show coverage for all definition and durable attempt, invocation, result, failure, and evidence collections;
+- deterministic identity ordering and record digests suitable for future GUI clients;
+- strict rejection of invalid roots, substituted storage, corrupt records, duplicate identities, unsupported collections, unsafe identities, and missing records;
+- CLI access through `health`, `installation-status`, `list-records`, and `show-record` without private storage calls;
+- refreshed Worker Lab installed-tree identity while execution remains disabled.
+
+Validation did not run a worker or model:
+
+- focused service tests after final hardening: 7 passed;
+- Worker Lab full suite before the final test-only hardening: 342 passed and seven expected Windows symlink-capability skips;
+- framework bilateral adapter suite: 36 passed;
+- framework compile gate and full suite: passed, 208 tests;
+- root inventory tools: 9 passed;
+- live absent-root health query left the root absent and reported `execution_ready: false`;
+- installation status reported manifest digest `sha256:79edaae89f8f5b19d8bd12df1c31d8f7161b2b24999e0d8dee4d669e01cb8976` and Worker Lab digest `sha256:2705bb48173bcfff22d43a5014ae75d62513910684a155dba5ba87b8a7564884`;
+- local `main` and `origin/main` matched at the code checkpoint with zero divergence.
+
 ## Proven component capabilities
 
 ### Worker Lab
@@ -112,14 +138,14 @@ A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON r
 ## Not yet available
 
 - A general workspace-write bridge from Worker Lab to the framework.
-- A shared application-service interface for CLI and GUI clients.
+- Mutating application-service operations for attempts, invocations, recovery, review, backup, and restore.
 - A functional Worker Lab GUI.
 - Unsupervised local-model planning, task authorization, code review, publishing, or merging.
 - Production-project access or modification by workers.
 
 ## Immediate next gate
 
-Begin Phase 3 by defining a shared application-service interface over the accepted Worker Lab stores and lifecycle operations. The first packet should be non-mutating health/list/show queries and strict DTOs shared by CLI and the future GUI; execution remains disabled while that interface is established.
+Continue Phase 3 by moving existing attempt creation, workspace preparation, lifecycle transition, cleanup, and invocation preparation/authorization/rejection behind the shared application service. Add strict command DTOs and legal/prohibited-path tests before exposing any new dispatch path. Execution remains disabled.
 
 The trusted dependency-ordered delivery plan for worker execution and the Worker Lab GUI is `docs/WORKPLAN.md`.
 

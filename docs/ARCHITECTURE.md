@@ -40,6 +40,8 @@ Worker Lab owns:
 
 Policy, role, curriculum, and evaluator definitions are authority-bearing runtime records. Treating them as ordinary editable preferences would let a worker redefine its own boundaries.
 
+Worker Lab's application service is the client boundary above those records and policies. The CLI uses it now, and the future GUI must use the same service rather than reading or writing storage directly. Its first version exposes strict, versioned, non-mutating health, installation-status, list, and show DTOs; later command methods remain responsible for lifecycle orchestration and authority checks.
+
 ### Autonomous Worker Framework: execution and security
 
 The framework owns:

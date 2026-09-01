@@ -31,12 +31,18 @@ From `components\worker-lab` with a Python 3.12 environment:
 ```powershell
 python -m worker_lab.cli --help
 python -m worker_lab.cli doctor
+python -m worker_lab.cli --root <lab-data-root> health
+python -m worker_lab.cli --root <lab-data-root> installation-status
+python -m worker_lab.cli --root <lab-data-root> list-records <collection>
+python -m worker_lab.cli --root <lab-data-root> show-record <collection> <identity>
 python -m worker_lab.cli --root <lab-data-root> list-curricula
 python -m worker_lab.cli validate-definition <definition.json>
 python -m worker_lab.cli verify-backup <backup-directory>
 ```
 
 `doctor` verifies the strict installation manifest, complete component file sets, and pinned Python/Codex identities. It does not launch the framework adapter, Codex, or a local model. An `execution_ready` value of `false` is the expected result while policy is disabled.
+
+The Phase 3 service queries emit canonical versioned JSON for CLI and future GUI clients. Supported collections are `attempts`, `catalogs`, `contexts`, `curricula`, `evidence`, `exercises`, `failures`, `invocations`, `policies`, `results`, and `roles`. Versioned definition identities use `<name>@v<version>`; other records use their durable record identity. All four operations are non-mutating. Health, list, and show reject invalid data roots; record queries also reject corrupt records, duplicate identities, and unsafe input. Installation-status verifies the installed identity independently of the data root.
 
 Creating attempts or workspaces changes durable state and requires an explicit task. The existence of a CLI command does not authorize framework execution.
 

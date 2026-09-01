@@ -19,16 +19,17 @@ This work plan governs sequencing and completion gates. It does not itself autho
 
 ## Executive assessment
 
-Phase 1 produced an accepted, remotely recoverable consolidated checkpoint, and Phase 2 proved one real disposable read-only run. The repository is not yet a general runnable product because the application service and workspace-write bridge remain incomplete.
+Phase 1 produced an accepted, remotely recoverable consolidated checkpoint, and Phase 2 proved one real disposable read-only run. The repository is not yet a general runnable product because mutating application-service operations and the workspace-write bridge remain incomplete.
 
 - Worker Lab has strong authority, record, lifecycle, storage, workspace, evidence, and recovery foundations.
 - The framework has strong security, Codex runtime, code-task, validation, candidate, and handoff foundations.
 - Local Model Bench is functional advisory infrastructure and is not a runtime dependency.
 - Installation identity v2 is strict, bilateral, and enforced while execution remains disabled.
 - The guarded synthetic read-only path is proven with one retained `CANDIDATE`, unchanged workspace, and verified process absence.
+- A strict shared application service now exposes non-mutating health, installation-status, list, and show operations through the CLI.
 - Workspace-write coding-worker execution exists in the framework but is not connected to Worker Lab.
-- No functional Worker Lab GUI or shared application-service interface exists.
-- The next gate is the shared application service used by both CLI and the future GUI.
+- No functional Worker Lab GUI exists, and mutating lifecycle operations have not yet moved behind the shared service.
+- The next gate is the mutating application-service command boundary used by both CLI and the future GUI.
 
 The shortest safe path is:
 
@@ -45,7 +46,8 @@ stabilize merger identity
 
 - Repository: `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`
 - Branch: `main`
-- Last accepted repository checkpoint before the proof: `782b9a7dcbfd7f511ac708ce3859405434a11505`
+- Last accepted repository checkpoint: `a288a1507360b527253f603dfeea95b6ef86f589`
+- Phase 2 proof record checkpoint: `01620a817e13ee4032aeee6c2997a1487496d872`
 - Accepted Phase 1 runtime checkpoint: `5f6c41da132daa12f0bb8c4be054112d77ef7e54`
 - Remote relationship at acceptance: local `main` and `origin/main` matched with zero divergence
 - Working tree at acceptance: clean
@@ -53,7 +55,7 @@ stabilize merger identity
 - Worker execution policy: `DISABLED`
 - Phase 1: complete
 - Phase 2: complete; retained attempt `SYNTHETIC-545B69F603DB4806AAB5107A1D8EDCAB` reached `CANDIDATE`
-- Phase 3: next
+- Phase 3: in progress; read-only application-service checkpoint accepted at `a288a15`
 
 Commit/push authority is separate from worker/model execution authority.
 
@@ -144,7 +146,7 @@ Protected policy, roles, and test catalogs exist, but no committed active curric
 
 ### P1 — Operator surface incomplete
 
-The CLI cannot create/list/authorize/reject/dispatch/recover invocations, list results, show a complete attempt timeline, cancel a run, or review a candidate. These actions need a stable application-service layer before the GUI is connected.
+The shared CLI service now provides health, installation-status, and strict list/show queries. It cannot yet create/authorize/reject/dispatch/recover invocations, show a complete attempt timeline, cancel a run, or review a candidate. These actions must move behind the same application-service layer before the GUI is connected.
 
 ### P2 — Worker Lab GUI absent
 
@@ -166,7 +168,7 @@ The installed Qwen, DeepSeek, Phi-4, and Vera models are used only through Local
 | Framework result -> write-candidate evidence | Missing | Changed-path/test/candidate collector |
 | Candidate -> trusted review | Library primitives only | Application service and operator commands |
 | Candidate -> commit/publish/merge | Framework primitives exist | Keep separate and approval-gated; not an initial GUI requirement |
-| Worker Lab state -> GUI | Missing | Read/query service and stable DTOs |
+| Worker Lab state -> GUI | Read-only service ready | Connect the GUI after mutating service commands stabilize |
 | GUI actions -> Worker Lab lifecycle | Missing | Command service with authorization and recovery gates |
 | Local Model Bench -> Worker Lab role selection | Manual/advisory | Retain manual review first; automate only after role evidence is accepted |
 
@@ -228,7 +230,7 @@ Completion gate:
 
 ### Phase 3 — Create the application service
 
-**Status:** Next.
+**Status:** In progress. The read-only health/installation/list/show checkpoint is accepted at `a288a15`; mutating lifecycle operations remain.
 
 **Objective:** Give CLI and GUI one stable, tested interface to Worker Lab behavior.
 
@@ -340,7 +342,7 @@ Completion gate:
 
 The next implementation request should be:
 
-> Begin Phase 3 with a shared Worker Lab application-service interface while execution remains disabled. Add strict non-mutating health, installation-status, list, and show operations for definitions and durable attempt/invocation/result/evidence state; expose them through the CLI; define stable DTOs for the future GUI; and add fail-closed tests before implementing mutating lifecycle commands.
+> Continue Phase 3 while execution remains disabled. Move existing attempt creation, workspace preparation, lifecycle transition, cleanup, and invocation preparation/authorization/rejection behind the shared Worker Lab application service; expose strict command DTOs through the CLI; and test legal and prohibited lifecycle paths before adding any new dispatch operation.
 
 ## Change-control rules for this plan
 
