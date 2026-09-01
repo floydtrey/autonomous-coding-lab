@@ -38,9 +38,12 @@ python -m worker_lab.cli --root <lab-data-root> show-record <collection> <identi
 python -m worker_lab.cli --root <lab-data-root> prepare-invocation <attempt-id> --workspace-root <workspace-root> --prompt-file <prompt-file>
 python -m worker_lab.cli --root <lab-data-root> authorize-invocation <invocation-id> --expected-identity-digest <sha256-digest> --controller <controller-id>
 python -m worker_lab.cli --root <lab-data-root> reject-invocation <invocation-id> --expected-identity-digest <sha256-digest>
+python -m worker_lab.cli --root <lab-data-root> cancel-invocation <invocation-id> --expected-identity-digest <sha256-digest> --controller <same-controller-id>
 python -m worker_lab.cli --root <lab-data-root> list-curricula
 python -m worker_lab.cli validate-definition <definition.json>
+python -m worker_lab.cli --root <lab-data-root> backup <backup-directory>
 python -m worker_lab.cli verify-backup <backup-directory>
+python -m worker_lab.cli restore <backup-directory> <empty-destination>
 ```
 
 `doctor` verifies the strict installation manifest, complete component file sets, and pinned Python/Codex identities. It does not launch the framework adapter, Codex, or a local model. An `execution_ready` value of `false` is the expected result while policy is disabled.
@@ -51,9 +54,9 @@ Creating attempts or workspaces changes durable state and requires an explicit t
 
 `create-attempt`, `prepare-workspace`, `verify-workspace`, `transition-attempt`, and `discard-workspace` now use the same application service intended for future GUI clients. The service returns a versioned operation-result DTO internally while the CLI preserves its established record-shaped JSON output. These commands create or change durable state, but they do not create, authorize, or dispatch an invocation.
 
-`prepare-invocation` seals the prompt bytes, verified workspace receipt, protected definitions, test plan, installed component identities, and immutable invocation identity. It permits only one durable invocation per attempt. `authorize-invocation` requires that exact immutable digest and a validated controller identity; `reject-invocation` requires the same digest and creates a terminal rejection. These commands return operation-result v2 JSON. None performs adapter preflight or dispatch, and disabled installation policy remains in force.
+`prepare-invocation` seals the prompt bytes, verified workspace receipt, protected definitions, test plan, installed component identities, and immutable invocation identity. It permits only one durable invocation per attempt. `authorize-invocation` requires that exact immutable digest and a validated controller identity; `reject-invocation` requires the same digest and creates a terminal rejection. `cancel-invocation` accepts only an authorized invocation, requires the same immutable digest and authorizing controller, and records terminal `ABORTED` before any dispatch. Prepared invocations use rejection instead. Dispatched or uncertain invocations cannot use this cancellation path and require recovery with exact process-custody evidence. These commands return operation-result v2 JSON. None performs adapter preflight or dispatch, and disabled installation policy remains in force.
 
-Backups include durable `curricula/` and `state/` data only. Source code, repository internals, caches, and disposable workspaces are not backup content.
+Backup, verification, and restore commands now route through the application service and return its verified file count through the established CLI output. The versioned service result also carries the exact manifest digest and manifest content for future GUI clients. Backups include durable `curricula/` and `state/` data only. Source code, repository internals, caches, and disposable workspaces are not backup content.
 
 ## Synthetic read-only proof boundary
 

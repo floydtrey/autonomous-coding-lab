@@ -40,7 +40,7 @@ Worker Lab owns:
 
 Policy, role, curriculum, and evaluator definitions are authority-bearing runtime records. Treating them as ordinary editable preferences would let a worker redefine its own boundaries.
 
-Worker Lab's application service is the client boundary above those records and policies. The CLI uses it now, and the future GUI must use the same service rather than reading or writing storage directly. It exposes strict, versioned, non-mutating health, installation-status, list, and show DTOs plus operation-result DTOs for attempt/workspace lifecycle and guarded invocation preparation, authorization, and rejection. Operation-result v2 carries the immutable invocation identity required for an exact authorization decision. Later methods remain responsible for dispatch, recovery, review, and backup orchestration.
+Worker Lab's application service is the client boundary above those records and policies. The CLI uses it now, and the future GUI must use the same service rather than reading or writing storage directly. It exposes strict, versioned, non-mutating health, installation-status, list, and show DTOs; operation-result DTOs for attempt/workspace lifecycle and guarded invocation decisions; and backup-result DTOs for create, verify, and restore. Operation-result v2 carries the immutable invocation identity required for exact authorization, rejection, and controller-bound pre-dispatch cancellation. Later methods remain responsible for dispatch, uncertain-process recovery, timelines, and candidate review.
 
 ### Autonomous Worker Framework: execution and security
 
