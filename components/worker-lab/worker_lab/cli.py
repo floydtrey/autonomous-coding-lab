@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
-import subprocess
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -15,7 +12,6 @@ from .backup import create_backup, restore_backup, verify_backup
 from .attempt_store import AttemptStore
 from .evidence import verify_evidence
 from .errors import LabValidationError
-from .lifecycle import transition_attempt
 from .models import (
     ATTEMPT_SCHEMA, CURRICULUM_SCHEMA, EVIDENCE_SCHEMA, EXERCISE_SCHEMA, FAILURE_SCHEMA,
     AttemptRecord, AttemptState, CurriculumRecord, EvidenceRecord, ExerciseRecord, FailureRecord,
@@ -23,12 +19,10 @@ from .models import (
 from .operator_control import ONE_TIME_CONFIRMATION, inspect_installation
 from .policy import (
     CONTEXT_MANIFEST_SCHEMA, POLICY_SCHEMA, ROLE_SCHEMA, ContextManifest, PolicyRecord,
-    RoleRecord, validate_authority, verify_context_files,
+    RoleRecord,
 )
 from .storage import AtomicRecordStore
 from .test_catalog import CATALOG_SCHEMA, TestCatalog
-from .validation import attempt_task_digest
-from .workspace import discard_workspace, prepare_workspace, verify_workspace
 
 
 LOADERS: dict[str, Callable[[Any], Any]] = {
@@ -148,7 +142,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _service(args: argparse.Namespace) -> WorkerLabApplicationService:
-    return WorkerLabApplicationService(args.root.absolute())
+    return WorkerLabApplicationService(args.root.absolute(), clock=_now)
 
 
 def _service_health(args: argparse.Namespace) -> str:
@@ -228,108 +222,11 @@ def _show_exercise(args: argparse.Namespace) -> str:
 
 
 def _create_attempt(args: argparse.Namespace) -> str:
-    definitions = _definitions(args)
-    exercise = definitions.read(
-        f"exercises/{args.exercise}/v{args.version}.json", ExerciseRecord.from_mapping
-    )
-    policy = definitions.read(
-        f"policies/{exercise.policy_id}/v{exercise.policy_version}.json",
-        PolicyRecord.from_mapping,
-    )
-    role = definitions.read(
-        f"roles/{exercise.role_id}/v{exercise.role_version}.json", RoleRecord.from_mapping
-    )
-    context = definitions.read(
-        f"contexts/{exercise.context_manifest_id}/v{exercise.context_manifest_version}.json",
-        ContextManifest.from_mapping,
-    )
-    catalog = definitions.read(
-        f"catalogs/{exercise.evaluator_catalog_version}.json", TestCatalog.from_mapping
-    )
-    _validate_attempt_authority(exercise, policy, role, context, catalog)
-    _validate_target_repository(args.root, args.target_repository, exercise.template_commit)
-    verify_context_files(context, args.target_repository)
-    now = _now()
-    identity = "ATTEMPT-" + uuid.uuid4().hex.upper()
-    record = AttemptRecord.from_mapping({
-        "schema_version": ATTEMPT_SCHEMA, "attempt_id": identity,
-        "curriculum_id": exercise.curriculum_id, "exercise_id": exercise.exercise_id,
-        "exercise_version": exercise.exercise_version, "starting_commit": exercise.template_commit,
-        "context_digest": context.digest(),
-        "task_digest": attempt_task_digest(exercise, policy, role, context, catalog),
-        "policy_id": policy.policy_id, "policy_version": policy.policy_version,
-        "policy_digest": policy.digest(),
-        "role_id": role.role_id, "role_version": role.role_version,
-        "role_digest": role.digest(), "sandbox_mode": exercise.sandbox_mode,
-        "state": "DRAFT", "created_at": now, "updated_at": now,
-        "evaluator_catalog_version": catalog.catalog_version,
-        "evaluator_catalog_digest": catalog.digest(), "runtime_identity": None,
-        "candidate_digest": None, "cleanup_outcome": None, "prior_attempt_id": None,
-    })
-    _attempts(args).create(record)
-    return record.to_json(pretty=True)
-
-
-def _validate_attempt_authority(
-    exercise: ExerciseRecord,
-    policy: PolicyRecord,
-    role: RoleRecord,
-    context: ContextManifest,
-    catalog: TestCatalog,
-) -> None:
-    if (policy.policy_id, policy.policy_version) != (exercise.policy_id, exercise.policy_version):
-        raise LabValidationError("ATTEMPT_POLICY_MISMATCH", "exercise policy identity is unresolved")
-    if (role.role_id, role.role_version) != (exercise.role_id, exercise.role_version):
-        raise LabValidationError("ATTEMPT_ROLE_MISMATCH", "exercise role identity is unresolved")
-    if context.repository != exercise.template_repository or context.starting_commit != exercise.template_commit:
-        raise LabValidationError(
-            "ATTEMPT_CONTEXT_MISMATCH", "context repository or starting commit differs"
-        )
-    if catalog.catalog_version != exercise.evaluator_catalog_version:
-        raise LabValidationError("ATTEMPT_CATALOG_MISMATCH", "evaluator catalog is unresolved")
-    known_profiles = {profile.profile_id for profile in catalog.profiles}
-    missing_profiles = set(exercise.test_profile_ids) - known_profiles
-    if missing_profiles:
-        raise LabValidationError(
-            "ATTEMPT_PROFILE_MISSING", f"unknown test profiles: {sorted(missing_profiles)}"
-        )
-    validate_authority(
-        policy,
-        role,
-        required_capabilities=exercise.required_capabilities,
-        temporary_denied_capabilities=exercise.temporary_denied_capabilities,
-    )
-
-
-def _validate_target_repository(lab_root: Path, target_repository: Path, expected_head: str) -> None:
-    if target_repository.is_symlink():
-        raise LabValidationError(
-            "ATTEMPT_REPOSITORY_INVALID", "target repository cannot be a symlink"
-        )
-    try:
-        target = target_repository.resolve(strict=True)
-        lab = lab_root.resolve(strict=True)
-    except OSError as exc:
-        raise LabValidationError("ATTEMPT_REPOSITORY_INVALID", "repository path is missing") from exc
-    if target == lab or target.is_relative_to(lab) or lab.is_relative_to(target):
-        raise LabValidationError(
-            "ATTEMPT_REPOSITORY_INVALID", "worker target must be separate from Worker Lab"
-        )
-    try:
-        head = subprocess.run(
-            ["git", "-C", str(target), "rev-parse", "HEAD"],
-            check=True, capture_output=True, text=True, encoding="utf-8",
-        ).stdout.strip()
-        dirty = subprocess.run(
-            ["git", "-C", str(target), "status", "--porcelain=v1"],
-            check=True, capture_output=True, text=True, encoding="utf-8",
-        ).stdout
-    except (OSError, subprocess.CalledProcessError) as exc:
-        raise LabValidationError("ATTEMPT_REPOSITORY_INVALID", "target is not a readable Git repository") from exc
-    if head != expected_head:
-        raise LabValidationError("ATTEMPT_HEAD_MISMATCH", "target HEAD differs from exercise identity")
-    if dirty:
-        raise LabValidationError("ATTEMPT_REPOSITORY_DIRTY", "target repository must be clean")
+    return _service(args).create_attempt(
+        args.exercise,
+        args.version,
+        args.target_repository,
+    ).record_json()
 
 
 def _show_attempt(args: argparse.Namespace) -> str:
@@ -337,52 +234,35 @@ def _show_attempt(args: argparse.Namespace) -> str:
 
 
 def _prepare_workspace(args: argparse.Namespace) -> str:
-    return prepare_workspace(
-        args.root,
+    return _service(args).prepare_workspace(
         args.attempt_id,
         args.template_repository,
         args.workspace_root,
-        occurred_at=_now(),
-    ).to_json(pretty=True)
+    ).record_json()
 
 
 def _verify_workspace(args: argparse.Namespace) -> str:
-    return verify_workspace(args.root, args.attempt_id, args.workspace_root).to_json(pretty=True)
+    return _service(args).verify_workspace(
+        args.attempt_id,
+        args.workspace_root,
+    ).record_json()
 
 
 def _discard_workspace(args: argparse.Namespace) -> str:
-    return discard_workspace(
-        args.root,
+    return _service(args).discard_workspace(
         args.attempt_id,
         args.workspace_root,
         args.cleanup_outcome,
-        occurred_at=_now(),
-    ).to_json(pretty=True)
+    ).record_json()
 
 
 def _transition_attempt(args: argparse.Namespace) -> str:
-    store = _attempts(args)
-    current = store.read(args.attempt_id)
-    target = AttemptState(args.state)
-    receipt_path = args.root / "state" / "workspaces" / f"{current.attempt_id}.json"
-    if (
-        current.state is AttemptState.READY
-        and target is AttemptState.ABORTED
-        and os.path.lexists(receipt_path)
-    ):
-        raise LabValidationError(
-            "ATTEMPT_WORKSPACE_DISPOSAL_REQUIRED",
-            "receipt-bound READY attempts must use discard-workspace",
-        )
-    updated = transition_attempt(
-        current,
-        target,
-        occurred_at=_now(),
+    return _service(args).transition_attempt(
+        args.attempt_id,
+        args.state,
         candidate_digest=args.candidate_digest,
         cleanup_outcome=args.cleanup_outcome,
-    )
-    store.save_transition(updated)
-    return updated.to_json(pretty=True)
+    ).record_json()
 
 
 def _verify_evidence(args: argparse.Namespace) -> str:

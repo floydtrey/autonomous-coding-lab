@@ -2,30 +2,46 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
+import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, Protocol
 
+from .attempt_store import AttemptStore
 from .canonical import canonical_json
 from .errors import LabValidationError
 from .integration import InvocationRecord, ResultRecord
+from .lifecycle import transition_attempt
 from .models import (
+    ATTEMPT_SCHEMA,
     AttemptRecord,
+    AttemptState,
     CurriculumRecord,
     EvidenceRecord,
     ExerciseRecord,
     FailureRecord,
 )
 from .operator_control import DoctorReport, inspect_installation
-from .policy import ContextManifest, PolicyRecord, RoleRecord
+from .policy import (
+    ContextManifest,
+    PolicyRecord,
+    RoleRecord,
+    validate_authority,
+    verify_context_files,
+)
 from .storage import AtomicRecordStore
 from .test_catalog import TestCatalog
+from .validation import attempt_task_digest
+from .workspace import discard_workspace, prepare_workspace, verify_workspace
 
 
 HEALTH_SCHEMA = "worker-lab-service-health:v1"
 INSTALLATION_STATUS_SCHEMA = "worker-lab-service-installation-status:v1"
 RECORD_LIST_SCHEMA = "worker-lab-service-record-list:v1"
 RECORD_DETAIL_SCHEMA = "worker-lab-service-record-detail:v1"
+OPERATION_RESULT_SCHEMA = "worker-lab-service-operation-result:v1"
 
 COLLECTIONS = (
     "attempts",
@@ -42,6 +58,7 @@ COLLECTIONS = (
 )
 
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:._@-]{1,127}$")
+_DEFINITION_ID_RE = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
 
 
 class _Record(Protocol):
@@ -150,13 +167,40 @@ class HealthDTO:
         return canonical_json(self.to_dict())
 
 
-class WorkerLabApplicationService:
-    """Read-only application boundary shared by operator clients and the future GUI."""
+@dataclass(frozen=True)
+class OperationResultDTO:
+    operation: str
+    resource_type: str
+    identity: str
+    record_digest: str
+    record: Mapping[str, Any]
 
-    def __init__(self, data_root: Path) -> None:
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": OPERATION_RESULT_SCHEMA,
+            "operation": self.operation,
+            "resource_type": self.resource_type,
+            "identity": self.identity,
+            "record_digest": self.record_digest,
+            "record": dict(self.record),
+        }
+
+    def to_json(self) -> str:
+        return canonical_json(self.to_dict())
+
+    def record_json(self) -> str:
+        """Preserve the established CLI record shape while clients adopt the DTO."""
+        return canonical_json(dict(self.record))
+
+
+class WorkerLabApplicationService:
+    """Application boundary shared by operator clients and the future GUI."""
+
+    def __init__(self, data_root: Path, *, clock: Callable[[], str] | None = None) -> None:
         if not isinstance(data_root, Path) or not data_root.is_absolute():
             raise LabValidationError("SERVICE_DATA_ROOT_INVALID", "service data root must be absolute")
         self.data_root = data_root
+        self._clock = clock or _utc_now
 
     def installation_status(self) -> InstallationStatusDTO:
         _, report = inspect_installation()
@@ -202,6 +246,152 @@ class WorkerLabApplicationService:
         record = matches[0]
         return RecordDetailDTO(_summary(collection, record, spec), record.to_dict())
 
+    def create_attempt(
+        self,
+        exercise_id: str,
+        exercise_version: int,
+        target_repository: Path,
+    ) -> OperationResultDTO:
+        exercise_id = _definition_id(exercise_id)
+        exercise_version = _positive_version(exercise_version)
+        target_repository = _path_argument(target_repository, "target repository")
+        self._require_present_data_root()
+        definitions = AtomicRecordStore(self.data_root / "curricula")
+        exercise = definitions.read(
+            f"exercises/{exercise_id}/v{exercise_version}.json",
+            ExerciseRecord.from_mapping,
+        )
+        policy = definitions.read(
+            f"policies/{exercise.policy_id}/v{exercise.policy_version}.json",
+            PolicyRecord.from_mapping,
+        )
+        role = definitions.read(
+            f"roles/{exercise.role_id}/v{exercise.role_version}.json",
+            RoleRecord.from_mapping,
+        )
+        context = definitions.read(
+            f"contexts/{exercise.context_manifest_id}/v{exercise.context_manifest_version}.json",
+            ContextManifest.from_mapping,
+        )
+        catalog = definitions.read(
+            f"catalogs/{exercise.evaluator_catalog_version}.json",
+            TestCatalog.from_mapping,
+        )
+        _validate_attempt_authority(exercise, policy, role, context, catalog)
+        _validate_target_repository(self.data_root, target_repository, exercise.template_commit)
+        verify_context_files(context, target_repository)
+        occurred_at = self._clock()
+        attempt = AttemptRecord.from_mapping({
+            "schema_version": ATTEMPT_SCHEMA,
+            "attempt_id": "ATTEMPT-" + uuid.uuid4().hex.upper(),
+            "curriculum_id": exercise.curriculum_id,
+            "exercise_id": exercise.exercise_id,
+            "exercise_version": exercise.exercise_version,
+            "starting_commit": exercise.template_commit,
+            "context_digest": context.digest(),
+            "task_digest": attempt_task_digest(exercise, policy, role, context, catalog),
+            "policy_id": policy.policy_id,
+            "policy_version": policy.policy_version,
+            "policy_digest": policy.digest(),
+            "role_id": role.role_id,
+            "role_version": role.role_version,
+            "role_digest": role.digest(),
+            "sandbox_mode": exercise.sandbox_mode,
+            "state": "DRAFT",
+            "created_at": occurred_at,
+            "updated_at": occurred_at,
+            "evaluator_catalog_version": catalog.catalog_version,
+            "evaluator_catalog_digest": catalog.digest(),
+            "runtime_identity": None,
+            "candidate_digest": None,
+            "cleanup_outcome": None,
+            "prior_attempt_id": None,
+        })
+        AttemptStore(self.data_root / "state").create(attempt)
+        return _operation_result("create-attempt", "attempt", attempt.attempt_id, attempt)
+
+    def prepare_workspace(
+        self,
+        attempt_id: str,
+        template_repository: Path,
+        workspace_root: Path,
+    ) -> OperationResultDTO:
+        attempt_id = _identity(attempt_id)
+        template_repository = _path_argument(template_repository, "template repository")
+        workspace_root = _path_argument(workspace_root, "workspace root")
+        self._require_present_data_root()
+        receipt = prepare_workspace(
+            self.data_root,
+            attempt_id,
+            template_repository,
+            workspace_root,
+            occurred_at=self._clock(),
+        )
+        return _operation_result("prepare-workspace", "workspace-receipt", attempt_id, receipt)
+
+    def verify_workspace(self, attempt_id: str, workspace_root: Path) -> OperationResultDTO:
+        attempt_id = _identity(attempt_id)
+        workspace_root = _path_argument(workspace_root, "workspace root")
+        self._require_present_data_root()
+        receipt = verify_workspace(self.data_root, attempt_id, workspace_root)
+        return _operation_result("verify-workspace", "workspace-receipt", attempt_id, receipt)
+
+    def discard_workspace(
+        self,
+        attempt_id: str,
+        workspace_root: Path,
+        cleanup_outcome: str,
+    ) -> OperationResultDTO:
+        attempt_id = _identity(attempt_id)
+        workspace_root = _path_argument(workspace_root, "workspace root")
+        self._require_present_data_root()
+        attempt = discard_workspace(
+            self.data_root,
+            attempt_id,
+            workspace_root,
+            cleanup_outcome,
+            occurred_at=self._clock(),
+        )
+        return _operation_result("discard-workspace", "attempt", attempt_id, attempt)
+
+    def transition_attempt(
+        self,
+        attempt_id: str,
+        target_state: str,
+        *,
+        candidate_digest: str | None = None,
+        cleanup_outcome: str | None = None,
+    ) -> OperationResultDTO:
+        attempt_id = _identity(attempt_id)
+        self._require_present_data_root()
+        attempts = AttemptStore(self.data_root / "state")
+        current = attempts.read(attempt_id)
+        try:
+            target = AttemptState(target_state)
+        except (TypeError, ValueError) as exc:
+            raise LabValidationError(
+                "SERVICE_ATTEMPT_STATE_INVALID", "attempt target state is unsupported"
+            ) from exc
+        receipt_path = self.data_root / "state" / "workspaces" / f"{current.attempt_id}.json"
+        if (
+            current.state is AttemptState.READY
+            and target is AttemptState.ABORTED
+            and os.path.lexists(receipt_path)
+        ):
+            raise LabValidationError(
+                "ATTEMPT_WORKSPACE_DISPOSAL_REQUIRED",
+                "receipt-bound READY attempts must use discard-workspace",
+            )
+        updated = transition_attempt(
+            current,
+            target,
+            occurred_at=self._clock(),
+            candidate_digest=candidate_digest,
+            cleanup_outcome=cleanup_outcome,
+        )
+        attempts.save_transition(updated)
+        return _operation_result("transition-attempt", "attempt", attempt_id, updated)
+
     def _store(self, spec: _CollectionSpec) -> AtomicRecordStore:
         return AtomicRecordStore(self.data_root / spec.storage_root)
 
@@ -221,6 +411,10 @@ class WorkerLabApplicationService:
         if _path_key(resolved) != _path_key(self.data_root):
             raise LabValidationError("SERVICE_DATA_ROOT_INVALID", "service data root is substituted")
         return "present"
+
+    def _require_present_data_root(self) -> None:
+        if self._data_root_state() != "present":
+            raise LabValidationError("SERVICE_DATA_ROOT_MISSING", "service data root is unavailable")
 
 
 def _collection(value: str) -> _CollectionSpec:
@@ -248,6 +442,24 @@ def _versioned(name: str, version: int) -> str:
     return f"{name}@v{version}"
 
 
+def _definition_id(value: Any) -> str:
+    if not isinstance(value, str) or not _DEFINITION_ID_RE.fullmatch(value):
+        raise LabValidationError("SERVICE_COMMAND_INVALID", "definition identity is invalid")
+    return value
+
+
+def _positive_version(value: Any) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise LabValidationError("SERVICE_COMMAND_INVALID", "definition version is invalid")
+    return value
+
+
+def _path_argument(value: Any, name: str) -> Path:
+    if not isinstance(value, Path):
+        raise LabValidationError("SERVICE_COMMAND_INVALID", f"{name} must be a path")
+    return value
+
+
 def _state(name: str) -> State:
     def read(record: _Record) -> str | None:
         value = getattr(record, name)
@@ -263,6 +475,117 @@ def _none(record: _Record) -> None:
 
 def _path_key(path: Path) -> str:
     return os.path.normcase(os.path.normpath(str(path)))
+
+
+def _operation_result(
+    operation: str,
+    resource_type: str,
+    identity: str,
+    record: _Record,
+) -> OperationResultDTO:
+    return OperationResultDTO(
+        operation,
+        resource_type,
+        _identity(identity),
+        record.digest(),
+        record.to_dict(),
+    )
+
+
+def _validate_attempt_authority(
+    exercise: ExerciseRecord,
+    policy: PolicyRecord,
+    role: RoleRecord,
+    context: ContextManifest,
+    catalog: TestCatalog,
+) -> None:
+    if (policy.policy_id, policy.policy_version) != (
+        exercise.policy_id,
+        exercise.policy_version,
+    ):
+        raise LabValidationError(
+            "ATTEMPT_POLICY_MISMATCH", "exercise policy identity is unresolved"
+        )
+    if (role.role_id, role.role_version) != (exercise.role_id, exercise.role_version):
+        raise LabValidationError(
+            "ATTEMPT_ROLE_MISMATCH", "exercise role identity is unresolved"
+        )
+    if (
+        context.repository != exercise.template_repository
+        or context.starting_commit != exercise.template_commit
+    ):
+        raise LabValidationError(
+            "ATTEMPT_CONTEXT_MISMATCH", "context repository or starting commit differs"
+        )
+    if catalog.catalog_version != exercise.evaluator_catalog_version:
+        raise LabValidationError(
+            "ATTEMPT_CATALOG_MISMATCH", "evaluator catalog is unresolved"
+        )
+    known_profiles = {profile.profile_id for profile in catalog.profiles}
+    missing_profiles = set(exercise.test_profile_ids) - known_profiles
+    if missing_profiles:
+        raise LabValidationError(
+            "ATTEMPT_PROFILE_MISSING", f"unknown test profiles: {sorted(missing_profiles)}"
+        )
+    validate_authority(
+        policy,
+        role,
+        required_capabilities=exercise.required_capabilities,
+        temporary_denied_capabilities=exercise.temporary_denied_capabilities,
+    )
+
+
+def _validate_target_repository(
+    lab_root: Path,
+    target_repository: Path,
+    expected_head: str,
+) -> None:
+    if target_repository.is_symlink():
+        raise LabValidationError(
+            "ATTEMPT_REPOSITORY_INVALID", "target repository cannot be a symlink"
+        )
+    try:
+        target = target_repository.resolve(strict=True)
+        lab = lab_root.resolve(strict=True)
+    except OSError as exc:
+        raise LabValidationError(
+            "ATTEMPT_REPOSITORY_INVALID", "repository path is missing"
+        ) from exc
+    if target == lab or target.is_relative_to(lab) or lab.is_relative_to(target):
+        raise LabValidationError(
+            "ATTEMPT_REPOSITORY_INVALID", "worker target must be separate from Worker Lab"
+        )
+    try:
+        head = subprocess.run(
+            ["git", "-C", str(target), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "-C", str(target), "status", "--porcelain=v1"],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise LabValidationError(
+            "ATTEMPT_REPOSITORY_INVALID", "target is not a readable Git repository"
+        ) from exc
+    if head != expected_head:
+        raise LabValidationError(
+            "ATTEMPT_HEAD_MISMATCH", "target HEAD differs from exercise identity"
+        )
+    if dirty:
+        raise LabValidationError(
+            "ATTEMPT_REPOSITORY_DIRTY", "target repository must be clean"
+        )
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 _COLLECTION_SPECS: Mapping[str, _CollectionSpec] = {

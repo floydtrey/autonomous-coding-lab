@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from tests.test_integration import record, result_mapping
+from tests.test_cli import write_authority_fixture
 from tests.test_models import (
     attempt_mapping,
     curriculum_mapping,
@@ -192,3 +193,76 @@ def test_cli_exposes_service_health_list_and_show(tmp_path: Path, capsys) -> Non
     shown = json.loads(capsys.readouterr().out)
     assert shown["summary"]["state"] == "pass"
     assert shown["record"]["invocation_id"] == "INVOCATION-001"
+
+
+def test_attempt_workspace_service_returns_stable_operation_dtos(tmp_path: Path) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    times = iter((
+        "2026-08-31T12:00:00Z",
+        "2026-08-31T12:00:01Z",
+        "2026-08-31T12:00:02Z",
+    ))
+    service = WorkerLabApplicationService(lab, clock=lambda: next(times))
+
+    created = service.create_attempt("record-model", 1, target).to_dict()
+    assert created["schema_version"] == "worker-lab-service-operation-result:v1"
+    assert created["operation"] == "create-attempt"
+    assert created["resource_type"] == "attempt"
+    assert created["identity"] == created["record"]["attempt_id"]
+    assert created["record"]["state"] == "DRAFT"
+
+    attempt_id = created["identity"]
+    prepared = service.prepare_workspace(attempt_id, target, workspace_root).to_dict()
+    assert prepared["operation"] == "prepare-workspace"
+    assert prepared["resource_type"] == "workspace-receipt"
+    assert prepared["record"]["state"] == "PREPARED"
+    assert service.verify_workspace(attempt_id, workspace_root).to_dict()["record"] == prepared["record"]
+
+    with pytest.raises(LabValidationError) as error:
+        service.transition_attempt(
+            attempt_id,
+            "ABORTED",
+            cleanup_outcome="must dispose receipt first",
+        )
+    assert error.value.code == "ATTEMPT_WORKSPACE_DISPOSAL_REQUIRED"
+
+    discarded = service.discard_workspace(
+        attempt_id,
+        workspace_root,
+        "operator disposal",
+    ).to_dict()
+    assert discarded["operation"] == "discard-workspace"
+    assert discarded["record"]["state"] == "ABORTED"
+    assert not (workspace_root / attempt_id).exists()
+    assert not (lab / "state" / "invocations").exists()
+
+
+def test_mutating_service_fails_before_state_write_on_invalid_authority(tmp_path: Path) -> None:
+    lab, target = write_authority_fixture(tmp_path, mismatched_context=True)
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-08-31T12:00:00Z",
+    )
+    with pytest.raises(LabValidationError) as error:
+        service.create_attempt("record-model", 1, target)
+    assert error.value.code == "ATTEMPT_CONTEXT_MISMATCH"
+    assert not (lab / "state").exists()
+
+
+def test_mutating_service_rejects_unsafe_command_input_before_writing(tmp_path: Path) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-08-31T12:00:00Z",
+    )
+    for exercise_id, version, repository in (
+        ("../record-model", 1, target),
+        ("record-model", True, target),
+        ("record-model", 1, str(target)),
+    ):
+        with pytest.raises(LabValidationError) as error:
+            service.create_attempt(exercise_id, version, repository)  # type: ignore[arg-type]
+        assert error.value.code == "SERVICE_COMMAND_INVALID"
+    assert not (lab / "state").exists()
