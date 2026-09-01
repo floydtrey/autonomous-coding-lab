@@ -1,0 +1,14 @@
+{
+  "schema_version": "worker-lab-context-manifest:v1",
+  "manifest_id": "phase4-record-normalizer-v1",
+  "manifest_version": 1,
+  "repository": "C:\\Users\\MineTrackerWorker\\Documents\\ChatGPT\\Autonomous Coding Lab\\phase4-proof-20260901-01",
+  "starting_commit": "a36049c5e4d97a2518d13578d6090fdd50738c02",
+  "files": [
+    {
+      "path": "tests/test_models.py",
+      "digest": "sha256:3a2f0faa16488f02fbfccdc0bf78ac43d7cd1e5446969627c2e19cc0817dcbd3",
+      "purpose": "Sealed read-only acceptance test for the record normalizer."
+    }
+  ]
+}

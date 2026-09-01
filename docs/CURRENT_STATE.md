@@ -37,6 +37,16 @@ Commit `8862880` establishes the workspace-write bridge; it is not a Phase 4 pro
 
 Validation: framework bridge tests **63 passed**; framework compile/full validation **213 passed**; Worker Lab application-service/framework-client/integration tests **70 passed**; Worker Lab full suite **369 passed** with seven expected Windows symlink-capability skips. The manifest identifies framework runtime closure `sha256:b9c1061422b0cb28e94086f070ddf8fe4bf4c7a744b7e8589af2dca2b87de1f8` and Worker Lab production tree `sha256:7ec7255a1853b21ed4888846b0063565d2898505ab6535e07f174d4809a4fd99`; execution remains disabled. This implementation checkpoint is accepted, but it does not prove or complete Phase 4.
 
+### Active Phase 4 disposable task packet
+
+The user-authorized local disposable repository is `C:\Users\MineTrackerWorker\Documents\ChatGPT\Autonomous Coding Lab\phase4-proof-20260901-01`. It has no remotes, is clean at starting commit `a36049c5e4d97a2518d13578d6090fdd50738c02`, and supplies the sealed read-only `tests/test_models.py` file with SHA-256 `3a2f0faa16488f02fbfccdc0bf78ac43d7cd1e5446969627c2e19cc0817dcbd3`.
+
+The active protected Worker Lab definitions admit only `phase4-record-normalizer-v1`: curriculum `phase4-record-normalizer` (`sha256:f0be43ca9c0b83785fe3cc5e00c62e5bc1e57d7f2ba2554ae90613f6641fe1ed`); workspace-write exercise version 1 (`sha256:d81836446a8dfaa8eca2fc0025567c969e97e5b30de97a35a39ce504bfac67fa`); context manifest version 1 (`sha256:e677c8ec088857e89c916a5cb7eb7c5f7447a6097eb571cc48cc81dc2fd29416`); and `phase4-record-normalizer-v1` catalog (`sha256:8c5ee8dd7913e14556582ed3b6e9f989721c97c81e9573845dda1f10c8cf9f76`). The `PHASE4_RECORD_NORMALIZER:v1` profile selects exactly `T023`, `git diff --check`, then `T024`, `python -B -m unittest discover -s tests -p test_models.py -v`. It permits only `record_ledger/models.py` to be changed, protects the sealed test, requires the existing `core-worker-policy`/`coding-worker` identities, and prohibits dependencies, network or external/product-repository access, commit, push, publication, PRs, merges, and Git-configuration changes. A future dispatch must be separately authorized by `ACL-primary-controller`.
+
+Definition loading, exact selection, repository/commit binding, and substituted writable path, command, or commit rejection passed in the focused protected-definition suite (**6 passed**). The Worker Lab component suite passed **373** tests with seven expected Windows symlink-capability skips. Neither check ran a worker, model, adapter execution operation, or disposable-target test command.
+
+The supported preparation lifecycle was attempted without enabling execution or authorizing dispatch. `create-attempt` admitted transient draft `ATTEMPT-2A566F345A774ADC892FDD1A39FA1A76` (`sha256:49bbb08a9a6b29b536c84a283bc9f73b88e9b2dfe0da1532cd40efd4cb97e1cc`) after confirming the exact target repository, commit, clean state, and sealed-source digest. `prepare-workspace` then failed closed with `CONTEXT_DIGEST_MISMATCH` for `tests/test_models.py` while verifying the isolated clone. It created no workspace receipt or invocation; the temporary external run and workspace roots were removed after verification that the attempt remained `DRAFT` and that zero invocation records existed. No authorization, execution authorization, worker, Codex, local model, framework execution adapter, test command, commit, push, network access, or external/product-repository operation occurred.
+
 ## Accepted Phase 1 checkpoint
 
 The accepted checkpoint consists of these bounded commits:
@@ -261,7 +271,7 @@ A later 90-call planning/task-creation run and an 18-case Qwen 14B native-JSON r
 
 ## Immediate next gate
 
-Phase 3 is complete at `00b1769`; the current unaccepted working tree implements, but does not prove or complete, the Phase 4 bridge. Any real workspace-write proof requires new explicit authorization that names one disposable repository outside this installation, its exact starting commit and writable/readable paths, the controller, the one task/test plan, and the temporary activation procedure. It must separately authorize changing activation policy from disabled, prohibit commit/push/pull-request/merge and product-repository access, require post-run custody absence plus candidate review, and restore disabled execution afterward. No such authorization is currently present.
+Phase 3 is complete at `00b1769`; the current unaccepted working tree implements, but does not prove or complete, the Phase 4 bridge. The user has now authorized one exact disposable repository, commit, writable/readable paths, controller, and sealed task/test plan, but preparation stopped at the isolated-clone context-byte identity mismatch. Do not retry preparation or alter execution policy until a scoped correction reconciles that mismatch without relaxing the exact repository, commit, context-digest, path, command, or candidate checks. Execution remains disabled; there is no Worker Lab invocation or authorization to dispatch.
 
 The trusted dependency-ordered delivery plan for worker execution and the Worker Lab GUI is `docs/WORKPLAN.md`.
 
