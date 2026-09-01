@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from .application_service import COLLECTIONS, WorkerLabApplicationService
 from .backup import create_backup, restore_backup, verify_backup
 from .attempt_store import AttemptStore
 from .evidence import verify_evidence
@@ -63,6 +64,17 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="worker-lab")
     parser.add_argument("--root", type=Path, default=Path.cwd())
     commands = parser.add_subparsers(required=True)
+    command = commands.add_parser("health")
+    command.set_defaults(handler=_service_health)
+    command = commands.add_parser("installation-status")
+    command.set_defaults(handler=_service_installation_status)
+    command = commands.add_parser("list-records")
+    command.add_argument("collection", choices=COLLECTIONS)
+    command.set_defaults(handler=_service_list_records)
+    command = commands.add_parser("show-record")
+    command.add_argument("collection", choices=COLLECTIONS)
+    command.add_argument("identity")
+    command.set_defaults(handler=_service_show_record)
     command = commands.add_parser("doctor")
     command.set_defaults(handler=_doctor)
     command = commands.add_parser("synthetic-read-only")
@@ -133,6 +145,26 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("destination", type=Path)
     command.set_defaults(handler=lambda args: _verified(restore_backup(args.backup, args.destination)))
     return parser
+
+
+def _service(args: argparse.Namespace) -> WorkerLabApplicationService:
+    return WorkerLabApplicationService(args.root.absolute())
+
+
+def _service_health(args: argparse.Namespace) -> str:
+    return _service(args).health().to_json()
+
+
+def _service_installation_status(args: argparse.Namespace) -> str:
+    return _service(args).installation_status().to_json()
+
+
+def _service_list_records(args: argparse.Namespace) -> str:
+    return _service(args).list_records(args.collection).to_json()
+
+
+def _service_show_record(args: argparse.Namespace) -> str:
+    return _service(args).show_record(args.collection, args.identity).to_json()
 
 
 def _doctor(args: argparse.Namespace) -> str:
