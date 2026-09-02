@@ -307,8 +307,18 @@ def prepare_workspace(
             run_process,
             git_timeout_seconds,
         )
+        _configure_context_checkout_attributes(
+            staged_workspace,
+            source,
+            context,
+            run_process=run_process,
+            timeout=git_timeout_seconds,
+        )
         _git(
-            ["-C", str(staged_workspace), "checkout", "--detach", "--force", attempt.starting_commit, "--"],
+            [
+                "-C", str(staged_workspace), "-c", "core.autocrlf=false", "checkout",
+                "--detach", "--force", attempt.starting_commit, "--",
+            ],
             "check out starting commit",
             run_process,
             git_timeout_seconds,
@@ -536,6 +546,52 @@ def _verify_workspace_root_for_verification(candidate: Path, lab: Path) -> Path:
     return root
 
 
+def _configure_context_checkout_attributes(
+    workspace: Path,
+    source: Path,
+    context: ContextManifest,
+    *,
+    run_process: RunProcess,
+    timeout: int,
+) -> None:
+    crlf_paths = [
+        entry.path
+        for entry in context.files
+        if _has_only_crlf_newlines((source / Path(*entry.path.split("/"))).read_bytes())
+        and _has_only_lf_newlines(
+            _git_bytes(
+                [
+                    "-C", str(workspace), "cat-file", "blob",
+                    f"HEAD:{entry.path}",
+                ],
+                "read context blob",
+                run_process,
+                timeout,
+            )
+        )
+    ]
+    if not crlf_paths:
+        return
+    attributes = workspace / ".git" / "info" / "attributes"
+    _assert_no_reparse_components(attributes.parent)
+    attributes.write_text(
+        "".join(f"{path} text eol=crlf\n" for path in crlf_paths),
+        encoding="ascii",
+    )
+
+
+def _has_only_crlf_newlines(content: bytes) -> bool:
+    return (
+        b"\0" not in content
+        and b"\r\n" in content
+        and b"\n" not in content.replace(b"\r\n", b"")
+    )
+
+
+def _has_only_lf_newlines(content: bytes) -> bool:
+    return b"\r" not in content and b"\n" in content
+
+
 def _validate_prepared_receipt(
     receipt: WorkspaceReceipt,
     attempt: AttemptRecord,
@@ -695,6 +751,41 @@ def _git_value(
     timeout: int,
 ) -> str:
     return _git(arguments, operation, run_process, timeout).stdout.strip()
+
+
+def _git_bytes(
+    arguments: Sequence[str],
+    operation: str,
+    run_process: RunProcess,
+    timeout: int,
+) -> bytes:
+    command = [
+        "git",
+        "-c",
+        f"core.hooksPath={os.devnull}",
+        "-c",
+        "core.longpaths=true",
+        "-c",
+        "credential.helper=",
+        *arguments,
+    ]
+    try:
+        result = run_process(
+            command,
+            check=False,
+            capture_output=True,
+            text=False,
+            stdin=subprocess.DEVNULL,
+            env=_git_environment(os.environ),
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise LabValidationError("WORKSPACE_GIT_TIMEOUT", f"Git timed out: {operation}") from exc
+    except OSError as exc:
+        raise LabValidationError("WORKSPACE_GIT_UNAVAILABLE", f"Git unavailable: {operation}") from exc
+    if result.returncode != 0 or not isinstance(result.stdout, bytes):
+        raise LabValidationError("WORKSPACE_GIT_FAILED", f"Git failed: {operation}")
+    return result.stdout
 
 
 def _git_environment(source: Mapping[str, str]) -> dict[str, str]:

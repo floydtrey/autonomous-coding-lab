@@ -132,7 +132,7 @@
       "installed_tree": {
         "schema_version": "acl-installed-file-set:v1",
         "scope": "python-production-tree",
-        "digest": "sha256:cbafe9fb3022f7ed0d4da230d5c56800c622be750c358f00c8a272e35b090101",
+        "digest": "sha256:15ee7b4e978e8d1facf79968c9e9d14f002b020d891cfca04aa9b391e896f12d",
         "files": [
           {
             "path": "worker_lab/__init__.py",
@@ -232,7 +232,7 @@
           },
           {
             "path": "worker_lab/workspace.py",
-            "sha256": "sha256:f896051147e6bbb4d8a266ab609b6fecc1362760d624072929184d4562056967"
+            "sha256": "sha256:fffb5b3d073d33696fc3fbe83f159c28de2ffeb67d4ffc8edae50023aa7031ca"
           }
         ]
       },

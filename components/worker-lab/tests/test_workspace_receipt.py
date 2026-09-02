@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -10,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.test_cli import write_authority_fixture
+from tests.test_cli import write_authority_fixture, write_json
 from worker_lab.attempt_store import AttemptStore
 from worker_lab.cli import main
 from worker_lab.errors import LabValidationError
@@ -666,6 +667,38 @@ def test_prepare_workspace_publishes_verified_detached_copy(tmp_path: Path, caps
     assert _git_value(workspace, "remote") == ""
     assert not (workspace / ".git" / "objects" / "info" / "alternates").exists()
     assert _git_value(template, "status", "--porcelain=v1", "--untracked-files=all") == ""
+
+
+def test_prepare_workspace_preserves_crlf_sealed_context(tmp_path: Path, capsys) -> None:
+    lab, template = write_authority_fixture(tmp_path)
+    sealed = template / "README.md"
+    subprocess.run(
+        ["git", "-C", str(template), "config", "core.autocrlf", "true"],
+        check=True,
+    )
+    subprocess.run(["git", "-C", str(template), "checkout", "--force"], check=True)
+    head = _git_value(template, "rev-parse", "HEAD")
+    exercise_path = lab / "curricula" / "exercises" / "record-model" / "v1.json"
+    exercise = json.loads(exercise_path.read_text(encoding="utf-8"))
+    exercise["template_commit"] = head
+    write_json(exercise_path, exercise)
+    context_path = lab / "curricula" / "contexts" / "record-model-context" / "v1.json"
+    context = json.loads(context_path.read_text(encoding="utf-8"))
+    context["starting_commit"] = head
+    context["files"][0]["digest"] = "sha256:" + hashlib.sha256(sealed.read_bytes()).hexdigest()
+    write_json(context_path, context)
+    assert subprocess.check_output(
+        ["git", "-C", str(template), "cat-file", "blob", "HEAD:README.md"]
+    ) == b"instructions\n"
+
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    attempt_id = _create_draft(lab, template, capsys)
+    receipt = _prepare(lab, attempt_id, template, workspace_root)
+
+    workspace = workspace_root / attempt_id
+    assert (workspace / "README.md").read_bytes() == sealed.read_bytes()
+    assert verify_workspace(lab, attempt_id, workspace_root) == receipt
 
 
 def test_prepare_workspace_cli_returns_receipt_and_ready_attempt(tmp_path: Path, capsys) -> None:
