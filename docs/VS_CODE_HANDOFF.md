@@ -1,6 +1,6 @@
 # VS Code Handoff
 
-Resume `main` from the next committed Phase 4 non-executing-preparation checkpoint in `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`.
+Resume `main` from Phase 4 non-executing-preparation checkpoint `e79555bae02ec85b5badddd7f367f8782adc02b0` in `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab`.
 
 Read `AGENTS.md`, `docs/START_HERE.md`, `docs/CURRENT_STATE.md`, and `docs/WORKPLAN.md`; treat the work plan as the trusted sequence. Inspect the dirty tree before editing and preserve unrelated changes.
 
