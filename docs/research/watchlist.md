@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Task 5 completed Pydantic AI deep research. Task 6 completed **Cline** deep research. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Task 5 completed Pydantic AI deep research. Task 6 completed Cline deep research. Task 7 completed **LangGraph** deep research. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
 
 Detailed historical artifacts remain in:
 - `projects/ranked-projects.md`
@@ -13,30 +13,46 @@ Detailed historical artifacts remain in:
 Completed project deep research:
 - `projects/pydantic-ai.md`
 - `projects/cline.md`
+- `projects/langgraph.md`
 
-## Task 6 — Cline research result
+## Task 7 — LangGraph research result
 
 **Status:** project deep research complete; no dependency/adoption/fork decision made.
 
 High-value findings to carry into later comparison:
 
-- **Architecture:** current SDK deliberately separates a stateless agent/model loop from stateful core/session ownership, persistence, compaction, telemetry, schedules and hub lifecycle.
-- **Plan authority:** Cline added runtime command blocking because prompt instructions alone did not keep weaker models read-only. The current command guard explicitly remains a blacklist rather than a full shell parser, and open issue #13586 demonstrates Python-based write bypass in Plan mode.
-- **Approvals:** user approval and model command classification are workflow signals, not a hard execution boundary. SDK extension tools also need explicit policy because unlisted tools can default to enabled/auto-approved.
-- **Embedded runtimes:** open Claude Code-provider issue #13146 shows the risk of two tool namespaces/permission systems/cwd assumptions when one agent harness wraps another without one clear authority owner.
-- **Edit safety:** `apply_patch` recently fixed an Add File path that could overwrite an existing file because the executor had not loaded target state even though the parser contained an overwrite guard.
-- **Context filtering vs access:** `.clineignore` is explicitly not a security boundary. The replacement PreToolUse-hook pattern is stronger but still documents shell-parser, symlink and YOLO limitations.
-- **Checkpoint semantics:** recent fixes show checkpoint correctness depends on durable turn identity across retries, compaction and restart; current snapshots capture untracked files and restoration creates recovery protection.
-- **Restore safety:** checkpoint restore previously could knock newer user commits off the branch. The current fix refuses if HEAD moved and uses Git compare-and-swap to close the validation/reset race.
-- **Local models:** generic OpenAI compatibility was insufficient for Ollama because it lost `num_ctx`; Cline restored a native adapter so runtime context allocation and Cline's budget agree.
-- **Capability metadata:** model capabilities are explicit, but unknown/empty capability lists may intentionally fail open for some features for compatibility. ACL should choose unknown semantics explicitly per risk.
-- **Context recovery:** overflow is classified, deterministically compacted, checked for actual shrinkage, retried once, and then stopped/escalated rather than blindly replayed.
-- **Context durability:** compaction/migration/abort bugs show canonical transcript, provider-facing context and persisted restart state must be distinct but consistent.
-- **Loop control:** runtime consecutive-mistake and identical-tool-call loop detection provides a strong alternative to putting many behavioral limits inside small-model prompts.
-- **Telemetry:** structured events carry session/agent/parent/run/iteration/tool-call identity and expose tools, provider failures, compaction, mistake limits, sub-agents, timeouts and policy blocks.
-- **Long-run storage:** event/checkpoint persistence needs physical retention/GC as well as logical row retention.
+- **Stateful runtime:** LangGraph models checkpoints, pending task writes, thread/checkpoint lineage, subgraphs, interrupts, retries/timeouts and task/checkpoint/debug streams explicitly.
+- **Durability modes:** `sync`, `async` and `exit` make persistence policy explicit, but durability does not establish exactly-once external effects.
+- **External effects:** open issue #8039 demonstrates why a process crash between side effect and persistence can lead to node re-execution/duplicate effects; broad proposed ordering fixes #8050/#8055 were closed without merge and current main still warrants caution.
+- **Interrupt identity:** concurrent human-input/approval waits need stable IDs. Open #8579 shows a scalar resume can be accepted for multiple child interrupts grouped into one subgraph task.
+- **Subgraph replay:** open #8458 shows a parent fork can regenerate task identity/checkpoint namespace and silently rerun an entire subgraph instead of resuming the requested child checkpoint.
+- **Authoritative hydration:** open #8653 shows a production-style config-injected checkpointer path can hydrate from the wrong saver and make `update_state` commit an incorrectly empty base state.
+- **Replay inputs:** open #8582 shows an `UntrackedValue` can disappear across failure/resume while the task is still considered replayable. Required replay inputs must be persisted, reacquirable or explicitly non-replayable.
+- **Runtime recovery policy:** current `RetryPolicy` and `TimeoutPolicy` support bounded retry/backoff, hard timeout, idle timeout and heartbeat semantics; cancellation remains cooperative for blocking synchronous/CPU work.
+- **Retention:** open #8531 shows physical Postgres checkpoint pruning is its own lifecycle problem; Delta-style ancestry makes naive keep-latest unsafe.
+- **Deletion fencing:** open #7206 shows stale late writers can resurrect deleted threads when deletion has no tombstone/generation fence.
+- **Observability:** typed task/checkpoint/debug streams are useful local evidence surfaces; node `TracePolicy` explicitly is not a secret-redaction boundary.
+- **Boundary:** LangGraph does not replace workspace/Git snapshots, external-effect ledgers, sandboxing, credential authority, local-model capability verification or task acceptance gates.
 
-See `projects/cline.md` for sources, failure details, candidate invariants, ACL regression-fixture ideas and deliberately deferred comparison questions.
+See `projects/langgraph.md` for primary sources, failure details, candidate invariants, ACL regression-fixture ideas and deliberately deferred comparison questions.
+
+## Task 6 — Cline research result
+
+**Status:** project deep research complete; no dependency/adoption/fork decision made.
+
+High-value findings retained for later comparison:
+- stateless agent/model loop separated from stateful core/session ownership;
+- runtime enforcement is stronger than prompt-only Plan-mode restraint but shell blacklists remain defense-in-depth;
+- approval UI, model classification and execution authority are separate layers;
+- embedded agent runtimes can create a second permission/tool/cwd system;
+- file mutation requires authoritative execution-time state;
+- checkpoint identity must survive retries/compaction/restart and restore needs fail-closed concurrency/history protection;
+- local compatibility must include model + runtime + adapter + backend settings;
+- deterministic recovery should prove progress and use bounded retry;
+- loop/mistake detection belongs in runtime telemetry;
+- long-run storage retention is separate from logical context retention.
+
+See `projects/cline.md` for the complete evidence.
 
 ## Task 5 — Pydantic AI research result
 
@@ -68,8 +84,8 @@ See `projects/pydantic-ai.md` for the complete evidence.
 ### Tier A — immediate deep-research queue
 1. **Pydantic AI** — `pydantic/pydantic-ai` — **Task 5 complete**; `projects/pydantic-ai.md`.
 2. **Cline** — `cline/cline` — **Task 6 complete**; `projects/cline.md`.
-3. **LangGraph** — `langchain-ai/langgraph` — **next task**; checkpoints, retries, interruption/resume, durability and remote lifecycle.
-4. **promptfoo** — `promptfoo/promptfoo` — independent agent evaluation, deterministic trace assertions and coding-agent red teaming.
+3. **LangGraph** — `langchain-ai/langgraph` — **Task 7 complete**; `projects/langgraph.md`.
+4. **promptfoo** — `promptfoo/promptfoo` — **next task**; independent agent evaluation, deterministic trace assertions and coding-agent red teaming.
 5. **Strands Harness SDK** — `strands-agents/harness-sdk` — explicit harness interfaces, structured-output validation/retry, Ollama support.
 6. **Codex** — `openai/codex` — sandbox/approval policies, command authority, child-agent permission inheritance, Ollama integration.
 7. **OpenHands** — `OpenHands/OpenHands` — coding-agent runtime/sandbox, evidence policy, telemetry and provider abstraction.
@@ -102,8 +118,8 @@ See `projects/pydantic-ai.md` for the complete evidence.
 
 This ranks public technical signal, not formal authority, seniority, employment status or outreach priority.
 
-1. **Saoud Rizwan** — `saoudrizwan` — Cline — Task 6 reinforces file/checkpoint/permission/provider safety as a high-signal contribution stream.
-2. **Nick Hollon** — `nick-hollon-lc` — LangGraph — durable/remote runtime lifecycle and streaming state.
+1. **Saoud Rizwan** — `saoudrizwan` — Cline — file/checkpoint/permission/provider safety.
+2. **Nick Hollon** — `nick-hollon-lc` — LangGraph — Task 7 reinforces durable/remote runtime lifecycle, checkpoint/state and streaming as a high-signal contribution stream.
 3. **Jesús Samuel** — `jesussamuel-byte` — Gemini CLI — path/symlink/configuration authorization and command safety.
 4. **Graham Neubig** — `neubig` — OpenHands — provider/evidence/repository-boundary and lifecycle decisions.
 5. **Johannes Gäßler** — `JohannesGaessler` — llama.cpp — local runtime backends, quantization/KV and multi-device behavior.
@@ -169,16 +185,19 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Deep research extracts mechanisms/invariants first; dependency/fork/build decisions remain later comparative work.
 - Model instructions and role labels are not authority boundaries.
 - Typed schema validation, approval and execution authority are separate concerns.
-- A wrapper around another agent runtime must explicitly unify or isolate tool/permission/cwd/credential ownership.
-- Unknown model/runtime capabilities need an explicit risk-based policy; local compatibility must be verified.
-- Retry categories should not collapse into one generic retry count; repeated tool loops deserve execution-level detection.
-- Conversation history, workspace snapshots and external side-effect evidence are separate recovery dimensions.
+- Conversation/graph state, workspace state and external-effect evidence are separate recovery dimensions.
+- A durable checkpoint does not imply exactly-once external side effects.
+- Persistent recovery identity should not depend solely on regenerated ephemeral task IDs.
+- Human approval/input must bind to stable request IDs; ambiguous concurrent resume should fail closed.
+- Replayable tasks require persisted or deterministically reacquirable inputs.
+- State mutation must hydrate and commit against one authoritative state source/version.
+- Retry, timeout and cancellation policies belong in observable runtime behavior.
+- Deletion needs generation/tombstone fencing against stale writers.
+- Physical persistence retention is separate from model-context compaction.
 - Restore/checkpoint operations are themselves destructive/concurrent operations and need fail-closed preconditions.
-- Authority-bearing configuration should compose explicitly and fail closed.
 - Current bugs/regression fixes can be more valuable than feature lists because they expose actual failure surfaces.
-- Long-running persistence needs both logical retention and physical storage bounds.
 - Preserve architecture generations and canonical aliases separately so migrations remain auditable.
 
 ## Next research task boundary
 
-Task 6 is complete once the Cline research file, catalog, watchlist and state are committed. The next task is **LangGraph deep research only**. Do not begin it until separately instructed, and when it is begun, stop before promptfoo.
+Task 7 is complete once the LangGraph research file, catalog, watchlist and state are committed. The next task is **promptfoo deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Strands Harness SDK.
