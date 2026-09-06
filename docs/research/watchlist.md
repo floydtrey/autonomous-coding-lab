@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–15 completed one-project-at-a-time deep research through **Model Context Protocol**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–16 completed one-project-at-a-time deep research through **Goose**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -16,6 +16,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/llama-cpp.md`
 - `projects/openai-agents-sdk.md`
 - `projects/model-context-protocol.md`
+- `projects/goose.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -58,6 +59,37 @@ High-value findings to carry into later comparison:
 
 See `projects/model-context-protocol.md` for primary sources, current open issues, candidate ACL regression fixtures and explicit non-conclusions.
 
+## Task 16 — Goose research result
+
+**Status:** current Goose deep research complete; no dependency/adoption/fork decision made.
+
+High-value findings to carry into later comparison:
+
+- **Conversation-derived state machine:** `goose-agent` re-derives the next operation from persisted conversation state and reloads state between passes. Durable markers live on messages instead of hidden loop variables. This is strong restart-safe loop reference material, but not a workspace/effect checkpoint or distributed fence.
+- **ACP separates client from runtime:** Goose can expose the full runtime over stdio or HTTP/WebSocket while clients remain replaceable. This is a useful Vera topology reference, but ACP/session identity remains different from ACL project/run/effect identity.
+- **Small provider boundary:** Goose provider implementations sit behind a minimal stream contract. Current implementations include cloud/OpenAI-compatible paths, Ollama and built-in on-device inference.
+- **Built-in local inference:** `goose-local-inference` runs GGUF through llama.cpp (`llama-cpp-2`) and optionally MLX, with CUDA/Vulkan/MLX paths plus template/tool parsing and tool emulation. Treat capability as exact Goose revision/build + provider/backend + model/template/parser/tool mode/configuration.
+- **MCP extension structure:** extension tools are discovered dynamically, ordinarily namespaced by extension and duplicate public tool names are skipped. Remote tool metadata/annotations remain trust inputs, not authority.
+- **Extension secret/config lifecycle:** resolved secret-bearing extension configuration is kept in memory and relevant config/secret changes can restart an extension. This is useful lifecycle behavior.
+- **Ambient child environment remains a gap:** local stdio extension launch does not clear inherited process environment before applying configured variables. ACL should retain minimal explicit child environments rather than inherit supervisor authority.
+- **Layered permissions:** explicit per-tool permissions, Smart Approval/read-only metadata or classifier output, security inspectors and Goose mode interact. Positive LLM safety classifications are not persisted into broad name-wide grants, which is a useful hardening pattern.
+- **Permission != sandbox:** Autonomous mode is the documented default and allows tools without approval. Current upstream explicitly provides no general OS sandbox; tool execution runs with the user account's authority.
+- **Persistent sessions:** versioned SQLite state stores conversation plus working directory, extension/recipe/provider/model/mode and usage metadata; ACP can replay history, restore provider session state and re-send pending confirmations.
+- **Single-run race control:** ACP maintains a shared per-session active-run/run-ID registry and agent creation is serialized per session, preventing common in-process duplicate-run/MCP-initialization races. Distributed durable state still needs generation/lease/CAS fencing.
+- **Executable recipes:** recipes can contain stdio extension commands and retry/on-failure shell commands. Recipe retry uses deterministic shell success checks and bounded retries but resets conversation rather than rolling back workspace/external effects.
+- **Exact recipe acceptance identity:** Desktop acceptance is SHA-256 content-hash based, so changed recipe content requires a different acceptance record. The trust target should therefore include executable fields, not only natural-language instructions.
+- **Open recipe trust-ordering surface (#10325):** a current open report reproduced v1.45 Desktop stdio-extension execution before `Trust and Execute`; current main still loads session extensions during agent construction and checks user recipe acceptance after session load. Current security scanning still checks hidden Unicode tags in natural-language fields rather than executable extension/retry fields.
+- **Subagent delegation:** internal subagents can be sequential/parallel, inherit parent extensions unless narrowed and cannot recursively spawn subagents or manage extensions/schedules. These are useful control-plane restrictions, but internal subagents are not OS isolation.
+- **Code Mode scales tool context:** three meta-tools let the model discover larger MCP tool sets on demand, batch calls and chain intermediate text results. This is strong evidence for minimizing model-facing tool schemas without deleting outer authority controls.
+- **Harbor makes harness a benchmark variable:** Goose's project-owned terminal-bench tooling compares exact binaries, models and extension/tool modes and records pass/fail/error/timeout, turns, compute, tokens and cost. Current project results show the same model can move materially when harness/tool mode changes.
+- **Telemetry has multiple audiences:** inspected source exposes explicit opt-in PostHog product telemetry plus optional OpenTelemetry/OTLP traces/logs/metrics. Neither replaces verifier-owned pass/fail evidence.
+- **Open MCP redirect surface (#11500):** the current authenticated Streamable-HTTP client still constructs a `reqwest::Client` with default headers and no explicit redirect policy; an assigned maintainer favored disabling redirects and testing that 3xx targets are not contacted.
+- **Open shell-policy surface (#11399):** current permissions are tool-wide and deterministic argument-level shell rules remain under design; maintainer discussion converges on explicit `deny > ask > allow` handling outside Smart Approval plus protection of policy configuration from agent edits.
+- **Governance continuity:** Block Goose → AAIF Goose is a documented continuity transition, not abandonment. Foundation stewardship improves continuity signal but does not replace version pinning, security review or API-compatibility qualification.
+- **Boundary:** Goose is strongest as a source of durable-state, provider, MCP, context-scaling and evaluation mechanisms underneath ACL/Vera-owned process/sandbox authority, credential governance, effect replay safety, protected policy and independent verification.
+
+See `projects/goose.md` for primary sources, current open issues, candidate ACL/Vera regression fixtures and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -74,8 +106,8 @@ See `projects/model-context-protocol.md` for primary sources, current open issue
 
 ### Tier B — high-value follow-up
 11. **Model Context Protocol** — `modelcontextprotocol/modelcontextprotocol` (+ directly relevant `modelcontextprotocol/ext-tasks`) — **Task 15 complete**.
-12. **Goose** — `aaif-goose/goose` — **next task only**.
-13. **Ollama** — `ollama/ollama`.
+12. **Goose** — `aaif-goose/goose` — **Task 16 complete**.
+13. **Ollama** — `ollama/ollama` — **next task only**.
 14. **Letta Code** — `letta-ai/letta-code`.
 15. **Gemini CLI** — `google-gemini/gemini-cli`.
 16. **Graphiti** — `getzep/graphiti`.
@@ -134,6 +166,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Model proposals and role labels are not authority boundaries.
 - Make model-facing scaffold complexity earn its place; lifecycle, policy, evidence and recovery belong in explicit runtime owners rather than prompt prose.
 - A tiny/general tool interface can still carry broad authority; interface simplicity and least privilege are independent dimensions.
+- On-demand meta-tool discovery can reduce context/schema pressure, but generated coordination code must still cross the same deterministic effect-authorization boundary as direct tool calls.
 
 ### Identity and authority
 - Canonical effect capability identity includes authoritative origin plus definition/version; name-only dispatch is unsafe across providers/servers.
@@ -143,7 +176,8 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Revalidate mutable policy immediately before irreversible effects after waits/approval.
 - Child roles may reduce authority but must not widen the parent ceiling.
 - Reviewer/verifier capability should be minimized independently from worker capability.
-- Self-reported server/model/provider names are metadata, not security identity.
+- Self-reported server/model/provider names and read-only/tool annotations are metadata/advisory inputs, not security identity or authority.
+- Shared recipes/configuration that can launch processes or shell checks are executable authority artifacts, not passive prompt templates.
 
 ### Workspace, sandbox and credentials
 - Workspace isolation, Git/ref authority, secrets, verifier roots and external effects are separate trust domains.
@@ -152,12 +186,15 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Durable state should reference credentials; live authority is rebound from current trusted policy after resume.
 - Runtime-visible plaintext credentials cannot later be made secret from arbitrary worker code by revocation.
 - MCP Roots/workspace hints are not access control.
+- Approval modes, shell classifiers and command policies are not substitutes for OS/process/filesystem/network isolation.
 
 ### State, recovery and effects
 - Logical request/idempotency, run/attempt, process, protocol request, remote task handle and durable session identities remain separate.
 - Transport/session/stream continuity is not authoritative project/task/effect state.
 - Each durable state domain needs one authoritative writer; multi-process state requires leases/generation/CAS/fencing.
 - A saved transcript/trajectory/inference cache/remote task handle is not automatically an ACL checkpoint.
+- Re-deriving agent-loop transitions from persisted semantic state is preferable to hidden in-memory loop progress, but that state still needs separate workspace/effect/authority evidence before safe continuation.
+- In-process per-session run locks prevent local races but do not replace durable distributed writer fencing.
 - A durable checkpoint still does not imply exactly-once external effects.
 - Durable action/result relationships are atomic semantic state; orphan results/calls are corruption.
 - Partial/in-progress work stays visibly interrupted/uncertain after crash/recovery.
@@ -172,10 +209,12 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Retry is not authority to replay a possibly already-executed effect/request.
 - Provider/request IDs are correlation identifiers, not automatically idempotency/effect IDs.
 - Broken transport retry of an effect-bearing request needs durable reconciliation/idempotency policy.
+- Resetting conversation/task messages for retry is not workspace rollback or external-effect rollback.
 
 ### Model/runtime capability and protocol compatibility
 - Local-model capability is an exact model + runtime + adapter + protocol/tool schema/namespace + configuration property.
 - For llama.cpp-class deployments, include build/backend/driver, GGUF/quantization, template/parser/constraint backend, context/KV/cache and optimization/sampling settings.
+- For Goose-like deployments, also record exact Goose/GDK/provider revision, local backend path and extension/tool mode such as direct MCP versus Code Mode.
 - Template/schema/protocol capability discovery is not verified end-to-end behavior.
 - MCP capability identity includes protocol era/version, transport, SDK/adapter revision, auth mode and negotiated extensions.
 - Core protocol conformance does not imply optional extension parity.
@@ -185,6 +224,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Tool schemas, validation, authorization, execution and evaluation are distinct contracts.
 - Schema converters/parsers/constraint compilers are trusted code and require adversarial regression fixtures.
 - Remote schema/resource/auth/discovery URL dereference is a network/SSRF authority surface with private/loopback/redirect/size/time policy.
+- Redirect behavior for authenticated remote tool clients is itself a credential/network policy surface and should be explicitly configured/tested rather than inherited from HTTP-client defaults.
 - Remote prompts, resources, memory and server instructions remain lower-trust model content regardless of valid protocol shape.
 - Cache TTL is freshness guidance, not authorization, provenance or immutable state version.
 - Server-declared public cacheability cannot override ACL/Vera trust isolation.
@@ -197,6 +237,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Trace/model/tool data may contain secrets; raw traces, operational telemetry and product analytics have separate audiences/retention.
 - Evidence export/delivery has its own settlement state.
 - Protocol/SDK/harness/evaluator failures are classified separately from model failures.
+- Harness/runtime build, tool/extension mode and model/provider configuration are benchmark identity fields; same-model scores under different harnesses are not interchangeable.
 
 ## Historical failure/redesign controls retained
 
@@ -217,4 +258,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 15 is complete once `projects/model-context-protocol.md`, catalog, state and watchlist are committed. The next task is **Goose deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Ollama.
+Task 16 is complete once `projects/goose.md`, catalog, state and watchlist are committed. The next task is **Ollama deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Letta Code.
