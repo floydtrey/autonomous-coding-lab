@@ -2,7 +2,7 @@
 
 **Branch:** `research/agent-landscape`
 **Status:** current task complete; stopped before next task
-**Current phase:** 10 — Codex deep research complete
+**Current phase:** 11 — OpenHands deep research complete
 **Execution:** research only; no worker/model execution authorized by this branch
 
 ## Completed
@@ -13,60 +13,59 @@
 - Task 7 deep-researched **LangGraph** and its state/checkpoint, replay, interrupt, durability and retention failure surfaces.
 - Task 8 deep-researched **promptfoo** as an independent evaluation/red-team/evidence layer.
 - Task 9 deep-researched **Strands Harness SDK** across lifecycle, authorization, sandbox, persistence, interrupt, local-model and evaluation boundaries.
-- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, and `watchlist.md` before Task 10.
-- Deep-researched **Codex** as ranked project #6, using the ACL/Vera end goal to control scope.
-- Verified current canonical project identity at `openai/codex`, active Apache-2.0 status, and current main `6af345407d9c2a568da9d01b6c4b81a9e61495c0` when examined.
-- Verified explicit sandbox policy variants and permission-profile semantics, including protected control-plane metadata (`.git`, `.agents`, `.codex`) inside otherwise writable workspaces.
-- Verified that approval policy and sandbox authority are orthogonal: `approval_policy="never"` does not grant full authority, and an approval-required action that cannot ask does not silently escalate.
-- Verified command-policy logic that refuses dangerously broad persistent approval prefixes such as generic shells/interpreters, package runners, `git`, `rm` and `sudo`.
-- Verified live child-session authority refresh from the parent turn for sandbox/permissions, approval, cwd and related runtime state.
-- Verified current role code/tests enforce one-way authority: roles can customize/reduce child capability but cannot replace parent sandbox, approval, provider/base URL, MCP, apps or notification authority.
-- Verified hostile role regression tests that deliberately request danger-full-access, approval never, attacker provider/MCP/config surfaces and prove parent authority survives.
-- Recorded a current documentation/code mismatch: subagent docs contain wording suggesting broader per-agent sandbox customization, while shipped role code/tests are more restrictive; source/tests control this task's conclusion.
-- Verified current main fix #43147 separating authority inheritance from capability inheritance: fresh child sessions recompute experimental-context capability against the child's own model instead of blindly inheriting parent activation.
-- Verified reviewer/delegate surfaces can be narrower than worker surfaces; Guardian reviewer uses a restricted extension surface while ordinary subagents can inherit broader parent extensions.
-- Verified Guardian hardening commit `87628df7...`: root authorization evidence is retained/reconstructed across compaction and versioned so prior allows become stale when root instructions/verified authorization evidence changes.
-- Verified Guardian hardening commit `4636819a...`: review/checkpoint reuse after compaction fails closed when required evidence is missing, unusable, incompatible or unknown.
-- Verified recent sandbox-adapter hardening showing deny/environment semantics can be lost at platform bridges and therefore must be tested at realized child execution, not only in the high-level policy object.
-- Verified `allow_symlinked_codex_home` is a narrow explicit trust exception, default-off and intended for top-level user-owned config rather than project-controlled authority.
-- Verified current managed worktree behavior: per-chat working directories, detached HEAD by default, bounded cleanup with snapshots, and optional ignored-file copying that can include `.env`/secret files; recorded that workspace isolation and secret isolation are separate policies.
-- Verified app-server Thread/Turn/Item identity, version-specific generated schemas, bounded queues/backpressure, durable/ephemeral threads, thread-owned restore state and explicit fork interruption markers for partial in-progress history.
-- Verified project create/import APIs use idempotency keys and preserve the distinction between logical project deletion and deleting threads/directories/files.
-- Verified current built-in Ollama/LM Studio support through the Responses provider path and explicit provider retry/idle configuration.
-- Recorded open issue #30994 as current failure evidence that local Ollama setup can contaminate top-level/global provider/catalog state rather than remaining profile-scoped.
-- Recorded open issue #42488 as current failure evidence that custom/Ollama providers can emit flattened dotted tool names that fail Codex namespace routing; no merged fix was claimed.
-- Verified cancellation/process custody: command cancellation targets process groups, uses terminate-then-kill escalation, and bounds stdout/stderr drain tasks so orphaned pipes cannot hang completion indefinitely.
-- Preserved the boundary that process settlement does not roll back filesystem/network/API/database effects and therefore does not replace ACL's external-effect ledger.
-- Verified Codex OpenTelemetry support and sensitive user-prompt tracing control; did not find a promptfoo-like independent acceptance subsystem in Codex and preserved the need for external/ACL-owned validation.
-- Recorded detailed evidence, candidate invariants, ACL regression-fixture ideas, open-failure boundaries and explicit non-conclusions in `projects/codex.md`.
-- Preserved the decision boundary: Task 10 does **not** decide whether ACL should adopt/fork/wrap Codex, rank it against prior projects, or begin OpenHands research.
+- Task 10 deep-researched **Codex** across sandbox/approval authority, child inheritance, Guardian authorization provenance, worktrees, thread/fork/resume state, local providers, process-tree cancellation and telemetry/evaluation boundaries.
+- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, and `watchlist.md` before Task 11.
+- Deep-researched **OpenHands** as ranked project #7, using the ACL/Vera end goal to control scope.
+- Verified the current OpenHands system is split across product/control-center, runtime/Agent Server and automation responsibilities rather than one monolith.
+- Verified `OpenHands/software-agent-sdk` owns the canonical agent runtime surfaces: agents, tools, conversations, workspaces, events, REST/WebSocket API and browser-compatible TypeScript client.
+- Verified current conversation state explicitly persists lifecycle/status, workspace, agent configuration, branch HEAD, stats, secret registry, hooks and agent-specific state outside prompt prose.
+- Verified branch-aware append-oriented event history with an authoritative active `leaf_event_id` and derived active-branch view.
+- Recorded closed high-priority issue #4487 as crash-recovery evidence that persisting an action event without the matching advanced HEAD can orphan a recovery result/error onto the wrong branch and make future turns unrecoverable.
+- Extracted the candidate invariant that every tool result/rejection/recovery error must remain paired with its originating action on the authoritative branch.
+- Verified Agent Server `ConversationLease` uses owner identity, monotonic generation, TTL, host/PID evidence, file locking and guarded-write fencing.
+- Connected current lease/fencing design to closed split-brain issue #2966, where multiple Agent Server processes could previously attach to the same active persisted conversation.
+- Verified startup can lazily retain idle conversation metadata while applying special recovery treatment to conversations persisted as `RUNNING`.
+- Verified `ParallelToolExecutor` uses explicit declared-resource locking for concurrent tools and warns that tool resource declarations must be correct for the mechanism to be safe.
+- Recorded open issue #4777 as deterministic evidence that cancellation can become stale while a tool waits for a resource lock, allowing a queued file/terminal/browser action to start after user interruption.
+- Recorded current runtime main `fe91d7dfc94d299e3751acb2b0c80ccbc582623c`, whose regression tests demonstrate that async cancellation cannot forcibly stop synchronous work blocked in worker threads and can leave zombie-thread/lifecycle failures.
+- Preserved the distinction between cancellation request and actual execution settlement.
+- Verified OpenHands workspace backends include local, Docker, Apptainer, cloud and API-remote implementations.
+- Verified Docker workspace configuration can forward environment variables, mount arbitrary volumes, select networks, expose ports/GPU and manage container lifecycle; recorded that container transport is not itself a least-privilege policy.
+- Verified optional conversation-specific Git worktree creation reduces checkout collision but remains distinct from sandboxing, worker identity and external-effect recovery.
+- Verified explicit confirmation policy (`AlwaysConfirm`, `NeverConfirm`, `ConfirmRisky`) and security analyzer surfaces; preserved that confirmation/risk classification does not replace actual filesystem/process/network authority.
+- Deep-researched credential design issue #4288 because it directly overlaps Vera: durable state should converge toward credential references while runtime-visible delivery is an explicit bounded plaintext authority decision and brokered delivery keeps the provider secret outside the worker.
+- Kept #4288 correctly labeled as design/target architecture rather than a fully shipped guarantee.
+- Recorded the design's catalog of historical credential leak/coupling paths as evidence that redaction-only fixes do not solve secret-bearing serializable state structurally.
+- Verified current Agent Server code does include credential-binding and persisted-secret scrubbing paths, while avoiding the unsupported claim that the full reference-only design is complete.
+- Recorded closed issue #3815 as evidence that hidden ambient profile state under `~/.openhands` can defeat a supposedly fresh persistence root unless all state roots participate in isolation.
+- Verified the current LLM abstraction adds canonical model identity, feature/capability lookup/overrides, provider runtime metadata, retry/timeout configuration and an explicit minimum-context expectation on top of LiteLLM.
+- Recorded open Ollama issue #4255 as evidence that configured timeout state and realized wire/provider behavior can diverge.
+- Verified Agent Server observability deliberately separates high-fidelity LLM completion logging, Laminar/OpenTelemetry tracing and allowlisted product telemetry with different sensitivity/purpose.
+- Verified the SDK critic can score events/Git patches and drive iterative refinement, but preserved the boundary that runtime-owned critic feedback is not automatically independent acceptance evidence.
+- Recorded current prompt-memory behavior that can treat repository-root `AGENTS.md` as persistent model-visible project memory; classified worker-writable repository memory as lower trust than protected ACL governance.
+- Recorded detailed primary sources, failure boundaries, candidate invariants, ACL regression-fixture ideas and explicit non-conclusions in `projects/openhands.md`.
+- Preserved the decision boundary: Task 11 does **not** decide whether ACL should adopt/fork/wrap OpenHands, compare a cross-project winner, or begin SWE-agent/mini-swe-agent research.
 
-## Highest-value Codex findings for later comparison
+## Highest-value OpenHands findings for later comparison
 
-1. Treat source-workspace writability and control-plane metadata authority as different permissions; protect Git, policy, agent-definition and verifier/evidence roots inside writable projects.
-2. Keep approval policy and sandbox authority orthogonal; unattended execution must not imply broad authority.
-3. Persist only narrow approval scopes; generic shells/interpreters/package runners are not safe reusable approvals.
-4. Child authority is one-way: refresh from the live parent authority and permit only capability reduction/customization, never child-config widening.
-5. Child model/runtime capabilities are recomputed separately from authority inheritance.
-6. Test malicious role/config attempts explicitly rather than assuming a friendly child definition.
-7. Reviewer/validator surfaces should generally be narrower than worker execution surfaces.
-8. Bind approvals to versioned root authorization evidence; changes to task/objective/instructions/verified answers stale prior authorization.
-9. Context compaction must preserve or invalidate authorization evidence; missing/incompatible evidence fails closed.
-10. Test realized sandbox authority after every adapter bridge; deny/read/write/environment policy can be lost in serialization/platform translation.
-11. Security/trust exceptions such as symlink allowances belong to user/admin-owned configuration, not repository-controlled state.
-12. Worktree isolation and secret isolation are different policies; ignored-file copying requires explicit least-privilege projection.
-13. Workspace/run identity should be distinct from Git branch/ref identity and preserve source baseline plus cleanup/restore evidence.
-14. Resume may hydrate only owned/provenance-checked runtime settings; matching historical values are not automatically authoritative.
-15. Partial/in-progress forks must remain explicitly interrupted/partial rather than being rewritten as clean continuity.
-16. Persistent create/import/enqueue operations need caller-stable idempotency IDs; logical deletion and physical evidence/data destruction are separate contracts.
-17. Local-model capability is exact model + runtime + adapter + wire/tool namespace + context/stream/retry configuration.
-18. Provider/profile selection is scoped state; temporary local-provider setup must not silently mutate unrelated/global provider identity.
-19. Cancellation must settle the whole local process tree/job plus pipes; killing the coroutine or top PID is insufficient.
-20. Process settlement does not imply external-effect rollback or exactly-once semantics.
-21. Bounded supervisor/server queues and explicit overload/backoff are preferable to unbounded buffering.
-22. Persist the exact runtime/protocol schema version giving authority/state fields their meaning.
-23. Runtime telemetry is useful evidence but sensitive prompt/tool data need explicit audience/redaction controls.
-24. Codex remains a runtime/authority/process reference; it does not replace ACL's outer scheduler, effect ledger, independent verifier, memory governance or dependency governance.
+1. Separate control-center/UI, automation/scheduling and agent-runtime truth rather than allowing one surface to own everything.
+2. Give each durable active conversation/task one fenced writer using owner identity, monotonic generation, TTL/renewal and guarded writes.
+3. Persisting events is insufficient; active branch/HEAD and action→result relationships must remain consistent under crashes.
+4. A run persisted as `RUNNING` deserves stronger recovery treatment than known idle/settled state.
+5. Concurrent tool safety needs explicit shared-resource identity; resource declarations are privileged contract code.
+6. Re-check cancellation/authorization/lease state immediately before an irreversible action, especially after blocking waits.
+7. Cancellation is a request; a task is not safely stopped until its owned thread/process/job is actually settled or explicitly unresolved.
+8. Workspace/container/worktree abstraction is execution transport/collision control, not proof of least-privilege filesystem/network/secret policy.
+9. Confirmation/risk classification, authorization and real execution authority are separate contracts.
+10. Durable task/conversation/checkpoint state should converge toward credential references rather than reusable secret material.
+11. `runtime_visible` credentials must be treated honestly: arbitrary worker code can copy/exfiltrate already-delivered plaintext.
+12. Brokered credentials and runtime-visible credentials are different authority models and should be explicit per binding/use.
+13. Every ambient configuration/state root must participate in isolation; a clean workspace/persistence root can still be contaminated by HOME/global profile state.
+14. Local-model compatibility is exact model + runtime + adapter + endpoint mode + context/tool/timeout/retry capability, verified at realized behavior.
+15. Separate raw sensitive traces, operational tracing and product analytics by schema/audience/retention.
+16. Runtime critics/refinement are useful but do not replace verifier-owned protected acceptance evidence.
+17. Worker-writable persistent repository memory/instructions must remain lower trust than ACL/Vera governance and verified project truth.
+18. OpenHands remains a runtime/server/workspace/credential/recovery reference; it does not replace ACL's outer project/backlog scheduler, external-effect ledger, independent verifier or Vera memory governance.
 
 ## Queue status
 
@@ -76,17 +75,18 @@
 - **promptfoo (#4): complete.** Detailed evidence: `projects/promptfoo.md`.
 - **Strands Harness SDK (#5): complete.** Detailed evidence: `projects/strands-harness-sdk.md`.
 - **Codex (#6): complete.** Detailed evidence: `projects/codex.md`.
-- **OpenHands (#7): next task only.** No OpenHands deep research was begun in Task 10.
+- **OpenHands (#7): complete.** Detailed evidence: `projects/openhands.md`.
+- **SWE-agent / mini-swe-agent (#8): next task only.** This ranked slot is transition-aware because SWE-agent is maintenance-only and names mini-swe-agent as successor.
 - Remaining ranked queue stays unchanged until its own separately authorized task or later evidence justifies an explicit update.
 
 ## Next task
 
-Deep-research **OpenHands** only.
+Deep-research the **SWE-agent / mini-swe-agent transition-aware slot** only.
 
-Do not begin this task until separately instructed. For the next task, deep-research OpenHands as ranked project #7 with the same end-goal discipline: coding-agent/runtime architecture, sandbox/execution server, workspace/repository authority, tool/action contracts, provider/local-model abstraction, persistence/session/recovery, concurrency/cancellation, telemetry/evaluation/evidence, security and credential boundaries, recurring failure surfaces, project health, reusable components and concrete ACL/Vera lessons. Save evidence/catalog/state, commit research-only changes, and **stop before SWE-agent**.
+Do not begin this task until separately instructed. For the next task, preserve Task 4's established transition evidence and determine which SWE-agent mechanisms were intentionally discarded, moved into SWE-ReX or retained in mini-swe-agent. Cover architecture/harness simplicity, execution backend/process isolation, repository/file/tool semantics, state/context/recovery, provider/local-model behavior, timeout/cancellation/process cleanup, evaluation/reproducibility, maintenance boundaries, recurring current failures, reusable components and concrete ACL/Vera lessons. Save evidence/catalog/state, commit research-only changes, and **stop before llama.cpp**.
 
 ## Later tasks
-1. Deep-research SWE-agent/mini-swe-agent transition-aware slot, then continue the ranked project queue one project per separately authorized task.
+1. Deep-research llama.cpp, then OpenAI Agents SDK, one project per separately authorized task.
 2. Deep-research high-value developers/accounts one at a time.
 3. Compare reusable components versus custom-build candidates.
 4. Analyze collaboration/open-source options.
@@ -96,4 +96,4 @@ Do not begin this task until separately instructed. For the next task, deep-rese
 
 ## Stop point
 
-Task 10 ended after Codex permission/sandbox, child authority/capability, Guardian approval provenance, sandbox-adapter, worktree/Git, thread/fork/resume, local-provider, process-cancellation, telemetry/evaluation-boundary, catalog/watchlist/state updates and next-task definition were completed. No OpenHands or SWE-agent research, cross-project winner selection, dependency/fork decision, ACL/Vera architecture/governance change, or worker/model execution was begun.
+Task 11 ended after OpenHands system/repository boundaries, conversation/event-tree persistence, generation-fenced ownership, crash recovery, concurrent tool locking, cancellation/thread settlement, workspace/worktree authority boundaries, confirmation/security analysis, credential architecture, ambient-state isolation, local-provider capability, observability/critic boundaries, catalog/watchlist/state updates and next-task definition were completed. No SWE-agent/mini-swe-agent or llama.cpp research, cross-project winner selection, dependency/fork decision, ACL/Vera architecture/governance change, or worker/model execution was begun.

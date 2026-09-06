@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–10 completed deep research on Pydantic AI, Cline, LangGraph, promptfoo, Strands Harness SDK, and **Codex**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–11 completed deep research on Pydantic AI, Cline, LangGraph, promptfoo, Strands Harness SDK, Codex, and **OpenHands**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
 
 Detailed historical artifacts remain in:
 - `projects/ranked-projects.md`
@@ -17,6 +17,38 @@ Completed project deep research:
 - `projects/promptfoo.md`
 - `projects/strands-harness-sdk.md`
 - `projects/codex.md`
+- `projects/openhands.md`
+
+## Task 11 — OpenHands research result
+
+**Status:** project deep research complete; no dependency/adoption/fork decision made.
+
+High-value findings to carry into later comparison:
+
+- **System boundaries:** current OpenHands separates Agent Canvas/control-center, `software-agent-sdk` runtime/Agent Server, and automation scheduling/dispatch responsibilities; UI and scheduler do not need to own runtime truth.
+- **Explicit conversation state:** lifecycle status, workspace, agent configuration, branch HEAD, hooks, stats and agent-specific state are durable runtime data rather than prompt-only instructions.
+- **Generation-fenced writer ownership:** `ConversationLease` uses owner identity, monotonic generation, TTL/renewal, host/PID evidence and guarded writes; this addresses prior same-persistence split-brain behavior.
+- **Crash relationship invariant:** closed issue #4487 showed that a tool action durably written before a stale branch HEAD was advanced could receive recovery output on the wrong branch and permanently poison later turns. Event persistence must preserve action→result relationship and authoritative branch identity.
+- **Selective recovery:** known idle state can remain lazily hydrated while state persisted as `RUNNING` receives stronger crash-recovery treatment.
+- **Resource-aware concurrency:** parallel tools use declared-resource locks; correctness depends on truthful resource declarations and safe fallback locking.
+- **Open cancellation race #4777:** a tool cancelled while waiting for a resource lock can reportedly begin after the lock becomes available because cancellation is not rechecked at the side-effect boundary.
+- **Blocking-work settlement:** current runtime main `fe91d7df...` adds regression tests demonstrating that cancelling async wrappers cannot forcibly stop blocking synchronous worker-thread code and can leave zombie-thread/lifecycle failures.
+- **Cancellation != settlement:** a task is not safely stopped merely because a coroutine/UI state says cancelled; owned execution must actually terminate or remain explicitly unresolved.
+- **Workspace != authority:** Docker/remote workspaces are execution transports. Mounts, environment projection, network, ports, GPU and credentials remain separate authority decisions.
+- **Worktree != sandbox:** optional per-conversation Git worktrees reduce checkout collision but do not enforce filesystem escape, secret boundaries or external-effect rollback.
+- **Confirmation != sandbox:** confirmation policies and security analyzers classify/approve actions but do not replace actual OS/filesystem/network/tool authority.
+- **Credential architecture:** design issue #4288 argues for durable credential references plus explicit `brokered` versus `runtime_visible` delivery. It also documents why repeated redaction patches cannot structurally fix secret-bearing serializable state.
+- **Runtime-visible credential honesty:** arbitrary code in a worker that receives plaintext can copy/exfiltrate it; later revocation cannot recall already-delivered material.
+- **Design/shipped distinction:** #4288 is a target design, not a claim that every proposed credential-service/grant mechanism is already shipped; current code does contain credential-binding and persisted-secret scrubbing paths.
+- **Ambient-state isolation:** closed issue #3815 showed a supposedly fresh persistence root could inherit model/profile settings from `~/.openhands`; all state/config roots must participate in isolation.
+- **Model/runtime capability metadata:** current LLM layer carries canonical model identity, capability overrides, runtime metadata, retry/timeout and context expectations on top of LiteLLM.
+- **Open Ollama timeout report #4255:** configured timeout and realized provider behavior can diverge; local-model benchmark probes must verify wire behavior.
+- **Telemetry audience separation:** full LLM completion logs, Laminar/OTEL traces and allowlisted product telemetry are distinct channels with different sensitivity/purpose.
+- **Critic boundary:** runtime critic/refinement can improve work but remains lower-trust than verifier-owned protected acceptance evidence.
+- **Persistent repository memory:** model-visible `AGENTS.md`/repository memory can be useful but worker-writable persistent context must remain lower trust than ACL/Vera governance.
+- **Boundary:** OpenHands does not replace ACL's outer project/backlog dependency scheduler, external-effect ledger, independent verifier, Vera long-term memory governance or final deployment-specific credential/network policy.
+
+See `projects/openhands.md` for primary sources, current failure surfaces, design-vs-shipped distinctions, candidate invariants and ACL regression-fixture ideas.
 
 ## Task 10 — Codex research result
 
@@ -158,8 +190,8 @@ See `projects/pydantic-ai.md` for the complete evidence.
 4. **promptfoo** — `promptfoo/promptfoo` — **Task 8 complete**; `projects/promptfoo.md`.
 5. **Strands Harness SDK** — `strands-agents/harness-sdk` — **Task 9 complete**; `projects/strands-harness-sdk.md`.
 6. **Codex** — `openai/codex` — **Task 10 complete**; `projects/codex.md`.
-7. **OpenHands** — `OpenHands/OpenHands` — **next task**; coding-agent runtime/sandbox, evidence policy, telemetry and provider abstraction.
-8. **SWE-agent** — `SWE-agent/SWE-agent` — historical/transition-aware; superseded by mini-swe-agent.
+7. **OpenHands** — `OpenHands/OpenHands` / runtime `OpenHands/software-agent-sdk` — **Task 11 complete**; `projects/openhands.md`.
+8. **SWE-agent / mini-swe-agent** — `SWE-agent/SWE-agent` / `SWE-agent/mini-swe-agent` — **next task; transition-aware** because SWE-agent is maintenance-only and names mini-swe-agent as successor.
 9. **llama.cpp** — `ggml-org/llama.cpp` — local runtime, constrained JSON/tool-call grammars, parsers, backend/KV behavior.
 10. **OpenAI Agents SDK** — `openai/openai-agents-python` — serializable run state, approvals, sandbox state, traces and lifecycle tests.
 
@@ -285,10 +317,18 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Logical request/idempotency identity, run/attempt identity, agent/process identity and durable session identity must remain separate.
 - Each durable state domain needs one authoritative owner; nested components must not persist competing versions.
 - Persistent state requires distributed writer/fencing/lease semantics when multiple processes are possible.
+- A stale writer that lost its lease/generation may not commit authoritative task/effect/checkpoint state.
+- Persisted event/effect evidence must preserve action→result relationships and authoritative branch identity after crash recovery.
+- Cancellation/authority/lease state must be rechecked at the irreversible boundary after blocking waits.
+- Async cancellation does not prove blocking thread/process settlement; terminal state must reflect actual custody.
 - Restored history/checkpoints are trusted execution input; valid serialization does not prove provenance or permission to resume.
 - UI stream, persisted replay history, model-visible context and audit/effect evidence are distinct representations with explicit consistency contracts.
 - Context trimming/summarization/offloading is model-state mutation, not authoritative project/effect truth.
+- Durable state should reference credentials rather than carry reusable secret material as ordinary serializable configuration.
+- Runtime-visible credential delivery is an explicit authority grant; already-delivered plaintext cannot be made secret from arbitrary worker code by later revocation.
+- All ambient state roots (HOME/profiles/env/global caches/config) must participate in isolation; a fresh workspace alone is not a fresh runtime.
 - Telemetry may contain secrets/system prompts/tool data; evidence audience/redaction is separate policy.
+- Raw model/tool traces, operational tracing and product analytics should have separate schemas/audiences/retention.
 - Evaluation evidence must bind to stable project/task/run/test identity; wrong correlation invalidates otherwise valid spans.
 - The system under test should not own the authoritative definition of whether it passed.
 - Deterministic evidence should precede semantic model grading when the property is machine-observable.
@@ -297,9 +337,10 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Conversation/graph state, workspace state and external-effect evidence are separate recovery dimensions.
 - A durable checkpoint does not imply exactly-once external side effects.
 - Physical persistence retention is separate from model-context compaction.
+- Worker-writable persistent repository memory/instructions remain lower trust than protected governance and verified project truth.
 - Current bugs/regression fixes can be more valuable than feature lists because they expose actual failure surfaces.
 - Preserve documentation claims, design proposals, shipped behavior, architectural generations and canonical aliases separately so mismatches/migrations remain auditable.
 
 ## Next research task boundary
 
-Task 10 is complete once the Codex research file, catalog, watchlist and state are committed. The next task is **OpenHands deep research only**. Do not begin it until separately instructed, and when it is begun, stop before SWE-agent.
+Task 11 is complete once the OpenHands research file, catalog, watchlist and state are committed. The next task is the **SWE-agent / mini-swe-agent transition-aware slot only**. Do not begin it until separately instructed, and when it is begun, stop before llama.cpp.
