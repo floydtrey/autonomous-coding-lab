@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 adds **transition/status evidence** without turning the ranking into an adoption list. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Task 5 completed the first project deep research on **Pydantic AI**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
 
 Detailed Task 3 ranking rationale remains in:
 - `projects/ranked-projects.md`
@@ -10,24 +10,48 @@ Detailed Task 3 ranking rationale remains in:
 Task 4 transition/failure evidence is in:
 - `failures/failed-redesigned-attempts.md`
 
+Completed Task 5 project evidence:
+- `projects/pydantic-ai.md`
+
 The original Task 2 activity evidence remains in:
 - `projects/active-projects.md`
 - `people/active-people.md`
+
+## Task 5 — Pydantic AI research result
+
+**Status:** project deep research complete; no dependency/adoption decision made.
+
+High-value findings to carry into later comparison:
+
+- **Core architecture:** typed agent/tool/output execution with explicit provider/model/profile seams is a strong reference for keeping provider quirks out of orchestration.
+- **Local models:** current Ollama handling reinforces that endpoint/API compatibility is not a capability contract; structured-output/tool behavior needs an explicit model/runtime profile.
+- **Retries:** tool/output correction, provider/transport retry, fallback and durable retry are distinct layers and can multiply; ACL should budget and instrument them separately.
+- **Authority:** schema validity and human approval are not OS/filesystem/network authorization. Core function tools still execute ordinary Python authority supplied by the application.
+- **Official Harness:** materially increases Pydantic's ACL relevance through FileSystem, Shell, Planning, SubAgents, Memory, StepPersistence, compaction, repo context and guardrail capabilities, but the Harness is Alpha/0.x and changing rapidly.
+- **Capability composition:** recent hardening showed generic merge/union of authority-bearing configuration can silently widen Shell/FileSystem/sub-agent reach. ACL should require explicit, fail-closed permission composition.
+- **StepPersistence:** strongest directly reusable research pattern so far for ACL recovery/documentation — append-only events, settled versus interrupted snapshots, lineage IDs and an `unknown_after_crash` tool-effect state.
+- **Planning:** useful model-owned working state, but it does not enforce planner read-only behavior or authoritative downstream dependency gating; ACL project/task state must remain outside the model-editable plan.
+- **Memory:** bounded, CAS/idempotency-aware and application-namespaced, but explicitly untrusted on later prompt re-entry; provenance and delayed prompt-injection policy remain important Vera gaps.
+- **File/shell safety:** rooted path guards, symlink containment, stale-write hashes and env scrubbing are useful application controls, but the project itself warns shell allowlists are not a security boundary; stronger process/container isolation remains separate.
+- **Evaluation:** OpenTelemetry/span-based evaluation supports deterministic assertions about tool/execution trajectories, not just final answers.
+- **Engineering signal:** closed filesystem/shell safety bugs plus open policy/security issues show active dogfooding/adversarial hardening; 100% branch coverage and targeted mutation testing are positive signals without proving production maturity.
+
+See `projects/pydantic-ai.md` for sources, caveats, candidate invariants and deliberately deferred questions.
 
 ## Task 4 transition/status updates
 
 These findings modify how later research should interpret the Task 3 queue; they do not silently rewrite Task 3's historical ranking artifact.
 
-- **SWE-agent** — now upstream-declared **maintenance-only** and **superseded by mini-swe-agent**. The Task 3 #8 slot becomes a transition-aware historical slot: later research should compare SWE-agent's rewrites with the current mini-swe-agent architecture rather than treat legacy SWE-agent as the current endpoint.
-- **OpenAI Agents SDK** — Task 3 #10 gains explicit predecessor context: OpenAI's experimental **Swarm** repository says it was replaced by the production-ready Agents SDK.
-- **AutoGen** — prior status ambiguity is resolved. Upstream now explicitly places AutoGen in **maintenance mode**, says no new features/enhancements are planned, and directs new users to **Microsoft Agent Framework** as successor.
+- **SWE-agent** — upstream-declared **maintenance-only** and **superseded by mini-swe-agent**. The Task 3 #8 slot is transition-aware: later research should compare SWE-agent's rewrites with the current mini-swe-agent architecture rather than treat legacy SWE-agent as the current endpoint.
+- **OpenAI Agents SDK** — Task 3 #10 has explicit predecessor context: OpenAI's experimental **Swarm** repository says it was replaced by the production-ready Agents SDK.
+- **AutoGen** — upstream explicitly places AutoGen in **maintenance mode**, says no new features/enhancements are planned, and directs new users to **Microsoft Agent Framework** as successor.
 - **Aider** — remains **status unresolved**, not abandoned. The canonical repository is not archived and no authoritative maintainer statement establishes an official successor. Community concern and forks remain discovery evidence only.
 
-## Ranked active-project queue — Task 3 snapshot
+## Ranked active-project queue — Task 3 snapshot with live research status
 
 ### Tier A — immediate deep-research queue
-1. **Pydantic AI** — `pydantic/pydantic-ai` — typed tool/schema contracts, retry/concurrency, concrete Ollama support.
-2. **Cline** — `cline/cline` — coding-agent edit safety, local models, approvals/runtime/provider seams.
+1. **Pydantic AI** — `pydantic/pydantic-ai` — **Task 5 complete**; detailed evidence in `projects/pydantic-ai.md`.
+2. **Cline** — `cline/cline` — **next task**; coding-agent edit safety, local models, approvals/runtime/provider seams.
 3. **LangGraph** — `langchain-ai/langgraph` — checkpoints, retries, interruption/resume, durability and remote lifecycle.
 4. **promptfoo** — `promptfoo/promptfoo` — independent agent evaluation, deterministic trace assertions and coding-agent red teaming.
 5. **Strands Harness SDK** — `strands-agents/harness-sdk` — explicit harness interfaces, structured-output validation/retry, Ollama support.
@@ -67,7 +91,7 @@ This ranks **public technical signal**, not authority, seniority, employment sta
 3. **Jesús Samuel** — `jesussamuel-byte` — Gemini CLI — path/symlink/configuration authorization and command safety.
 4. **Graham Neubig** — `neubig` — OpenHands — provider/evidence/repository-boundary and lifecycle decisions.
 5. **Johannes Gäßler** — `JohannesGaessler` — llama.cpp — local runtime backends, quantization/KV and multi-device behavior.
-6. **Douwe Maan** — `DouweM` — Pydantic AI — cancellation/concurrency/session lifecycle.
+6. **Douwe Maan** — `DouweM` — Pydantic AI — cancellation/concurrency/session lifecycle; Task 5 confirms this remains a high-signal area.
 7. **Anas Khan** — `anxkhn` — SWE-agent — harness/evaluation correctness and regression discipline; later people research should account for the SWE-agent→mini-swe-agent transition.
 8. **Kazuhiro Sera** — `seratch` — OpenAI Agents SDK — verification, CI and realtime lifecycle testing.
 9. **Jack Amadeo** — `jamadeo` — Goose — MCP/GDK integration and packaging.
@@ -130,13 +154,17 @@ These controls prevent repository moves and organization changes from being misl
 ## Rules to preserve in later work
 
 - Rank is **information value**, not adoption preference.
-- Project maintenance state is now a first-class trust signal; `archived=false` alone is insufficient.
+- Deep research should extract mechanisms/invariants first; dependency/fork/build decisions remain later comparative work.
+- Project maintenance state is a first-class trust signal; `archived=false` alone is insufficient.
 - A redesign/successor relationship must be backed by primary evidence; do not infer causes from inactivity.
-- Local-model support increases relevance but does not prove reliable tool use.
+- Local-model support increases relevance but does not prove reliable tool use; model/runtime capability must be verified.
+- Typed schema validation, approval and execution authority are separate concerns.
+- Retry categories must not collapse into one generic retry count.
+- Authority-bearing configuration should compose explicitly and fail closed rather than union generically.
 - Current bug fixes and regression tests can be more valuable than feature lists because they expose real failure surfaces.
 - Preserve architecture generations and canonical aliases separately so migrations remain auditable.
 - When frameworks migrate, compare behavior/evidence before and after rather than assuming semantic compatibility from API migration.
 
 ## Next research task boundary
 
-Task 4 is complete once the transition/failure map, live status corrections, catalog and state are committed. The next task is **Pydantic AI deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Cline.
+Task 5 is complete once the Pydantic AI research file, catalog, watchlist and state are committed. The next task is **Cline deep research only**. Do not begin it until separately instructed, and when it is begun, stop before LangGraph.

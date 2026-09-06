@@ -2,46 +2,60 @@
 
 **Branch:** `research/agent-landscape`
 **Status:** current task complete; stopped before next task
-**Current phase:** 4 — failed, abandoned, and heavily redesigned attempts mapped
+**Current phase:** 5 — Pydantic AI deep research complete
 **Execution:** research only; no worker/model execution authorized by this branch
 
 ## Completed
 - Research workspace initialized and research process/evidence ladder established.
-- Mapped recurring sources for ACL/Vera across upstream development, research, local models, benchmarks, security, standards/protocols, observability and practitioner discovery.
-- Verified 27 confirmed-active projects and 10 recurring current contributors in Task 2; ranked projects, people and recurring sources by research information value in Task 3.
-- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, and `watchlist.md` before beginning Task 4.
-- Completed the failure/redesign investigation using primary upstream status declarations, migration guides, archived repositories, maintainers' transition notes, current repository metadata and narrowly scoped issue evidence.
-- Documented eight high-value transition cases in `failures/failed-redesigned-attempts.md`:
-  1. AutoGen → ground-up v0.4 rewrite → Microsoft Agent Framework maintenance-mode successor transition.
-  2. SWE-agent → near-total 1.0 rewrite → maintenance-only status and mini-swe-agent supersession.
-  3. OpenAI Swarm → OpenAI Agents SDK production successor.
-  4. AutoGPT Classic → unsupported legacy experiment while maintained AutoGPT moved to workflow/block Platform architecture.
-  5. Original BabyAGI → archived snapshot and materially reconceived self-building function framework.
-  6. GPT-Engineer → archived research CLI / precursor to Lovable-managed product direction.
-  7. GPT Pilot → explicitly unmaintained repository with a documented prolonged credential-stealing supply-chain compromise.
-  8. AgentGPT → archived repository with no authoritative cause/successor explanation.
-- Resolved the prior AutoGen status ambiguity: upstream now explicitly marks AutoGen maintenance-only and names Microsoft Agent Framework as successor.
-- Preserved **Aider** as status unresolved: the repository is not archived and no authoritative maintainer statement establishes abandonment or an official successor; community concern/forks are discovery evidence only.
-- Recorded OpenDevin→OpenHands and Block→AAIF Goose as explicit **non-failure controls** so repository/org moves are not mistaken for abandonment.
-- Extracted recurring lessons without changing ACL governance: scaffold complexity must earn measurable value; runtime observability/cancellation/execution isolation recur as redesign drivers; free-form research autonomy differs from production workflow automation; maintenance state is a security boundary; migrations need behavioral evidence; canonical identity must be separated from architecture generation.
-- Updated `watchlist.md` and `catalog.jsonl` with Task 4 transition/status evidence.
-- Preserved the research boundary: no ranked project was individually deep-researched for adoption/reuse, no architecture recommendation was finalized, and no ACL runtime/governance code was changed.
+- Mapped recurring sources, verified active projects/people, ranked the watchlist, and mapped failed/abandoned/heavily redesigned attempts in Tasks 1–4.
+- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, `watchlist.md`, Task 3 ranking evidence and Task 4 transition evidence before beginning Task 5.
+- Deep-researched **Pydantic AI** as ranked project #1, including the official `pydantic-ai-harness` only where it directly overlaps ACL/Vera's end goals.
+- Verified core architecture boundaries across agent/run lifecycle, graph orchestration, normalized messages, tools/toolsets, structured output, providers/models/profiles, capabilities, durable execution and observability.
+- Verified that Pydantic AI distinguishes multiple retry layers and that older Ollama failures demonstrate why deterministic capability mismatches should not be handled by simply increasing model retries.
+- Verified current self-hosted Ollama support and the more important capability-profile behavior: nominal OpenAI/API compatibility is not treated as proof of native structured-output enforcement.
+- Verified current concurrency/cancellation guidance emphasizing explicit ownership, cancel-and-drain teardown, task groups, bounded timeouts and cleanup assertions.
+- Verified code-first Pydantic Evals and OpenTelemetry/Logfire trajectory instrumentation, including span-based evaluation of tool/execution behavior rather than only final outputs.
+- Expanded narrowly into the official **Pydantic AI Harness** because it directly implements long-running/coding-agent mechanisms ACL is considering; did not research unrelated Pydantic products.
+- Verified Harness maturity: MIT licensed, actively maintained, official, but Alpha/0.x with rapid release/API churn; strict typing, 100% branch coverage and mutation testing on filesystem/shell provide positive engineering signal without proving production maturity.
+- Verified FileSystem workspace containment, symlink checks, protected patterns and stale-write hashes, while preserving its documented pathname/OS-isolation limitations.
+- Verified Shell command/process/env controls and its explicit warning that command allow/deny lists are not a security boundary. Historical env-secret exposure (#281), filesystem path leakage (#616) and shell recoverability (#622) are closed/fixed examples of dogfooding/adversarial hardening.
+- Verified `Planning` as useful model-owned working state but not an authoritative read-only or dependency-control boundary.
+- Verified `SubAgents` context isolation, no tool inheritance by default, per-child budgets/timeouts and explicit capability sharing; dependency/credential least privilege remains application-owned.
+- Verified a recent capability-composition hardening change showing that generic merging can widen `Shell`/`FileSystem`/sub-agent authority; recorded fail-closed explicit composition as a high-value ACL invariant candidate.
+- Verified `StepPersistence` as the strongest direct ACL checkpoint/evidence reference: append-only events, complete/interrupted snapshots, tool-effect lifecycle records, lineage IDs and explicit `unknown_after_crash` handling, while refusing to label message-history persistence a full graph/workspace/capability checkpoint.
+- Verified Harness Memory as bounded, CAS/idempotency-aware and application-namespaced but explicitly untrusted on re-entry; open issue #103 confirms delayed prompt-injection/artifact scanning remains a recognized gap.
+- Verified compaction strategy that prefers deterministic clear/dedupe/trim before lossy summarization and preserves tool-call/result pairing.
+- Verified open tool-guardrail issue #519 as a concrete example that human approval can create a policy hole if approval semantics bypass later mandatory guards.
+- Recorded detailed evidence and ACL/Vera implications in `projects/pydantic-ai.md` and added Task 5 catalog/watchlist/state updates.
+- Preserved the decision boundary: Pydantic AI remains a high-value reference, but this task did **not** decide whether ACL should depend on, fork, adapt or independently reimplement Pydantic AI/Harness components.
 
-## Queue impact discovered in Task 4
+## Highest-value Pydantic AI findings for later comparison
 
-- **SWE-agent rank #8 is now a transition-aware historical slot.** When that point in the ranked queue is reached, later research should examine the SWE-agent→mini-swe-agent redesign and current mini-swe-agent implementation rather than treating legacy SWE-agent as the current endpoint.
-- **OpenAI Agents SDK rank #10 gains predecessor context** from Swarm, but no project-level deep research was started.
-- **AutoGen** moves from status-deferred ambiguity to confirmed maintenance-only/superseded historical evidence; Microsoft Agent Framework remains the active candidate already present in the broader watchlist.
-- **Aider** remains outside the confirmed-active ranking until authoritative status changes or a separate later task resolves it.
+1. Explicit model/runtime capability profiles are preferable to scattered provider-name conditionals.
+2. Typed validation, approval and execution authority must remain separate facts.
+3. Retry layers need separate reason categories, owners, limits and attempt telemetry.
+4. Authority-bearing configuration must compose explicitly and fail closed; generic union/merge is unsafe.
+5. Child agents should receive explicit capability grants and budgets rather than ambient parent authority.
+6. `StepPersistence`'s settled/interrupted snapshots plus `unknown_after_crash` tool-effect ledger are directly relevant to ACL's documentation/recovery design.
+7. Persistent memory should remain lower-trust data with application-owned namespace, concurrency/idempotency semantics and provenance/security controls.
+8. Deterministic context reclamation should precede lossy summarization.
+9. Trajectory/span evaluation should complement final-result validation.
+10. Filesystem/shell application guards are useful, but OS/container/credential isolation remains a separate security layer.
+
+## Queue status
+
+- **Pydantic AI (#1): complete.** Detailed file: `projects/pydantic-ai.md`.
+- **Cline (#2): next task only.** No Cline deep research was begun in Task 5.
+- Remaining ranked queue stays unchanged until its own separately authorized task or later evidence justifies an explicit update.
 
 ## Next task
 
-Deep-research ranked projects **one at a time**, beginning with **Pydantic AI** only.
+Deep-research **Cline** only.
 
-Do not begin this task until separately instructed. For the next task, deep-research Pydantic AI as the #1 research-priority project: architecture, harness/model control boundaries, tool/structured-output contracts, retries, concurrency/cancellation, local/Ollama support, evaluation/observability, security/permission implications, reusable components, recurring upstream failures, maintenance/health and concrete ACL/Vera lessons. Save evidence/catalog/state, commit research-only changes, and **stop before Cline**.
+Do not begin this task until separately instructed. For the next task, deep-research Cline as ranked project #2 with the same end-goal discipline: coding-agent architecture, model/harness control split, file/edit semantics, destructive-action safety, local-model/provider support, approvals/authority, context/state/recovery, evaluation/telemetry, recurring failure surfaces, project health, reusable components and concrete ACL/Vera lessons. Save evidence/catalog/state, commit research-only changes, and **stop before LangGraph**.
 
 ## Later tasks
-1. Deep-research Cline, then continue the ranked project queue one project per separately authorized task.
+1. Deep-research LangGraph, then continue the ranked project queue one project per separately authorized task.
 2. Deep-research high-value developers/accounts one at a time.
 3. Compare reusable components versus custom-build candidates.
 4. Analyze collaboration/open-source options.
@@ -51,4 +65,4 @@ Do not begin this task until separately instructed. For the next task, deep-rese
 
 ## Stop point
 
-Task 4 ended after the failure/redesign map, status corrections, cross-cutting lessons, catalog/watchlist updates and next-task definition were completed. No Pydantic AI deep research, Cline research, adoption decision, collaboration analysis, architecture/governance change, or worker/model execution was begun.
+Task 5 ended after Pydantic AI/Pydantic AI Harness evidence, failure surfaces, reusable mechanism candidates, catalog/watchlist updates and next-task definition were completed. No Cline or LangGraph research, cross-project winner selection, dependency/fork decision, ACL/Vera architecture/governance change, or worker/model execution was begun.
