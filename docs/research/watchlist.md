@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–8 completed deep research on Pydantic AI, Cline, LangGraph, and **promptfoo**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–9 completed deep research on Pydantic AI, Cline, LangGraph, promptfoo, and **Strands Harness SDK**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
 
 Detailed historical artifacts remain in:
 - `projects/ranked-projects.md`
@@ -15,32 +15,60 @@ Completed project deep research:
 - `projects/cline.md`
 - `projects/langgraph.md`
 - `projects/promptfoo.md`
+- `projects/strands-harness-sdk.md`
 
-## Task 8 — promptfoo research result
+## Task 9 — Strands Harness SDK research result
 
 **Status:** project deep research complete; no dependency/adoption/fork decision made.
 
 High-value findings to carry into later comparison:
 
-- **Independent evaluator role:** promptfoo is strongest as an evaluation/red-team layer around a worker/runtime, not as an owner of authoritative agent session/checkpoint state.
-- **Deterministic first:** tool use, exact/partial tool arguments, sequences, counts, trace errors/durations and other observable properties can be checked mechanically before semantic model grading.
-- **Trajectory evidence:** OpenTelemetry traces tie target calls, tools, agent turns and grading to each test execution; cache and subagent semantics must be accounted for when assertions depend on turn/trajectory structure.
-- **Evidence availability:** trace-dependent high-confidence evals can fail on receiver startup failure rather than silently continuing without traces; ACL should generalize this to every required evidence channel.
-- **Coding-agent threat model:** dedicated plugins cover repository/terminal prompt injection, secret reads, sandbox escape, verifier sabotage, network/procfs access, delayed CI exfiltration, automation poisoning, generated vulnerabilities and hidden exfiltration.
-- **Failure taxonomy:** coding-agent guidance separates model behavior, harness boundary, verifier integrity and eval-design failures instead of collapsing every result into one score.
-- **Workspace isolation:** mutable agent rows should use disposable/resettable workspaces and unique synthetic canaries so one test cannot contaminate later tests.
-- **Verifier integrity:** host-side hashes, canaries, command/trace evidence, trap logs and sidecar reports can outrank model rubrics; a configured missing sidecar report fails closed.
-- **Action evidence:** unsafe willingness, attempted action and verified effect are distinct labels; training/security signoff should prefer action-observable evidence.
-- **Telemetry audience:** `includeInAttack` and `includeInGrading` demonstrate that attacker-visible telemetry and validator-visible telemetry are separate information-flow choices.
-- **Local models:** native Ollama targets, tools, embeddings and local grading providers make an offline/local benchmark path practical; grader identity/settings still belong in the benchmark definition.
-- **Reproducibility:** cache policy, concurrency, repeats, fixture commit/workspace/reset identity, target runtime and grader runtime all need pinning; evaluator controls help but do not make runs automatically reproducible.
-- **CI gates:** deterministic/security/verifier failures should remain distinguishable from infrastructure errors and semantic scores; severe failures should not be averaged away by a global pass rate.
-- **Executable eval code:** JavaScript/Python assertions are privileged executable code, so third-party eval packs require provenance and containment.
-- **Live-object boundary:** open #10501 shows why serializable test/grader descriptors must remain separate from live SDK/provider/session objects and credentials.
-- **Bounded grader evidence:** open #10166 reinforces the need for explicitly selected, size-bounded, provenance-preserving structured evidence when semantic graders need more than final text.
-- **Boundary:** promptfoo does not replace ACL task/runtime state, workspace/effect recovery, sandboxing, credentials, scheduling, local-model capability profiles or final project acceptance policy.
+- **Composable control planes:** Strands keeps a model-driven loop while lifecycle limits, retries, interventions, authorization, interrupts, sandbox routing, persistence, context management and telemetry live in separable runtime layers.
+- **Runtime lifecycle:** turn/token limits and explicit stop reasons are runtime state rather than prompt instructions; cancellation remains cooperative at some model/tool/process boundaries and needs explicit settlement evidence.
+- **Invocation identity:** safe default invocation ownership prevents one agent from mutating one conversation concurrently; Python idempotency tokens show a useful duplicate-request pattern, but process-local ownership does not solve distributed session writers.
+- **Retry taxonomy:** provider throttling retry, structured-output correction and intervention/Guide retry are different mechanisms. Guide-triggered retry has no framework-imposed cap, so convergence and retry budgets remain application responsibilities.
+- **Tool contracts:** schema publication and runtime validation strength differ by path (for example TypeScript Zod versus plain JSON Schema). Schema, validation, authorization and execution must remain separate facts.
+- **Structured output:** schema failures are returned as concrete tool feedback so the model can self-correct in the normal agent loop rather than through an opaque parser/guesser.
+- **Typed interventions:** `Proceed`, `Deny`, `Guide`, `Confirm` and `Transform` provide explicit composable decisions; handler failure mode can be fail-open or fail-closed and therefore belongs in the trust model.
+- **Deterministic authorization:** shipped Python Cedar authorization runs before tool calls, resolves the principal, can inspect tool arguments/runtime context, maintains call-count state and denies on missing identity, policy evaluation error, no-decision or explicit refusal.
+- **Objective integrity remains separate:** open goal-fencing issue #3877 highlights that individually authorized actions do not prove the run still serves the principal-approved objective.
+- **Sandbox boundary:** with a sandbox, shell/file operations route to Docker, SSH or a custom backend while the agent core stays trusted; without a sandbox those operations run on the host with the agent process's full authority.
+- **Environment lifecycle is external:** Strands does not create Docker containers for `DockerSandbox`; mounts, network, credentials, user, resource quotas, cleanup and verification remain application-owned.
+- **SSH hardening:** built-in SSH option allowlisting blocks unsafe host-command directives unless an explicit unsafe bypass is enabled.
+- **File/process correctness:** recent file-editor fix #4014 preserves untouched bytes/line endings/tabs, while open #4156 reports split UTF-8 stream corruption. Exact byte/stream semantics belong in coding-worker fixtures.
+- **Snapshot/session ownership:** snapshot managers persist SDK-owned state and immutable history, while multi-agent orchestration has its own persistence owner; child agents must not independently persist competing orchestrator state.
+- **Single-live-writer limitation:** built-in sessions document no distributed lock. Two processes sharing session/agent identity can overwrite/merge history without necessarily raising an error.
+- **Trusted-state boundary:** session storage is trusted and symlink-sensitive; restored Python history ending in `toolUse` can execute that stored tool request on the next invocation before another model call. Valid state serialization is not authorization to resume.
+- **Handle validation:** open #4198 reports snapshot IDs that listing can expose but restore rejects. Enumeration and consume APIs must share identity validation.
+- **Multiple durable state planes:** open #4102 and stateful-provider design evidence show local messages may not be the only durable model-visible state when a provider stores conversation chains.
+- **Representation consistency:** open #4004 shows streamed UI content can differ from durable replay history; live stream, persisted history, model-visible context and audit/effect truth must be tested separately.
+- **Interrupt identity:** human responses bind to unique interrupt IDs. Open #4171 reports stale/repeated interrupt response acceptance, reinforcing exactly-once active-request validation.
+- **Interrupt replay:** a per-tool interrupt can split one logical batch across cycles, making lifecycle hooks such as `AfterToolsEvent` execute more than once; side-effecting hooks require idempotency identity.
+- **Context is mutable model state:** sliding-window trimming, summarization, tool-result truncation/pinning and proactive compression change model-visible context and must not replace authoritative project/effect state.
+- **Local models:** native Ollama support is currently a real Python path with tools/streaming/configuration, but capability still belongs to exact model + Ollama/runtime + adapter + settings.
+- **OpenTelemetry:** agent/cycle/model/tool spans provide useful GUI/eval evidence but can contain raw system prompts, messages, tool arguments/results and other sensitive fields.
+- **Framework-native evals:** Strands Evaluation includes deterministic, trajectory/state and LLM-based evaluators; its trace quickstart warns that missing session identity can mix spans between test cases.
+- **Boundary:** Strands does not replace ACL's distributed project/task scheduler, effect ledger, workspace recovery, dependency governance, environment provisioning, acceptance policy or independent hostile verifier.
 
-See `projects/promptfoo.md` for primary sources, current failure surfaces, candidate invariants, ACL regression-fixture ideas and deliberately deferred comparison questions.
+See `projects/strands-harness-sdk.md` for primary sources, current failure surfaces, shipped-vs-proposed distinctions, candidate invariants and ACL regression-fixture ideas.
+
+## Task 8 — promptfoo research result
+
+**Status:** project deep research complete; no dependency/adoption/fork decision made.
+
+High-value findings retained for later comparison:
+- independent evaluation/red-team role rather than authoritative agent runtime ownership;
+- deterministic tool/trace/trajectory assertions before semantic grading;
+- required evidence channels should fail/invalid when unavailable rather than silently degrade;
+- coding-agent failure taxonomy separates model behavior, harness boundary, verifier integrity and eval-design failures;
+- host-side canaries, hashes, sidecars and traces can provide worker-independent evidence;
+- mutable coding-agent rows need isolated/resettable workspaces;
+- unsafe willingness, attempted action and verified effect are distinct labels;
+- target and grader model/runtime identity both belong in reproducibility evidence;
+- evaluator scripts/plugins are privileged executable dependencies;
+- serializable evaluator descriptors should remain separate from live provider/client/session/credential objects.
+
+See `projects/promptfoo.md` for the complete evidence.
 
 ## Task 7 — LangGraph research result
 
@@ -48,14 +76,13 @@ See `projects/promptfoo.md` for primary sources, current failure surfaces, candi
 
 High-value findings retained for later comparison:
 - checkpoints, pending task writes, thread/checkpoint lineage, subgraphs, interrupts, retries/timeouts and typed task/checkpoint/debug streams;
-- explicit `sync`, `async` and `exit` durability modes without an implied exactly-once external-effect guarantee;
+- explicit durability modes without an implied exactly-once external-effect guarantee;
 - external-effect settlement needs separate evidence/idempotency handling;
 - concurrent approvals need stable interrupt IDs and ambiguous resume should fail closed;
 - subgraph replay identity must survive parent forks/retries;
 - state mutation must hydrate from one authoritative persistence source/version;
 - replayable tasks need persisted or deterministically reacquirable inputs;
-- physical checkpoint retention/deletion fencing is separate from model-context compaction;
-- retry, hard/idle timeout and cancellation belong in observable runtime policy.
+- physical checkpoint retention/deletion fencing is separate from model-context compaction.
 
 See `projects/langgraph.md` for the complete evidence.
 
@@ -72,8 +99,7 @@ High-value findings retained for later comparison:
 - checkpoint identity must survive retries/compaction/restart and restore needs fail-closed concurrency/history protection;
 - local compatibility must include model + runtime + adapter + backend settings;
 - deterministic recovery should prove progress and use bounded retry;
-- loop/mistake detection belongs in runtime telemetry;
-- long-run storage retention is separate from logical context retention.
+- loop/mistake detection belongs in runtime telemetry.
 
 See `projects/cline.md` for the complete evidence.
 
@@ -88,7 +114,6 @@ High-value findings retained for later comparison:
 - validation, approval and authority as separate facts;
 - fail-closed authority-bearing configuration composition;
 - `StepPersistence` settled/interrupted snapshots plus `unknown_after_crash` effects;
-- model-owned Planning is not authoritative project/dependency state;
 - persistent memory is bounded but lower-trust on later re-entry;
 - filesystem/shell application controls do not replace OS/container isolation;
 - trajectory/span evaluation complements final-output checks.
@@ -109,8 +134,8 @@ See `projects/pydantic-ai.md` for the complete evidence.
 2. **Cline** — `cline/cline` — **Task 6 complete**; `projects/cline.md`.
 3. **LangGraph** — `langchain-ai/langgraph` — **Task 7 complete**; `projects/langgraph.md`.
 4. **promptfoo** — `promptfoo/promptfoo` — **Task 8 complete**; `projects/promptfoo.md`.
-5. **Strands Harness SDK** — `strands-agents/harness-sdk` — **next task**; explicit harness interfaces, structured-output validation/retry, Ollama support.
-6. **Codex** — `openai/codex` — sandbox/approval policies, command authority, child-agent permission inheritance, Ollama integration.
+5. **Strands Harness SDK** — `strands-agents/harness-sdk` — **Task 9 complete**; `projects/strands-harness-sdk.md`.
+6. **Codex** — `openai/codex` — **next task**; sandbox/approval policies, command authority, child-agent permission inheritance, Ollama integration.
 7. **OpenHands** — `OpenHands/OpenHands` — coding-agent runtime/sandbox, evidence policy, telemetry and provider abstraction.
 8. **SWE-agent** — `SWE-agent/SWE-agent` — historical/transition-aware; superseded by mini-swe-agent.
 9. **llama.cpp** — `ggml-org/llama.cpp` — local runtime, constrained JSON/tool-call grammars, parsers, backend/KV behavior.
@@ -193,6 +218,7 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 
 - OpenDevin → OpenHands — rename/continuity; active.
 - Block Goose → AAIF Goose — governance/org migration with active development.
+- Strands `sdk-python` → consolidated `harness-sdk` monorepo — canonical repository consolidation/continuity; not evidence of abandonment.
 
 ## Security / governance anchors retained regardless of ordinal source rank
 
@@ -206,30 +232,38 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 
 - Rank is information value, not adoption preference.
 - Deep research extracts mechanisms/invariants first; dependency/fork/build decisions remain later comparative work.
+- Model proposals and role labels are not authority boundaries.
+- Runtime limits, cancellation and retry policy belong in observable harness state rather than prompt prose.
+- Retry classes need separate reasons/budgets/progress tests.
+- Tool schema, runtime validation, authorization, execution and evaluation are distinct contracts.
+- Typed policy decisions should have explicit fail-open/fail-closed error semantics; authority-bearing controls should fail closed on ambiguity.
+- Action authorization does not replace principal-approved objective/task-scope provenance.
+- Logical request/idempotency identity, run/attempt identity, agent/process identity and durable session identity must remain separate.
+- Sandboxed vs host execution must be explicit, and sandbox provisioning/network/mount/credential/user/resource/cleanup policy remains a separate lifecycle concern.
+- Destructive file editing must preserve untouched bytes; process stream decoding must preserve multibyte character boundaries.
+- Each durable state domain needs one authoritative owner; nested components must not persist competing versions.
+- Persistent state requires distributed writer/fencing/lease semantics when multiple processes are possible.
+- Restored history/checkpoints are trusted execution input; valid serialization does not prove provenance or permission to resume.
+- Enumerated handles must satisfy the same identity contract as consume/restore APIs.
+- Provider/server-side conversation state is a separate durable/model-visible state plane from local history.
+- UI stream, persisted replay history, model-visible context and audit/effect evidence are distinct representations with explicit consistency contracts.
+- Human approval/input binds to stable active request IDs; stale/duplicate responses fail closed.
+- Interrupt/retry lifecycle callbacks can replay; side-effecting callbacks require idempotency/effect identity.
+- Context trimming/summarization/offloading is model-state mutation, not authoritative project/effect truth.
+- Local-model capability means exact model + runtime + adapter + configuration + SDK-language behavior.
+- Telemetry may contain secrets/system prompts/tool data; evidence audience/redaction is separate policy.
+- Evaluation evidence must bind to stable project/task/run/test identity; wrong correlation invalidates otherwise valid spans.
 - The system under test should not own the authoritative definition of whether it passed.
 - Deterministic evidence should precede semantic model grading when the property is machine-observable.
 - Missing required evidence should produce an explicit invalid/failure state rather than an implicit pass.
 - Verifier-owned tests/hashes/sidecars should remain outside worker mutation authority.
-- Coding-agent failures should distinguish model behavior, harness boundary, verifier integrity and eval-design defects.
-- Security results should distinguish unsafe willingness, attempted action and verified effect.
-- Mutable eval rows need isolated/resettable workspaces and unique synthetic canaries.
-- Attacker-visible and validator-visible telemetry are separate policy choices.
-- Evaluator target and grader model/runtime identities both belong in reproducibility evidence.
-- Cache/concurrency/repeat/workspace/reset settings are part of benchmark identity.
-- Evaluator scripts/plugins are privileged executable dependencies, not passive test data.
-- Serializable configuration/descriptors should remain separate from live provider/session/credential objects.
 - Conversation/graph state, workspace state and external-effect evidence are separate recovery dimensions.
 - A durable checkpoint does not imply exactly-once external side effects.
-- Persistent recovery identity should not depend solely on regenerated ephemeral task IDs.
-- Human approval/input must bind to stable request IDs; ambiguous concurrent resume should fail closed.
-- Replayable tasks require persisted or deterministically reacquirable inputs.
 - State mutation must hydrate and commit against one authoritative state source/version.
-- Retry, timeout and cancellation policies belong in observable runtime behavior.
-- Deletion needs generation/tombstone fencing against stale writers.
 - Physical persistence retention is separate from model-context compaction.
 - Current bugs/regression fixes can be more valuable than feature lists because they expose actual failure surfaces.
-- Preserve architecture generations and canonical aliases separately so migrations remain auditable.
+- Preserve design proposals, shipped behavior, architectural generations and canonical aliases separately so migrations remain auditable.
 
 ## Next research task boundary
 
-Task 8 is complete once the promptfoo research file, catalog, watchlist and state are committed. The next task is **Strands Harness SDK deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Codex.
+Task 9 is complete once the Strands Harness SDK research file, catalog, watchlist and state are committed. The next task is **Codex deep research only**. Do not begin it until separately instructed, and when it is begun, stop before OpenHands.
