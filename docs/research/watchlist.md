@@ -1,125 +1,114 @@
 # Research Watchlist
 
-This watchlist now contains:
-1. **confirmed-active project candidates** identified in Task 2;
-2. **confirmed recurring contributors** identified in Task 2;
-3. **status-deferred seed projects** that remain relevant but did not meet the Task 2 recent-activity threshold; and
-4. the recurring **source channels** established by Task 1.
+Task 3 converts the Task 2 active set into a **research-priority queue**. Rank means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**. It does not mean best product, safest framework, strongest benchmark result, or recommended dependency.
 
-Everything remains deliberately **unranked**. Ordering is by category/name, not priority.
+Detailed rationale and evidence:
+- `projects/ranked-projects.md`
+- `people/ranked-people.md`
+- `ranked-sources.md`
 
-## Confirmed-active coding agents / harnesses — Task 2
-- Cline — `cline/cline`
-- Codex — `openai/codex`
-- Gemini CLI — `google-gemini/gemini-cli`
-- Goose — `aaif-goose/goose`
-- OpenCode — `anomalyco/opencode`
-- OpenHands — `OpenHands/OpenHands`
-- SWE-agent — `SWE-agent/SWE-agent`
+The original Task 2 activity evidence remains in:
+- `projects/active-projects.md`
+- `people/active-people.md`
 
-## Confirmed-active agent runtimes / orchestration / harnesses — Task 2
-- Agno — `agno-agi/agno`
-- CrewAI — `crewAIInc/crewAI`
-- Google ADK — `google/adk-python`
-- LangGraph — `langchain-ai/langgraph`
-- LlamaIndex — `run-llama/llama_index`
-- Mastra — `mastra-ai/mastra`
-- Microsoft Agent Framework — `microsoft/agent-framework`
-- OpenAI Agents SDK — `openai/openai-agents-python`
-- Pydantic AI — `pydantic/pydantic-ai`
-- smolagents — `huggingface/smolagents`
-- Strands Harness SDK — `strands-agents/harness-sdk`
+## Ranked active-project queue — Task 3
 
-## Confirmed-active memory / persistent-state candidates — Task 2
-- Graphiti — `getzep/graphiti`
-- Letta Code — `letta-ai/letta-code`
-- Mem0 — `mem0ai/mem0`
+### Tier A — immediate deep-research queue
+1. **Pydantic AI** — `pydantic/pydantic-ai` — typed tool/schema contracts, retry/concurrency, concrete Ollama support.
+2. **Cline** — `cline/cline` — coding-agent edit safety, local models, approvals/runtime/provider seams.
+3. **LangGraph** — `langchain-ai/langgraph` — checkpoints, retries, interruption/resume, durability and remote lifecycle.
+4. **promptfoo** — `promptfoo/promptfoo` — independent agent evaluation, deterministic trace assertions and coding-agent red teaming.
+5. **Strands Harness SDK** — `strands-agents/harness-sdk` — explicit harness interfaces, structured-output validation/retry, Ollama support.
+6. **Codex** — `openai/codex` — sandbox/approval policies, command authority, child-agent permission inheritance, Ollama integration.
+7. **OpenHands** — `OpenHands/OpenHands` — coding-agent runtime/sandbox, evidence policy, telemetry and provider abstraction.
+8. **SWE-agent** — `SWE-agent/SWE-agent` — minimal coding harness, evaluation correctness, regression discipline and local Ollama path.
+9. **llama.cpp** — `ggml-org/llama.cpp` — local runtime, constrained JSON/tool-call grammars, parsers, backend/KV behavior.
+10. **OpenAI Agents SDK** — `openai/openai-agents-python` — serializable run state, approvals, sandbox state, traces and lifecycle tests.
 
-## Confirmed-active local-model runtime / serving / routing candidates — Task 2
-- LiteLLM — `BerriAI/litellm`
-- llama.cpp — `ggml-org/llama.cpp`
-- Ollama — `ollama/ollama`
-- vLLM — `vllm-project/vllm`
+### Tier B — high-value follow-up
+11. **Model Context Protocol** — `modelcontextprotocol/modelcontextprotocol`
+12. **Goose** — `aaif-goose/goose`
+13. **Ollama** — `ollama/ollama`
+14. **Letta Code** — `letta-ai/letta-code`
+15. **Gemini CLI** — `google-gemini/gemini-cli`
+16. **Graphiti** — `getzep/graphiti`
+17. **Microsoft Agent Framework** — `microsoft/agent-framework`
+18. **Google ADK** — `google/adk-python`
+19. **LiteLLM** — `BerriAI/litellm`
+20. **vLLM** — `vllm-project/vllm`
 
-## Confirmed-active evaluation / security / protocol candidates — Task 2
-- Model Context Protocol — `modelcontextprotocol/modelcontextprotocol`
-- promptfoo — `promptfoo/promptfoo`
+### Tier C — comparative / situational watch
+21. **OpenCode** — `anomalyco/opencode`
+22. **Mem0** — `mem0ai/mem0`
+23. **smolagents** — `huggingface/smolagents`
+24. **Agno** — `agno-agi/agno`
+25. **LlamaIndex** — `run-llama/llama_index`
+26. **CrewAI** — `crewAIInc/crewAI`
+27. **Mastra** — `mastra-ai/mastra`
 
-## Confirmed recurring contributors — Task 2
-- Anas Khan — `anxkhn` — SWE-agent
-- Douwe Maan — `DouweM` — Pydantic AI
-- Graham Neubig — `neubig` — OpenHands
-- Jack Amadeo — `jamadeo` — Goose
-- Jesús Samuel — `jesussamuel-byte` — Gemini CLI
-- Johannes Gäßler — `JohannesGaessler` — llama.cpp
-- Kartik Labhshetwar — `kartik-mem0` — Mem0
-- Kazuhiro Sera — `seratch` — OpenAI Agents SDK
-- Nick Hollon — `nick-hollon-lc` — LangGraph
-- Saoud Rizwan — `saoudrizwan` — Cline
+## Ranked recurring-contributor queue — Task 3
 
-See `projects/active-projects.md` and `people/active-people.md` for the activity evidence and ACL/Vera relevance.
+This ranks **public technical signal**, not authority, seniority, employment status, or outreach priority.
 
-## Status-deferred seed projects
+1. **Saoud Rizwan** — `saoudrizwan` — Cline — file-operation safety/edit semantics/provider routing.
+2. **Nick Hollon** — `nick-hollon-lc` — LangGraph — durable/remote runtime lifecycle and streaming state.
+3. **Jesús Samuel** — `jesussamuel-byte` — Gemini CLI — path/symlink/configuration authorization and command safety.
+4. **Graham Neubig** — `neubig` — OpenHands — provider/evidence/repository-boundary and lifecycle decisions.
+5. **Johannes Gäßler** — `JohannesGaessler` — llama.cpp — local runtime backends, quantization/KV and multi-device behavior.
+6. **Douwe Maan** — `DouweM` — Pydantic AI — cancellation/concurrency/session lifecycle.
+7. **Anas Khan** — `anxkhn` — SWE-agent — harness/evaluation correctness and regression discipline.
+8. **Kazuhiro Sera** — `seratch` — OpenAI Agents SDK — verification, CI and realtime lifecycle testing.
+9. **Jack Amadeo** — `jamadeo` — Goose — MCP/GDK integration and packaging.
+10. **Kartik Labhshetwar** — `kartik-mem0` — Mem0 — memory release/integration/configuration signal.
 
-These remain on the broad watchlist but were **not** classified as confirmed active in Task 2. No failure/abandonment conclusion is implied.
+## Ranked recurring source queue — Task 3
 
-- Aider — `Aider-AI/aider` — canonical repo not archived, but last push observed 2026-05-22.
-- AutoGen — `microsoft/autogen` — canonical repo not archived, but last push observed 2026-04-15; Microsoft metadata reports `activeRepoStatus=false`.
+1. Upstream GitHub repositories
+2. OWASP GenAI Security Project / Agentic Security Initiative
+3. SWE-bench + Berkeley Function Calling Leaderboard (BFCL)
+4. arXiv cs.SE / cs.MA / cs.CR recent feeds
+5. Model Context Protocol specification + upstream repository
+6. Hugging Face function-calling model filter + Daily Papers
+7. GitHub Advisory Database + OSV
+8. MITRE ATLAS
+9. NIST AI / Agentic AI
+10. OpenTelemetry GenAI semantic conventions
+11. Agent2Agent (A2A) protocol
+12. r/LocalLLaMA
+13. Hugging Face Forums
+14. Hacker News
+15. Public project Discords / chat communities
 
-The reasons, transition history, or successor relationships are intentionally **not** investigated here. That belongs to the later failed/abandoned/redesigned-attempts task.
+`sources.md` remains the governing evidence ladder; `ranked-sources.md` only sets review priority.
 
-## Security / governance sources already established
+## Status-deferred seed projects — excluded from active ranking
+
+These remain relevant but were **not ranked with the confirmed-active set**. No failure/abandonment/replacement conclusion is implied.
+
+- **Aider** — `Aider-AI/aider` — canonical repo not archived, last push observed 2026-05-22.
+- **AutoGen** — `microsoft/autogen` — canonical repo not archived, last push observed 2026-04-15; Microsoft metadata reports `activeRepoStatus=false`.
+
+The reasons, transition history, successor relationships and lessons are intentionally reserved for the next task: **find failed, abandoned, or heavily redesigned attempts**.
+
+## Security / governance anchors retained regardless of ordinal source rank
+
 - OWASP AI Agent Security Cheat Sheet
 - OWASP Agent Memory Guard
 - OWASP GenAI Security Project / Agentic Security Initiative
 - MITRE ATLAS
 - NIST AI / Agentic AI guidance
 
-## Recurring source watch stack — mapped in Task 1
+These can become controlling sources for a specific security/governance question even when another source has a higher routine-watch rank.
 
-### Core / primary
-- Upstream GitHub releases, changelogs, advisories, issues, discussions, and selected PRs for watched projects.
-- arXiv recent feeds: cs.SE, cs.MA, cs.CR; cs.AI as a cross-list/search overflow.
-- Hugging Face function-calling model filter and Daily Papers.
-- SWE-bench official leaderboards/news.
-- Berkeley Function Calling Leaderboard (BFCL) and changelog.
-- OWASP GenAI Security Project and Agentic Security Initiative.
-- MITRE ATLAS machine-readable data releases.
-- GitHub Advisory Database and OSV.
-- NIST AI and Agentic AI pages.
-- Model Context Protocol specification/upstream repository.
-- Agent2Agent protocol specification/upstream repository.
-- OpenTelemetry GenAI semantic-conventions repository.
+## Ranking rules to preserve in later work
 
-### Discovery only; verify upstream
-- r/LocalLLaMA
-- Hacker News
-- Hugging Face Forums
-- publicly searchable project Discord/forum discussions
-
-### Low priority
-- generic AI news aggregation
-- GitHub Trending/Topics without follow-up verification
-- vendor marketing without primary technical evidence
-- social accounts without an attributable current contribution stream
-
-See `sources.md` for cadence, evidence, caveats, and the evidence ladder.
-
-## Questions reserved for the next task: ranking
-
-Do **not** answer these until the ranking task is separately started:
-- Which confirmed-active projects deserve the highest watch priority for ACL?
-- Which people produce the highest-value recurring technical signal?
-- Does a project support local/open models in practice, not merely in documentation?
-- How does it handle tool contracts and malformed model output?
-- Who owns workflow control: model or harness?
-- How are state, checkpoints, retries, cancellation, and recovery handled?
-- How are sandboxes, filesystem/network boundaries, and secrets handled?
-- How is success independently validated?
-- What failures recur in issues/discussions?
-- Is there a reusable component that would save ACL work?
-- Is the project healthy enough to watch, contribute to, fork, or collaborate with?
+- Rank is **information value**, not adoption preference.
+- Local-model support increases relevance but does not prove reliable tool use.
+- A broad framework loses priority when a narrower project exposes the same hard problem more clearly.
+- Current bug fixes and regression tests can be more valuable than feature lists because they reveal real failure surfaces.
+- The queue can change after project-by-project deep research produces stronger evidence.
+- Do not infer project health, failure cause, maintainer authority, collaboration fit, or architectural superiority from ordinal position alone.
 
 ## Stop boundary
 
-Task 2 identified active projects and recurring contributors. It did not rank any candidate, analyze failed attempts, recommend adoption, or begin deep research on an individual project/person.
+Task 3 is complete once the active projects, recurring contributors, and recurring source channels are ranked and documented. It does **not** begin the next failure/redesign investigation, recommend dependencies, change ACL governance/code, run workers/models, or start individual deep research.
