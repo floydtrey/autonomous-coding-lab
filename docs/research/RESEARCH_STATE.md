@@ -2,7 +2,7 @@
 
 **Branch:** `research/agent-landscape`
 **Status:** current task complete; stopped before next task
-**Current phase:** 12 — SWE-agent / mini-swe-agent transition-aware deep research complete
+**Current phase:** 13 — llama.cpp deep research complete
 **Execution:** research only; no worker/model execution authorized by this branch
 
 ## Completed
@@ -15,61 +15,57 @@
 - Task 9 deep-researched **Strands Harness SDK** across lifecycle, authorization, sandbox, persistence, interrupt, local-model and evaluation boundaries.
 - Task 10 deep-researched **Codex** across sandbox/approval authority, child inheritance, Guardian authorization provenance, worktrees, thread/fork/resume state, local providers, process-tree cancellation and telemetry/evaluation boundaries.
 - Task 11 deep-researched **OpenHands** across runtime/server boundaries, generation-fenced conversation ownership, crash recovery, concurrency/cancellation, workspaces, credentials, local providers and observability.
-- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, and `watchlist.md` before Task 12.
-- Deep-researched the **SWE-agent / mini-swe-agent transition-aware slot** as ranked project #8, including SWE-ReX because upstream SWE-agent explicitly moved execution infrastructure into that runtime during its 1.0 redesign.
-- Verified authoritative status: SWE-agent is maintenance-only and explicitly names mini-swe-agent as its successor for new use.
-- Verified SWE-agent 1.0 was nearly rewritten from scratch and moved code execution into SWE-ReX, reducing the former `SWEEnv` to a thin runtime wrapper and separating agent logic from infrastructure.
-- Verified SWE-ReX exposes a deployment/runtime boundary supporting local/remote execution, file operations, one-off commands and persistent interactive sessions while allowing the agent layer to remain replaceable.
-- Verified current mini-swe-agent main `04d809ceab9df28f9adaed044884180159172930` remains active and package metadata classifies the project as Alpha.
-- Resolved a current-generation documentation mismatch: older FAQ language describes text/fenced-code parsing, while mini v2 migration docs and current source establish native Bash tool calling as the default; legacy text parsing remains available as a compatibility path.
-- Verified current mini default control flow is deliberately small: model query → execute action(s) → format observation → append history, with deterministic step/cost/run/format limits outside prompt prose.
-- Verified the current default model advertises one typed `bash(command)` tool, validates tool name/JSON arguments, returns corrective `FormatError` feedback and preserves provider `tool_call_id` into the result relationship.
-- Preserved the critical boundary that a single Bash schema is low scaffold complexity, not least privilege: Bash can invoke arbitrary accessible interpreters, files, network, Git and subprocesses.
-- Verified independent per-action execution remains a deliberate simplification: cwd/environment changes are not persistent by default, while richer persistent sessions remain available underneath through SWE-ReX when explicitly needed.
-- Verified mini's default `local` environment is explicitly unsandboxed and executes with the host process environment (`os.environ` plus configured additions); recorded this as an unacceptable ambient-credential default for a future privileged ACL/Vera production worker.
-- Verified Docker execution forwards only explicitly selected environment variables but still accepts caller-controlled Docker run arguments; recorded that container transport and permission policy are separate contracts.
-- Recorded that current Docker cleanup is launched asynchronously/background rather than synchronously proving container settlement; derived `cleanup_requested != cleanup_settled` as a future ACL invariant.
-- Recorded closed issue #826 as concrete process-tree failure evidence: the earlier timeout path could kill the shell while leaving agent-spawned grandchildren running; current local execution now creates a POSIX session and kills the process group on timeout.
-- Recorded a later process-group disappearance race report as a useful cleanup regression fixture but did **not** classify it as a confirmed production bug because the upstream discussion disputed whether the reproduction demonstrated an encountered failure.
-- Recorded open issue #874 as version-scoped evidence that an OpenAI-compatible provider can stall mid tool-call stream beyond mini's bounded outer run, showing loop-level deadlines cannot replace provider/transport idle/request timeouts.
-- Recorded open issue #872 as version-scoped evidence that the same provider-issued tool-call ID can produce repeated completed results, reinforcing that transcript correlation IDs are not durable exactly-once/effect identities.
-- Recorded open issue #889 as current evidence of intentional single-tool simplicity creating extensibility pressure because `[BASH_TOOL]` is hardcoded in the default LiteLLM query path.
-- Recorded open RFC #953 as current discussion evidence that default mini has no comprehensive deterministic pre-execution authorization layer; kept community proposals/comments distinct from shipped behavior and did not attribute maintainer authority without evidence.
-- Recorded open issue #950 as evidence that raw timeout wording can shape model behavior into compensation/gaming loops; separated operator telemetry from model-facing actionable feedback.
-- Verified local-model support through LiteLLM plus provider/api-base/model-registry configuration, including Ollama and concrete vLLM examples; preserved exact model + runtime + adapter + endpoint + context/tool/timeout/retry identity as the real capability unit.
-- Verified mini retains both native tool-calling and text-based action encodings, making capability-based fallback possible for local runtimes rather than assuming native tool calling always works.
-- Verified model retry is bounded/configurable and separate from action/effect retry; default helper uses exponential backoff and abort classes for authentication/permission/context/unsupported-param failures.
-- Verified mini saves rich trajectories after loop iterations, including model/environment config, raw provider/tool evidence and terminal status, but found no durable resume/checkpoint mechanism; classified trajectory persistence as evidence, not safe continuation authority.
-- Verified model-facing command output is bounded/truncated while richer raw output can remain in evidence fields, supporting separate context-budget and audit-retention planes.
-- Recorded current SWE-agent maintenance commit `3ea751c087f32b16e039a2233dd6eefecef325d5` as evaluation-harness correctness evidence: a bad SWE-bench subset mapping could invalidate evaluation independently of agent quality.
-- Recorded mini's explicit dependency exclusion of compromised LiteLLM versions 1.82.7/1.82.8 as direct supply-chain-maintenance evidence without drifting into the later LiteLLM research slot.
-- Recorded detailed sources, current failure boundaries, migration mechanisms, candidate invariants, future ACL regression fixtures and explicit non-conclusions in `projects/swe-agent-mini-swe-agent.md`.
-- Preserved the decision boundary: Task 12 does **not** decide whether ACL should adopt/fork/wrap mini-swe-agent or SWE-ReX, choose a cross-project winner, redesign ACL governance, or begin llama.cpp research.
+- Task 12 deep-researched the **SWE-agent / SWE-ReX / mini-swe-agent transition** and the deliberate move toward a smaller model-facing loop plus explicit outer execution/runtime responsibilities.
+- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, and `watchlist.md` before Task 13.
+- Deep-researched **llama.cpp** as ranked project #9, using the ACL/Vera end goal to control scope.
+- Verified canonical current project identity at `ggml-org/llama.cpp`, MIT license, active/non-archived status and inspected upstream revision `9e0e220594af405a62835dc3a27495729fd8506b` from 2026-09-06.
+- Verified broad local-runtime/backend portability across CPU and multiple GPU/accelerator paths plus OpenAI-compatible server surfaces, while preserving the distinction between hardware portability and behavioral portability.
+- Verified current chat/tool infrastructure explicitly models messages, tool calls, tool choice, parallel-tool flags, grammar/schema input, parser state and streamed tool-call evidence rather than treating all tool use as plain text.
+- Verified current Jinja capability analysis actively probes templates for tools, tool calls, parallel calls, system-role behavior, content representation and argument behavior.
+- Preserved the distinction between **discovered template capability** and **verified deployment capability**; template analysis does not prove the model/runtime will execute ACL tool fixtures correctly.
+- Verified current auto-parser behavior derives protocol structure from differential chat-template renders, making parser/template inference itself part of the versioned runtime capability path.
+- Verified built-in GBNF/JSON-Schema conversion is intentionally a subset implementation with documented semantic differences and unsupported features; unsupported schema behavior can include silent skipping in some conversion paths.
+- Recorded that built-in `additionalProperties` behavior differs from normal JSON Schema default semantics and therefore constraint-backend identity belongs in the capability profile.
+- Verified optional LLGuidance provides a separate structured-output backend with broader/different schema semantics and more explicit unsupported-schema error behavior, but current documentation also notes error handling can continue after reported failures; ACL would need fail-closed outer preflight for authority-bearing schemas.
+- Recorded open issue #28429 as a high-value current failure surface: non-ASCII schema property names can collide after grammar rule sanitization, silently losing a distinct parameter and causing constrained decoding to force the wrong tool argument even when the underlying model can produce the correct call through another runtime/path.
+- Extracted the candidate invariant that schema normalization/conversion is trusted code and must prove required fields survive uniquely before a worker capability is activated.
+- Recorded open issue #25923 as evidence that valid/edge schemas can produce invalid/rejected grammar and that one bad schema can poison a combined multi-tool grammar; did not claim the issue fully fixed because current grammar changes address only part of the reported surface and the issue remained open.
+- Extracted the candidate invariant that a worker `ToolCapabilitySet` must be compiled/preflighted atomically before a long-running task begins.
+- Verified server architecture separates HTTP/API work, inference context, typed tasks, slots, task/response queues, parser state, continuous batching, prompt/context cache behavior, model routing and resumable streaming.
+- Verified server task types include explicit cancellation/control and slot state operations; current source separately carries prompt/generation timing controls and leaves prompt-time maximum duration marked for implementation, reinforcing per-phase timeout ownership rather than one generic worker deadline.
+- Verified server development scope explicitly keeps complex server-side agentic/external-API loops out of the inference runtime, supporting ACL's outer-orchestrator ownership of project/task/effect authority.
+- Verified resumable generation transport can continue across client detach/reattach with bounded buffering and lifecycle controls; classified this as transport continuity, not durable ACL task state or audit evidence.
+- Verified prompt/KV caches and context checkpoints are inference state/optimization and must remain distinct from ACL continuation checkpoints, workspace snapshots and external-effect settlement.
+- Recorded open issue #23577 as unresolved long-horizon failure evidence involving pathological repeated output after hours of use; did not attribute root cause to cache, checkpoint, quantization or speculative decoding without evidence.
+- Derived that ACL local-model qualification needs endurance/many-turn/pathological-output tests in addition to one-shot benchmark prompts.
+- Recorded open `bug-unconfirmed` issue #25618 as configuration-scoped evidence that model-based speculative decoding can diverge from vanilla greedy output for some quantized targets while control paths differ, reinforcing that performance optimizations are behavior-bearing profile settings until equivalence is verified.
+- Defined a reproducibility manifest that includes runtime commit/build/backend/driver/hardware, GGUF digest/quantization, tokenizer/template/parser, constraint backend/schema digest, context/KV/cache settings, speculative mode, sampling, server flags and ACL fixture/verifier identity.
+- Preserved the authority boundary: llama.cpp can generate/parse/constrain tool calls but does not thereby validate ACL task scope, authorize real-world effects, settle tool side effects or determine independent pass/fail.
+- Recorded detailed primary sources, current failure boundaries, candidate invariants, future ACL regression fixtures and explicit non-conclusions in `projects/llama-cpp.md`.
+- Preserved the decision boundary: Task 13 does **not** decide whether ACL should adopt/fork/wrap llama.cpp, select a cross-project winner, redesign ACL/Vera governance, or begin OpenAI Agents SDK research.
 
-## Highest-value SWE-agent / mini-swe-agent findings for later comparison
+## Highest-value llama.cpp findings for later comparison
 
-1. Simplifying the agent loop can be a deliberate successful redesign when deterministic complexity is moved into explicit runtime owners rather than prompt prose.
-2. SWE-agent first extracted execution infrastructure into SWE-ReX; mini then reduced the model-facing scaffold further. The responsibilities did not disappear.
-3. Keep the worker action vocabulary small enough to preserve model-native reasoning; make every added abstraction justify its cost with ACL-specific evidence.
-4. Backend sophistication does not need to become model-facing sophistication: local, Docker, remote and richer runtimes can sit under the same small action contract.
-5. Independent actions are a strong default; persistent shell/REPL/browser sessions should be explicit leased resources rather than hidden ambient state.
-6. One Bash tool is low schema complexity, not narrow authority.
-7. Local execution is not automatically trusted or safe; mini's default local path is full host execution with ambient environment access.
-8. Child/worker environment should be explicit and minimal rather than inheriting the supervisor's entire environment.
-9. Container/runtime selection and permission policy are separate; mounts, network, credentials, user and resource settings remain authority-bearing configuration.
-10. `cleanup_requested` is not `cleanup_settled`; environment teardown needs observable completion/error state.
-11. Tool timeout must settle the whole owned process tree. Returning a timeout message while grandchildren survive is false completion.
-12. Every blocking plane needs its own timeout/cancellation owner; an outer agent-loop wall clock cannot interrupt a stalled provider stream by itself.
-13. Provider/tool correlation IDs are not enough for external effects; ACL needs durable idempotency/effect state.
-14. Keep deterministic authorization around the effect boundary rather than enlarging the reasoning prompt to describe permissions.
-15. Model-facing error/timeout feedback and operator/audit telemetry are distinct representations.
-16. Native tool calling is a verified capability, not a universal requirement; retain a fallback action encoding for local runtimes that fail tool-call probes.
-17. Retry layers remain separate: provider retry cannot silently become tool/effect replay.
-18. Trajectory evidence is valuable but is not a checkpoint, workspace snapshot or permission to resume.
-19. Bounded model context and richer audit evidence can coexist; do not feed every raw log back into a small local model.
-20. Evaluator/benchmark adapters are trusted evidence code and their failures must be classified separately from worker/model failures.
-21. Minimal worker code still has a large dependency/runtime trust base; dependency provenance and blocked versions remain security controls.
-22. mini is strongest as a minimal worker-loop/reference baseline; SWE-ReX is strongest as an execution-runtime separation reference. Neither replaces ACL's scheduler, dependency gates, effect ledger, protected verifier, credential governance, durable recovery or Vera memory governance.
+1. Local-model capability is realized at the full deployment stack, not at the model name or nominal OpenAI-compatible endpoint.
+2. Record runtime commit/build/backend/driver/hardware, GGUF digest/quantization, tokenizer/template/parser, constraint backend, context/KV/cache, speculative mode and sampling as behavior-bearing profile identity.
+3. Template capability discovery and end-to-end deployment verification are separate evidence states.
+4. Chat templates, specialized handlers/auto-parser and constraint compiler are part of the trusted tool-call path.
+5. `structured_output=true` is too coarse: built-in GBNF and LLGuidance expose different schema semantics and failure behavior.
+6. Unsupported/ambiguous schema semantics must fail closed for authority-bearing tools; silent weakening is unacceptable as a production capability signal.
+7. Tool-schema registration should be atomic and preflight the complete tool set before execution begins.
+8. Schema conversion must prove every required field survived normalization/sanitization uniquely; Unicode/collision fixtures are mandatory.
+9. Valid constrained JSON does not establish that the intended schema was represented faithfully.
+10. A deterministic constraint layer can make a capable model deterministically wrong; parser/grammar failures need their own failure class separate from model quality.
+11. Runtime slots, transport sessions and resumable stream IDs are not ACL project/task/run/effect identities.
+12. Continuous batching and inference concurrency can remain below ACL's project/task scheduler.
+13. Each blocking inference phase needs its own timeout/cancellation owner; one worker timeout is insufficient.
+14. Inference cancellation does not settle worker filesystem/network/API effects.
+15. KV/prompt/context checkpoints are inference optimization state, not ACL continuation authority.
+16. Performance optimizations such as speculative decoding are behavior-bearing configuration until ACL equivalence tests prove otherwise.
+17. Local runtime qualification needs long-horizon endurance/pathology tests, not only one-shot coding accuracy.
+18. Bounded/resumable stream buffers are transport continuity, not audit logs or durable evidence.
+19. llama.cpp's explicit model-agnostic server boundary supports keeping agent loops, authorization and external-effect orchestration outside the inference runtime.
+20. llama.cpp is strongest as an inference/runtime and capability-profiling substrate; it does not replace ACL scheduling, dependency gates, sandbox/process authority, effect ledger, protected verifier, durable recovery, credentials or Vera memory governance.
 
 ## Queue status
 
@@ -81,17 +77,18 @@
 - **Codex (#6): complete.** Detailed evidence: `projects/codex.md`.
 - **OpenHands (#7): complete.** Detailed evidence: `projects/openhands.md`.
 - **SWE-agent / mini-swe-agent (#8): complete.** Detailed evidence: `projects/swe-agent-mini-swe-agent.md`.
-- **llama.cpp (#9): next task only.** No llama.cpp deep research was begun in Task 12.
+- **llama.cpp (#9): complete.** Detailed evidence: `projects/llama-cpp.md`.
+- **OpenAI Agents SDK (#10): next task only.** No OpenAI Agents SDK deep research was begun in Task 13.
 - Remaining ranked queue stays unchanged until its own separately authorized task or later evidence justifies an explicit update.
 
 ## Next task
 
-Deep-research **llama.cpp** only.
+Deep-research **OpenAI Agents SDK** only.
 
-Do not begin this task until separately instructed. For the next task, deep-research llama.cpp as ranked project #9 with the same end-goal discipline: local-runtime architecture, constrained JSON/tool-call grammar and parser behavior, model/template/tool compatibility, context/KV/cache semantics, cancellation/concurrency/server behavior, backend/hardware portability, version/config reproducibility, recurring failure surfaces, project health, reusable components and concrete ACL/Vera lessons. Save evidence/catalog/state, commit research-only changes, and **stop before OpenAI Agents SDK**.
+Do not begin this task until separately instructed. For the next task, deep-research `openai/openai-agents-python` as ranked project #10 with the same end-goal discipline. Cover the current agent/run lifecycle; tools and handoffs; guardrails/approval and sandbox/authority semantics; serializable run/session state and resume behavior; cancellation/interruption; tracing/evidence; local/custom model/provider boundaries; retry/failure behavior; security/credential implications; recurring current failures; project health; reusable components and concrete ACL/Vera lessons. Use Swarm only insofar as the documented predecessor relationship directly clarifies which operational controls were added; do not start a separate historical project task. Save evidence/catalog/state, commit research-only changes, and **stop before Model Context Protocol**.
 
 ## Later tasks
-1. Deep-research OpenAI Agents SDK after llama.cpp, one project per separately authorized task.
+1. Deep-research Model Context Protocol after OpenAI Agents SDK, one project per separately authorized task.
 2. Deep-research high-value developers/accounts one at a time.
 3. Compare reusable components versus custom-build candidates.
 4. Analyze collaboration/open-source options.
@@ -101,4 +98,4 @@ Do not begin this task until separately instructed. For the next task, deep-rese
 
 ## Stop point
 
-Task 12 ended after the SWE-agent→SWE-ReX→mini-swe-agent transition, current mini v2 tool/control-flow architecture, independent-action design, execution/sandbox/ambient-environment boundaries, process-tree timeout and cleanup semantics, provider-stream and duplicate-tool-call failure evidence, local-model adapter behavior, trajectory-versus-checkpoint distinction, benchmark/evaluator correctness, supply-chain evidence, catalog/watchlist/state updates and next-task definition were completed. No llama.cpp or OpenAI Agents SDK research, cross-project winner selection, dependency/fork decision, ACL/Vera architecture/governance change, or worker/model execution was begun.
+Task 13 ended after llama.cpp runtime/backend architecture, chat-template/tool parsing, auto-parser capability, built-in GBNF and LLGuidance structured-output behavior, current schema/constraint failure surfaces, server slots/concurrency/cancellation/timeouts, resumable streaming, context/KV/cache checkpoint semantics, long-horizon/speculative-decoding failure evidence, local-runtime reproducibility requirements, catalog/watchlist/state updates and next-task definition were completed. No OpenAI Agents SDK or Model Context Protocol research, cross-project winner selection, dependency/fork decision, ACL/Vera architecture/governance change, or worker/model execution was begun.

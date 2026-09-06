@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–12 completed deep research on Pydantic AI, Cline, LangGraph, promptfoo, Strands Harness SDK, Codex, OpenHands, and the **SWE-agent / mini-swe-agent transition-aware slot**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–13 completed deep research on Pydantic AI, Cline, LangGraph, promptfoo, Strands Harness SDK, Codex, OpenHands, the **SWE-agent / mini-swe-agent transition-aware slot**, and **llama.cpp**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
 
 Detailed historical artifacts remain in:
 - `projects/ranked-projects.md`
@@ -19,6 +19,34 @@ Completed project deep research:
 - `projects/codex.md`
 - `projects/openhands.md`
 - `projects/swe-agent-mini-swe-agent.md`
+- `projects/llama-cpp.md`
+
+## Task 13 — llama.cpp research result
+
+**Status:** project deep research complete; no dependency/adoption/fork decision made.
+
+High-value findings to carry into later comparison:
+
+- **Deployment capability is a full-stack property:** exact llama.cpp build/revision, backend/device/driver, GGUF digest/quantization, tokenizer/template, parser/handler, constraint backend, context/KV/cache and sampling/speculative settings can all affect realized behavior.
+- **Template capability != verified model capability:** current Jinja analysis actively probes templates for tools, tool calls, parallel calls, system role and argument behavior, but ACL must separately verify real tool-use behavior for the exact deployment.
+- **Protocol inference is runtime code:** auto-parser derives tool/reasoning/content markers from differential chat-template renders. Template/parser/handler version is part of the capability profile, not invisible plumbing.
+- **Built-in GBNF is a subset JSON-Schema compiler:** upstream documents unsupported/limited features, semantic differences and some silent skipping behavior; constrained JSON validity does not prove the schema was represented faithfully.
+- **Constraint-backend identity matters:** LLGuidance has different/broader schema semantics and more explicit unsupported-schema errors than the built-in path. `structured_output=true` is too coarse a capability bit.
+- **Open #28429 — constraint compiler can force wrong arguments:** distinct non-ASCII schema property names can collide after grammar rule sanitization, silently dropping one field and making the correct constrained tool call impossible even when the underlying model can produce it elsewhere.
+- **Open #25923 — one schema can poison the whole tool set:** valid/edge tool schemas can compile to invalid/rejected grammar, and a combined multi-tool grammar can fail because of one problematic tool. Tool-capability registration should be atomic and preflighted.
+- **Constraint compiler is trusted code:** schema normalization must prove required fields survived uniquely; Unicode/normalization/rule-name collision fixtures should be mandatory for authority-bearing tools.
+- **Server architecture is model-runtime scope:** typed tasks, slots, queues, continuous batching, parser state, caches/checkpoints, routing and resumable streaming can remain below ACL's authoritative scheduler.
+- **Agentic loop is deliberately out of server scope:** current server-development docs keep complex repeated external API/agent logic outside the inference runtime, aligning with ACL's outer-orchestrator/effect-authority boundary.
+- **Per-phase timeout ownership:** server source carries explicit cancellation/control and generation timing while prompt-time maximum duration is still a distinct unfinished control. ACL needs request/prompt/prefill/generation/stream/tool/whole-run deadlines rather than one timeout.
+- **Resumable stream != durable task state:** client detach/reattach can preserve generation with bounded buffering, useful for Vera remote/mobile transport, but stream/session IDs and buffers are not ACL run/effect IDs or audit logs.
+- **KV/context checkpoint != ACL checkpoint:** prompt/KV/cache snapshots are inference optimizations and prove nothing about workspace, authorization, credentials, process/effect settlement or permission to resume.
+- **Open #23577 — long-horizon pathology:** a configuration-specific report shows repeated-token collapse after hours. Root cause is unresolved, but ACL local-model qualification needs many-turn/endurance/pathology fixtures, not only one-shot prompts.
+- **Open #25618 — optimization is behavior-bearing:** an unconfirmed but detailed report shows model-based speculative decoding diverging from vanilla greedy output for some quantized targets while controls differ. Speculative/cache/backend performance settings belong in profile identity until equivalence is verified.
+- **Reproducibility manifest:** runtime/build/backend/driver/hardware + exact GGUF/quantization + template/parser/grammar + context/KV/cache + speculative/sampling + server flags + ACL fixture/verifier identity should travel with every benchmark result.
+- **Authority boundary:** llama.cpp can format, parse and constrain model tool output; it does not authorize the real effect, settle it, checkpoint the worker, or determine independent task success.
+- **Boundary:** llama.cpp is strongest as a local inference/runtime and capability-profiling substrate. It does not replace ACL scheduling, dependency gates, worker sandbox/process custody, effect ledger, protected verifier, durable recovery, credentials or Vera memory governance.
+
+See `projects/llama-cpp.md` for primary sources, current failure surfaces, candidate invariants, reproducibility fields and ACL regression-fixture ideas.
 
 ## Task 12 — SWE-agent / mini-swe-agent transition-aware research result
 
@@ -210,8 +238,8 @@ See `projects/pydantic-ai.md` for the complete evidence.
 
 ## Task 4 transition/status updates
 
-- **SWE-agent** — upstream-declared maintenance-only and superseded by mini-swe-agent. Task 12 has now completed the transition-aware deep research.
-- **OpenAI Agents SDK** — Swarm is its explicit experimental predecessor.
+- **SWE-agent** — upstream-declared maintenance-only and superseded by mini-swe-agent. Task 12 completed the transition-aware deep research.
+- **OpenAI Agents SDK** — Swarm is its explicit experimental predecessor and is the next ranked project task.
 - **AutoGen** — maintenance mode; Microsoft Agent Framework is the named successor.
 - **Aider** — status unresolved, not abandoned; community forks/concerns are discovery evidence only until an authoritative status change.
 
@@ -226,8 +254,8 @@ See `projects/pydantic-ai.md` for the complete evidence.
 6. **Codex** — `openai/codex` — **Task 10 complete**; `projects/codex.md`.
 7. **OpenHands** — `OpenHands/OpenHands` / runtime `OpenHands/software-agent-sdk` — **Task 11 complete**; `projects/openhands.md`.
 8. **SWE-agent / mini-swe-agent** — `SWE-agent/SWE-agent` / `SWE-agent/mini-swe-agent` / execution runtime `SWE-agent/SWE-ReX` — **Task 12 complete**; `projects/swe-agent-mini-swe-agent.md`.
-9. **llama.cpp** — `ggml-org/llama.cpp` — **next task**; local runtime, constrained JSON/tool-call grammars, parsers, backend/KV behavior.
-10. **OpenAI Agents SDK** — `openai/openai-agents-python` — serializable run state, approvals, sandbox state, traces and lifecycle tests.
+9. **llama.cpp** — `ggml-org/llama.cpp` — **Task 13 complete**; `projects/llama-cpp.md`.
+10. **OpenAI Agents SDK** — `openai/openai-agents-python` — **next task**; serializable run state, approvals, sandbox state, traces and lifecycle tests.
 
 ### Tier B — high-value follow-up
 11. **Model Context Protocol** — `modelcontextprotocol/modelcontextprotocol`
@@ -288,7 +316,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 ## Historical failure/redesign set — Task 4
 
 1. AutoGen — ground-up v0.4 rewrite, then maintenance-only with Microsoft Agent Framework named successor.
-2. SWE-agent — near-total 1.0 rewrite, then maintenance-only with mini-swe-agent named successor; Task 12 now contains the transition-aware deep research.
+2. SWE-agent — near-total 1.0 rewrite, then maintenance-only with mini-swe-agent named successor; Task 12 contains the transition-aware deep research.
 3. OpenAI Swarm — experimental predecessor replaced by OpenAI Agents SDK.
 4. AutoGPT Classic — unsupported legacy experiment; maintained direction moved to workflow/block Platform architecture.
 5. BabyAGI original — archived snapshot; project reconceived around a self-building function framework.
@@ -347,10 +375,17 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Durable create/import/enqueue operations require stable idempotency identity.
 - Logical deletion/retirement is separate from physical evidence/workspace/file destruction.
 - Local-model capability means exact model + runtime + adapter + protocol/tool namespace + configuration.
+- For llama.cpp-class deployments, capability identity additionally includes binary/build/backend/driver, GGUF digest/quantization, tokenizer/template/parser, constraint backend, context/KV/cache and performance/sampling settings.
+- Template/tool capability discovery is not the same as verified end-to-end deployment capability.
+- Chat template, parser/handler and constraint compiler are trusted parts of the tool-call path and require versioned regression evidence.
+- Structured-output capability is backend-specific; unsupported/ambiguous schema semantics for authority-bearing tools should fail closed rather than silently weaken constraints.
+- Tool capability sets should preflight atomically before a worker starts; one unrepresentable schema must not create a partially trusted tool set.
+- Schema conversion must prove required fields survive normalization/sanitization uniquely; grammar-valid JSON does not prove faithful schema enforcement.
 - Native tool calling is a capability to verify, not a universal requirement; fallback action encodings may be appropriate for local runtimes.
 - Provider/profile selection is scoped state; temporary local setup must not mutate unrelated/global provider identity.
 - Cancellation must target process trees/jobs and bounded pipe/output settlement.
-- Every blocking plane (provider stream/request, tool process, remote runtime, total task) needs an explicit timeout/cancellation owner.
+- Every blocking plane (provider stream/request, prompt/prefill, generation, tool process, remote runtime, total task) needs an explicit timeout/cancellation owner.
+- Inference/runtime cancellation is separate from filesystem/network/API/database effect settlement.
 - Process settlement is separate from filesystem/network/API/database effect settlement.
 - Runtime limits, cancellation and retry policy belong in observable harness state rather than prompt prose.
 - Retry classes need separate reasons/budgets/progress tests.
@@ -360,6 +395,7 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Typed policy decisions should have explicit fail-open/fail-closed error semantics; authority-bearing controls should fail closed on ambiguity.
 - Action authorization does not replace principal-approved objective/task-scope provenance.
 - Logical request/idempotency identity, run/attempt identity, agent/process identity and durable session identity must remain separate.
+- Inference slot/session/resumable-stream identity is a runtime transport identity, not an ACL project/task/run/effect identity.
 - Each durable state domain needs one authoritative owner; nested components must not persist competing versions.
 - Persistent state requires distributed writer/fencing/lease semantics when multiple processes are possible.
 - A stale writer that lost its lease/generation may not commit authoritative task/effect/checkpoint state.
@@ -368,10 +404,14 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Async cancellation does not prove blocking thread/process settlement; terminal state must reflect actual custody.
 - Restored history/checkpoints are trusted execution input; valid serialization does not prove provenance or permission to resume.
 - A saved trajectory/transcript is evidence, not automatically a checkpoint or permission to resume.
+- KV/prompt/context cache checkpoints are inference optimization state, not authoritative ACL continuation checkpoints.
 - UI stream, persisted replay history, model-visible context and audit/effect evidence are distinct representations with explicit consistency contracts.
+- Bounded/resumable inference stream buffers are transport continuity, not audit logs or durable evidence.
 - Model-facing diagnostics and operator/audit telemetry are separate representations; model feedback should be truthful and actionable rather than leaking irrelevant scaffold trivia.
 - Context trimming/summarization/offloading is model-state mutation, not authoritative project/effect truth.
 - Model-visible output can be bounded while richer verifier/audit evidence is retained separately under its own security/retention policy.
+- Performance optimizations such as speculative decoding, cache modes and backend-specific paths are behavior-bearing configuration until equivalence tests establish interchangeability.
+- Local-model qualification includes long-horizon endurance/pathology tests in addition to one-shot capability/accuracy tests.
 - Durable state should reference credentials rather than carry reusable secret material as ordinary serializable configuration.
 - Runtime-visible credential delivery is an explicit authority grant; already-delivered plaintext cannot be made secret from arbitrary worker code by later revocation.
 - All ambient state roots (HOME/profiles/env/global caches/config) must participate in isolation; a fresh workspace alone is not a fresh runtime.
@@ -383,7 +423,7 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Deterministic evidence should precede semantic model grading when the property is machine-observable.
 - Missing required evidence should produce an explicit invalid/failure state rather than an implicit pass.
 - Verifier-owned tests/hashes/sidecars should remain outside worker mutation authority.
-- Conversation/graph state, trajectory state, workspace state and external-effect evidence are separate recovery dimensions.
+- Conversation/graph state, trajectory state, inference-context state, workspace state and external-effect evidence are separate recovery dimensions.
 - A durable checkpoint does not imply exactly-once external side effects.
 - Physical persistence retention is separate from model-context compaction.
 - Worker-writable persistent repository memory/instructions remain lower trust than protected governance and verified project truth.
@@ -393,4 +433,4 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 
 ## Next research task boundary
 
-Task 12 is complete once the SWE-agent/mini-swe-agent research file, catalog, watchlist and state are committed. The next task is **llama.cpp deep research only**. Do not begin it until separately instructed, and when it is begun, stop before OpenAI Agents SDK.
+Task 13 is complete once the llama.cpp research file, catalog, watchlist and state are committed. The next task is **OpenAI Agents SDK deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Model Context Protocol.
