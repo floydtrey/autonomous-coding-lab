@@ -2,58 +2,46 @@
 
 **Branch:** `research/agent-landscape`
 **Status:** current task complete; stopped before next task
-**Current phase:** 3 — watchlist ranked for research priority
+**Current phase:** 4 — failed, abandoned, and heavily redesigned attempts mapped
 **Execution:** research only; no worker/model execution authorized by this branch
 
 ## Completed
 - Research workspace initialized and research process/evidence ladder established.
 - Mapped recurring sources for ACL/Vera across upstream development, research, local models, benchmarks, security, standards/protocols, observability and practitioner discovery.
-- Verified 27 confirmed-active projects and 10 recurring current contributors in Task 2; preserved Aider and AutoGen as status-deferred without cause analysis.
-- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, `watchlist.md`, and the Task 2 active-project/person evidence before beginning Task 3.
-- Ranked the 27 confirmed-active projects by ACL/Vera-specific **research information value**, using explicit criteria: unresolved-problem overlap, distinctive implementation/failure evidence, local/provider portability, safety/reliability/lifecycle depth, reuse leverage, and evidence inspectability/current signal.
-- Ranked the 10 recurring contributors by expected technical-signal value rather than reputation or presumed authority.
-- Ranked the 15 recurring source channels by primary-evidence authority, ACL/Vera relevance, actionability/reproducibility, cadence and auditability while preserving the evidence ladder in `sources.md`.
-- Performed targeted upstream verification for ranking-sensitive claims, including local/Ollama paths, sandbox/approval controls, checkpoint/retry/interruption mechanics, structured-output/tool validation, memory provenance/history and coding-agent red-team/evaluation primitives.
-- Recorded detailed project ranking in `projects/ranked-projects.md`, contributor ranking in `people/ranked-people.md`, source ranking in `ranked-sources.md`, and updated `watchlist.md` / `catalog.jsonl`.
-- Preserved the critical interpretation: **rank means investigate/watch sooner, not adopt, depend on, fork, or declare superior**.
-- Excluded status-deferred Aider and AutoGen from the active ranking so Task 3 did not infer failure, abandonment, replacement, transition causes or successor relationships.
+- Verified 27 confirmed-active projects and 10 recurring current contributors in Task 2; ranked projects, people and recurring sources by research information value in Task 3.
+- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, and `watchlist.md` before beginning Task 4.
+- Completed the failure/redesign investigation using primary upstream status declarations, migration guides, archived repositories, maintainers' transition notes, current repository metadata and narrowly scoped issue evidence.
+- Documented eight high-value transition cases in `failures/failed-redesigned-attempts.md`:
+  1. AutoGen → ground-up v0.4 rewrite → Microsoft Agent Framework maintenance-mode successor transition.
+  2. SWE-agent → near-total 1.0 rewrite → maintenance-only status and mini-swe-agent supersession.
+  3. OpenAI Swarm → OpenAI Agents SDK production successor.
+  4. AutoGPT Classic → unsupported legacy experiment while maintained AutoGPT moved to workflow/block Platform architecture.
+  5. Original BabyAGI → archived snapshot and materially reconceived self-building function framework.
+  6. GPT-Engineer → archived research CLI / precursor to Lovable-managed product direction.
+  7. GPT Pilot → explicitly unmaintained repository with a documented prolonged credential-stealing supply-chain compromise.
+  8. AgentGPT → archived repository with no authoritative cause/successor explanation.
+- Resolved the prior AutoGen status ambiguity: upstream now explicitly marks AutoGen maintenance-only and names Microsoft Agent Framework as successor.
+- Preserved **Aider** as status unresolved: the repository is not archived and no authoritative maintainer statement establishes abandonment or an official successor; community concern/forks are discovery evidence only.
+- Recorded OpenDevin→OpenHands and Block→AAIF Goose as explicit **non-failure controls** so repository/org moves are not mistaken for abandonment.
+- Extracted recurring lessons without changing ACL governance: scaffold complexity must earn measurable value; runtime observability/cancellation/execution isolation recur as redesign drivers; free-form research autonomy differs from production workflow automation; maintenance state is a security boundary; migrations need behavioral evidence; canonical identity must be separated from architecture generation.
+- Updated `watchlist.md` and `catalog.jsonl` with Task 4 transition/status evidence.
+- Preserved the research boundary: no ranked project was individually deep-researched for adoption/reuse, no architecture recommendation was finalized, and no ACL runtime/governance code was changed.
 
-## Highest-priority queues established in Task 3
+## Queue impact discovered in Task 4
 
-### Projects — first deep-research tranche
-1. Pydantic AI
-2. Cline
-3. LangGraph
-4. promptfoo
-5. Strands Harness SDK
-6. Codex
-7. OpenHands
-8. SWE-agent
-9. llama.cpp
-10. OpenAI Agents SDK
-
-### Recurring contributor streams — first five
-1. Saoud Rizwan (`saoudrizwan`)
-2. Nick Hollon (`nick-hollon-lc`)
-3. Jesús Samuel (`jesussamuel-byte`)
-4. Graham Neubig (`neubig`)
-5. Johannes Gäßler (`JohannesGaessler`)
-
-### Recurring sources — first five
-1. Upstream GitHub repositories
-2. OWASP GenAI Security Project / Agentic Security Initiative
-3. SWE-bench + Berkeley Function Calling Leaderboard (BFCL)
-4. arXiv cs.SE / cs.MA / cs.CR recent feeds
-5. Model Context Protocol specification + upstream repository
+- **SWE-agent rank #8 is now a transition-aware historical slot.** When that point in the ranked queue is reached, later research should examine the SWE-agent→mini-swe-agent redesign and current mini-swe-agent implementation rather than treating legacy SWE-agent as the current endpoint.
+- **OpenAI Agents SDK rank #10 gains predecessor context** from Swarm, but no project-level deep research was started.
+- **AutoGen** moves from status-deferred ambiguity to confirmed maintenance-only/superseded historical evidence; Microsoft Agent Framework remains the active candidate already present in the broader watchlist.
+- **Aider** remains outside the confirmed-active ranking until authoritative status changes or a separate later task resolves it.
 
 ## Next task
 
-Find failed, abandoned, or heavily redesigned attempts.
+Deep-research ranked projects **one at a time**, beginning with **Pydantic AI** only.
 
-Do not begin this task until separately instructed. Investigate relevant historical/current projects and transitions for evidence of what failed, was abandoned, was substantially redesigned, or moved into a successor architecture. Separate observable status/transition facts from inferred causes. Prioritize lessons that could prevent ACL/Vera from repeating known mistakes. Do **not** begin the ranked project-by-project deep research queue during that task unless needed narrowly to establish a documented redesign/successor relationship.
+Do not begin this task until separately instructed. For the next task, deep-research Pydantic AI as the #1 research-priority project: architecture, harness/model control boundaries, tool/structured-output contracts, retries, concurrency/cancellation, local/Ollama support, evaluation/observability, security/permission implications, reusable components, recurring upstream failures, maintenance/health and concrete ACL/Vera lessons. Save evidence/catalog/state, commit research-only changes, and **stop before Cline**.
 
 ## Later tasks
-1. Deep-research ranked projects one at a time.
+1. Deep-research Cline, then continue the ranked project queue one project per separately authorized task.
 2. Deep-research high-value developers/accounts one at a time.
 3. Compare reusable components versus custom-build candidates.
 4. Analyze collaboration/open-source options.
@@ -63,4 +51,4 @@ Do not begin this task until separately instructed. Investigate relevant histori
 
 ## Stop point
 
-Task 3 ended after the active project, recurring-contributor and recurring-source watchlists were ranked and documented. No failure/redesign investigation, adoption decision, collaboration analysis, architecture change, local worker/model execution, or individual deep-research task was begun.
+Task 4 ended after the failure/redesign map, status corrections, cross-cutting lessons, catalog/watchlist updates and next-task definition were completed. No Pydantic AI deep research, Cline research, adoption decision, collaboration analysis, architecture/governance change, or worker/model execution was begun.
