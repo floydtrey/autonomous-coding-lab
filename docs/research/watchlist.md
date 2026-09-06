@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–11 completed deep research on Pydantic AI, Cline, LangGraph, promptfoo, Strands Harness SDK, Codex, and **OpenHands**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–12 completed deep research on Pydantic AI, Cline, LangGraph, promptfoo, Strands Harness SDK, Codex, OpenHands, and the **SWE-agent / mini-swe-agent transition-aware slot**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
 
 Detailed historical artifacts remain in:
 - `projects/ranked-projects.md`
@@ -18,6 +18,40 @@ Completed project deep research:
 - `projects/strands-harness-sdk.md`
 - `projects/codex.md`
 - `projects/openhands.md`
+- `projects/swe-agent-mini-swe-agent.md`
+
+## Task 12 — SWE-agent / mini-swe-agent transition-aware research result
+
+**Status:** transition-aware deep research complete; no dependency/adoption/fork decision made.
+
+High-value findings to carry into later comparison:
+
+- **Two-stage simplification:** SWE-agent 1.0 first nearly rewrote the scaffold and moved code execution into SWE-ReX; mini-swe-agent later became the declared successor and reduced the agent-facing architecture further. Operational responsibilities were relocated, not eliminated.
+- **Maintenance boundary:** upstream explicitly says SWE-agent is maintenance-only and superseded by mini-swe-agent for new use. SWE-agent remains useful historical/reference evidence and still receives targeted fixes.
+- **Runtime extraction:** SWE-ReX separates deployment/runtime/infrastructure from agent logic and supports local/remote execution, file operations and richer sessions without requiring those capabilities to become model-facing agent complexity.
+- **Minimal current loop:** current mini default is essentially model query → execute action(s) → format observation → append history, with deterministic step/cost/wall-time/format limits outside prompt prose.
+- **Current v2 tool generation:** older FAQ language about fenced-code/no-tool-calling describes the earlier generation. mini v2 uses native one-tool Bash calling by default while retaining text parsing as a compatibility path.
+- **One Bash tool != least privilege:** a tiny tool schema can still invoke interpreters, Git, filesystem, network and subprocesses. mini demonstrates low scaffold complexity, not narrow execution authority.
+- **Independent-action default:** cwd/environment state is not persistent across normal actions. This intentionally removes long-lived shell-state complexity; richer sessions remain possible underneath through SWE-ReX when explicitly needed.
+- **Local mode is unsandboxed:** the default local environment runs directly on the host and current source merges the full host `os.environ` into command execution. ACL production workers should not inherit supervisor ambient credentials by default.
+- **Docker != permission profile:** Docker execution forwards explicit environment variables, but caller-controlled run arguments can still change mounts/network/privilege. Execution backend and authority remain separate contracts.
+- **Cleanup settlement:** current Docker cleanup launches background stop/remove work instead of synchronously proving settlement. ACL should distinguish `cleanup_requested` from `cleanup_settled`/`cleanup_failed`.
+- **Closed child-process leak #826:** an older timeout path could kill the shell while leaving Python grandchildren running. Current local execution uses a POSIX process group and group kill, reinforcing whole-effect-tree timeout custody.
+- **Provider-stream boundary #874:** open version-scoped reproduction shows a provider can stall mid tool-call stream beyond the outer bounded run. Agent-loop deadlines cannot replace transport/request/idle deadlines.
+- **Exactly-once boundary #872:** open version-scoped reproduction shows repeated results for the same provider-issued tool-call ID. Correlation IDs do not automatically provide durable idempotency/effect semantics.
+- **Single-tool extensibility #889:** current LiteLLM query hardcodes `[BASH_TOOL]`, exposing deliberate minimalist design and pressure to extend the tool surface without copying provider-call plumbing.
+- **Authorization remains outer:** current default mini core has no comprehensive deterministic pre-execution authorization engine. Open RFC #953 debates adding/wrapping such a seam; proposals/comments are not shipped guarantees.
+- **Model-facing feedback matters:** open #950 reports models compensating for literal timeout details. Operator telemetry and model-facing actionable feedback should be different representations while remaining truthful.
+- **Local-model flexibility:** LiteLLM plus provider/api-base/registry settings support Ollama, vLLM and other local/OpenAI-compatible endpoints; native tool calling and legacy text parsing provide two compatibility strategies.
+- **Capability metadata != realized behavior:** model registry/context/provider values remain configuration. ACL needs exact model+runtime+adapter+endpoint+tool/context/timeout/retry capability probes.
+- **Bounded retry:** current model retry uses bounded exponential retry with explicit abort classes. Provider retry remains separate from action/effect retry.
+- **Trajectory != checkpoint:** mini persists rich per-step trajectories and raw evidence, but Task 12 found no durable resume mechanism. Conversation evidence alone does not authorize safe continuation.
+- **Context/evidence separation:** model-facing command output can be head/tail bounded while richer raw output remains in evidence fields.
+- **Evaluator integrity:** current SWE-agent maintenance main fixes a benchmark subset adapter bug that invalidated evaluation independently of model behavior, reinforcing harness/evaluator failure as its own category.
+- **Supply-chain scope:** mini explicitly excludes compromised LiteLLM versions 1.82.7/1.82.8. A small agent source tree still depends on a larger privileged dependency/runtime trust base.
+- **Boundary:** mini-swe-agent is strongest as a minimal worker-loop/reference baseline and SWE-ReX as an execution-runtime separation reference; neither replaces ACL's project/dependency scheduler, effect ledger, protected verifier, credential governance, durable recovery or Vera memory governance.
+
+See `projects/swe-agent-mini-swe-agent.md` for primary sources, migration evidence, current failure surfaces, candidate invariants and ACL regression-fixture ideas.
 
 ## Task 11 — OpenHands research result
 
@@ -176,7 +210,7 @@ See `projects/pydantic-ai.md` for the complete evidence.
 
 ## Task 4 transition/status updates
 
-- **SWE-agent** — upstream-declared maintenance-only and superseded by mini-swe-agent. Its ranked slot is transition-aware.
+- **SWE-agent** — upstream-declared maintenance-only and superseded by mini-swe-agent. Task 12 has now completed the transition-aware deep research.
 - **OpenAI Agents SDK** — Swarm is its explicit experimental predecessor.
 - **AutoGen** — maintenance mode; Microsoft Agent Framework is the named successor.
 - **Aider** — status unresolved, not abandoned; community forks/concerns are discovery evidence only until an authoritative status change.
@@ -191,8 +225,8 @@ See `projects/pydantic-ai.md` for the complete evidence.
 5. **Strands Harness SDK** — `strands-agents/harness-sdk` — **Task 9 complete**; `projects/strands-harness-sdk.md`.
 6. **Codex** — `openai/codex` — **Task 10 complete**; `projects/codex.md`.
 7. **OpenHands** — `OpenHands/OpenHands` / runtime `OpenHands/software-agent-sdk` — **Task 11 complete**; `projects/openhands.md`.
-8. **SWE-agent / mini-swe-agent** — `SWE-agent/SWE-agent` / `SWE-agent/mini-swe-agent` — **next task; transition-aware** because SWE-agent is maintenance-only and names mini-swe-agent as successor.
-9. **llama.cpp** — `ggml-org/llama.cpp` — local runtime, constrained JSON/tool-call grammars, parsers, backend/KV behavior.
+8. **SWE-agent / mini-swe-agent** — `SWE-agent/SWE-agent` / `SWE-agent/mini-swe-agent` / execution runtime `SWE-agent/SWE-ReX` — **Task 12 complete**; `projects/swe-agent-mini-swe-agent.md`.
+9. **llama.cpp** — `ggml-org/llama.cpp` — **next task**; local runtime, constrained JSON/tool-call grammars, parsers, backend/KV behavior.
 10. **OpenAI Agents SDK** — `openai/openai-agents-python` — serializable run state, approvals, sandbox state, traces and lifecycle tests.
 
 ### Tier B — high-value follow-up
@@ -254,7 +288,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 ## Historical failure/redesign set — Task 4
 
 1. AutoGen — ground-up v0.4 rewrite, then maintenance-only with Microsoft Agent Framework named successor.
-2. SWE-agent — near-total 1.0 rewrite, then maintenance-only with mini-swe-agent named successor.
+2. SWE-agent — near-total 1.0 rewrite, then maintenance-only with mini-swe-agent named successor; Task 12 now contains the transition-aware deep research.
 3. OpenAI Swarm — experimental predecessor replaced by OpenAI Agents SDK.
 4. AutoGPT Classic — unsupported legacy experiment; maintained direction moved to workflow/block Platform architecture.
 5. BabyAGI original — archived snapshot; project reconceived around a self-building function framework.
@@ -287,6 +321,10 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Rank is information value, not adoption preference.
 - Deep research extracts mechanisms/invariants first; dependency/fork/build decisions remain later comparative work.
 - Model proposals and role labels are not authority boundaries.
+- Make model-facing scaffold complexity earn its place; deterministic infrastructure belongs in explicit runtime owners rather than prompt prose.
+- Backend/runtime sophistication does not need to become model-facing tool/scaffold complexity.
+- Prefer independent actions by default; persistent interactive sessions are explicit owned resources with lifecycle identity.
+- A small/general tool schema can still carry broad authority; interface simplicity and least privilege are separate dimensions.
 - Protect control-plane metadata/definitions/evidence inside otherwise writable worker roots.
 - Approval/no-approval policy and sandbox/tool authority are separate dimensions.
 - Persisted approvals must be narrow; generic interpreter/shell/package-runner approval is equivalent to large future authority.
@@ -299,6 +337,9 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Path/symlink/trust exceptions must be explicit and operator-owned rather than project-controlled.
 - Workspace isolation, Git/ref authority, secret projection, verifier roots and external effects are separate trust domains.
 - Workspace/run identity is separate from branch/ref identity and needs a recorded source baseline.
+- Local-host execution is not a trusted security mode by default; worker child environment should be explicit/minimal rather than ambient supervisor `os.environ`.
+- Container/runtime selection is not a complete permission profile; mounts/network/user/credentials/resources are separate authority-bearing configuration.
+- `cleanup_requested` is not `cleanup_settled`; teardown completion/errors need evidence.
 - Persistent protocol/state schemas must be pinned to runtime version when authority semantics depend on them.
 - Bounded queues/backpressure and explicit overload state are preferable to unbounded long-running buffering.
 - Resume/fork state must be provenance-owned; matching arbitrary history is not authoritative state.
@@ -306,12 +347,16 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Durable create/import/enqueue operations require stable idempotency identity.
 - Logical deletion/retirement is separate from physical evidence/workspace/file destruction.
 - Local-model capability means exact model + runtime + adapter + protocol/tool namespace + configuration.
+- Native tool calling is a capability to verify, not a universal requirement; fallback action encodings may be appropriate for local runtimes.
 - Provider/profile selection is scoped state; temporary local setup must not mutate unrelated/global provider identity.
 - Cancellation must target process trees/jobs and bounded pipe/output settlement.
+- Every blocking plane (provider stream/request, tool process, remote runtime, total task) needs an explicit timeout/cancellation owner.
 - Process settlement is separate from filesystem/network/API/database effect settlement.
 - Runtime limits, cancellation and retry policy belong in observable harness state rather than prompt prose.
 - Retry classes need separate reasons/budgets/progress tests.
+- Provider/model retry must not silently become tool/effect replay.
 - Tool schema, runtime validation, authorization, execution and evaluation are distinct contracts.
+- Tool/provider correlation IDs are not automatically idempotency/effect IDs; exactly-once external effects need durable state.
 - Typed policy decisions should have explicit fail-open/fail-closed error semantics; authority-bearing controls should fail closed on ambiguity.
 - Action authorization does not replace principal-approved objective/task-scope provenance.
 - Logical request/idempotency identity, run/attempt identity, agent/process identity and durable session identity must remain separate.
@@ -322,25 +367,30 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Cancellation/authority/lease state must be rechecked at the irreversible boundary after blocking waits.
 - Async cancellation does not prove blocking thread/process settlement; terminal state must reflect actual custody.
 - Restored history/checkpoints are trusted execution input; valid serialization does not prove provenance or permission to resume.
+- A saved trajectory/transcript is evidence, not automatically a checkpoint or permission to resume.
 - UI stream, persisted replay history, model-visible context and audit/effect evidence are distinct representations with explicit consistency contracts.
+- Model-facing diagnostics and operator/audit telemetry are separate representations; model feedback should be truthful and actionable rather than leaking irrelevant scaffold trivia.
 - Context trimming/summarization/offloading is model-state mutation, not authoritative project/effect truth.
+- Model-visible output can be bounded while richer verifier/audit evidence is retained separately under its own security/retention policy.
 - Durable state should reference credentials rather than carry reusable secret material as ordinary serializable configuration.
 - Runtime-visible credential delivery is an explicit authority grant; already-delivered plaintext cannot be made secret from arbitrary worker code by later revocation.
 - All ambient state roots (HOME/profiles/env/global caches/config) must participate in isolation; a fresh workspace alone is not a fresh runtime.
 - Telemetry may contain secrets/system prompts/tool data; evidence audience/redaction is separate policy.
 - Raw model/tool traces, operational tracing and product analytics should have separate schemas/audiences/retention.
 - Evaluation evidence must bind to stable project/task/run/test identity; wrong correlation invalidates otherwise valid spans.
+- Benchmark/evaluator adapters are trusted evidence code; their configuration/mapping failures must be classified separately from model failures.
 - The system under test should not own the authoritative definition of whether it passed.
 - Deterministic evidence should precede semantic model grading when the property is machine-observable.
 - Missing required evidence should produce an explicit invalid/failure state rather than an implicit pass.
 - Verifier-owned tests/hashes/sidecars should remain outside worker mutation authority.
-- Conversation/graph state, workspace state and external-effect evidence are separate recovery dimensions.
+- Conversation/graph state, trajectory state, workspace state and external-effect evidence are separate recovery dimensions.
 - A durable checkpoint does not imply exactly-once external side effects.
 - Physical persistence retention is separate from model-context compaction.
 - Worker-writable persistent repository memory/instructions remain lower trust than protected governance and verified project truth.
+- Minimal source code does not imply a small trusted computing base; dependency/runtime provenance and blocked-version policy remain security controls.
 - Current bugs/regression fixes can be more valuable than feature lists because they expose actual failure surfaces.
 - Preserve documentation claims, design proposals, shipped behavior, architectural generations and canonical aliases separately so mismatches/migrations remain auditable.
 
 ## Next research task boundary
 
-Task 11 is complete once the OpenHands research file, catalog, watchlist and state are committed. The next task is the **SWE-agent / mini-swe-agent transition-aware slot only**. Do not begin it until separately instructed, and when it is begun, stop before llama.cpp.
+Task 12 is complete once the SWE-agent/mini-swe-agent research file, catalog, watchlist and state are committed. The next task is **llama.cpp deep research only**. Do not begin it until separately instructed, and when it is begun, stop before OpenAI Agents SDK.
