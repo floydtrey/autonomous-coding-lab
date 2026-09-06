@@ -2,7 +2,7 @@
 
 **Branch:** `research/agent-landscape`
 **Status:** current task complete; stopped before next task
-**Current phase:** 13 — llama.cpp deep research complete
+**Current phase:** 14 — OpenAI Agents SDK deep research complete
 **Execution:** research only; no worker/model execution authorized by this branch
 
 ## Completed
@@ -16,56 +16,95 @@
 - Task 10 deep-researched **Codex** across sandbox/approval authority, child inheritance, Guardian authorization provenance, worktrees, thread/fork/resume state, local providers, process-tree cancellation and telemetry/evaluation boundaries.
 - Task 11 deep-researched **OpenHands** across runtime/server boundaries, generation-fenced conversation ownership, crash recovery, concurrency/cancellation, workspaces, credentials, local providers and observability.
 - Task 12 deep-researched the **SWE-agent / SWE-ReX / mini-swe-agent transition** and the deliberate move toward a smaller model-facing loop plus explicit outer execution/runtime responsibilities.
-- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, and `watchlist.md` before Task 13.
-- Deep-researched **llama.cpp** as ranked project #9, using the ACL/Vera end goal to control scope.
-- Verified canonical current project identity at `ggml-org/llama.cpp`, MIT license, active/non-archived status and inspected upstream revision `9e0e220594af405a62835dc3a27495729fd8506b` from 2026-09-06.
-- Verified broad local-runtime/backend portability across CPU and multiple GPU/accelerator paths plus OpenAI-compatible server surfaces, while preserving the distinction between hardware portability and behavioral portability.
-- Verified current chat/tool infrastructure explicitly models messages, tool calls, tool choice, parallel-tool flags, grammar/schema input, parser state and streamed tool-call evidence rather than treating all tool use as plain text.
-- Verified current Jinja capability analysis actively probes templates for tools, tool calls, parallel calls, system-role behavior, content representation and argument behavior.
-- Preserved the distinction between **discovered template capability** and **verified deployment capability**; template analysis does not prove the model/runtime will execute ACL tool fixtures correctly.
-- Verified current auto-parser behavior derives protocol structure from differential chat-template renders, making parser/template inference itself part of the versioned runtime capability path.
-- Verified built-in GBNF/JSON-Schema conversion is intentionally a subset implementation with documented semantic differences and unsupported features; unsupported schema behavior can include silent skipping in some conversion paths.
-- Recorded that built-in `additionalProperties` behavior differs from normal JSON Schema default semantics and therefore constraint-backend identity belongs in the capability profile.
-- Verified optional LLGuidance provides a separate structured-output backend with broader/different schema semantics and more explicit unsupported-schema error behavior, but current documentation also notes error handling can continue after reported failures; ACL would need fail-closed outer preflight for authority-bearing schemas.
-- Recorded open issue #28429 as a high-value current failure surface: non-ASCII schema property names can collide after grammar rule sanitization, silently losing a distinct parameter and causing constrained decoding to force the wrong tool argument even when the underlying model can produce the correct call through another runtime/path.
-- Extracted the candidate invariant that schema normalization/conversion is trusted code and must prove required fields survive uniquely before a worker capability is activated.
-- Recorded open issue #25923 as evidence that valid/edge schemas can produce invalid/rejected grammar and that one bad schema can poison a combined multi-tool grammar; did not claim the issue fully fixed because current grammar changes address only part of the reported surface and the issue remained open.
-- Extracted the candidate invariant that a worker `ToolCapabilitySet` must be compiled/preflighted atomically before a long-running task begins.
-- Verified server architecture separates HTTP/API work, inference context, typed tasks, slots, task/response queues, parser state, continuous batching, prompt/context cache behavior, model routing and resumable streaming.
-- Verified server task types include explicit cancellation/control and slot state operations; current source separately carries prompt/generation timing controls and leaves prompt-time maximum duration marked for implementation, reinforcing per-phase timeout ownership rather than one generic worker deadline.
-- Verified server development scope explicitly keeps complex server-side agentic/external-API loops out of the inference runtime, supporting ACL's outer-orchestrator ownership of project/task/effect authority.
-- Verified resumable generation transport can continue across client detach/reattach with bounded buffering and lifecycle controls; classified this as transport continuity, not durable ACL task state or audit evidence.
-- Verified prompt/KV caches and context checkpoints are inference state/optimization and must remain distinct from ACL continuation checkpoints, workspace snapshots and external-effect settlement.
-- Recorded open issue #23577 as unresolved long-horizon failure evidence involving pathological repeated output after hours of use; did not attribute root cause to cache, checkpoint, quantization or speculative decoding without evidence.
-- Derived that ACL local-model qualification needs endurance/many-turn/pathological-output tests in addition to one-shot benchmark prompts.
-- Recorded open `bug-unconfirmed` issue #25618 as configuration-scoped evidence that model-based speculative decoding can diverge from vanilla greedy output for some quantized targets while control paths differ, reinforcing that performance optimizations are behavior-bearing profile settings until equivalence is verified.
-- Defined a reproducibility manifest that includes runtime commit/build/backend/driver/hardware, GGUF digest/quantization, tokenizer/template/parser, constraint backend/schema digest, context/KV/cache settings, speculative mode, sampling, server flags and ACL fixture/verifier identity.
-- Preserved the authority boundary: llama.cpp can generate/parse/constrain tool calls but does not thereby validate ACL task scope, authorize real-world effects, settle tool side effects or determine independent pass/fail.
-- Recorded detailed primary sources, current failure boundaries, candidate invariants, future ACL regression fixtures and explicit non-conclusions in `projects/llama-cpp.md`.
-- Preserved the decision boundary: Task 13 does **not** decide whether ACL should adopt/fork/wrap llama.cpp, select a cross-project winner, redesign ACL/Vera governance, or begin OpenAI Agents SDK research.
+- Task 13 deep-researched **llama.cpp** across local-runtime/tool-protocol/template/parser/constraint/backend/KV/cache/concurrency and reproducibility boundaries.
+- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, and `watchlist.md` before Task 14.
+- Deep-researched **OpenAI Agents SDK** as ranked project #10, using the ACL/Vera end goal to control scope.
+- Verified canonical current project identity at `openai/openai-agents-python`, MIT license, active/non-archived status and inspected upstream revision `1d471a4775bf2f40179f411824da383deb4c3fca` from 2026-09-05.
+- Verified latest published release observed was `v0.22.0` from 2026-08-19 and current `main` remains materially ahead of that release with continuing lifecycle/sandbox/state hardening.
+- Used `openai/swarm` only to verify the predecessor boundary: upstream labels Swarm experimental/educational, says it was replaced by Agents SDK, and describes the successor as the production-ready evolution; no separate Swarm research was begun.
+- Verified current Runner retains a small model-facing loop while `RunConfig`, sessions, approvals, guardrails, tracing, provider policy, sandbox/runtime and `RunState` own deterministic operational concerns outside prompt prose.
+- Verified local function-tool execution concurrency is a separate control from provider/model `parallel_tool_calls`, preserving protocol concurrency versus real-effect concurrency as distinct contracts.
+- Recorded that unnamespaced tool/handoff name collisions default to warning/current dispatch winner while `error` is available; derived a stricter ACL production invariant that authority-bearing identity collisions should fail before model execution.
+- Verified `RunState` is explicitly a serializable durable pause/resume snapshot and currently carries schema version `1.17` with a semantic version history covering approval identity, trace reattachment, request IDs, tool origin, programmatic tool calling, hosted-MCP scoping, sanitized mount authority, trusted rebind metadata, Docker network isolation, pending input and pending resumed-session writes.
+- Verified unsupported future RunState schema versions fail rather than being guessed forward; derived an ACL checkpoint-version compatibility gate.
+- Verified `RunState` serialization/deserialization is treated as a trust boundary and includes defensive handling around JSON-compatible payloads and unsafe/cyclic/ambiguous values.
+- Verified human approval is tied to explicit interruptions/call identity and survives serialization/resume rather than being a UI-only boolean.
+- Verified sticky hosted-MCP approval is scoped by `(server_label, tool name)` so same-name tools on different origins do not share broad approval automatically.
+- Verified malformed/uninspectable approval arguments fail closed to manual approval rather than invoking a policy callback with guessed data.
+- Verified pending approvals can be resolved independently; approval state is item-addressed rather than one run-wide yes/no flag.
+- Recorded documentation guidance to store an agent-definition/SDK version marker beside parked approvals; strengthened the candidate ACL invariant that approvals bind to task/objective/tool/policy definition versions.
+- Verified serialized RunState may contain sensitive application context, approvals, tool input, nested resumptions, trace metadata and server continuation settings; optional tracing credentials can be included explicitly. Classified parked RunState as sensitive executable state.
+- Verified agent-level input guardrails only cover the first agent and output guardrails only the final agent; function-tool guardrails cover only ordinary FunctionTool paths rather than all handoffs/hosted/built-in execution tools.
+- Verified default parallel input-guardrail mode can allow model/tool execution before a tripwire completes; blocking mode is required when the property is that no effect may begin before validation.
+- Verified function-tool preconditions can optionally run before approval and are still rerun immediately after approval before execution, providing a useful time-of-check/time-of-use revalidation pattern.
+- Verified output/tool-output guardrails can sanitize/reject durable/model-visible results but cannot undo effects that already executed.
+- Verified handoff `is_enabled` is evaluated before model-generated handoff arguments exist and therefore cannot authorize argument-level delegation scope; authorization based on parsed handoff data must run at `on_handoff` before side effects. Function-tool guardrails do not automatically cover the handoff itself.
+- Verified local/runtime tool schemas and Python FunctionTools can execute application-owned code; approval/guardrail/schema machinery does not turn arbitrary local functions into an OS sandbox.
+- Verified Programmatic Tool Calling keeps generated orchestration inside a restricted hosted V8 environment while actual allowed child tools continue through normal Runner approval/guardrail/session/RunState machinery; recorded this as a useful separation between generated coordination and effect authority.
+- Verified Programmatic Tool Calling also tightens model-request replay policy: provider-managed/pre-event retries are disabled and Runner retry requires explicit replay-safe provider advice.
+- Verified Sandbox Agents are beta and separate outer-runner responsibilities (approval/tracing/handoff/resume state) from sandbox-session responsibilities (commands/files/environment isolation).
+- Verified a Manifest describes fresh workspace intent but is not automatically authoritative live state when an existing sandbox/session/snapshot is reused or resumed.
+- Verified default SandboxAgent capabilities include Filesystem, Shell and Compaction, so a default sandbox action surface is broad and not synonymous with least privilege.
+- Verified Unix-local, Docker and hosted sandbox clients have different isolation properties; Docker supports explicit `network_mode="none"` and persists/reapplies that state when replacement containers resume a session.
+- Verified mount entries default read-only but storage exposure, network, user/resources and credential delivery remain separate authority-bearing configuration.
+- Verified current mount-security code explicitly treats some identifiers/configuration as **authority, not merely secrets**, removes opaque authority-bearing third-party mount config from durable state, and uses closed trusted execution-boundary classification rather than trusting arbitrary subclasses/config.
+- Verified in-container credential/broad-authority exposure requires explicit current application acknowledgement, that acknowledgement does not confine credential use to a mount path, and acknowledgement is runtime-only rather than serialized.
+- Verified persisted sandbox state can contain sanitized/redacted mount authority metadata but `rebind_persisted_mount_authority` requires an exact current trusted manifest; compatibility tests fail when that trusted manifest is absent and verify current secret values are not serialized.
+- Derived a high-value Vera/ACL invariant: persist sanitized resource/capability identity and rebind live credentials/network/mount authority from current trusted policy after resume instead of allowing stale snapshots to reactivate prior authority.
+- Verified Sessions own client-side conversation history and cannot be combined in one run with overlapping run-level `conversation_id` / `previous_response_id` continuation owners.
+- Verified OpenAIResponsesCompactionSession performs clear/rewrite state mutation with recovery attempts; docs explicitly warn a concurrent mutation can complete while remote compaction is in flight and then be overwritten by the later replacement. Derived one-writer/generation fencing requirements for context compaction.
+- Verified runner-managed model retry records normalized provider errors and provider advice including `response_started` and `replay_safety`.
+- Verified an ordinary `RetryDecision(retry=True)` cannot bypass unsafe-replay protection; repeating a request the provider marks replay-unsafe requires separate explicit `approve_unsafe_replay` authority.
+- Verified retry policy callbacks are runtime-only and excluded from serialized retry settings; derived the invariant that restored state rebind executable policy from current trusted code rather than serializing callbacks.
+- Verified model/provider portability through direct Model/ModelProvider implementations, custom OpenAI-compatible clients, MultiProvider, Any-LLM and optional LiteLLM, while docs explicitly warn exact provider paths must be tested for tool/structured-output/usage/Responses behavior.
+- Verified strict feature validation can turn unsupported feature warnings into errors and Responses-only tool features are rejected on incompatible model paths; retained fail-closed capability qualification for ACL.
+- Verified Responses WebSocket reuse is transport/session continuity with one-response-at-a-time and 60-minute connection limits; stateless/ZDR chains may require context rebuild after reconnect. Kept transport state separate from durable task state.
+- Verified a streaming run remains incomplete until `stream_events()` drains because session persistence, approval bookkeeping or compaction can continue after the final visible token.
+- Verified immediate cancellation and `cancel(mode="after_turn")` are distinct semantics; after-turn cancellation creates a resumable boundary, reinforcing separate "abort now" and "stop at settled turn" controls.
+- Recorded open #4805 as reproducible provider-producer cancellation evidence: a cancelled voice transcription producer can leave a consumer blocked forever because no terminal event reaches its queue.
+- Verified tracing is comprehensive and enabled by default, but model/tool input/output capture is sensitive by default (`trace_include_sensitive_data=True`); retained explicit evidence audience/redaction/retention policy for ACL/Vera.
+- Verified default trace export is buffered/background and `flush_traces()` is available when export settlement must be guaranteed at end of work; trace generation and trace-delivery settlement are separate states.
+- Preserved the boundary that comprehensive runtime tracing is evidence, not an independent verifier-owned definition of pass/fail.
+- Recorded open #4827 as deterministic approval-resume/session corruption evidence: one path can persist a tool result without its matching deferred function call, poisoning later session use. Derived atomic parent-action/result relationship as a durable-state invariant.
+- Recorded open #4839 as evidence that client-managed plain transcript replay can lose program/caller parent identity that the RunState resume path already preserves. Derived `resume_checkpoint != replay_transcript` as a first-class API/authority distinction.
+- Recorded open #4889 as sandbox filesystem-identity evidence: case-only `move_to` can delete the newly written file on a case-folding filesystem while reporting an update/move. Derived execution-time filesystem identity and postcondition verification requirements.
+- Recorded open #4852 as cross-platform restore evidence: symlink creation failure on ordinary Windows can occur after other archive members were already extracted, leaving partial mutation. Derived staging/rollback or explicit partial-restore state requirements.
+- Preserved current-issue boundaries: reports demonstrate their documented configurations/current versions, not universal behavior for all providers/platforms/future releases.
+- Recorded detailed primary sources, current failure boundaries, candidate invariants, future ACL regression fixtures and explicit non-conclusions in `projects/openai-agents-sdk.md`.
+- Preserved the decision boundary: Task 14 does **not** decide whether ACL should adopt/fork/wrap OpenAI Agents SDK, select a cross-project winner, redesign ACL/Vera governance, or begin Model Context Protocol research.
 
-## Highest-value llama.cpp findings for later comparison
+## Highest-value OpenAI Agents SDK findings for later comparison
 
-1. Local-model capability is realized at the full deployment stack, not at the model name or nominal OpenAI-compatible endpoint.
-2. Record runtime commit/build/backend/driver/hardware, GGUF digest/quantization, tokenizer/template/parser, constraint backend, context/KV/cache, speculative mode and sampling as behavior-bearing profile identity.
-3. Template capability discovery and end-to-end deployment verification are separate evidence states.
-4. Chat templates, specialized handlers/auto-parser and constraint compiler are part of the trusted tool-call path.
-5. `structured_output=true` is too coarse: built-in GBNF and LLGuidance expose different schema semantics and failure behavior.
-6. Unsupported/ambiguous schema semantics must fail closed for authority-bearing tools; silent weakening is unacceptable as a production capability signal.
-7. Tool-schema registration should be atomic and preflight the complete tool set before execution begins.
-8. Schema conversion must prove every required field survived normalization/sanitization uniquely; Unicode/collision fixtures are mandatory.
-9. Valid constrained JSON does not establish that the intended schema was represented faithfully.
-10. A deterministic constraint layer can make a capable model deterministically wrong; parser/grammar failures need their own failure class separate from model quality.
-11. Runtime slots, transport sessions and resumable stream IDs are not ACL project/task/run/effect identities.
-12. Continuous batching and inference concurrency can remain below ACL's project/task scheduler.
-13. Each blocking inference phase needs its own timeout/cancellation owner; one worker timeout is insufficient.
-14. Inference cancellation does not settle worker filesystem/network/API effects.
-15. KV/prompt/context checkpoints are inference optimization state, not ACL continuation authority.
-16. Performance optimizations such as speculative decoding are behavior-bearing configuration until ACL equivalence tests prove otherwise.
-17. Local runtime qualification needs long-horizon endurance/pathology tests, not only one-shot coding accuracy.
-18. Bounded/resumable stream buffers are transport continuity, not audit logs or durable evidence.
-19. llama.cpp's explicit model-agnostic server boundary supports keeping agent loops, authorization and external-effect orchestration outside the inference runtime.
-20. llama.cpp is strongest as an inference/runtime and capability-profiling substrate; it does not replace ACL scheduling, dependency gates, sandbox/process authority, effect ledger, protected verifier, durable recovery, credentials or Vera memory governance.
+1. A durable execution checkpoint needs a versioned semantic contract, not just valid serialization.
+2. `RunState` is materially stronger than transcript replay because it carries execution/caller/approval/sandbox/resume identity; the two representations must not be treated as equivalent authority.
+3. Unsupported future checkpoint semantics should fail closed.
+4. Parked execution state is sensitive executable state; application context and optional trace credentials make storage/transmission policy explicit.
+5. Approval is stable call/scope/origin state, not a UI boolean.
+6. Sticky approval must be scoped by canonical tool origin and invalidated when task/tool/policy semantics change.
+7. Malformed/uninspectable proposed parameters must fail closed rather than receive guessed policy approval.
+8. Revalidate mutable safety/policy preconditions immediately before the irreversible effect even if they were checked before human approval.
+9. Parallel guardrails are not prevention boundaries when model/tool work may begin before the tripwire settles.
+10. Post-effect output guardrails cannot undo effects.
+11. Guardrail coverage is tool-surface-specific; handoffs, hosted tools and built-in execution tools need separately defined authorization paths.
+12. Handoff availability and handoff argument authorization are separate; model-generated delegation scope remains untrusted until application authorization.
+13. For authority-bearing capability identity collisions, fail before model execution rather than warn-and-select a winner.
+14. Generated orchestration/program code can remain separate from effect authority; allowed child tools still need canonical identity, approval and effect state.
+15. Sandbox/workspace continuation state and live credential/network/mount authority are separate domains.
+16. Persist sanitized resource identity, then rebind live authority from current trusted policy/manifest after resume; do not serialize reusable authority acknowledgements.
+17. "Sandbox" or "Docker" is not a permission profile; role-specific capabilities, network, mounts, user/resources and credentials remain explicit.
+18. Conversation sessions, provider continuation IDs, RunState, sandbox state, workspace state and external-effect evidence require separate owners/identities.
+19. Context compaction is a concurrent clear/rewrite state mutation; stale remote compaction results must not overwrite newer state.
+20. `retry` is not permission to replay a possibly already-executed request. Unsafe replay needs an independent decision/evidence record.
+21. Runtime policy callbacks/clients should be reconstituted from current trusted code rather than treated as durable serializable state.
+22. Last visible token is not terminal state; session/approval/compaction/trace/effect settlement may remain.
+23. Producer cancellation must terminate or wake every owned consumer; cancellation alone is not lifecycle settlement.
+24. Durable action→result relationships must remain atomic; a persisted result without its required parent action is corrupt state.
+25. Filesystem lexical path equality is not sufficient object identity across case-folding/symlink/platform boundaries; mutation success requires postconditions.
+26. Restore/import operations that partially mutate before failure need transactional staging/rollback or an explicit partial/unsettled state.
+27. Traces are sensitive operational evidence, not independent acceptance authority; evidence export itself may need a settlement gate.
+28. Exact model/provider/adapter/transport feature behavior must be qualified; OpenAI-compatible and third-party adapters do not imply Responses/tool parity.
+29. The SDK is strongest for versioned run-state, approvals, replay-safety and sandbox-authority-rebind patterns; it does not replace ACL's outer project scheduler, effect ledger, protected verifier, distributed state fencing, role authority, process custody or Vera memory governance.
+30. Current lifecycle bugs are high-value evidence because they expose cross-plane identity/state failures below model quality.
 
 ## Queue status
 
@@ -78,24 +117,26 @@
 - **OpenHands (#7): complete.** Detailed evidence: `projects/openhands.md`.
 - **SWE-agent / mini-swe-agent (#8): complete.** Detailed evidence: `projects/swe-agent-mini-swe-agent.md`.
 - **llama.cpp (#9): complete.** Detailed evidence: `projects/llama-cpp.md`.
-- **OpenAI Agents SDK (#10): next task only.** No OpenAI Agents SDK deep research was begun in Task 13.
+- **OpenAI Agents SDK (#10): complete.** Detailed evidence: `projects/openai-agents-sdk.md`.
+- **Model Context Protocol (#11): next task only.** No MCP project deep research was begun in Task 14.
 - Remaining ranked queue stays unchanged until its own separately authorized task or later evidence justifies an explicit update.
 
 ## Next task
 
-Deep-research **OpenAI Agents SDK** only.
+Deep-research **Model Context Protocol** only.
 
-Do not begin this task until separately instructed. For the next task, deep-research `openai/openai-agents-python` as ranked project #10 with the same end-goal discipline. Cover the current agent/run lifecycle; tools and handoffs; guardrails/approval and sandbox/authority semantics; serializable run/session state and resume behavior; cancellation/interruption; tracing/evidence; local/custom model/provider boundaries; retry/failure behavior; security/credential implications; recurring current failures; project health; reusable components and concrete ACL/Vera lessons. Use Swarm only insofar as the documented predecessor relationship directly clarifies which operational controls were added; do not start a separate historical project task. Save evidence/catalog/state, commit research-only changes, and **stop before Model Context Protocol**.
+Do not begin this task until separately instructed. For the next task, deep-research the current MCP specification and `modelcontextprotocol/modelcontextprotocol` as ranked project/source #11 with the same end-goal discipline. Cover protocol lifecycle and capability negotiation; tool/resource/prompt boundaries; Tasks/long-running operations; cancellation/progress/error semantics; server/client trust and authorization; roots/filesystem/network implications; session/resume/identity; transport behavior; current security guidance and real failure surfaces; SDK/spec versioning and interoperability; local-first relevance; reusable components and concrete ACL/Vera lessons. Use implementation repositories/issues only where necessary to verify the spec's realized semantics. Save evidence/catalog/state, commit research-only changes, and **stop before Goose**.
 
 ## Later tasks
-1. Deep-research Model Context Protocol after OpenAI Agents SDK, one project per separately authorized task.
-2. Deep-research high-value developers/accounts one at a time.
-3. Compare reusable components versus custom-build candidates.
-4. Analyze collaboration/open-source options.
-5. Deep-research agent security and memory safety.
-6. Deep-research long-running autonomy and local-model compatibility.
-7. Produce final synthesis only after the individual work is complete.
+1. Deep-research Goose after MCP, one project per separately authorized task.
+2. Continue the remaining ranked active-project queue one task at a time.
+3. Deep-research high-value developers/accounts one at a time.
+4. Compare reusable components versus custom-build candidates.
+5. Analyze collaboration/open-source options.
+6. Deep-research agent security and memory safety.
+7. Deep-research long-running autonomy and local-model compatibility.
+8. Produce final synthesis only after the individual work is complete.
 
 ## Stop point
 
-Task 13 ended after llama.cpp runtime/backend architecture, chat-template/tool parsing, auto-parser capability, built-in GBNF and LLGuidance structured-output behavior, current schema/constraint failure surfaces, server slots/concurrency/cancellation/timeouts, resumable streaming, context/KV/cache checkpoint semantics, long-horizon/speculative-decoding failure evidence, local-runtime reproducibility requirements, catalog/watchlist/state updates and next-task definition were completed. No OpenAI Agents SDK or Model Context Protocol research, cross-project winner selection, dependency/fork decision, ACL/Vera architecture/governance change, or worker/model execution was begun.
+Task 14 ended after OpenAI Agents SDK project health, Swarm predecessor boundary, Runner/lifecycle ownership, versioned RunState semantics, human approval identity, guardrail/handoff/tool authority, Sandbox Agent state and credential rebind, Sessions/compaction, provider retry/replay safety, model/provider portability, streaming/cancellation, tracing/evidence and current state/filesystem failure surfaces were completed. No Model Context Protocol or Goose project research, cross-project winner selection, dependency/fork decision, ACL/Vera architecture/governance change, or worker/model execution was begun.

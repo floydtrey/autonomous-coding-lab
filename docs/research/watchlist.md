@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–13 completed deep research on Pydantic AI, Cline, LangGraph, promptfoo, Strands Harness SDK, Codex, OpenHands, the **SWE-agent / mini-swe-agent transition-aware slot**, and **llama.cpp**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–14 completed deep research on Pydantic AI, Cline, LangGraph, promptfoo, Strands Harness SDK, Codex, OpenHands, the **SWE-agent / mini-swe-agent transition-aware slot**, **llama.cpp**, and **OpenAI Agents SDK**. Rank still means **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research does not convert the queue into an adoption list.
 
 Detailed historical artifacts remain in:
 - `projects/ranked-projects.md`
@@ -20,6 +20,52 @@ Completed project deep research:
 - `projects/openhands.md`
 - `projects/swe-agent-mini-swe-agent.md`
 - `projects/llama-cpp.md`
+- `projects/openai-agents-sdk.md`
+
+## Task 14 — OpenAI Agents SDK research result
+
+**Status:** project deep research complete; no dependency/adoption/fork decision made.
+
+High-value findings to carry into later comparison:
+
+- **Versioned durable execution state:** current `RunState` is a serializable pause/resume envelope with explicit semantic schema versioning; the inspected revision used schema `1.17`, whose history tracks changes to approvals, caller/tool identity, sandbox authority, trace metadata, pending session writes and next-call resume state.
+- **Forward compatibility fails closed:** unsupported future `RunState` versions are rejected rather than guessed, a strong candidate pattern for ACL checkpoints whose authority/replay semantics may evolve.
+- **RunState != transcript replay:** open #4839 shows plain client-managed history replay can lose program/caller parent identity that the authoritative `RunState` resume path already preserves. ACL should expose replay-history and resume-checkpoint as distinct operations.
+- **Parked state is sensitive executable state:** serialized state can contain application context, approvals, tool input, nested resumptions, trace metadata and provider continuation settings; optional trace credentials can also be serialized explicitly.
+- **Exact approval identity:** approvals are call-addressed interruption state rather than a UI boolean; hosted-MCP sticky decisions include both server label and tool name so same-named tools on different origins do not share authority automatically.
+- **Malformed approval input fails closed:** when callable approval cannot safely inspect arguments—malformed JSON, non-object JSON or non-standard constants—the SDK requires manual approval instead of guessing policy.
+- **Approval provenance should be versioned:** upstream recommends storing an agent-definition/SDK marker with long-lived parked approvals. ACL should bind approval to task/objective/tool/policy versions and invalidate incompatible changes.
+- **Guardrail timing matters:** default parallel input guardrails may trip only after the agent has already consumed tokens or executed tools. If the requirement is “nothing may execute until validated,” the check must be blocking.
+- **Guardrail coverage is not universal:** ordinary FunctionTool guardrails do not automatically govern handoffs, hosted tools, built-in shell/computer/apply-patch surfaces or Agent-as-tool. `guardrails=true` is therefore too coarse a security capability.
+- **Revalidate at the effect boundary:** function-tool preconditions can run before approval and again immediately after approval before execution, providing a useful TOCTOU pattern for mutable policy/resource checks.
+- **Handoff availability != handoff argument authorization:** `is_enabled` is evaluated before model-generated handoff arguments exist; scope depending on those arguments must be validated in `on_handoff` before side effects.
+- **Generated orchestration can be separated from authority:** Programmatic Tool Calling runs generated coordination in a restricted hosted V8 while actual child tools still traverse normal Runner approval/guardrail/session/RunState machinery.
+- **Protocol concurrency != effect concurrency:** local function-tool execution concurrency is independently bounded from model/provider `parallel_tool_calls`; ACL should retain separate capability and execution-authority controls.
+- **Authority-bearing name collisions should fail closed:** the SDK can warn or error when unnamespaced tools/handoffs collide; ACL production profiles should reject ambiguous effect identity before model execution.
+- **Sandbox ownership is split:** beta Sandbox Agents keep approvals/tracing/handoffs/resume in the outer runtime while the live sandbox owns commands/files/environment state. Workspace runtime complexity need not become model-facing scheduler complexity.
+- **Manifest != realized live workspace:** a manifest describes fresh-session intent, but resumed/reused sandbox sessions or snapshots can be the real current state. ACL should record both baseline/provisioning identity and realized workspace/session identity.
+- **Sandbox != permission profile:** default SandboxAgent capabilities include Filesystem, Shell and Compaction; Docker/network/mount/user/resource/credential settings remain separate authority-bearing configuration.
+- **Credential authority is broader than secrets:** current mount-security code explicitly treats some identifiers/configuration as authority even when not secret and strips opaque authority-bearing mount configuration from durable state conservatively.
+- **Live authority does not automatically survive resume:** credential-exposure acknowledgements are runtime-only and are not serialized as reusable grants.
+- **Current-policy rebind:** persisted sandbox state can carry sanitized resource/authority metadata, but restoration requires a current trusted manifest to rebind live mount authority. Missing current trusted authority fails rather than silently reviving stale credentials.
+- **Strong Vera implication:** persist references/sanitized continuation state, then reacquire current credentials/network/mount/service grants from trusted policy when resuming months later.
+- **One continuation owner:** client-side Sessions cannot be combined in one run with overlapping provider continuation mechanisms such as `conversation_id`/`previous_response_id`; durable domains should have one authoritative owner.
+- **Compaction is a real state mutation:** Responses compaction can clear/rewrite session history, attempt recovery after failure/cancellation, and can race newer mutations while a remote compact request is still in flight. Context compaction needs writer/version fencing.
+- **Retry != permission to replay:** provider advice carries `response_started` and `replay_safety`; ordinary `RetryDecision(retry=True)` cannot override unsafe replay. Repeating a possibly already-executed request requires a separate `approve_unsafe_replay` decision.
+- **Executable retry policy is current code:** retry policy callbacks are runtime-only rather than durable serialized state, supporting current-policy rebinding after restart.
+- **Provider portability is feature-specific:** direct/custom model providers, OpenAI-compatible clients, Any-LLM and LiteLLM are supported, but upstream explicitly says exact backends must be tested for tools, structured output, usage and Responses-specific behavior.
+- **Strict capability validation is useful:** unsupported Responses-only features can be made hard errors rather than warnings; ACL should fail closed when a task depends on an unverified capability.
+- **Last token != terminal state:** a streaming run is not complete until the stream iterator settles because session persistence, approval bookkeeping or compaction can continue after visible generation ends.
+- **Two stop semantics:** immediate cancellation and `cancel(mode="after_turn")` are intentionally distinct; after-turn cancellation yields a resumable settled boundary.
+- **Open #4805 — producer cancellation can strand consumers:** a cancelled voice transcription producer can reportedly exit while its public consumer waits forever because no terminal queue event arrives. Every owned queue/stream needs explicit terminal propagation.
+- **Tracing is sensitive by default:** generation/tool inputs and outputs can be captured unless configured otherwise. Evidence audience, redaction and retention need explicit ACL/Vera policy.
+- **Trace export settlement is separate:** default export is buffered/background; explicit flush exists when evidence delivery must be guaranteed before task acceptance.
+- **Open #4827 — durable parent/result corruption:** one approval-resume/session path can persist a tool output without its matching deferred function call, poisoning later conversation use. Required action→result relationships must be atomically valid durable state.
+- **Open #4889 — lexical path identity can lie:** a case-only sandbox rename can reportedly delete the newly written file on a case-folding filesystem while reporting success. Mutation postconditions must use realized filesystem evidence.
+- **Open #4852 — restore can partially mutate before failure:** ordinary Windows symlink limitations can fail after earlier archive members were already extracted. Restore/import requires staging/rollback or an explicit partial/unsettled state.
+- **Boundary:** Agents SDK is strongest as a reference for versioned run state, exact approvals, replay-safety decisions and current-policy sandbox authority rebind. It does not replace ACL's outer project/dependency scheduler, effect ledger, protected verifier, distributed writer fencing, role-specific capability ceilings, process custody or Vera memory governance.
+
+See `projects/openai-agents-sdk.md` for primary sources, current failure surfaces, candidate invariants, regression-fixture ideas and explicit non-conclusions.
 
 ## Task 13 — llama.cpp research result
 
@@ -239,7 +285,7 @@ See `projects/pydantic-ai.md` for the complete evidence.
 ## Task 4 transition/status updates
 
 - **SWE-agent** — upstream-declared maintenance-only and superseded by mini-swe-agent. Task 12 completed the transition-aware deep research.
-- **OpenAI Agents SDK** — Swarm is its explicit experimental predecessor and is the next ranked project task.
+- **OpenAI Agents SDK** — Task 14 deep research complete; Swarm's explicit experimental-predecessor relationship was verified without starting a separate Swarm task.
 - **AutoGen** — maintenance mode; Microsoft Agent Framework is the named successor.
 - **Aider** — status unresolved, not abandoned; community forks/concerns are discovery evidence only until an authoritative status change.
 
@@ -255,10 +301,10 @@ See `projects/pydantic-ai.md` for the complete evidence.
 7. **OpenHands** — `OpenHands/OpenHands` / runtime `OpenHands/software-agent-sdk` — **Task 11 complete**; `projects/openhands.md`.
 8. **SWE-agent / mini-swe-agent** — `SWE-agent/SWE-agent` / `SWE-agent/mini-swe-agent` / execution runtime `SWE-agent/SWE-ReX` — **Task 12 complete**; `projects/swe-agent-mini-swe-agent.md`.
 9. **llama.cpp** — `ggml-org/llama.cpp` — **Task 13 complete**; `projects/llama-cpp.md`.
-10. **OpenAI Agents SDK** — `openai/openai-agents-python` — **next task**; serializable run state, approvals, sandbox state, traces and lifecycle tests.
+10. **OpenAI Agents SDK** — `openai/openai-agents-python` — **Task 14 complete**; `projects/openai-agents-sdk.md`.
 
 ### Tier B — high-value follow-up
-11. **Model Context Protocol** — `modelcontextprotocol/modelcontextprotocol`
+11. **Model Context Protocol** — `modelcontextprotocol/modelcontextprotocol` — **next task**.
 12. **Goose** — `aaif-goose/goose`
 13. **Ollama** — `ollama/ollama`
 14. **Letta Code** — `letta-ai/letta-code`
@@ -296,7 +342,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 ## Ranked recurring source queue — Task 3 snapshot
 
 1. Upstream GitHub repositories
-2. OWASP GenAI Security Project / Agentic Security Initiative
+2. OWASP GenAI Security Project / Agentic Security
 3. SWE-bench + Berkeley Function Calling Leaderboard (BFCL)
 4. arXiv cs.SE / cs.MA / cs.CR recent feeds
 5. Model Context Protocol specification + upstream repository
@@ -317,7 +363,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 
 1. AutoGen — ground-up v0.4 rewrite, then maintenance-only with Microsoft Agent Framework named successor.
 2. SWE-agent — near-total 1.0 rewrite, then maintenance-only with mini-swe-agent named successor; Task 12 contains the transition-aware deep research.
-3. OpenAI Swarm — experimental predecessor replaced by OpenAI Agents SDK.
+3. OpenAI Swarm — experimental predecessor replaced by OpenAI Agents SDK; Task 14 verified the transition boundary.
 4. AutoGPT Classic — unsupported legacy experiment; maintained direction moved to workflow/block Platform architecture.
 5. BabyAGI original — archived snapshot; project reconceived around a self-building function framework.
 6. GPT-Engineer — owner-archived experimentation CLI / precursor to managed-product direction.
@@ -356,6 +402,13 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Protect control-plane metadata/definitions/evidence inside otherwise writable worker roots.
 - Approval/no-approval policy and sandbox/tool authority are separate dimensions.
 - Persisted approvals must be narrow; generic interpreter/shell/package-runner approval is equivalent to large future authority.
+- Approval identity should include canonical tool origin/call plus task/objective/tool/policy definition versions; incompatible semantic changes invalidate old approvals.
+- Sticky approval scope is distinct from exact-call approval and should remain as narrow as possible.
+- Malformed or uninspectable proposed effect parameters fail closed rather than receiving guessed policy approval.
+- Checks intended to prevent all effects must execute in a blocking pre-authority phase; parallel guardrails are not prevention boundaries.
+- Revalidate mutable authorization/safety preconditions immediately before the irreversible effect after blocking waits or human approval.
+- Guardrail/policy coverage is capability-surface-specific; handoffs, hosted tools and built-in execution tools need explicit authorization paths.
+- Handoff/delegation availability does not authorize model-generated delegation arguments or scope.
 - Child roles/config can reduce authority but must not widen the live parent authority ceiling.
 - Child model/runtime capability must be recomputed after model/provider changes rather than inherited blindly.
 - Authorization evidence is versioned state; task/objective/instruction changes can invalidate prior approvals.
@@ -366,9 +419,15 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Workspace isolation, Git/ref authority, secret projection, verifier roots and external effects are separate trust domains.
 - Workspace/run identity is separate from branch/ref identity and needs a recorded source baseline.
 - Local-host execution is not a trusted security mode by default; worker child environment should be explicit/minimal rather than ambient supervisor `os.environ`.
-- Container/runtime selection is not a complete permission profile; mounts/network/user/credentials/resources are separate authority-bearing configuration.
+- Container/runtime/sandbox selection is not a complete permission profile; mounts/network/user/credentials/resources/capability set are separate authority-bearing configuration.
+- Persist sandbox/workspace continuation identity separately from live credentials/network/mount authority; rebind live authority from current trusted application policy after resume.
+- Credential-exposure acknowledgements are runtime grants, not durable bearer authority that should silently survive serialization/restart.
+- Current trusted manifests/policy should control authority rebind; stale snapshots must not reactivate old credentials merely because they once had access.
 - `cleanup_requested` is not `cleanup_settled`; teardown completion/errors need evidence.
 - Persistent protocol/state schemas must be pinned to runtime version when authority semantics depend on them.
+- Durable execution checkpoints require explicit semantic schema versions; unsupported newer authority/replay semantics should fail closed.
+- Replay of a transcript/history is not automatically equivalent to resuming an authoritative execution checkpoint.
+- Parked execution checkpoints are sensitive executable state and need storage/transmission/retention policy.
 - Bounded queues/backpressure and explicit overload state are preferable to unbounded long-running buffering.
 - Resume/fork state must be provenance-owned; matching arbitrary history is not authoritative state.
 - Partial/in-progress execution must remain visibly interrupted/uncertain on fork/recovery.
@@ -381,22 +440,29 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Structured-output capability is backend-specific; unsupported/ambiguous schema semantics for authority-bearing tools should fail closed rather than silently weaken constraints.
 - Tool capability sets should preflight atomically before a worker starts; one unrepresentable schema must not create a partially trusted tool set.
 - Schema conversion must prove required fields survive normalization/sanitization uniquely; grammar-valid JSON does not prove faithful schema enforcement.
+- Authority-bearing capability/tool identity collisions should fail before model execution rather than warn and select an arbitrary/current winner.
 - Native tool calling is a capability to verify, not a universal requirement; fallback action encodings may be appropriate for local runtimes.
 - Provider/profile selection is scoped state; temporary local setup must not mutate unrelated/global provider identity.
 - Cancellation must target process trees/jobs and bounded pipe/output settlement.
 - Every blocking plane (provider stream/request, prompt/prefill, generation, tool process, remote runtime, total task) needs an explicit timeout/cancellation owner.
 - Inference/runtime cancellation is separate from filesystem/network/API/database effect settlement.
 - Process settlement is separate from filesystem/network/API/database effect settlement.
+- Producer cancellation/death must propagate a terminal state to every owned consumer/waiter; a cancelled producer alone is not lifecycle settlement.
+- Immediate abort and stop-at-safe-boundary are distinct controls and should produce distinct recorded settlement/checkpoint states.
+- Last visible model token is not a terminal worker state when session persistence, approvals, compaction, tracing or cleanup remain unsettled.
 - Runtime limits, cancellation and retry policy belong in observable harness state rather than prompt prose.
 - Retry classes need separate reasons/budgets/progress tests.
 - Provider/model retry must not silently become tool/effect replay.
+- `retry` and `approve unsafe replay` are separate decisions; uncertain or unsafe replay needs independent authority/evidence rather than a larger retry count.
+- Executable retry/authorization policy should be rebound from current trusted code after resume rather than serialized as live callbacks/clients.
 - Tool schema, runtime validation, authorization, execution and evaluation are distinct contracts.
 - Tool/provider correlation IDs are not automatically idempotency/effect IDs; exactly-once external effects need durable state.
+- Durable action/result relationships are atomic semantic state; a result without its required parent action/call is corrupt and must fail validation before reuse.
 - Typed policy decisions should have explicit fail-open/fail-closed error semantics; authority-bearing controls should fail closed on ambiguity.
 - Action authorization does not replace principal-approved objective/task-scope provenance.
 - Logical request/idempotency identity, run/attempt identity, agent/process identity and durable session identity must remain separate.
 - Inference slot/session/resumable-stream identity is a runtime transport identity, not an ACL project/task/run/effect identity.
-- Each durable state domain needs one authoritative owner; nested components must not persist competing versions.
+- Each durable state domain needs one authoritative owner; overlapping client session/provider continuation mechanisms should not both claim conversation truth.
 - Persistent state requires distributed writer/fencing/lease semantics when multiple processes are possible.
 - A stale writer that lost its lease/generation may not commit authoritative task/effect/checkpoint state.
 - Persisted event/effect evidence must preserve action→result relationships and authoritative branch identity after crash recovery.
@@ -409,21 +475,25 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 - Bounded/resumable inference stream buffers are transport continuity, not audit logs or durable evidence.
 - Model-facing diagnostics and operator/audit telemetry are separate representations; model feedback should be truthful and actionable rather than leaking irrelevant scaffold trivia.
 - Context trimming/summarization/offloading is model-state mutation, not authoritative project/effect truth.
+- Context/session compaction is a real clear/rewrite state mutation; remote compaction results need generation/version fencing so stale summaries cannot overwrite newer state.
 - Model-visible output can be bounded while richer verifier/audit evidence is retained separately under its own security/retention policy.
 - Performance optimizations such as speculative decoding, cache modes and backend-specific paths are behavior-bearing configuration until equivalence tests establish interchangeability.
 - Local-model qualification includes long-horizon endurance/pathology tests in addition to one-shot capability/accuracy tests.
 - Durable state should reference credentials rather than carry reusable secret material as ordinary serializable configuration.
 - Runtime-visible credential delivery is an explicit authority grant; already-delivered plaintext cannot be made secret from arbitrary worker code by later revocation.
 - All ambient state roots (HOME/profiles/env/global caches/config) must participate in isolation; a fresh workspace alone is not a fresh runtime.
+- Filesystem lexical path identity is not always filesystem object identity; mutation success needs execution-time preconditions and verifier-owned postconditions across case-folding/symlink/platform differences.
+- Restore/import operations that can partially mutate before failure need staging/rollback or an explicit partial/unsettled state.
 - Telemetry may contain secrets/system prompts/tool data; evidence audience/redaction is separate policy.
 - Raw model/tool traces, operational tracing and product analytics should have separate schemas/audiences/retention.
+- Required trace/evidence export has its own settlement state; background export should not be assumed complete when acceptance depends on it.
 - Evaluation evidence must bind to stable project/task/run/test identity; wrong correlation invalidates otherwise valid spans.
 - Benchmark/evaluator adapters are trusted evidence code; their configuration/mapping failures must be classified separately from model failures.
 - The system under test should not own the authoritative definition of whether it passed.
 - Deterministic evidence should precede semantic model grading when the property is machine-observable.
 - Missing required evidence should produce an explicit invalid/failure state rather than an implicit pass.
 - Verifier-owned tests/hashes/sidecars should remain outside worker mutation authority.
-- Conversation/graph state, trajectory state, inference-context state, workspace state and external-effect evidence are separate recovery dimensions.
+- Conversation/graph state, trajectory state, inference-context state, authoritative execution checkpoint state, workspace state and external-effect evidence are separate recovery dimensions.
 - A durable checkpoint does not imply exactly-once external side effects.
 - Physical persistence retention is separate from model-context compaction.
 - Worker-writable persistent repository memory/instructions remain lower trust than protected governance and verified project truth.
@@ -433,4 +503,4 @@ See `failures/failed-redesigned-attempts.md` for evidence and causal boundaries.
 
 ## Next research task boundary
 
-Task 13 is complete once the llama.cpp research file, catalog, watchlist and state are committed. The next task is **OpenAI Agents SDK deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Model Context Protocol.
+Task 14 is complete once the OpenAI Agents SDK research file, catalog, watchlist and state are committed. The next task is **Model Context Protocol deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Goose.
