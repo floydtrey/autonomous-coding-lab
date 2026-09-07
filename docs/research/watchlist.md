@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–20 completed one-project-at-a-time deep research through **Graphiti**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–21 completed one-project-at-a-time deep research through **Microsoft Agent Framework**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -21,6 +21,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/letta-code.md`
 - `projects/gemini-cli.md`
 - `projects/graphiti.md`
+- `projects/microsoft-agent-framework.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -156,6 +157,34 @@ High-value findings to carry into later comparison:
 
 See `projects/graphiti.md` for primary sources, current failure evidence, 22 regression fixtures, candidate invariants and explicit non-conclusions.
 
+## Task 21 — Microsoft Agent Framework research result
+
+**Status:** current Microsoft Agent Framework deep research complete; no framework/Durable Task/provider/model/sandbox adoption decision made.
+
+High-value findings retained for later comparison:
+- The umbrella framework is GA, but package and feature maturity remains mixed; feature-stage identity belongs in qualification.
+- `AgentSession` state and provider/service continuation identity are intentionally separate.
+- Pregel/BSP-style supersteps, staged state writes and commit/checkpoint boundaries are useful deterministic orchestration patterns.
+- Checkpoints carry immutable parent-linked identity and graph-signature compatibility; iteration number is not authoritative checkpoint identity.
+- Closed #7683 is a strong fixed snapshot-aliasing regression fixture; current deep-copy behavior shows active hardening.
+- Open reproduced #7859 shows failed/cancelled superstep writes can leak into a later run if pending state is not explicitly discarded.
+- Open #7809 shows internal workflow checkpoint progress and durable/client-visible output delivery are separate settlement planes.
+- Open #7863 reinforces resume as one explicit restore/validate/continue transition rather than loose client-side load/mutate/run composition.
+- Standard workflow checkpoints and the first-party Durable Task extension are distinct durability levels; neither is a universal external-effect ledger.
+- Provider `call_id` is correlation, while one locally actionable function occurrence has its own identity; standing approval can scope exact arguments/server boundaries.
+- Current built-in auto-approval warnings show display-name-only tool identity can bypass the intended approval boundary through collisions.
+- Experimental Agent Hooks provide valuable fail-closed, transform-write-back and verdict-before-durability patterns while remaining cooperative interception rather than OS/process isolation.
+- Open reproduced #7890 and #7872 show pending approval/tool work needs explicit expiry, abandonment, closure, drain and cleanup semantics.
+- Current ShellPolicy explicitly rejects regex command matching as a security boundary; LocalCodeAct likewise documents defense-in-depth without containment.
+- Native Ollama/OpenAI-compatible support is real, but model capabilities and retry/resilience remain provider-specific; closed #6942 records deliberate host-owned retry composition.
+- Merged/released #7774 migrated .NET MCP Tasks to the 2026-07-28 extension, so still-open #7824 must be bounded as follow-up rather than proof current support is absent.
+- A2A/hosting session/task/context IDs are routing handles, not bearer credentials; application/host code owns auth/authz before state lookup or mutation.
+- Immutable continuation IDs can branch; mutable conversation/project heads require explicit single-writer coordination.
+- Native OpenTelemetry and experimental evaluation are useful evidence substrates, but runtime traces/evaluators do not replace independent ACL verification.
+- MAF remains below ACL-owned project/task/effect identity, external-effect reconciliation, writer fencing, credential/workspace governance and Vera epistemic memory policy.
+
+See `projects/microsoft-agent-framework.md` for primary sources, current/fixed failure evidence, candidate invariants, reuse candidates and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -177,8 +206,8 @@ See `projects/graphiti.md` for primary sources, current failure evidence, 22 reg
 14. **Letta Code** — `letta-ai/letta-code` — **Task 18 complete**.
 15. **Gemini CLI** — `google-gemini/gemini-cli` — **Task 19 complete**.
 16. **Graphiti** — `getzep/graphiti` — **Task 20 complete**.
-17. **Microsoft Agent Framework** — `microsoft/agent-framework` — **next task only**.
-18. **Google ADK** — `google/adk-python`.
+17. **Microsoft Agent Framework** — `microsoft/agent-framework` — **Task 21 complete**.
+18. **Google ADK** — `google/adk-python` — **next task only**.
 19. **LiteLLM** — `BerriAI/litellm`.
 20. **vLLM** — `vllm-project/vllm`.
 
@@ -385,4 +414,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 20 is complete once `projects/graphiti.md`, catalog, state and watchlist are committed. The next task is **Microsoft Agent Framework deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Google ADK.
+Task 21 is complete once `projects/microsoft-agent-framework.md`, catalog, state and watchlist are committed. The next task is **Google ADK deep research only**. Do not begin it until separately instructed, and when it is begun, stop before LiteLLM.
