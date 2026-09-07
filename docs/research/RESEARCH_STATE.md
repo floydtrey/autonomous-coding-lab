@@ -2,7 +2,7 @@
 
 **Branch:** `research/agent-landscape`
 **Status:** current task complete; stopped before next task
-**Current phase:** 16 — Goose deep research complete
+**Current phase:** 17 — Ollama deep research complete
 **Execution:** research only; no worker/model execution authorized by this branch
 
 ## Completed campaign checkpoints
@@ -19,76 +19,89 @@
 - Task 14: **OpenAI Agents SDK** — `projects/openai-agents-sdk.md`.
 - Task 15: **Model Context Protocol** — `projects/model-context-protocol.md`.
 - Task 16: **Goose** — `projects/goose.md`.
+- Task 17: **Ollama** — `projects/ollama.md`.
 
-## Task 16 work completed
-- Re-read the governing research state/process context and began from finalized Task 15 checkpoint `42f7d5db051d0701f089eb2c2785defa01ea303f`.
-- Verified canonical current project identity at `aaif-goose/goose`, active/non-archived, and inspected upstream revision `5e90925962f05acf8e255032de44d16c4a7768a2` dated 2026-09-05.
-- Verified latest release observed was `v1.49.0` from 2026-09-03.
-- Verified the Block → AAIF continuity boundary: Goose moved from `block/goose` to `aaif-goose/goose`; current governance places Goose under AAIF/LF Projects while retaining open technical-maintainer governance.
-- Recorded GDK as two separable integration surfaces: an alpha in-process SDK/provider layer and ACP exposing the full Goose runtime behind stdio or HTTP/WebSocket.
-- Verified the `goose-agent` state machine re-derives behavior from persisted conversation state, reloads sessions between passes, and stores durable operation markers in messages instead of relying on hidden loop state.
-- Derived the reusable ACL pattern: durable semantic state -> reload -> derive next legal transition -> persist effects; ephemeral loop variables remain non-authoritative.
-- Preserved the boundary that conversation-derived state is not distributed fencing, workspace checkpointing, current authorization, exactly-once effect evidence or independent verification.
-- Verified the provider contract is intentionally small and current provider implementations include cloud, OpenAI-compatible, Ollama and built-in on-device local inference paths.
-- Verified `goose-local-inference` runs GGUF through llama.cpp (`llama-cpp-2`) and optionally MLX, with CUDA/Vulkan/MLX feature paths, model lifecycle, templates and native/emulated tool parsing.
-- Derived that Goose local capability is an exact Goose revision/build + provider + backend + model artifact/template/parser/tool mode + configuration property, not merely `provider=local` or model name.
-- Verified MCP extensions are runtime-discovered and namespaced by extension, with duplicate public tool names skipped rather than silently dispatched to multiple providers.
-- Verified extension configuration/secret changes can trigger extension restart and resolved secret-bearing configuration is held in memory rather than durably expanded.
-- Verified current local stdio extension launch does not clear ambient environment before applying configured variables; retained ACL's stronger rule to construct minimal explicit child environments instead of inheriting supervisor `os.environ`.
-- Verified Goose permissions are layered: explicit per-tool rules, Smart Approval/read-only hints or classifier decisions, security inspectors, and Goose execution mode interact rather than one boolean gate.
-- Verified positive LLM Smart Approval classifications are not persisted name-wide; negative/unsafe classifications can fall back to AskBefore.
-- Preserved the trust boundary that MCP/tool read-only annotations and classifier output are advisory inputs, not authoritative least-privilege policy.
-- Verified Autonomous mode is the documented default and permits tools without approval; Goose permission controls are therefore not equivalent to an OS sandbox.
-- Verified current upstream removed its prior macOS OS sandbox and documents that the Goose server/tool process runs with the user's permissions.
-- Derived the ACL requirement that approval UI, command policy and actual process/filesystem/network/credential isolation remain separate controls.
-- Verified session persistence uses a versioned SQLite schema and carries conversation plus working directory, enabled extensions/config, recipe/input state, provider/model/mode and usage/cost metadata.
-- Verified ACP session load replays persisted history, restores provider session state, resends pending tool confirmations and can resume an interrupted state-machine turn.
-- Verified current ACP uses a shared per-session active-run registry/run ID to prevent concurrent ACP clients from interleaving two active prompt runs into one durable session.
-- Recorded that this is strong in-process single-writer reference material but not distributed durable lease/generation fencing.
-- Verified agent creation itself is serialized per session to avoid duplicate agent/MCP initialization races.
-- Verified recipes are executable configuration: they may carry provider/model/settings, extensions, parameters, retry checks and on-failure shell commands.
-- Verified recipe retry uses deterministic shell success checks, bounded retries/timeouts and resets conversation state to the initial messages before another attempt.
-- Preserved the boundary that resetting conversation is not workspace/effect rollback and retry does not authorize repeating an uncertain external effect.
-- Verified Desktop recipe acceptance is content-hash based: accepted recipes are SHA-256 hashed and a changed recipe requires a new acceptance hash.
-- Recorded open issue #10325 as current executable-recipe/trust-ordering evidence, including a v1.45 Desktop reproduction where a stdio recipe extension executed before the user clicked `Trust and Execute`; current main still loads session extensions during agent construction while the UI acceptance check occurs after session load.
-- Verified current `Recipe::check_for_security_warnings()` still checks hidden Unicode tags only in natural-language recipe fields, not executable extension/retry fields; classified this as an open trust-surface fixture, not a universal exploit claim.
-- Verified subagents can be sequential/parallel, inherit parent extensions by default unless explicitly narrowed, and are blocked from spawning nested subagents, extension management and schedule management.
-- Recorded that Goose documentation calls subagents process-isolated conceptually, but internal subagents are ordinary Goose instances within the runtime and therefore should not be treated as OS isolation.
-- Derived child-authority rule: inherited extensions are an authority ceiling only when the outer runtime also enforces filesystem/process/network/credential ceilings; natural-language narrowing is not sufficient.
-- Verified Code Mode exposes three meta-tools and discovers/calls broader MCP tools programmatically on demand, reducing tool-schema context pressure and allowing batched/chained tool execution.
-- Recorded Code Mode's text-only tool-result limitation and classified the generated code runtime as coordination machinery, not a replacement for effect authorization.
-- Verified current Harbor evaluation tooling compares exact Goose binaries/builds, models and extension sets against other harnesses on terminal-bench-style tasks and records pass/fail/error/timeout, turns, compute, tokens and cost.
-- Recorded current project-owned Harbor snapshot evidence that changing harness/tool mode with the same model materially changes success rate; kept those results as project benchmark evidence rather than universal model rankings.
-- Derived ACL benchmark rule: benchmark manifest must include harness/runtime revision, extension/tool mode and exact model/provider configuration; model name alone is not a valid comparison identity.
-- Verified Goose exposes opt-in PostHog product telemetry and optional OpenTelemetry/OTLP traces, logs and metrics; current PostHog path is explicit opt-in and only session-start emission is currently active in inspected source.
-- Preserved telemetry/evidence separation: operational OTel, product analytics, raw model/tool data and independent verifier evidence have different authority, sensitivity and retention requirements.
-- Recorded open #11500 as current Streamable-HTTP MCP SSRF/header-forwarding evidence. The current authenticated client still builds `reqwest::Client` with default headers and no explicit redirect policy; the assigned maintainer favored disabling redirects and testing authenticated/unauthenticated 3xx handling.
-- Recorded open #11399 as current deterministic shell-policy gap evidence: current permissions are tool-wide, while maintainers are discussing argument-level `deny > ask > allow` rules outside Smart Approval and how to protect policy configuration from agent edits.
-- Preserved issue-scope discipline: #10325, #11500 and #11399 are current open failure/design surfaces with concrete evidence, not proof every Goose deployment/version is exploitable or unsafe.
-- Wrote detailed primary-source research, reusable mechanisms, failure surfaces, candidate ACL/Vera invariants, regression-fixture ideas and explicit non-conclusions to `projects/goose.md`.
-- Preserved the task boundary: no separate Ollama deep research, cross-project winner selection, dependency/fork decision, ACL/Vera governance redesign or worker/model execution was begun.
+## Task 17 work completed
+- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, and `watchlist.md` before research.
+- Began from finalized Task 16 checkpoint `f523d8ec1a4a33bc59eee6827f7bb16e6649038b`.
+- Verified canonical project identity `ollama/ollama`, active/non-archived, MIT licensed.
+- Inspected current upstream revision `83ed7d9965b1ee07e0f0b29fd46e47c31f0fcab8` dated 2026-09-05.
+- Verified latest release observed was `v0.33.3`, published 2026-09-02 with refreshed assets on 2026-09-03.
+- Verified release artifacts publish SHA-256 digests and include platform/engine-specific packages such as ROCm/MLX variants.
+- Verified current Ollama pins llama.cpp via `LLAMA_CPP_VERSION=b10760` and applies Ollama compatibility patches from `llama/compat/` before build.
+- Recorded that Ollama's pinned/patched llama.cpp must be treated as behaviorally distinct from a direct pristine llama.cpp deployment unless identical ACL fixtures prove equivalence.
+- Verified separate MLX runner identity with pinned `MLX_VERSION=37c26e5755da637255d57ea34b4879196a485301` and materially different implemented surfaces from llama-server.
+- Verified current MLX runner lacks the inspected native llama-server Chat/template/embedding/device-info methods and uses its own structural-output representation.
+- Verified llama-server and MLX runner launch as loopback subprocesses under Ollama process control and inherit the parent service environment before runtime-specific adjustments.
+- Preserved stronger ACL operational rule: run Ollama itself with a deliberate service environment and keep worker/tool-process secret projection separately least-privilege.
+- Verified model packaging is content-addressed with SHA-256 layer digests and pull/download digest verification.
+- Verified Modelfile behavior-bearing fields include `FROM`, `PARAMETER`, `TEMPLATE`, `SYSTEM`, `ADAPTER`, `LICENSE`, `MESSAGE` and `REQUIRES`.
+- Derived benchmark artifact identity as manifest/layer/model digest plus Modelfile/template/system/parameter/adapter state; mutable tags remain aliases.
+- Verified current context default is VRAM-tiered: roughly 4K below 24 GiB, 32K from 24–48 GiB and 256K at/above 48 GiB.
+- Verified current Ollama documentation recommends at least 64K for agent/coding/web-search workloads, so automatic default is not an adequate coding-agent benchmark policy.
+- Verified effective `num_ctx` precedence from current tests/source: request > model/Modelfile > `OLLAMA_CONTEXT_LENGTH` > VRAM-tier default, bounded by model context.
+- Derived required ACL benchmark evidence: record both requested and realized context, and treat unintended fallback as non-comparable.
+- Verified underlying runner has prompt truncation/context-shift behavior; unexpected runtime truncation must be distinguished from harness compaction/model forgetting.
+- Verified behavior-bearing KV/runtime controls include flash attention, KV cache type, GPU overhead, llama fit target, request parallelism, max loaded models, queue size, keep-alive and scheduling spread.
+- Recorded KV/cache/fit/parallel settings as deployment-profile fields rather than performance-only notes.
+- Deep-researched current scheduler: bounded request queue, runner reuse/refcounts, memory refresh/fit estimation, eviction, keep-alive, configurable loaded-model/parallel limits and finite one-shot load-OOM retry.
+- Verified some current model families are forced to single parallel slot because parallel request behavior is not universally safe.
+- Recorded open scheduler issue #17408 as current high-value concurrency evidence: eviction state can be overwritten by concurrent runner reuse, leaving a cold-load scheduler path waiting indefinitely while loaded models continue responding.
+- Verified proposed explicit-expiring fix PR #17416 remained open/unmerged during Task 17; related PR #17515 was closed unmerged.
+- Derived scheduler invariants: explicit lifecycle states, hard deadlines on unload/load waits and health checks that exercise cold-load/scheduling ability rather than only HTTP/already-loaded inference.
+- Recorded open #17099 as release-sensitive memory-estimation/offload evidence: a small runtime change moved a documented model from full GPU to partial CPU and produced a large throughput cliff; maintainer acknowledged the regression/workaround.
+- Derived benchmark invariant that realized GPU/CPU offload belongs in evidence and a changed placement is a different deployment profile.
+- Deep-researched current hardware/backend guidance for CUDA, ROCm/HIP, Metal and Vulkan plus visible-device controls.
+- Recorded that scheduler quality depends on free-VRAM observability; nominal GPU detection is weaker evidence than stable device identity plus realized memory telemetry.
+- Verified native Ollama API and OpenAI-compatible API are distinct surfaces; upstream explicitly describes compatibility with parts of the OpenAI API rather than universal feature parity.
+- Verified current Ollama can use cloud/remote behavior and exposes `OLLAMA_NO_CLOUD` plus remote-host policy, so `runtime=ollama` does not imply local/offline inference.
+- Derived strict offline benchmark profile: explicitly disable cloud/remote inference, verify realized local execution and keep local/cloud results separate.
+- Deep-researched capability discovery in `server/images.go`: tool/thinking/vision/completion capability is assembled from config, metadata, templates, parser/renderer and family rules; tool discovery can include template-string heuristics.
+- Derived explicit distinction `DiscoveredCapability != VerifiedDeploymentCapability`.
+- Verified current native tool-schema types preserve only a subset of JSON Schema.
+- Recorded open #17142: constraints such as minimum/maximum/default/pattern/length/const are silently dropped because current tool structs do not retain them; current-main structs still substantiate the issue's core claim.
+- Recorded open #17597: surviving `enum` can reach the model yet is not enforced in tool-call decoding, while the same constraint can be enforced under structured-output `response_format`.
+- Derived mandatory ACL invariant: preserve the authoritative full tool schema outside Ollama and host-validate every generated call before policy/approval/effect dispatch.
+- Verified structured output uses a different constrained-generation path from ordinary tool argument presentation.
+- Recorded open #17957 as composition evidence: a documented model can support tools and response schema separately yet fail with a grammar-initialization error when both are combined.
+- Derived capability-matrix requirement: verify required feature combinations, not independent booleans only.
+- Rechecked #17444 and intentionally **did not** classify it as a universal Ollama tool regression; follow-up raw-response evidence supports treating it as client/harness integration-scoped behavior.
+- Derived requirement to version the consuming harness/client/parser along with Ollama/model capability state.
+- Verified local service default bind is loopback `127.0.0.1:11434` and current route construction applies CORS/allowed-host policy but no general authentication middleware over ordinary local inference/model-management routes.
+- Derived network rule: loopback is part of Ollama's default trust boundary; LAN/external binding requires an explicit outer authentication/firewall/TLS policy appropriate to the deployment. CORS is not authorization.
+- Verified `OLLAMA_NO_CLOUD` disables remote inference/web-search cloud features and `OLLAMA_REMOTES` constrains allowed remote-model hosts.
+- Verified `OLLAMA_DEBUG_LOG_REQUESTS` can save exact inference request bodies and replay commands with restrictive file permissions; classified those captures as sensitive reproducibility evidence.
+- Verified response/runtime observability includes load/prompt/cache/generation token-duration metrics and running-model context/VRAM/expiry information.
+- Preserved independent-evidence rule: Ollama metrics supplement, but do not replace, host performance telemetry and verifier-owned task success evidence.
+- Deep-researched upstream integration-suite structure and realistic `tools_stress_test.go` with large coding-agent prompt/tool catalogs, cache reuse and multi-turn tool-result continuation.
+- Derived ACL fixture pattern: realistic coding-agent stress, prompt-cache reuse, continuation and realized GPU-load preconditions rather than toy-only tool tests.
+- Wrote detailed evidence, candidate invariants, regression fixtures, source inventory and explicit non-conclusions to `projects/ollama.md`.
+- Preserved task boundary: no Letta Code research, cross-project winner selection, benchmark execution, architecture redesign or worker/model execution was begun.
 
-## Highest-value Goose findings for later comparison
-1. Conversation-derived state-machine behavior is strong reference material for restart-safe agent-loop semantics.
-2. ACP enables a clean client/runtime boundary appropriate for remote Vera clients, while transport/session identity must stay separate from ACL task/effect identity.
-3. A small provider contract plus built-in local inference offers useful reuse options below the full Goose product.
-4. Local capability must be qualified as an exact Goose/provider/backend/model/template/parser/tool-mode/configuration tuple.
-5. MCP extension namespacing/discovery is useful, but remote annotations and extension metadata must not become authority.
-6. Secret/config restart handling is useful, but ambient stdio child-environment inheritance is weaker than ACL's required explicit environment projection.
-7. Goose permission modes and Smart Approval are workflow/policy layers, not OS isolation; Autonomous mode defaults to broad tool execution.
-8. Positive Smart Approval classifications not becoming persistent name-wide grants is a useful hardening pattern.
-9. Current Goose provides no general OS sandbox; ACL must retain separate worker process/filesystem/network/credential containment.
-10. SQLite session persistence plus ACP pending-confirmation replay is meaningful durable-session reference material.
-11. Per-session active-run and creation locks are useful single-writer/race-control patterns, but distributed persistence still needs generation/lease/CAS fencing.
-12. Recipe hashes are useful exact-change acceptance identity; recipe configuration itself must be treated as executable code/authority.
-13. Recipe retry success checks are useful deterministic validation mechanics, but conversation reset is not effect/workspace rollback.
-14. Subagents provide bounded delegation/extension subsets and useful anti-recursion/control-plane restrictions, but inherited tools do not imply OS isolation.
-15. Code Mode is a strong model-context/tool-scaling pattern: keep the model-facing meta-interface small and discover capabilities on demand.
-16. Harbor demonstrates that harness/tool interface is a first-class benchmark variable, not noise around a model score.
-17. OTel support is useful for ACL observability vocabulary, while runtime telemetry remains distinct from independent acceptance evidence.
-18. Open recipe trust-ordering, HTTP redirect/SSRF and shell argument-policy gaps are high-value ACL regression fixtures.
-19. Goose's Block→AAIF move is continuity, not abandonment; foundation governance improves continuity signal but does not replace version/dependency qualification.
-20. Goose is strongest as a mechanism/reference layer under ACL/Vera-owned authority, sandbox/process custody, credential governance, effect ledger and verifier state rather than as an unchanged whole-system replacement.
+## Highest-value Ollama findings for later comparison
+1. Ollama is a behavior-bearing runtime layer above the model; exact Ollama/engine/artifact/config/harness identity matters.
+2. Current Ollama uses a pinned **and compatibility-patched** llama.cpp, not pristine upstream source.
+3. MLX is a separate engine profile with different implemented capabilities.
+4. Immutable manifest/layer/model/template identity is stronger benchmark evidence than a mutable model tag.
+5. Current automatic context can be only 4K below 24 GiB VRAM; agent/coding guidance recommends at least 64K.
+6. Benchmark context must be explicit and realized context must be observed, not inferred.
+7. Runtime truncation/context shifting is separate from harness compaction and model memory failure.
+8. KV type, flash attention, parallelism and memory-fit/offload settings are deployment identity fields.
+9. Realized full-GPU versus CPU-offloaded execution is a distinct benchmark profile.
+10. Scheduler resource transitions require explicit states and hard deadlines; #17408 is a concrete deadlock fixture.
+11. Runtime health should prove cold-load/scheduler functionality, not only HTTP or already-loaded inference.
+12. Capability metadata/template heuristics are discovery inputs, not verified end-to-end capability.
+13. Native Ollama tool schema currently loses parts of JSON Schema; original ACL schemas must remain authoritative.
+14. Generated tool arguments require host-side validation even when a schema was supplied to Ollama.
+15. Structured-output constraints and ordinary tool-call schemas are different paths with different guarantees.
+16. Capability combinations such as tools + structured output need direct tests.
+17. Native Ollama, OpenAI-compatible adapter and consuming harness/client are separately versioned capability surfaces.
+18. `Ollama` no longer automatically means local/offline; cloud/remote mode must be explicit and policy-controlled.
+19. Loopback is part of the default service trust boundary; remote binding needs an outer auth/network boundary.
+20. Request-replay logs are valuable but sensitive evidence.
+21. Upstream coding-agent-like stress tests provide useful fixture patterns, but ACL still needs independent validators.
+22. Runtime/adapter/schema/compiler/scheduler/hardware/harness failures should be classified separately from model failures.
+23. Ollama is a candidate inference service, not ACL's scheduler, worker sandbox, effect ledger, checkpoint manager, credential broker or verifier.
 
 ## Queue status
 - **Pydantic AI (#1): complete.**
@@ -102,18 +115,19 @@
 - **llama.cpp (#9): complete.**
 - **OpenAI Agents SDK (#10): complete.**
 - **Model Context Protocol (#11): complete.**
-- **Goose (#12): complete.** Detailed evidence: `projects/goose.md`.
-- **Ollama (#13): next task only.** No separate Ollama deep research was begun in Task 16.
+- **Goose (#12): complete.**
+- **Ollama (#13): complete.** Detailed evidence: `projects/ollama.md`.
+- **Letta Code (#14): next task only.** No Letta Code deep research was begun in Task 17.
 - Remaining ranked queue stays unchanged until separately authorized.
 
 ## Next task
 
-Deep-research **Ollama** only.
+Deep-research **Letta Code** only.
 
-Do not begin until separately instructed. When begun, inspect the canonical `ollama/ollama` project, exact model/runtime/API behavior, llama.cpp relationship and divergences, context/KV/memory/resource management, tool/function/structured-output behavior, model manifests/templates, concurrency/scheduling, local hardware/backend behavior, process/service lifecycle, security/network boundaries, reproducibility/evaluation and current failure surfaces. Extract reusable mechanisms/invariants and concrete ACL/Vera lessons, save research/catalog/state/watchlist, commit research-only changes, and **stop before Letta Code**.
+Do not begin until separately instructed. When begun, inspect the canonical `letta-ai/letta-code` project and directly relevant upstream lineage only as needed to understand current identity. Focus on its stateful-agent/memory architecture, conversation/project/runtime boundaries, persistence and memory provenance, context management, local/provider compatibility, tools/permissions/execution boundaries, lifecycle/recovery, evaluation/observability, current failure surfaces and reusable ACL/Vera mechanisms. Save report/catalog/state/watchlist, make a research-only commit, and **stop before Gemini CLI**.
 
 ## Later tasks
-1. Ollama, then the remaining ranked active-project queue one task at a time.
+1. Letta Code, then the remaining ranked active-project queue one task at a time.
 2. Deep-research high-value developers/accounts one at a time.
 3. Compare reusable components versus custom-build candidates.
 4. Analyze collaboration/open-source options.
@@ -123,4 +137,4 @@ Do not begin until separately instructed. When begun, inspect the canonical `oll
 
 ## Stop point
 
-Task 16 ended after current Goose GDK/ACP architecture, provider/local-inference paths, MCP extensions, permissions/sandbox boundaries, session/recovery/concurrency, recipes/retries, subagents, Code Mode, process/environment behavior, telemetry/evaluation, current security/failure surfaces and AAIF governance continuity were researched. No separate Ollama research, cross-project winner selection, dependency/fork decision, ACL/Vera architecture/governance change, or worker/model execution was begun.
+Task 17 ended after current Ollama engine identity, model packaging, context/KV/resource scheduling, hardware backends, API/local-cloud boundaries, tool/structured-output semantics, process/network lifecycle, reproducibility/evaluation and current failure surfaces were researched. No Letta Code/Gemini CLI research, cross-project winner selection, dependency decision, benchmark execution, ACL/Vera architecture/governance change or worker/model execution was begun.

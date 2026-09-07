@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–16 completed one-project-at-a-time deep research through **Goose**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–17 completed one-project-at-a-time deep research through **Ollama**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -17,6 +17,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/openai-agents-sdk.md`
 - `projects/model-context-protocol.md`
 - `projects/goose.md`
+- `projects/ollama.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -90,6 +91,40 @@ High-value findings to carry into later comparison:
 
 See `projects/goose.md` for primary sources, current open issues, candidate ACL/Vera regression fixtures and explicit non-conclusions.
 
+## Task 17 — Ollama research result
+
+**Status:** current Ollama deep research complete; no dependency/adoption/runtime-winner decision made.
+
+High-value findings to carry into later comparison:
+
+- **Ollama is a deployment profile, not merely a model launcher:** runtime build, engine, immutable model artifact, template/parser, API route, context/KV settings, hardware/backend, realized offload and harness adapter all affect behavior.
+- **Pinned and patched llama.cpp:** current Ollama pins llama.cpp through `LLAMA_CPP_VERSION=b10760` and applies compatibility patches before building. Direct llama.cpp and Ollama's embedded engine require separate qualification.
+- **MLX is a different engine profile:** current MLX runner has different implemented chat/template/embedding/device surfaces and its own structured-output path. Capability cannot silently transfer across engines.
+- **Artifact digests beat tags:** model layers/manifests use SHA-256 content identity and downloads are digest-verified. Benchmark manifests should retain layer/model/template/parameter identity; mutable tags remain aliases.
+- **Context default is hardware-derived:** current default is roughly 4K below 24 GiB VRAM, 32K at 24–48 GiB and 256K at/above 48 GiB. Current agent/coding guidance recommends at least 64K, so automatic default is not an agent benchmark policy.
+- **Context precedence is behavior:** request `num_ctx` overrides model/Modelfile, then `OLLAMA_CONTEXT_LENGTH`, then VRAM-tier default, bounded by model context. Record requested and realized values.
+- **Runtime truncation is separate failure state:** llama-server can context-shift/truncate input. Unexpected truncation must not be mislabeled as model forgetting or harness compaction.
+- **KV/cache/fit state matters:** KV type, flash attention, parallel slots, memory-fit target, batch settings and GPU overhead affect fit, context, throughput and potentially quality.
+- **Realized placement is evidence:** open #17099 shows a release-sensitive memory-estimate change can move a model from full GPU to partial CPU and cause a large throughput cliff. Full-GPU and partial-offload runs are different profiles.
+- **Scheduler has useful bounded controls:** queue limits, loaded-runner reuse/refcounts, keep-alive, memory-fit prediction, eviction and a finite one-shot OOM load retry are valuable runtime patterns.
+- **Scheduler transitions need stronger fencing:** open #17408 documents an eviction/reuse race that can leave cold model loads waiting indefinitely while loaded models still answer. Proposed explicit-expiring PR #17416 remained unmerged during Task 17.
+- **Health must include cold-load path:** HTTP responsiveness or already-loaded inference is insufficient proof the scheduler can accept new model work.
+- **Backend observability changes scheduler quality:** CUDA/ROCm/Metal/Vulkan support is broad, but free-VRAM visibility and stable device identity are part of reproducibility.
+- **Capability metadata is discovery only:** current capability assembly depends on config/metadata/template/parser/family heuristics; tool support can be inferred from template markers. `ollama show` should nominate tests, not self-certify production capability.
+- **Native tool schema is narrower than JSON Schema:** current tool structs omit many constraints. Open #17142 documents minimum/maximum/default/pattern/length/const-like fields disappearing before the model.
+- **Tool schemas are not execution validation:** open #17597 shows a surviving `enum` can reach the model yet not constrain tool-call decoding. ACL must validate generated arguments against its original authoritative schema before authorization/effect execution.
+- **Structured output is a separate constraint path:** local `response_format`/format schemas reach engine structured-output machinery rather than carrying the same semantics as ordinary tool parameters.
+- **Feature composition needs tests:** open #17957 shows a model can support tools and response schema individually but fail grammar initialization when both are supplied together.
+- **Harness/client parser belongs in the profile:** #17444 should not be generalized as a universal Ollama tool regression; raw responses worked in other clients, making it useful evidence for integration-specific compatibility testing.
+- **Native and OpenAI-compatible APIs are different surfaces:** upstream promises parts of OpenAI compatibility, not universal parity. Version adapter route separately.
+- **Ollama can be local or remote/cloud:** `OLLAMA_NO_CLOUD` and remote-host policy make local/offline mode explicit. Do not assume `runtime=ollama` proves local execution.
+- **Loopback is part of default security:** normal service defaults to `127.0.0.1:11434`; ordinary routes rely on local/network policy rather than a universal API authentication layer. LAN/external binding requires an explicit outer security boundary.
+- **Debug replay is sensitive evidence:** `OLLAMA_DEBUG_LOG_REQUESTS` can preserve exact request bodies/replay commands, useful for benchmark reproduction but potentially containing project/secrets/context.
+- **Upstream stress tests are a good fixture reference:** current tool stress tests use large coding-agent prompts/tool catalogs, cache reuse and multi-turn tool responses, closer to ACL workloads than toy function calls.
+- **Boundary:** Ollama is strongest as an inference/runtime component below ACL/Vera-owned scheduling, sandbox/process authority, credential policy, task/effect state, checkpoint recovery and independent verification.
+
+See `projects/ollama.md` for primary sources, current open issues, candidate ACL/Vera regression fixtures and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -107,8 +142,8 @@ See `projects/goose.md` for primary sources, current open issues, candidate ACL/
 ### Tier B — high-value follow-up
 11. **Model Context Protocol** — `modelcontextprotocol/modelcontextprotocol` (+ directly relevant `modelcontextprotocol/ext-tasks`) — **Task 15 complete**.
 12. **Goose** — `aaif-goose/goose` — **Task 16 complete**.
-13. **Ollama** — `ollama/ollama` — **next task only**.
-14. **Letta Code** — `letta-ai/letta-code`.
+13. **Ollama** — `ollama/ollama` — **Task 17 complete**.
+14. **Letta Code** — `letta-ai/letta-code` — **next task only**.
 15. **Gemini CLI** — `google-gemini/gemini-cli`.
 16. **Graphiti** — `getzep/graphiti`.
 17. **Microsoft Agent Framework** — `microsoft/agent-framework`.
@@ -178,11 +213,13 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Reviewer/verifier capability should be minimized independently from worker capability.
 - Self-reported server/model/provider names and read-only/tool annotations are metadata/advisory inputs, not security identity or authority.
 - Shared recipes/configuration that can launch processes or shell checks are executable authority artifacts, not passive prompt templates.
+- Mutable model tags are aliases, not immutable runtime/model authority or benchmark identity; retain content/manifests/digests where available.
 
 ### Workspace, sandbox and credentials
 - Workspace isolation, Git/ref authority, secrets, verifier roots and external effects are separate trust domains.
 - Container/sandbox/runtime selection is not a complete permission profile; mounts/network/user/resources/credentials/capabilities are separate.
 - Local-host worker execution should not inherit ambient supervisor environment/credentials.
+- Native inference services that spawn engine subprocesses should themselves run under a deliberate service environment; this does not weaken the stronger minimal-environment rule for worker/tool processes.
 - Durable state should reference credentials; live authority is rebound from current trusted policy after resume.
 - Runtime-visible plaintext credentials cannot later be made secret from arbitrary worker code by revocation.
 - MCP Roots/workspace hints are not access control.
@@ -200,6 +237,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Partial/in-progress work stays visibly interrupted/uncertain after crash/recovery.
 - Lost/expired remote handles do not prove the backing computation stopped.
 - Physical persistence retention is separate from model-context compaction and execution settlement.
+- Runtime model residency/keep-alive and KV/prompt cache are performance state, not durable agent continuation authority.
 
 ### Cancellation, timeouts and retry
 - Every blocking plane needs an explicit timeout/cancellation owner: provider request/stream, prompt/prefill/generation, tool process, remote runtime/task and whole run.
@@ -210,24 +248,33 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Provider/request IDs are correlation identifiers, not automatically idempotency/effect IDs.
 - Broken transport retry of an effect-bearing request needs durable reconciliation/idempotency policy.
 - Resetting conversation/task messages for retry is not workspace rollback or external-effect rollback.
+- Resource schedulers need explicit transition states plus bounded waits; an alive service/already-loaded model is not proof a cold-load path is healthy.
 
 ### Model/runtime capability and protocol compatibility
 - Local-model capability is an exact model + runtime + adapter + protocol/tool schema/namespace + configuration property.
 - For llama.cpp-class deployments, include build/backend/driver, GGUF/quantization, template/parser/constraint backend, context/KV/cache and optimization/sampling settings.
 - For Goose-like deployments, also record exact Goose/GDK/provider revision, local backend path and extension/tool mode such as direct MCP versus Code Mode.
+- For Ollama deployments, record exact Ollama release/commit/package digest, embedded engine kind/revision/patch profile, immutable model/manifest/template identity, API route, context/KV/parallel/fit settings and realized offload/context.
+- Requested runtime settings and realized runtime state are separate evidence; context/offload/device placement must be observed rather than inferred from configuration.
 - Template/schema/protocol capability discovery is not verified end-to-end behavior.
 - MCP capability identity includes protocol era/version, transport, SDK/adapter revision, auth mode and negotiated extensions.
 - Core protocol conformance does not imply optional extension parity.
-- Silent modern/legacy fallback must not preserve the same verified-capability label.
+- Native provider APIs and nominal OpenAI-compatible APIs are separately qualified capability surfaces.
+- Silent modern/legacy/provider fallback must not preserve the same verified-capability label.
+- Local versus remote/cloud inference is an explicit deployment profile and cannot be inferred from a generic runtime brand/name.
 
 ### Schema, network and content trust
 - Tool schemas, validation, authorization, execution and evaluation are distinct contracts.
+- Preserve the authoritative complete tool schema outside provider/runtime-specific down-conversions; generated arguments are validated against the authoritative schema before authorization/effects.
+- A model-visible tool schema can be advisory even when structured-output decoding uses a grammar; do not infer one path's enforcement semantics from the other.
+- Test required capability combinations, not only individual capability flags.
 - Schema converters/parsers/constraint compilers are trusted code and require adversarial regression fixtures.
 - Remote schema/resource/auth/discovery URL dereference is a network/SSRF authority surface with private/loopback/redirect/size/time policy.
 - Redirect behavior for authenticated remote tool clients is itself a credential/network policy surface and should be explicitly configured/tested rather than inherited from HTTP-client defaults.
 - Remote prompts, resources, memory and server instructions remain lower-trust model content regardless of valid protocol shape.
 - Cache TTL is freshness guidance, not authorization, provenance or immutable state version.
 - Server-declared public cacheability cannot override ACL/Vera trust isolation.
+- Loopback binding/CORS/Host-header checks and service authentication are separate controls; exposing a local inference API beyond loopback requires an explicit outer network/auth policy.
 
 ### Verification and evidence
 - The system under test does not own the authoritative definition of pass/fail.
@@ -235,9 +282,12 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Missing required evidence yields explicit invalid/failure rather than implicit pass.
 - Verifier tests/hashes/sidecars/control roots stay outside worker mutation authority.
 - Trace/model/tool data may contain secrets; raw traces, operational telemetry and product analytics have separate audiences/retention.
+- Provider/runtime request-replay logs are sensitive evidence when they contain full prompts/tool schemas/project data.
 - Evidence export/delivery has its own settlement state.
 - Protocol/SDK/harness/evaluator failures are classified separately from model failures.
+- Runtime/adapter/schema/compiler/scheduler/hardware/harness failures are separately classified from model-decision failures.
 - Harness/runtime build, tool/extension mode and model/provider configuration are benchmark identity fields; same-model scores under different harnesses are not interchangeable.
+- Realized context, GPU/CPU placement and runtime cache/load metrics supplement independent host performance and verifier-owned success evidence.
 
 ## Historical failure/redesign controls retained
 
@@ -258,4 +308,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 16 is complete once `projects/goose.md`, catalog, state and watchlist are committed. The next task is **Ollama deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Letta Code.
+Task 17 is complete once `projects/ollama.md`, catalog, state and watchlist are committed. The next task is **Letta Code deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Gemini CLI.
