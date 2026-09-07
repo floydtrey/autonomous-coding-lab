@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–23 completed one-project-at-a-time deep research through **LiteLLM**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–24 completed one-project-at-a-time deep research through **vLLM**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -24,6 +24,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/microsoft-agent-framework.md`
 - `projects/google-adk.md`
 - `projects/litellm.md`
+- `projects/vllm.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -242,6 +243,31 @@ High-value findings retained for later comparison:
 
 See `projects/litellm.md` for primary sources, current/fixed failure evidence, 40 candidate invariants, 18 regression fixtures, reuse candidates and explicit non-conclusions.
 
+## Task 24 — vLLM research result
+
+**Status:** current vLLM deep research complete; no runtime/model/quantization/parser/cache/distributed adoption decision made.
+
+High-value findings retained for later comparison:
+- Exact vLLM build/model/tokenizer/template/parser/structured-output/quantization/KV/scheduler/hardware/API profile is model capability identity.
+- Requested `max_model_len` is not realized 32K capacity/correctness; measured KV capacity, preemption and repeated long-context correctness remain required.
+- Open #54521 is a profile-specific long-context deterministic-corruption fixture showing HTTP 200 and temperature=0 do not prove execution fidelity.
+- Named/required/auto tool modes use different constraint paths; parser/template/strict/backend must be frozen and final calls revalidated against ACL's authoritative schema.
+- Open #52741 plus current renderer source show server-control metadata can leak into model-visible tool projection and change behavior.
+- Prefix caching is both performance state and a confidentiality boundary; `cache_salt` must be trusted secret isolation metadata in multi-tenant use.
+- Caller media UUIDs can create cross-tenant cache integrity/confidentiality failures when reused.
+- Open #55502 shows client disconnect/handler cancellation does not necessarily abort all child engine work.
+- Current `--api-key` does not authorize the whole vLLM server; outer route allowlisting/auth is required for any untrusted network exposure.
+- Optional model-executed tool servers, plugins, dynamic LoRA/weight controls and dev RPC surfaces are privileged trusted configuration, not ACL worker authority.
+- Runtime cache directories are trusted artifacts and must remain outside worker write authority.
+- Windows is non-native; WSL/Linux/container and accelerator/quantization/KV profiles are separate benchmark identities.
+- Inter-node traffic is insecure by default; Ray is one trust domain and driver environment credentials can propagate to workers.
+- P/D disaggregation is experimental/connector-specific; #49238/#50047 preserve stale-peer/restart invalidation and re-handshake fixtures.
+- vLLM is not reproducible by default; supported controls still scope guarantees to the same hardware and same vLLM version.
+- Prometheus queue/KV/TTFT/TPOT/prefill/decode metrics are valuable runtime evidence but not semantic/verifier acceptance.
+- vLLM remains below ACL-owned task/effect identity, policy, credentials, sandboxing, reconciliation and independent verification.
+
+See `projects/vllm.md` for primary sources, current/open failure evidence, 48 candidate invariants, 20 regression fixtures, reuse candidates and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -266,10 +292,10 @@ See `projects/litellm.md` for primary sources, current/fixed failure evidence, 4
 17. **Microsoft Agent Framework** — `microsoft/agent-framework` — **Task 21 complete**.
 18. **Google ADK** — `google/adk-python` — **Task 22 complete**.
 19. **LiteLLM** — `BerriAI/litellm` — **Task 23 complete**.
-20. **vLLM** — `vllm-project/vllm` — **next task only**.
+20. **vLLM** — `vllm-project/vllm` — **Task 24 complete**.
 
 ### Tier C — comparative / situational watch
-21. **OpenCode** — `anomalyco/opencode`.
+21. **OpenCode** — `anomalyco/opencode` — **next task only**.
 22. **Mem0** — `mem0ai/mem0`.
 23. **smolagents** — `huggingface/smolagents`.
 24. **Agno** — `agno-agi/agno`.
