@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–24 completed one-project-at-a-time deep research through **vLLM**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–25 completed one-project-at-a-time deep research through **OpenCode**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -25,6 +25,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/google-adk.md`
 - `projects/litellm.md`
 - `projects/vllm.md`
+- `projects/opencode.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -268,6 +269,30 @@ High-value findings retained for later comparison:
 
 See `projects/vllm.md` for primary sources, current/open failure evidence, 48 candidate invariants, 20 regression fixtures, reuse candidates and explicit non-conclusions.
 
+## Task 25 — OpenCode research result
+
+**Status:** current OpenCode deep research complete; no harness/adoption/fork/provider/model decision made.
+
+High-value findings retained for later comparison:
+- Stable observed **v1.18.29** and the active V2 redesign on default `dev` are separate architecture/capability profiles; dev behavior is not a stable guarantee.
+- OpenCode is a substantial coding-agent harness/runtime with session, tools, permissions, provider, MCP and server/client lifecycle responsibilities rather than a thin CLI.
+- Harness generation/revision is benchmark identity alongside the exact model/runtime/adapter profile.
+- Upstream explicitly states the OpenCode agent is **not sandboxed**; permissions are awareness/confirmation controls, not OS/process/filesystem/network/credential containment.
+- Any later ACL OpenCode worker must remain inside ACL-owned external containment with protected governance/verifier/checkpoint roots and minimal explicit child environments.
+- Stable issue **#47605** is a high-value timeout fixture: malformed/missing response `Content-Type` can bypass body watchdog semantics and leave a session indefinitely busy.
+- Response metadata/parser selection must never decide whether a provider request/body/stream has hard and idle deadline ownership.
+- Stable issue **#47727** is a high-value resource-lifecycle fixture: `serve` can retain per-directory instances and MCP child processes until memory/process exhaustion.
+- Server/workspace/session instances and MCP children need explicit ownership, bounded retention, close/evict transitions and teardown settlement evidence.
+- OpenCode session/event durability is conversation/runtime evidence, not an ACL continuation checkpoint; workspace/process/effect/current-authority/verifier state remain outer validation requirements.
+- Provider request, OpenCode session, tool call, MCP process, ACL task/run and external-effect identities remain distinct.
+- MCP tool origin and subprocess lifecycle are separate authority/resource dimensions; tool display names alone are insufficient effect identity.
+- Provider/local-model support remains exact adapter+runtime+model+OpenCode-profile behavior and must be qualified for tools/context/stream/schema/retry separately.
+- Cancellation intent, session termination, backing provider/process termination and resource/effect settlement are different states.
+- Runtime telemetry is operator evidence rather than independent verifier authority; #47605/#47727 are harness failures and should not be scored as model failures.
+- OpenCode remains below ACL-owned project/task/effect identity, writer fencing, sandbox/process custody, credentials, policy and independent verification.
+
+See `projects/opencode.md` for detailed findings, candidate invariants, regression fixtures, reuse candidates, sources and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -295,8 +320,8 @@ See `projects/vllm.md` for primary sources, current/open failure evidence, 48 ca
 20. **vLLM** — `vllm-project/vllm` — **Task 24 complete**.
 
 ### Tier C — comparative / situational watch
-21. **OpenCode** — `anomalyco/opencode` — **next task only**.
-22. **Mem0** — `mem0ai/mem0`.
+21. **OpenCode** — `anomalyco/opencode` — **Task 25 complete**.
+22. **Mem0** — `mem0ai/mem0` — **next task only**.
 23. **smolagents** — `huggingface/smolagents`.
 24. **Agno** — `agno-agi/agno`.
 25. **LlamaIndex** — `run-llama/llama_index`.
@@ -419,11 +444,14 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Live execution and required durable recording are separate lifecycle dimensions; loss of required durability must become explicit degraded/paused state rather than invisible logging failure.
 - Runtime model residency/keep-alive and KV/prompt cache are performance state, not durable agent continuation authority.
 - Embedding model/dimension/profile is durable memory schema; changing it requires validation/migration rather than silent replacement.
+- Durable harness session/event state is evidence, not safe continuation authority; current workspace/process/effect/credential/policy/verifier state must be validated separately.
+- Every server/workspace/session instance and MCP child process needs explicit owner, bounded retention and teardown settlement evidence.
 
 ### Cancellation, timeouts and retry
 - Automatic remote retry is safest only while the host can prove no effect-bearing call may yet have crossed the boundary.
 - Every blocking plane needs an explicit timeout/cancellation owner: provider request/stream, prompt/prefill/generation, tool process, remote runtime/task and whole run.
 - Progress/heartbeats may control idle timeout but never remove hard maximum deadlines.
+- Response metadata/content type/parser selection must never disable deadline ownership for provider body/stream consumption.
 - Cancellation acknowledgment is not process termination or effect settlement.
 - Immediate abort and stop-at-safe-boundary are distinct controls.
 - Retry is not authority to replay a possibly already-executed effect/request.
@@ -432,10 +460,12 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Broken transport retry of an effect-bearing request needs durable reconciliation/idempotency policy.
 - Resetting conversation/task messages for retry is not workspace rollback or external-effect rollback.
 - Resource schedulers need explicit transition states plus bounded waits; an alive service/already-loaded model is not proof a cold-load path is healthy.
+- A reachable agent server is not lifecycle-healthy if owned workspace/MCP process resources grow without bound.
 
 ### Model/runtime capability and protocol compatibility
 - Provider/model-name heuristics and adapter rewrites are behavior-bearing deployment state and require exact-profile regression fixtures.
 - Local-model capability is an exact model + runtime + adapter + protocol/tool schema/namespace + configuration property.
+- Harness release/commit/generation is also behavior-bearing benchmark identity; stable and development architecture profiles are separately qualified.
 - For llama.cpp-class deployments, include build/backend/driver, GGUF/quantization, template/parser/constraint backend, context/KV/cache and optimization/sampling settings.
 - For Goose-like deployments, also record exact Goose/GDK/provider revision, local backend path and extension/tool mode such as direct MCP versus Code Mode.
 - For Ollama deployments, record exact Ollama release/commit/package digest, embedded engine kind/revision/patch profile, immutable model/manifest/template identity, API route, context/KV/parallel/fit settings and realized offload/context.
@@ -506,4 +536,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 23 is complete once `projects/litellm.md`, catalog, state and watchlist are committed. The next task is **vLLM deep research only**. Do not begin it until separately instructed, and when it is begun, stop before OpenCode.
+Task 25 is complete once `projects/opencode.md`, catalog, state and watchlist are committed. The next task is **Mem0 deep research only**. Do not begin it until separately instructed, and when it is begun, stop before smolagents.
