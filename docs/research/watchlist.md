@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–21 completed one-project-at-a-time deep research through **Microsoft Agent Framework**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–22 completed one-project-at-a-time deep research through **Google ADK**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -22,6 +22,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/gemini-cli.md`
 - `projects/graphiti.md`
 - `projects/microsoft-agent-framework.md`
+- `projects/google-adk.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -185,6 +186,29 @@ High-value findings retained for later comparison:
 
 See `projects/microsoft-agent-framework.md` for primary sources, current/fixed failure evidence, candidate invariants, reuse candidates and explicit non-conclusions.
 
+## Task 22 — Google ADK research result
+
+**Status:** current Google ADK deep research complete; no dependency/provider/model/workflow/sandbox/memory/protocol adoption decision made.
+
+High-value findings retained for later comparison:
+- Workflow graph validation, dependency-ready concurrency and history-derived resume are useful deterministic orchestration patterns outside model reasoning.
+- ADK resumability is explicitly experimental/best-effort and at-least-once for tools; workflow replay is not effect settlement.
+- Session history, scoped state and opt-in cross-session memory are distinct state/trust planes.
+- DatabaseSessionService uses locks, storage revision markers and stale-writer rejection; partial events and `temp:` state remain non-durable.
+- Current HITL binds the exact historical function call, but open/reopened #6461 shows role/channel label `user` is not authenticated principal identity.
+- Fixed #6977 is a regression fixture for keeping confirmation pauses as typed control state rather than ordinary model/tool-result content.
+- Executor tiers range from explicitly unsafe local subprocess through Docker and stronger gVisor/managed isolation; realized executor profile matters.
+- Provider portability is adapter-specific; current #6482 and #6984 preserve local/provider/schema failure fixtures without generalizing them to all paths.
+- MCP retry logic supplies a strong invariant: automatic retry only while no remote tool effect could yet have occurred.
+- A2A remote composition does not automatically preserve in-process shared state or typed HITL semantics; #6854/#6721 remain current fixtures.
+- Self-hosted FastAPI auth/authz and required durability are application-owned; in-memory fallback must not silently satisfy authoritative ACL/Vera work.
+- Runner-global plugins are privileged control-plane code; Model Armor/content screening is defense-in-depth rather than authorization or sandboxing.
+- AgentEvaluator separates response quality and tool trajectory and supports repeated runs, useful for ACL's later stochastic 32K model/harness qualification.
+- Open #6099 reinforces that runtime traces/events are not a unified decision/effect ledger connecting principal, policy, approval and settlement.
+- Google ADK remains beneath ACL/Vera-owned effect reconciliation, credential authority, protected verifier/policy, epistemic memory and independent acceptance.
+
+See `projects/google-adk.md` for primary sources, current/fixed failure evidence, reuse candidates and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -207,8 +231,8 @@ See `projects/microsoft-agent-framework.md` for primary sources, current/fixed f
 15. **Gemini CLI** — `google-gemini/gemini-cli` — **Task 19 complete**.
 16. **Graphiti** — `getzep/graphiti` — **Task 20 complete**.
 17. **Microsoft Agent Framework** — `microsoft/agent-framework` — **Task 21 complete**.
-18. **Google ADK** — `google/adk-python` — **next task only**.
-19. **LiteLLM** — `BerriAI/litellm`.
+18. **Google ADK** — `google/adk-python` — **Task 22 complete**.
+19. **LiteLLM** — `BerriAI/litellm` — **next task only**.
 20. **vLLM** — `vllm-project/vllm`.
 
 ### Tier C — comparative / situational watch
@@ -264,6 +288,8 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - On-demand meta-tool discovery can reduce context/schema pressure, but generated coordination code must cross the same deterministic effect-authorization boundary as direct tool calls.
 
 ### Identity, policy, memory and authority
+- Authenticated principal identity is distinct from client-provided `user`/author/channel labels and protocol routing IDs.
+- Session history, scoped operational state and cross-session memory are separate state/trust planes.
 - Persistent agent/persona identity, conversation/thread identity, project/task/run identity, runtime/transport identity, provider request identity and external-effect identity remain distinct.
 - Personal/identity memory, shared/project memory, task memory, recall/history, raw episodic evidence, semantic facts and trusted policy/configuration are separate state/authority domains.
 - Persistent memory is not verified truth merely because it is durable, Git-tracked or graph-linked.
@@ -308,6 +334,9 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Approval modes, safety classifiers and command policies are not substitutes for OS/process/filesystem/network isolation.
 
 ### State, recovery, durability and effects
+- Partial streaming output and invocation-local temporary state are not durable continuation evidence.
+- At-least-once workflow/tool resumability requires effect idempotency or reconciliation; replayable state is not exactly-once effect settlement.
+- Concurrency-sensitive shared state needs atomic/CAS semantics rather than generic last-writer dictionary replacement.
 - Logical request/idempotency, run/attempt, process, protocol request, remote task handle and durable session identities remain separate.
 - Transport/session/stream continuity is not authoritative project/task/effect state.
 - Resume/load operations resolve and validate existing authoritative state before creating/mutating state in the same namespace.
@@ -333,6 +362,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Embedding model/dimension/profile is durable memory schema; changing it requires validation/migration rather than silent replacement.
 
 ### Cancellation, timeouts and retry
+- Automatic remote retry is safest only while the host can prove no effect-bearing call may yet have crossed the boundary.
 - Every blocking plane needs an explicit timeout/cancellation owner: provider request/stream, prompt/prefill/generation, tool process, remote runtime/task and whole run.
 - Progress/heartbeats may control idle timeout but never remove hard maximum deadlines.
 - Cancellation acknowledgment is not process termination or effect settlement.
@@ -345,6 +375,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Resource schedulers need explicit transition states plus bounded waits; an alive service/already-loaded model is not proof a cold-load path is healthy.
 
 ### Model/runtime capability and protocol compatibility
+- Provider/model-name heuristics and adapter rewrites are behavior-bearing deployment state and require exact-profile regression fixtures.
 - Local-model capability is an exact model + runtime + adapter + protocol/tool schema/namespace + configuration property.
 - For llama.cpp-class deployments, include build/backend/driver, GGUF/quantization, template/parser/constraint backend, context/KV/cache and optimization/sampling settings.
 - For Goose-like deployments, also record exact Goose/GDK/provider revision, local backend path and extension/tool mode such as direct MCP versus Code Mode.
@@ -376,6 +407,8 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Loopback binding/CORS/Host-header checks and service authentication are separate controls; exposing a local inference or memory API beyond loopback requires explicit outer network/auth policy.
 
 ### Verification, evaluation and evidence
+- Response quality and tool trajectory are separate evaluation dimensions; repeated frozen-profile trials are preferable to one stochastic pass.
+- Runtime/session traces do not by themselves prove the authenticated principal, policy decision, approval or settlement behind an effect.
 - The system under test does not own the authoritative definition of pass/fail.
 - Deterministic host/verifier evidence precedes semantic model grading when machine-observable.
 - Deterministic harness/integration correctness and stochastic model behavioral reliability are separate scores.
@@ -414,4 +447,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 21 is complete once `projects/microsoft-agent-framework.md`, catalog, state and watchlist are committed. The next task is **Google ADK deep research only**. Do not begin it until separately instructed, and when it is begun, stop before LiteLLM.
+Task 22 is complete once `projects/google-adk.md`, catalog, state and watchlist are committed. The next task is **LiteLLM deep research only**. Do not begin it until separately instructed, and when it is begun, stop before vLLM.
