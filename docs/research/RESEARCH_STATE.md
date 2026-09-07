@@ -2,7 +2,7 @@
 
 **Branch:** `research/agent-landscape`
 **Status:** current task complete; stopped before next task
-**Current phase:** 17 — Ollama deep research complete
+**Current phase:** 18 — Letta Code deep research complete
 **Execution:** research only; no worker/model execution authorized by this branch
 
 ## Completed campaign checkpoints
@@ -20,88 +20,89 @@
 - Task 15: **Model Context Protocol** — `projects/model-context-protocol.md`.
 - Task 16: **Goose** — `projects/goose.md`.
 - Task 17: **Ollama** — `projects/ollama.md`.
+- Task 18: **Letta Code** — `projects/letta-code.md`.
 
-## Task 17 work completed
+## Task 18 work completed
 - Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `sources.md`, and `watchlist.md` before research.
-- Began from finalized Task 16 checkpoint `f523d8ec1a4a33bc59eee6827f7bb16e6649038b`.
-- Verified canonical project identity `ollama/ollama`, active/non-archived, MIT licensed.
-- Inspected current upstream revision `83ed7d9965b1ee07e0f0b29fd46e47c31f0fcab8` dated 2026-09-05.
-- Verified latest release observed was `v0.33.3`, published 2026-09-02 with refreshed assets on 2026-09-03.
-- Verified release artifacts publish SHA-256 digests and include platform/engine-specific packages such as ROCm/MLX variants.
-- Verified current Ollama pins llama.cpp via `LLAMA_CPP_VERSION=b10760` and applies Ollama compatibility patches from `llama/compat/` before build.
-- Recorded that Ollama's pinned/patched llama.cpp must be treated as behaviorally distinct from a direct pristine llama.cpp deployment unless identical ACL fixtures prove equivalence.
-- Verified separate MLX runner identity with pinned `MLX_VERSION=37c26e5755da637255d57ea34b4879196a485301` and materially different implemented surfaces from llama-server.
-- Verified current MLX runner lacks the inspected native llama-server Chat/template/embedding/device-info methods and uses its own structural-output representation.
-- Verified llama-server and MLX runner launch as loopback subprocesses under Ollama process control and inherit the parent service environment before runtime-specific adjustments.
-- Preserved stronger ACL operational rule: run Ollama itself with a deliberate service environment and keep worker/tool-process secret projection separately least-privilege.
-- Verified model packaging is content-addressed with SHA-256 layer digests and pull/download digest verification.
-- Verified Modelfile behavior-bearing fields include `FROM`, `PARAMETER`, `TEMPLATE`, `SYSTEM`, `ADAPTER`, `LICENSE`, `MESSAGE` and `REQUIRES`.
-- Derived benchmark artifact identity as manifest/layer/model digest plus Modelfile/template/system/parameter/adapter state; mutable tags remain aliases.
-- Verified current context default is VRAM-tiered: roughly 4K below 24 GiB, 32K from 24–48 GiB and 256K at/above 48 GiB.
-- Verified current Ollama documentation recommends at least 64K for agent/coding/web-search workloads, so automatic default is not an adequate coding-agent benchmark policy.
-- Verified effective `num_ctx` precedence from current tests/source: request > model/Modelfile > `OLLAMA_CONTEXT_LENGTH` > VRAM-tier default, bounded by model context.
-- Derived required ACL benchmark evidence: record both requested and realized context, and treat unintended fallback as non-comparable.
-- Verified underlying runner has prompt truncation/context-shift behavior; unexpected runtime truncation must be distinguished from harness compaction/model forgetting.
-- Verified behavior-bearing KV/runtime controls include flash attention, KV cache type, GPU overhead, llama fit target, request parallelism, max loaded models, queue size, keep-alive and scheduling spread.
-- Recorded KV/cache/fit/parallel settings as deployment-profile fields rather than performance-only notes.
-- Deep-researched current scheduler: bounded request queue, runner reuse/refcounts, memory refresh/fit estimation, eviction, keep-alive, configurable loaded-model/parallel limits and finite one-shot load-OOM retry.
-- Verified some current model families are forced to single parallel slot because parallel request behavior is not universally safe.
-- Recorded open scheduler issue #17408 as current high-value concurrency evidence: eviction state can be overwritten by concurrent runner reuse, leaving a cold-load scheduler path waiting indefinitely while loaded models continue responding.
-- Verified proposed explicit-expiring fix PR #17416 remained open/unmerged during Task 17; related PR #17515 was closed unmerged.
-- Derived scheduler invariants: explicit lifecycle states, hard deadlines on unload/load waits and health checks that exercise cold-load/scheduling ability rather than only HTTP/already-loaded inference.
-- Recorded open #17099 as release-sensitive memory-estimation/offload evidence: a small runtime change moved a documented model from full GPU to partial CPU and produced a large throughput cliff; maintainer acknowledged the regression/workaround.
-- Derived benchmark invariant that realized GPU/CPU offload belongs in evidence and a changed placement is a different deployment profile.
-- Deep-researched current hardware/backend guidance for CUDA, ROCm/HIP, Metal and Vulkan plus visible-device controls.
-- Recorded that scheduler quality depends on free-VRAM observability; nominal GPU detection is weaker evidence than stable device identity plus realized memory telemetry.
-- Verified native Ollama API and OpenAI-compatible API are distinct surfaces; upstream explicitly describes compatibility with parts of the OpenAI API rather than universal feature parity.
-- Verified current Ollama can use cloud/remote behavior and exposes `OLLAMA_NO_CLOUD` plus remote-host policy, so `runtime=ollama` does not imply local/offline inference.
-- Derived strict offline benchmark profile: explicitly disable cloud/remote inference, verify realized local execution and keep local/cloud results separate.
-- Deep-researched capability discovery in `server/images.go`: tool/thinking/vision/completion capability is assembled from config, metadata, templates, parser/renderer and family rules; tool discovery can include template-string heuristics.
-- Derived explicit distinction `DiscoveredCapability != VerifiedDeploymentCapability`.
-- Verified current native tool-schema types preserve only a subset of JSON Schema.
-- Recorded open #17142: constraints such as minimum/maximum/default/pattern/length/const are silently dropped because current tool structs do not retain them; current-main structs still substantiate the issue's core claim.
-- Recorded open #17597: surviving `enum` can reach the model yet is not enforced in tool-call decoding, while the same constraint can be enforced under structured-output `response_format`.
-- Derived mandatory ACL invariant: preserve the authoritative full tool schema outside Ollama and host-validate every generated call before policy/approval/effect dispatch.
-- Verified structured output uses a different constrained-generation path from ordinary tool argument presentation.
-- Recorded open #17957 as composition evidence: a documented model can support tools and response schema separately yet fail with a grammar-initialization error when both are combined.
-- Derived capability-matrix requirement: verify required feature combinations, not independent booleans only.
-- Rechecked #17444 and intentionally **did not** classify it as a universal Ollama tool regression; follow-up raw-response evidence supports treating it as client/harness integration-scoped behavior.
-- Derived requirement to version the consuming harness/client/parser along with Ollama/model capability state.
-- Verified local service default bind is loopback `127.0.0.1:11434` and current route construction applies CORS/allowed-host policy but no general authentication middleware over ordinary local inference/model-management routes.
-- Derived network rule: loopback is part of Ollama's default trust boundary; LAN/external binding requires an explicit outer authentication/firewall/TLS policy appropriate to the deployment. CORS is not authorization.
-- Verified `OLLAMA_NO_CLOUD` disables remote inference/web-search cloud features and `OLLAMA_REMOTES` constrains allowed remote-model hosts.
-- Verified `OLLAMA_DEBUG_LOG_REQUESTS` can save exact inference request bodies and replay commands with restrictive file permissions; classified those captures as sensitive reproducibility evidence.
-- Verified response/runtime observability includes load/prompt/cache/generation token-duration metrics and running-model context/VRAM/expiry information.
-- Preserved independent-evidence rule: Ollama metrics supplement, but do not replace, host performance telemetry and verifier-owned task success evidence.
-- Deep-researched upstream integration-suite structure and realistic `tools_stress_test.go` with large coding-agent prompt/tool catalogs, cache reuse and multi-turn tool-result continuation.
-- Derived ACL fixture pattern: realistic coding-agent stress, prompt-cache reuse, continuation and realized GPU-load preconditions rather than toy-only tool tests.
-- Wrote detailed evidence, candidate invariants, regression fixtures, source inventory and explicit non-conclusions to `projects/ollama.md`.
-- Preserved task boundary: no Letta Code research, cross-project winner selection, benchmark execution, architecture redesign or worker/model execution was begun.
+- Began from finalized Task 17 checkpoint `5366e7bd0b2402b3338679bd7c9fc2bb5556fe17`.
+- Verified canonical project identity `letta-ai/letta-code`, active/non-archived, Apache-2.0 licensed.
+- Inspected current upstream revision `701f2a5367828847313876c735ade27b9df97689` dated 2026-09-06.
+- Verified package/release boundary `0.31.12` / `v0.31.12`.
+- Verified Letta's central identity split: persistent `agent_id`, multiple `conversation_id` threads, and live runtime/App Server connections are separate state domains.
+- Recorded that multiple conversations of one agent share long-term agent memory; conversation isolation is therefore not memory isolation.
+- Deep-researched local MemFS: one agent owns a persistent Git-backed memory filesystem; `system/` memory can enter future system prompts while other files remain out of context until read.
+- Verified recall/full message history remains separate from the persistent memory filesystem.
+- Verified current memory prompt explicitly warns not to store secrets in Git-backed memory.
+- Verified versioned memory constraints with bounded file/depth defaults.
+- Recorded personal-agent memory and shared/organization memory as distinct ownership/authority domains rather than one undifferentiated store.
+- Derived a core Vera rule: persistent memory mutation is not verified truth; Git commit history provides mutation provenance but not epistemic provenance or authority.
+- Recorded that durable memory needs source/evidence identity, trust/confidence/verification/conflict semantics for high-value facts rather than recency alone.
+- Deep-researched dreaming/reflection: background memory workers operate in Git worktrees and current integration exposes `merged`, `no_changes`, `parent_dirty`, `merge_conflict`, `dirty_uncommitted`, and `failed` outcomes.
+- Verified successful reflection generation/commit is distinct from successful parent-memory integration; transcript consumption is tied to settlement states rather than model output alone.
+- Recorded open #4029 as prompt/evaluation-scoped epistemic evidence: conflict resolution can lack restraint when newer evidence should not automatically supersede stronger older evidence.
+- Derived stronger Vera contradiction rules for safety/security/identity-critical memories.
+- Distinguished memory from skills and trusted executable mods/configuration; current mods can register tools/providers/events/permission overlays/UI and are therefore trusted code rather than ordinary learned memory.
+- Derived `LearnedMemory != TrustedCode != SecurityPolicy`; memory workers must not silently expand authority or deploy trusted code.
+- Deep-researched memory confinement and found two materially different realized-sandbox behaviors.
+- Verified exported memory-confinement API fails closed when its required kernel sandbox cannot be realized.
+- Verified ordinary internal `memory-subagent` sandbox path can warn and proceed unsandboxed if disabled/unavailable/no writable root is available.
+- Derived `ConfiguredSandbox != RealizedSandbox` and retained ACL's fail-closed requirement for unattended production memory workers requiring isolation.
+- Verified cross-agent memory guards are useful namespace authority but do not replace process/filesystem/network/credential isolation.
+- Deep-researched context/compaction/recall: full history remains separately recoverable while active context can be summarized; compaction summary is context optimization, not canonical evidence.
+- Deep-researched local message projection and fork handling, including preserved tool-call/result parent relationships and cleanup of orphan projected results.
+- Recorded open #4247 as current-main transcript-projection evidence: reasoning chunks are joined with `\n\n`, which can corrupt word continuity and therefore contaminate downstream reflection input.
+- Derived explicit representation boundaries: raw provider evidence, canonical semantic message, stored projection, UI, and reflection input need separate correctness tests.
+- Recorded open #3132 as current configuration-propagation fixture: local new-conversation context can fall through a `128000` legacy fallback; current backend still contains the representation/fallback seam, though Task 18 did not rerun every current UI path.
+- Verified local/provider support includes Ollama, LM Studio, llama.cpp/OpenAI-compatible and cloud paths; exact Letta/provider/model/runtime/context/tool configuration remains the capability identity.
+- Deep-researched permission/tool boundaries: model-facing tool availability, approval mode, deterministic allow/deny rules, and actual process capability are separate controls.
+- Deep-researched secret substitution: model-facing references/names are preferable to prompt plaintext and execution results are scrubbed, but runtime plaintext exposure remains real authority.
+- Verified Letta MemFS warns not to persist secrets and retained Vera's stronger credential-broker/reference model.
+- Deep-researched subagents: headless child processes receive filtered tool surfaces and side-effect-aware bounded retry behavior.
+- Recorded the strong retry rule that clearly truncated output may be retried but ambiguous parse/stream failure after possible effects is not automatically replayed.
+- Verified child subagent environment currently begins from the parent process environment and forwards Letta credentials/settings; retained ACL's stronger minimal-explicit-environment rule.
+- Verified child cancellation uses process signaling but does not prove process-tree or external-effect settlement.
+- Recorded open #3523 as issue-scoped retention evidence for supposedly stateless subagent records persisting after work ends; no universal current leak claim was made.
+- Deep-researched App Server Protocol V2: runtime scope carries agent/conversation identity plus request/event/idempotency metadata useful for reconnect and approval correlation.
+- Preserved boundary that runtime request/event/idempotency keys are not ACL external-effect IDs or exactly-once settlement evidence.
+- Deep-researched `@letta-ai/trajectory` ingestion for normalized historical coding-agent sessions and memory analysis.
+- Derived that imported trajectories remain provenance-labeled lower-trust data and must not automatically become privileged memory/policy.
+- Recorded open #4195 as a current-main destructive restore failure: active memory can be deleted before replacement backup copy succeeds; inspected source still retains the relevant delete-before-copy ordering.
+- Derived transactional restore invariant: stage and verify replacement before switching/destroying authoritative current state.
+- Recorded open #4249 as current Windows reflection-integration evidence where a reflection commit can exist while parent memory refresh fails; preserved the issue as settlement evidence without asserting an unresolved universal root cause.
+- Classified Letta memory failures separately as epistemic, projection, integration, restore, retention, and runtime-configuration failures rather than generic model-memory failure.
+- Wrote detailed evidence, 40 candidate ACL/Vera invariants, regression fixtures, primary sources and explicit non-conclusions to `projects/letta-code.md`.
+- Preserved task boundary: no Gemini CLI research, cross-project winner selection, benchmark execution, architecture/governance redesign, or worker/model execution was begun.
 
-## Highest-value Ollama findings for later comparison
-1. Ollama is a behavior-bearing runtime layer above the model; exact Ollama/engine/artifact/config/harness identity matters.
-2. Current Ollama uses a pinned **and compatibility-patched** llama.cpp, not pristine upstream source.
-3. MLX is a separate engine profile with different implemented capabilities.
-4. Immutable manifest/layer/model/template identity is stronger benchmark evidence than a mutable model tag.
-5. Current automatic context can be only 4K below 24 GiB VRAM; agent/coding guidance recommends at least 64K.
-6. Benchmark context must be explicit and realized context must be observed, not inferred.
-7. Runtime truncation/context shifting is separate from harness compaction and model memory failure.
-8. KV type, flash attention, parallelism and memory-fit/offload settings are deployment identity fields.
-9. Realized full-GPU versus CPU-offloaded execution is a distinct benchmark profile.
-10. Scheduler resource transitions require explicit states and hard deadlines; #17408 is a concrete deadlock fixture.
-11. Runtime health should prove cold-load/scheduler functionality, not only HTTP or already-loaded inference.
-12. Capability metadata/template heuristics are discovery inputs, not verified end-to-end capability.
-13. Native Ollama tool schema currently loses parts of JSON Schema; original ACL schemas must remain authoritative.
-14. Generated tool arguments require host-side validation even when a schema was supplied to Ollama.
-15. Structured-output constraints and ordinary tool-call schemas are different paths with different guarantees.
-16. Capability combinations such as tools + structured output need direct tests.
-17. Native Ollama, OpenAI-compatible adapter and consuming harness/client are separately versioned capability surfaces.
-18. `Ollama` no longer automatically means local/offline; cloud/remote mode must be explicit and policy-controlled.
-19. Loopback is part of the default service trust boundary; remote binding needs an outer auth/network boundary.
-20. Request-replay logs are valuable but sensitive evidence.
-21. Upstream coding-agent-like stress tests provide useful fixture patterns, but ACL still needs independent validators.
-22. Runtime/adapter/schema/compiler/scheduler/hardware/harness failures should be classified separately from model failures.
-23. Ollama is a candidate inference service, not ACL's scheduler, worker sandbox, effect ledger, checkpoint manager, credential broker or verifier.
+## Highest-value Letta Code findings for later comparison
+1. Persistent assistant identity, conversation thread, runtime connection, task/run and effect identity should be separate domains.
+2. Letta's agent-owned Git-backed MemFS is the strongest distinct persistent-memory architecture reference found so far in this campaign.
+3. Recall/history and curated persistent memory should remain separate.
+4. Personal identity memory and shared/project memory require distinct ownership/authorization semantics.
+5. Git history is strong mutation provenance but does not establish truth, confidence, authority or source quality.
+6. Memory needs provenance/evidence/trust/conflict semantics before Vera can rely on it for high-authority decisions.
+7. Newer evidence is not automatically stronger evidence; #4029 is a concrete epistemic-restraint fixture.
+8. Reflection worktrees provide strong explicit settlement states for background memory integration.
+9. Reflection commit and authoritative parent-memory integration are separate states.
+10. Memory, skills, trusted executable mods/configuration and security policy must remain separate trust classes.
+11. Learning must not silently deploy trusted code or expand authority.
+12. Configured memory sandboxing and realized sandboxing are different evidence; internal memory-subagent launch can degrade to unsandboxed execution.
+13. Cross-agent memory guards do not replace process/network/filesystem/credential isolation.
+14. Compaction summary is context optimization, not canonical historical evidence.
+15. Transcript projection correctness is memory integrity because reflection may learn from persisted projections.
+16. #4247 provides a current transcript-projection regression fixture at the inspected revision.
+17. Exact provider/model/runtime/context/tool configuration remains a verified deployment profile; nominal Letta/local support is insufficient.
+18. #3132 provides a context-setting propagation fixture; realized context must be observed.
+19. Tool visibility, approval policy, validation and process authority remain separate.
+20. Secret references/substitution are useful, but runtime plaintext remains authority exposure.
+21. Letta subagent retry logic provides a strong pattern: ambiguous outcome after possible effects is not automatically replayed.
+22. Letta subagents inherit ambient parent environment; ACL should not copy that behavior.
+23. Process cancellation signal is not process-tree/effect settlement.
+24. App Server runtime/request/idempotency identity is useful for Vera clients but is not an exactly-once effect ledger.
+25. Imported trajectories are useful learning evidence but remain lower-trust data with source provenance.
+26. #4195 is a current transactional-restore failure fixture: never delete authoritative state before replacement is staged/verified.
+27. #4249 shows background reflection commit can exist while authoritative parent-memory integration remains unsettled.
+28. Memory failure categories should distinguish epistemic, projection, integration, restore, retention and runtime-configuration faults.
+29. Letta Code is a strong memory/runtime component reference, not ACL/Vera's scheduler, verifier, effect ledger, credential broker or complete sandbox.
 
 ## Queue status
 - **Pydantic AI (#1): complete.**
@@ -116,18 +117,19 @@
 - **OpenAI Agents SDK (#10): complete.**
 - **Model Context Protocol (#11): complete.**
 - **Goose (#12): complete.**
-- **Ollama (#13): complete.** Detailed evidence: `projects/ollama.md`.
-- **Letta Code (#14): next task only.** No Letta Code deep research was begun in Task 17.
+- **Ollama (#13): complete.**
+- **Letta Code (#14): complete.** Detailed evidence: `projects/letta-code.md`.
+- **Gemini CLI (#15): next task only.** No Gemini CLI research was begun in Task 18.
 - Remaining ranked queue stays unchanged until separately authorized.
 
 ## Next task
 
-Deep-research **Letta Code** only.
+Deep-research **Gemini CLI** only.
 
-Do not begin until separately instructed. When begun, inspect the canonical `letta-ai/letta-code` project and directly relevant upstream lineage only as needed to understand current identity. Focus on its stateful-agent/memory architecture, conversation/project/runtime boundaries, persistence and memory provenance, context management, local/provider compatibility, tools/permissions/execution boundaries, lifecycle/recovery, evaluation/observability, current failure surfaces and reusable ACL/Vera mechanisms. Save report/catalog/state/watchlist, make a research-only commit, and **stop before Gemini CLI**.
+Do not begin until separately instructed. When begun, inspect canonical current upstream and focus on ACL/Vera-relevant tool/execution authority, sandbox/permissions, provider/runtime behavior, context/state/recovery, local-model or adapter boundaries where present, extensibility/protocol surfaces, observability/evaluation, current failure evidence, and reusable mechanisms. Save report/catalog/state/watchlist, make a research-only commit, and stop before Graphiti.
 
 ## Later tasks
-1. Letta Code, then the remaining ranked active-project queue one task at a time.
+1. Gemini CLI, then the remaining ranked active-project queue one task at a time.
 2. Deep-research high-value developers/accounts one at a time.
 3. Compare reusable components versus custom-build candidates.
 4. Analyze collaboration/open-source options.
@@ -137,4 +139,4 @@ Do not begin until separately instructed. When begun, inspect the canonical `let
 
 ## Stop point
 
-Task 17 ended after current Ollama engine identity, model packaging, context/KV/resource scheduling, hardware backends, API/local-cloud boundaries, tool/structured-output semantics, process/network lifecycle, reproducibility/evaluation and current failure surfaces were researched. No Letta Code/Gemini CLI research, cross-project winner selection, dependency decision, benchmark execution, ACL/Vera architecture/governance change or worker/model execution was begun.
+Task 18 ended after Letta Code's persistent identity/memory architecture, MemFS/Git/reflection settlement, epistemic memory risk, confinement/sandbox realization, context/transcript projection, provider/local-model boundary, permissions/secrets/mods, subagent retry/environment/cancellation/retention, App Server protocol, trajectory ingestion and current recovery failures were researched. No Gemini CLI/Graphiti research, cross-project winner selection, dependency decision, benchmark execution, ACL/Vera architecture/governance change or worker/model execution was begun.
