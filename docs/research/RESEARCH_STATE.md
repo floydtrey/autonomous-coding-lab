@@ -5,6 +5,11 @@
 **Current phase:** 25 — OpenCode deep research complete
 **Execution:** research only; no worker/model execution authorized by this branch
 
+## Catalog layout
+- `docs/research/catalog.jsonl` remains the original catalog through Task 24 with 257 records and is intentionally left unchanged.
+- `docs/research/catalog-part2.jsonl` begins with Task 25 OpenCode records and is the append target for subsequent research tasks unless the catalogs are deliberately consolidated later.
+- Treat both files together as the research catalog; do not rebuild or rewrite Part 1 merely to add new records.
+
 ## Completed campaign checkpoints
 - Tasks 1–4: recurring sources, active projects/people, ranked research priority, and failed/abandoned/heavily redesigned attempts.
 - Task 5: **Pydantic AI / official Harness** — `projects/pydantic-ai.md`.
@@ -46,7 +51,7 @@
 - Preserved durable session/event state as evidence rather than an ACL continuation checkpoint; workspace, processes, effects, current authority and verifier state still require outer validation.
 - Separated runtime/session telemetry from verifier-owned acceptance evidence and classified current defects as harness lifecycle failures rather than model failures.
 - Wrote detailed findings, candidate invariants, regression fixtures, reuse candidates, sources and explicit non-conclusions to `projects/opencode.md`.
-- Prepared Task 25 catalog records to append after the 257 Task 24 records.
+- Wrote the Task 25 OpenCode catalog records to new `catalog-part2.jsonl`, leaving the original 257-record `catalog.jsonl` untouched.
 - No Mem0 research, benchmark execution, OpenCode adoption/fork, model assignment or ACL/Vera implementation/governance change was begun.
 
 ## Highest-value OpenCode findings for later comparison
