@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–29 completed one-project-at-a-time deep research through **LlamaIndex**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–30 completed one-project-at-a-time deep research through **CrewAI**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -30,6 +30,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/smolagents.md`
 - `projects/agno.md`
 - `projects/llamaindex.md`
+- `projects/crewai.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -392,6 +393,33 @@ High-value findings retained for later comparison:
 
 See `projects/llamaindex.md` for detailed findings, 36 candidate invariants, 18 regression fixtures, reuse candidates, primary sources and explicit non-conclusions.
 
+## Task 30 — CrewAI research result
+
+**Status:** current CrewAI deep research complete; no framework/harness/provider/memory/protocol adoption decision made.
+
+High-value findings retained for later comparison:
+- Latest stable observed **1.15.20** and current main `1b855b4ff97d3fc8bf6dc0981fed5f0999a7cd81` require exact revision identity alongside pinned core/CLI/tools components.
+- Agent, Crew/Process and Flow are distinct runtime/orchestration profiles; sequential versus hierarchical manager topology is behavior-bearing harness identity.
+- Flow explicitly distinguishes same-ID **resume** from `restore_from_state_id` **fork**, a useful continuation/branch pattern.
+- Current pre-tool hooks are a strong deterministic effect-mediation seam: host code can mutate arguments in place and fail closed before execution; after-hooks can transform model-visible results while preserving raw result evidence.
+- Hook registries and output guardrails are not durable authorization, tenancy, sandboxing or effect-settlement authority.
+- Open **#5802** is a critical retry fixture: an external effect can succeed and then be executed again after task retry because no durable logical effect/idempotency guard exists.
+- Closed **#6706** plus current main source preserve a checkpoint-schema fixture: dict restore still clears current state before applying an old snapshot, which can erase defaults introduced by newer code.
+- Closed **#4168** demonstrates that per-task evidence reconstructed from shared aggregate agent counters can be wrong under concurrent threaded work even when aggregate totals remain correct.
+- Open **#6439** preserves separate callback/config integration failure classes; observational callbacks, async loop ownership and immutable caller configuration need explicit contracts.
+- Unified Memory now combines LLM-driven scope/category/importance analysis, semantic/recency/importance scoring, consolidation, pluggable storage and background writes.
+- Memory `drain_writes()`/`close()` is a strong lifecycle reference: save submission and durable persistence are separate states.
+- Current source explicitly allows background memory-save failure to be reported without failing the task/crew/flow that produced the memory; continuation-critical memory therefore needs an outer required/degraded policy.
+- Open **#5057** is corroborated by current LiteAgent source: recalled memory content is appended to a system message, so persisted lower-trust content can be elevated in prompt position. Retrieved memory remains untrusted data.
+- LLM-inferred memory scope, importance and consolidation are ranking/maintenance proposals, not authenticated principal identity or verified truth.
+- Current docs deprecate built-in code-execution flags and recommend dedicated sandbox services, reinforcing that generated-code capability and containment are separate.
+- Direct Ollama/local-model support is real but remains exact adapter + runtime + model + tool/function-calling + context/summarization profile qualification.
+- MCP connection and A2A delegation events provide useful transport/lifecycle evidence; protocol server/context/turn/status handles remain distinct from ACL task/effect identity and local verifier acceptance.
+- CrewAI observability/evaluation is useful operational evidence but does not replace independent ACL acceptance or effect settlement.
+- CrewAI remains below ACL-owned task/effect identity, durable idempotency/reconciliation, containment, credentials, writer fencing, checkpoint compatibility and independent verification; Vera retains epistemic memory authority.
+
+See `projects/crewai.md` for detailed findings, 40 candidate invariants, 18 regression fixtures, reuse candidates, primary sources and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -696,4 +724,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 29 is complete once `projects/llamaindex.md`, `catalog-part2.jsonl`, state and watchlist are committed. The next task is **CrewAI deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Mastra.
+Task 30 is complete once `projects/crewai.md`, `catalog-part2.jsonl`, state and watchlist are committed. The next task is **Mastra deep research only**. Do not begin it until separately instructed.
