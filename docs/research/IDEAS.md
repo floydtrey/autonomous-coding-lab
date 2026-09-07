@@ -121,3 +121,67 @@ Do **not** begin with embeddings, a vector database, or an LLM-powered classifie
 ### Existing asset to leverage
 
 `catalog.jsonl` already contains structured IDs, categories, projects, findings, relevance, possible reuse, warnings, sources, and confidence. Evolve this rather than creating an independent duplicate knowledge database. A future schema may add fields such as `topics`, `report`, and `section_id`, with generated indexes derived from the catalog/report metadata.
+
+## Deterministic completion, recovery, and escalation gates for autonomous workers
+
+**Status:** architecture idea derived from repeated research-task finalization friction; preserve for Worker Lab/controller design and benchmark testing.
+
+### Problem observed
+
+An AI worker can correctly recognize that an operation is risky or uncertain, then stop even though the problem is mechanically recoverable and no user decision is required. In the research campaign this appeared when substantive research was finished but clean Git finalization became awkward: the model became conservative around branch mutation and returned control before satisfying the repository's objective completion gates.
+
+Conservatism around irreversible actions is desirable. Premature escalation is not.
+
+### Design rule
+
+The worker model should not own the definition of task completion. The harness/controller should determine completion from explicit machine-checkable invariants.
+
+Example research-task completion state:
+
+```text
+RESEARCH_COMPLETE=true
+EXPECTED_PATHS_VERIFIED=true
+CATALOG_APPEND_ONLY=true
+COMMIT_PARENT_VERIFIED=true
+CANDIDATE_DIFF_VERIFIED=true
+BRANCH_PROMOTED=true
+NEXT_TASK_NOT_STARTED=true
+```
+
+If `RESEARCH_COMPLETE=true` but `BRANCH_PROMOTED=false`, the task is still incomplete regardless of whether the worker says it is done.
+
+### Recovery behavior
+
+Risk or uncertainty should normally select a safer execution path rather than terminate the task:
+
+`direct mutation feels unsafe -> build detached candidate -> verify invariants -> repair failed gate -> promote atomically`
+
+Recoverable tool/API failures should remain inside the worker/harness recovery loop. Retry, inspect authoritative state, change strategy, or use another permitted primitive before escalating.
+
+### Escalation classes
+
+Future ACL should distinguish at least:
+
+- `RECOVERABLE_FAILURE` — keep working automatically;
+- `UNSAFE_TO_COMMIT` — preserve current authoritative state, repair/verify candidate, keep working;
+- `BLOCKED_TOOL` — requested operation cannot currently be performed with available tools;
+- `BLOCKED_NEEDS_USER` — an actual user decision, credential, authorization, destructive-choice approval, or unknowable fact is required;
+- `COMPLETE` — all external deterministic completion gates passed.
+
+Only genuine `BLOCKED_NEEDS_USER` conditions should routinely return a recoverable task to the user.
+
+### Irreversible-operation preconditions
+
+Before branch promotion, deployment, destructive filesystem action, external API effect, or similar authority-bearing operation, the harness should verify preconditions independently of model prose. For Git research work this includes expected parent SHA, exact allowed paths, append-only catalog behavior, clean candidate tree, current branch head, and next-task boundary.
+
+### Scratch-state rule
+
+Temporary commits, branches, files, generated candidates, and retry artifacts should be disposable. Promotion should copy only verified final blobs/state into authoritative history. Scratch history must not become authoritative merely because it was convenient to generate.
+
+### Worker/controller lesson
+
+LLMs can be useful at detecting uncertainty and adapting strategy, but deterministic systems should decide whether uncertainty warrants stopping. The controller should effectively be able to say:
+
+`Do not perform the unsafe mutation yet. Build a safer candidate, run the gates, repair failures, and continue until COMPLETE or a genuine blocker exists.`
+
+This principle should become an explicit Worker Lab benchmark fixture: introduce recoverable tool friction near the end of a task and test whether the worker/controller completes through a safe alternate path instead of prematurely escalating.
