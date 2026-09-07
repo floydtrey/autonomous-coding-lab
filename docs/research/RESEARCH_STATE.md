@@ -2,12 +2,12 @@
 
 **Branch:** `research/agent-landscape`
 **Status:** current task complete; stopped before next task
-**Current phase:** 29 — LlamaIndex deep research complete
+**Current phase:** 30 — CrewAI deep research complete
 **Execution:** research only; no worker/model execution authorized by this branch
 
 ## Catalog layout
 - `docs/research/catalog.jsonl` remains the original catalog through Task 24 with 257 records and is intentionally left unchanged.
-- `docs/research/catalog-part2.jsonl` begins with Task 25 OpenCode records and now contains Task 26 Mem0, Task 27 smolagents, Task 28 Agno and Task 29 LlamaIndex records; it remains the append target for subsequent research tasks unless deliberately consolidated later.
+- `docs/research/catalog-part2.jsonl` begins with Task 25 OpenCode records and now contains Task 26 Mem0, Task 27 smolagents, Task 28 Agno, Task 29 LlamaIndex and Task 30 CrewAI records; it remains the append target for subsequent research tasks unless deliberately consolidated later.
 - Treat both files together as the research catalog; do not rebuild or rewrite Part 1 merely to add new records.
 
 ## Completed campaign checkpoints
@@ -37,6 +37,7 @@
 - Task 27: **smolagents** — `projects/smolagents.md`.
 - Task 28: **Agno** — `projects/agno.md`.
 - Task 29: **LlamaIndex** — `projects/llamaindex.md`.
+- Task 30: **CrewAI** — `projects/crewai.md`.
 
 ## Task 29 work completed
 - Began from finalized Task 28 branch head `e7c403311f28753c22f9945c59f2b33ef7004029` and verified no concurrent branch drift before writes.
@@ -89,17 +90,62 @@
 15. **Requested and effective context are separate.** The llama.cpp context metadata fix directly supports ACL's planned measured 32K qualification.
 16. **LlamaIndex remains below ACL-owned scheduling, task/effect identity, containment, credentials, writer fencing, reconciliation/checkpoint authority and independent verification; Vera retains epistemic memory authority.**
 
+## Task 30 work completed
+- Began from finalized Task 29 branch head `d21f23b971fe504e6c17ab808da61bbaff229520` and verified the branch had not drifted before Task 30 writes.
+- Re-read README, PROCESS, RESEARCH_STATE, sources and watchlist governance and kept Mastra out of scope.
+- Confirmed latest observed stable CrewAI release **1.15.20** and current main `1b855b4ff97d3fc8bf6dc0981fed5f0999a7cd81`; current component pins remain 1.15.20, so exact commit remains behavior-bearing identity.
+- Mapped Agent, Crew/Process and Flow as distinct orchestration layers; retained sequential versus hierarchical manager topology as benchmark identity.
+- Preserved Flow same-ID resume versus `restore_from_state_id` fork as separate continuation transitions.
+- Mapped current pre/post tool hook system and retained it as a strong deterministic effect-mediation seam: host code can mutate arguments before execution, block with `False`/`HookAborted`, and redact/transform model-visible output after execution while raw result remains separately available.
+- Preserved hook/process registry state as non-durable policy machinery rather than authenticated principal, approval, sandbox or effect-settlement authority.
+- Retained open **#5802** as the primary effect-retry fixture: an external effect can succeed, later task handling can fail, and retry can execute the same payment/email/trade-style tool again without a durable idempotency guard.
+- Derived stable pre-effect logical IDs, durable claims/idempotency and reconciliation-before-replay requirements.
+- Retained closed **#6706** plus current main source as a checkpoint-schema fixture: dict-state restore still clears current state before applying stored state, so older snapshots can erase defaults introduced by newer code.
+- Derived explicit checkpoint schema/code/harness revision and migration compatibility requirements.
+- Retained closed **#4168** as a concurrency/accounting fixture: threaded async tasks sharing one agent can misattribute sibling token usage when per-task deltas are reconstructed from shared aggregate counters.
+- Preserved invocation-local evidence capture rather than post-hoc subtraction from shared mutable totals.
+- Retained open **#6439** as a callback/config integration regression family while bounding it to the reported 1.15.2a2 paths unless separately reverified on 1.15.20.
+- Inspected current unified `Memory`: LLM-driven scope/category/importance analysis, composite semantic/recency/importance ranking, consolidation, pluggable storage, background single-worker save pool, pending-write tracking, `drain_writes()` and `close()`.
+- Preserved memory submission, persistence success/failure and run completion as separate lifecycle states; current source explicitly emits save-failure events without failing the originating task/crew/flow.
+- Retained open **#5057** and corroborated current LiteAgent source: recalled memory record content is appended to the system message, providing a persistent lower-trust-content-to-higher-authority prompt-injection fixture.
+- Preserved memory scope/importance/consolidation as advisory epistemic metadata rather than authenticated truth/authority.
+- Kept Knowledge/RAG, Memory, Flow operational state, run outputs and trusted policy/configuration as separate trust/state planes.
+- Verified current documentation deprecates built-in `allow_code_execution`/`code_execution_mode`, notes removal of `CodeInterpreterTool`, and recommends dedicated sandbox services such as E2B/Modal; retained open #6180 as production execution-boundary follow-up evidence.
+- Verified direct local Ollama example and preserved exact CrewAI adapter + runtime/model + function-calling model + context/summarization/tool profile as local capability identity.
+- Mapped current MCP connection and A2A delegation event surfaces; preserved MCP server/transport/tool request, A2A context/turn/status, Crew task and ACL external effect as separate identities.
+- Preserved A2A `completed`/`input_required`/`failed` as remote lifecycle evidence rather than local acceptance authority.
+- Reviewed CrewAI observability/evaluation surfaces as useful operational evidence while preserving verifier/effect settlement as ACL-owned.
+- Wrote detailed findings, 40 candidate invariants, 18 regression fixtures, reuse candidates, sources and explicit non-conclusions to `projects/crewai.md`.
+- Appended 14 Task 30 CrewAI records to `catalog-part2.jsonl`; original 257-record `catalog.jsonl` remains untouched.
+- No Mastra research, cross-project framework winner selection, CrewAI adoption, model/runtime assignment, 32K benchmark execution or ACL/Vera implementation/governance change was begun.
+
+## Highest-value CrewAI findings for later comparison
+1. **Crew, Flow and Agent are different runtime profiles.** Sequential/hierarchical manager topology is behavior-bearing harness identity.
+2. **Flow resume and fork are explicitly different.** This is useful reference material for continuation versus branch semantics.
+3. **Pre-tool hooks are a strong deterministic seam.** Arguments can be host-stamped and execution can fail closed before effects.
+4. **#5802 is a critical effect-idempotency fixture.** Retry must not imply authority to replay an uncertain external effect.
+5. **Checkpoint compatibility requires schema/version identity.** #6706 plus current source shows old dict snapshots can erase newer defaults.
+6. **Concurrent shared aggregates are not per-attempt evidence.** #4168 is a clean accounting race fixture.
+7. **Unified Memory has explicit asynchronous settlement.** `drain_writes()/close()` separate save submission from durability.
+8. **Run success can coexist with memory-save failure.** Continuation-critical persistence must therefore have ACL/Vera-owned required/degraded semantics.
+9. **#5057 is a persistent prompt-injection fixture.** Retrieved memory remains untrusted even when a framework places it in a system message.
+10. **Memory consolidation is not truth management.** LLM-inferred scope, importance and consolidation remain advisory.
+11. **Built-in code execution is being deprecated rather than treated as the security boundary.** Realized sandbox profile remains external deployment identity.
+12. **Local Ollama support is real but conditional.** Exact adapter/runtime/model/tool/context profile requires independent qualification.
+13. **MCP and A2A add lifecycle evidence, not authority.** Protocol handles/statuses remain separate from ACL task/effect IDs and verifier acceptance.
+14. **Observability is evidence, not pass/fail authority.**
+15. **CrewAI remains below ACL-owned task/effect identity, idempotency/reconciliation, containment, credentials, writer fencing, checkpoint compatibility and independent verification; Vera retains epistemic memory authority.**
+
 ## Queue status
-- Tasks 5–29 project deep research are complete through **LlamaIndex**.
-- **CrewAI (#26 in ranked active-project queue): next task only.** No CrewAI research was begun in Task 29.
-- **Mastra** remains after CrewAI.
+- Tasks 5–30 project deep research are complete through **CrewAI**.
+- **Mastra (#27 in ranked active-project queue): next task only.** No Mastra research was begun in Task 30.
 
 ## Next task
 
-Deep-research **CrewAI** only.
+Deep-research **Mastra** only.
 
-Do not begin until separately instructed. When begun, inspect canonical current upstream and focus on ACL/Vera-relevant agent/crew/flow architecture, model/provider/local-model support, tools/code execution, memory/knowledge, state/persistence, concurrency/writer ownership, retries/cancellation/timeouts, security/credentials/content trust, protocol integrations, observability/evaluation, current failures, reproducibility and reusable mechanisms. Save report/catalog-part2/state/watchlist, make a research-only checkpoint, and stop before Mastra.
+Do not begin until separately instructed. When begun, inspect canonical current upstream and focus on ACL/Vera-relevant agent/workflow architecture, model/provider/local-model support, tools/code execution, memory/RAG/state persistence, concurrency/writer ownership, retries/cancellation/timeouts, security/credentials/content trust, protocol integrations, observability/evaluation, current failures, reproducibility and reusable mechanisms. Save report/catalog-part2/state/watchlist, make a research-only checkpoint, and stop at the next campaign boundary.
 
 ## Stop point
 
-Task 29 ended after LlamaIndex's current package/runtime split, agents and multi-agent handoffs, Workflow Context/Memory separation, HITL/replay effects, cancellation settlement, tool/error/effect semantics, MCP workflow instance isolation, memory/session isolation, state projection freshness, CodeAct executor boundary, RAG/index derived-state lifecycle, local/provider integrations, protocol projections, observability/evaluation and current/recent 2026 failures were deeply researched. No CrewAI research, cross-project framework winner selection, 32K benchmark execution or ACL/Vera implementation/governance change was begun.
+Task 30 ended after CrewAI's current Agent/Crew/Process/Flow layering, Flow persistence/resume/fork semantics, retry/effect idempotency, concurrent shared-state accounting, pre/post tool hooks, code-execution/sandbox transition, unified Memory architecture and settlement, persistent prompt-injection risk, provider/local-model support, MCP/A2A surfaces, credentials/content trust, observability/evaluation and current/recent 2026 failures were deeply researched. No Mastra research, cross-project framework winner selection, 32K benchmark execution or ACL/Vera implementation/governance change was begun.
