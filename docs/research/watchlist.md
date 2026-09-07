@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–19 completed one-project-at-a-time deep research through **Gemini CLI**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–20 completed one-project-at-a-time deep research through **Graphiti**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -20,6 +20,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/ollama.md`
 - `projects/letta-code.md`
 - `projects/gemini-cli.md`
+- `projects/graphiti.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -106,34 +107,54 @@ See `projects/letta-code.md` for primary sources and explicit non-conclusions.
 
 **Status:** current Gemini CLI deep research complete; no dependency/adoption/model/runtime/sandbox decision made.
 
-High-value findings to carry into later comparison:
-- **Deterministic tiered policy:** current PolicyEngine resolves `ALLOW`, `DENY` and `ASK_USER` from protected rule layers using tool, MCP server, normalized arguments, annotations, subagent identity, approval mode and interactive/headless state. Unresolved headless calls deny and checker failures fail closed.
-- **Policy != sandbox:** approval/policy outcome, capability grant, realized sandbox and external-effect settlement are separate authority/evidence domains.
-- **Argument semantics matter:** open #29189 reproduces on stable `v0.58.0` that Windows can treat `git diff` as read-only while `--output` writes a file. Current main still classifies a safe-git subcommand set without full argument validation; proposed PR #29184 remained open during Task 19.
-- **Shell authorization cannot be name-only:** normalize flags, redirects, aliases/hooks/config and nested interpreters where they can alter effects.
-- **Incremental capability expansion is strong reference material:** sandbox tooling can request explicit filesystem/network permission expansion rather than globally disabling isolation.
-- **Realized sandbox evidence matters:** Linux Bubblewrap implementation includes protected governance paths, environment sanitization and ptrace restriction; configured mode alone is not proof those controls were realized on another platform/backend.
-- **Credential/control-plane separation remains necessary:** Gemini CLI sanitizes sensitive/runtime-altering environment values and MCP subprocess environments, but ACL workers should receive minimal explicit environments with provider/supervisor credentials kept outside worker authority.
-- **Provider boundary is cloud/Gemini oriented:** current first-class ContentGenerator routes are Gemini / Code Assist / Vertex / Gateway. Task 19 found no first-class Ollama, direct llama.cpp, vLLM or generic OpenAI-compatible local provider in that surface.
-- **Custom Gemini base URL is not generic local-provider parity:** a translation gateway would need its own exact capability qualification.
-- **MCP and extensions are executable trust surfaces:** extensions can add MCP servers, policy/checkers, context, commands, hooks, agents and skills.
-- **Configuration hash helps approval identity but not provenance:** extension consent exposes behavior-bearing config and SHA-256 identity, but that is not a publisher signature or proof executed artifacts match reviewed configuration.
-- **Subagent shaping is useful but default inheritance is too broad for ACL:** local subagents isolate registries/context/policy and prevent recursion, yet omission of tools inherits parent tools. ACL should default child effect tools to none and grant explicit subsets.
-- **A2A identity/auth is useful interoperability, not global task authority:** remote-agent auth does not establish ACL project/effect ownership or OS/credential isolation.
-- **Read-before-create resume is critical:** current ACP authenticates early, but `loadSession()` initializes requested-session config before resolving stored state and launches history replay without awaiting it.
-- **Open #28693/#28775 are current recovery fixtures:** their load-corruption reports align with the current ordering seam and should become ACL/Vera resume regression tests.
-- **Append-oriented session state is strong reference material:** `ChatRecordingService` uses semantic JSONL records and transactional repair, separating active context from recoverable durable history.
-- **Live progress can diverge from durable evidence:** ENOSPC can disable future recording while a session continues. ACL should make required-durability loss an explicit pause/degraded lifecycle state.
-- **Open #29198 is a current stable-release retention fixture:** resume then immediate exit can remove later resumability; Task 19 preserved symptom evidence without claiming an unverified complete root cause.
-- **Shadow-Git checkpointing is pre-effect workspace evidence, not full continuation:** it snapshots Git-visible project state plus conversation/tool metadata before modifying file tools but excludes ignored/process/database/network/API/credential state.
-- **Auto-memory extraction is coordination, not truth:** per-workspace atomic locks, PID/age stale detection and bounded batches are useful local coordination, but memory still needs provenance and multi-host writer fencing where applicable.
-- **Deterministic versus stochastic evaluation should remain separate:** Gemini CLI distinguishes integration correctness from model behavioral evals and uses repeated `USUALLY_PASSES` versus `ALWAYS_PASSES` reliability classes.
-- **Harness/model role promotion should use distributions, not one pass:** exact model/runtime/harness/fixture identity and repeated trials belong in ACL's eventual benchmark evidence.
-- **Telemetry is operator evidence:** OpenTelemetry logs/metrics/traces can contain sensitive model/tool context and do not define verifier-owned acceptance.
-- **Protected policy/config is a structural requirement:** recent system-config and extension hardening reinforces that worker-constraining policy/checker/hook/verifier artifacts must be outside worker mutation authority and provenance/version checked.
-- **Boundary:** Gemini CLI is strongest as a mature execution-policy, host-integration, checkpoint/session and eval reference. It does not replace ACL's outer scheduler, distributed writer fencing, external-effect ledger/reconciliation, credential broker, independent verifier, Vera epistemic-memory governance or exact local-runtime qualification.
+High-value findings retained for later comparison:
+- Deterministic tiered policy with protected `ALLOW`/`DENY`/`ASK_USER`, headless fail-closed behavior and checker failures is strong authority reference material.
+- Policy/approval, capability grant, realized sandbox and effect settlement are separate domains.
+- Shell policy must bind behavior-bearing arguments, not only executable/subcommand labels; #29189 is the current Windows `git diff --output` regression fixture.
+- Incremental filesystem/network sandbox expansion is preferable to disabling isolation globally when practical.
+- Provider/control-plane credentials should remain outside worker effect environments.
+- Current first-class provider surface is Gemini/cloud oriented rather than a direct Ollama/llama.cpp/vLLM local-provider reference.
+- Extensions/MCP are executable trust surfaces; config hashing helps identity but not publisher/artifact provenance.
+- Subagent registry/context isolation is useful but does not create OS/credential isolation; child effect authority should be explicit.
+- ACP resume must be read-before-create and ownership-fenced; #28693/#28775 remain current fixtures.
+- Append-oriented semantic JSONL history is useful, while live progress and durable recording can diverge; #29198 is a stable-release resume/retention fixture.
+- Shadow-Git checkpoints are valuable pre-effect workspace evidence but not full continuation/effect checkpoints.
+- Auto-memory locks are local coordination rather than truth or distributed writer fencing.
+- Deterministic integration correctness and stochastic behavioral reliability should be measured separately; repeated pass distributions are preferable to one successful run.
+- Protected policy/checker/verifier/hook roots belong outside worker mutation authority.
+- Gemini CLI is strongest as execution-policy, host-integration, checkpoint/session and eval reference beneath ACL-owned scheduling/effects/credentials/verification.
 
-See `projects/gemini-cli.md` for primary sources, current issue evidence, candidate ACL/Vera regression fixtures and explicit non-conclusions.
+See `projects/gemini-cli.md` for primary sources and explicit non-conclusions.
+
+## Task 20 — Graphiti research result
+
+**Status:** current Graphiti deep research complete; no dependency/adoption/memory-architecture/database/model decision made.
+
+High-value findings to carry into later comparison:
+- **Three memory planes:** raw episodes/evidence, resolved semantic entities/facts and derived communities are distinct. This is strong Vera reference material for keeping observation, belief and summary separate.
+- **Provenance is first-class:** semantic facts retain supporting episode IDs and episodes link to mentioned entities. Provenance still establishes origin rather than truth, and raw episode retention can be disabled.
+- **Bi-temporal memory is high value:** `valid_at`/`invalid_at` represent world validity while `created_at`/`expired_at` represent system mutation time. Vera should preserve this distinction.
+- **Temporal recency is not authority:** Graphiti's new-information invalidation model must sit below Vera source/trust/confidence policy; newer low-trust evidence cannot automatically supersede verified memory.
+- **Current invalidation path is a critical fixture:** current main still searches invalidation candidates group-wide and sends bare fact strings to a small-model contradiction judge. #1728 reports collateral retirement of unrelated still-true facts.
+- **Memory invalidation is a privileged effect:** require structural replacement eligibility, provenance/trust comparison, audit/reversibility and stronger confirmation in high-risk domains.
+- **Small-model syntax validity is not semantic safety:** #1666 records severe contradiction-detection degradation for one non-reasoning small-model setup while duplicate detection remained strong.
+- **Current versus historical retrieval should be explicit:** core supports temporal filters, while open #1645 records the reference MCP search mixing invalidated and live facts absent explicit filtering.
+- **`group_id` is partition metadata, not authentication:** do not use a graph/group name as user/project authority.
+- **FalkorDB concurrency is a current isolation fixture:** read paths have call-scoped routing improvements, but current `add_episode` still mutates shared driver state; #1676 demonstrates concurrent groups silently writing into the wrong physical graph.
+- **Backend is memory identity:** Neo4j/FalkorDB/Neptune/Kuzu paths have materially different routing/search/concurrency behavior and migration history; Kuzu is currently deprecated upstream in Graphiti.
+- **Primary graph save has useful transactional scope:** episode/entities/MENTIONS/facts are saved through one `execute_write` transaction.
+- **Full memory operation settlement is broader:** optional saga/link updates happen afterward and episode removal spans separate cleanup calls, so crash recovery needs explicit derived-maintenance/delete reconciliation.
+- **Local/OpenAI-compatible support is real but conditional:** `OpenAIGenericClient` supports Ollama, vLLM and llama.cpp-style endpoints with `json_schema` or prompt-guided `json_object`, while current docs/source explicitly acknowledge local/small-model structured-output variability.
+- **Memory benchmark must test semantic maintenance:** entity resolution, dedupe, contradiction, temporal extraction, false invalidation and stale-fact survival matter more than JSON parsing alone.
+- **Embeddings are durable schema:** #1328 plus current Neo4j search source show null/dimension-invalid vectors can poison similarity retrieval; model/dimension changes require versioned migration/re-embedding.
+- **Raw source text is untrusted:** current extraction puts episode/prior-episode content into memory-construction prompts. Ingested/retrieved text must not gain policy/tool/credential authority.
+- **MCP exposes high-authority memory effects:** add/direct-write/delete/clear must remain behind ACL/Vera principal/domain/effect authorization. Reference server `group_id` is not that authorization layer.
+- **OpenTelemetry is operational evidence:** useful spans/metrics do not prove a memory mutation or reconciliation settled.
+- **Paper benchmarks are encouraging but bounded:** Zep/Graphiti DMR/LongMemEval results show retrieval value, while the paper itself critiques DMR and the results do not constitute current self-hosted Graphiti guarantees.
+- **Graphiti complements Letta:** current evidence suggests Graphiti-style temporal semantic/evidence memory and Letta-style curated persistent agent memory are potentially complementary planes rather than one automatically replacing the other.
+- **Boundary:** Graphiti does not replace ACL scheduling/fencing/effect ledger/verifier/credential authority or Vera's epistemic truth/provenance policy.
+
+See `projects/graphiti.md` for primary sources, current failure evidence, 22 regression fixtures, candidate invariants and explicit non-conclusions.
 
 ## Ranked active-project queue — live status
 
@@ -155,8 +176,8 @@ See `projects/gemini-cli.md` for primary sources, current issue evidence, candid
 13. **Ollama** — `ollama/ollama` — **Task 17 complete**.
 14. **Letta Code** — `letta-ai/letta-code` — **Task 18 complete**.
 15. **Gemini CLI** — `google-gemini/gemini-cli` — **Task 19 complete**.
-16. **Graphiti** — `getzep/graphiti` — **next task only**.
-17. **Microsoft Agent Framework** — `microsoft/agent-framework`.
+16. **Graphiti** — `getzep/graphiti` — **Task 20 complete**.
+17. **Microsoft Agent Framework** — `microsoft/agent-framework` — **next task only**.
 18. **Google ADK** — `google/adk-python`.
 19. **LiteLLM** — `BerriAI/litellm`.
 20. **vLLM** — `vllm-project/vllm`.
@@ -215,14 +236,18 @@ This ranks public technical signal, not formal authority, seniority, employment 
 
 ### Identity, policy, memory and authority
 - Persistent agent/persona identity, conversation/thread identity, project/task/run identity, runtime/transport identity, provider request identity and external-effect identity remain distinct.
-- Personal/identity memory, shared/project memory, task memory, recall/history and trusted policy/configuration are separate state/authority domains.
-- Persistent memory is not verified truth merely because it is durable or Git-tracked.
+- Personal/identity memory, shared/project memory, task memory, recall/history, raw episodic evidence, semantic facts and trusted policy/configuration are separate state/authority domains.
+- Persistent memory is not verified truth merely because it is durable, Git-tracked or graph-linked.
 - Important memory needs provenance/evidence/trust/confidence/conflict/supersession semantics appropriate to domain risk.
 - Chronological recency is not an authority hierarchy; newer lower-trust evidence cannot silently replace stronger verified memory.
-- Compaction summaries and extracted memory are context/learning products, not canonical evidence.
+- Temporal world-valid time and system-ingestion/invalidation time are separate from epistemic/source authority.
+- Canonical memory invalidation is a privileged reversible effect; unconstrained model contradiction output is advisory rather than sufficient authority.
+- Current-state memory retrieval and historical/evidence retrieval should be explicit intent/policies rather than silently mixed.
+- Compaction summaries, community summaries and extracted memory are context/learning products, not canonical evidence.
 - Learned memory, skills/procedures, trusted executable configuration and security policy are distinct trust classes.
 - Learning/background reflection must not silently expand tools, credentials, network/filesystem authority or deploy trusted code.
-- Imported transcripts/trajectories remain lower-trust data until provenance/trust is evaluated.
+- Imported transcripts/trajectories/raw episodes remain lower-trust data until provenance/trust is evaluated.
+- A memory `group_id`/database/graph namespace is not authenticated principal identity or authorization.
 - Canonical effect capability identity includes authoritative origin plus definition/version/schema identity; name-only dispatch is unsafe across providers/servers.
 - Approval/no-approval policy, argument validation, capability grant and realized sandbox authority are separate dimensions.
 - Persisted approvals bind to exact call/origin/task/objective/tool/policy versions; incompatible semantic changes invalidate them.
@@ -258,12 +283,15 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Transport/session/stream continuity is not authoritative project/task/effect state.
 - Resume/load operations resolve and validate existing authoritative state before creating/mutating state in the same namespace.
 - Each durable state domain needs one authoritative writer; multi-process/multi-host state requires leases/generation/CAS/fencing.
+- Per-request database/memory-domain routing should not mutate shared global driver state across asynchronous/concurrent work.
 - Local PID/age locks and in-process session registries are coordination, not distributed writer fencing.
 - A saved transcript/trajectory/inference cache/remote task handle is not automatically an ACL checkpoint.
 - Re-deriving agent-loop transitions from persisted semantic state is preferable to hidden in-memory loop progress, but state still needs separate workspace/effect/authority evidence before safe continuation.
 - A durable checkpoint still does not imply exactly-once external effects.
 - Durable action/result relationships are atomic semantic state; orphan results/calls are corruption.
-- Raw provider evidence, canonical semantic messages, persisted projections, UI representations and reflection inputs are separately testable representations.
+- Raw provider/episode evidence, canonical semantic facts/messages, persisted projections, summaries/UI and reflection inputs are separately testable representations.
+- Primary memory graph writes and post-write derived maintenance can have different transaction/settlement boundaries; full operation success requires both to settle or reconcile.
+- Memory deletion is a multi-object effect and needs crash reconciliation rather than inference from one missing record.
 - Background memory generation, Git commit and authoritative parent-memory integration are separate settlement states.
 - Reflection conflicts/dirty parents/failed integration remain visible rather than silently counting as learned memory.
 - A restore operation stages and verifies replacement before destroying/switching authoritative current state.
@@ -273,6 +301,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Physical persistence retention is separate from model-context compaction and execution settlement.
 - Live execution and required durable recording are separate lifecycle dimensions; loss of required durability must become explicit degraded/paused state rather than invisible logging failure.
 - Runtime model residency/keep-alive and KV/prompt cache are performance state, not durable agent continuation authority.
+- Embedding model/dimension/profile is durable memory schema; changing it requires validation/migration rather than silent replacement.
 
 ### Cancellation, timeouts and retry
 - Every blocking plane needs an explicit timeout/cancellation owner: provider request/stream, prompt/prefill/generation, tool process, remote runtime/task and whole run.
@@ -292,6 +321,8 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - For Goose-like deployments, also record exact Goose/GDK/provider revision, local backend path and extension/tool mode such as direct MCP versus Code Mode.
 - For Ollama deployments, record exact Ollama release/commit/package digest, embedded engine kind/revision/patch profile, immutable model/manifest/template identity, API route, context/KV/parallel/fit settings and realized offload/context.
 - For Letta-like stateful harnesses, record exact harness/backend/provider/model/runtime endpoint, dynamic toolset/model settings, requested/realized context and memory/runtime mode.
+- For Graphiti-like memory deployments, record exact Graphiti revision, database/driver/schema/routing profile, LLM and small-model runtime/client/structured-output mode, prompt/schema revision, embedder model/dimension and reranker.
+- Local memory maintenance qualification must test semantic entity resolution/deduplication/contradiction/temporal correctness, not only schema-valid output.
 - Gemini CLI's provider support is Gemini-protocol/cloud-harness evidence and must not be generalized into local/OpenAI-compatible provider parity.
 - Requested runtime settings and realized runtime state are separate evidence; context/offload/device placement must be observed rather than inferred from configuration.
 - Template/schema/protocol capability discovery is not verified end-to-end behavior.
@@ -309,26 +340,30 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Schema converters/parsers/constraint compilers are trusted code and require adversarial regression fixtures.
 - Remote schema/resource/auth/discovery URL dereference is a network/SSRF authority surface with private/loopback/redirect/size/time policy.
 - Redirect behavior for authenticated remote tool clients is itself a credential/network policy surface and should be explicitly configured/tested rather than inherited from HTTP-client defaults.
-- Remote prompts, resources, memory and server instructions remain lower-trust model content regardless of valid protocol shape.
+- Remote prompts, resources, graph episodes, memory and server instructions remain lower-trust model content regardless of valid protocol/storage shape.
+- Ingested episode text is evidence content, never trusted memory/tool/credential-policy instructions by virtue of persistence.
 - Cache TTL is freshness guidance, not authorization, provenance or immutable state version.
 - Server-declared public cacheability cannot override ACL/Vera trust isolation.
-- Loopback binding/CORS/Host-header checks and service authentication are separate controls; exposing a local inference API beyond loopback requires an explicit outer network/auth policy.
+- Loopback binding/CORS/Host-header checks and service authentication are separate controls; exposing a local inference or memory API beyond loopback requires explicit outer network/auth policy.
 
 ### Verification, evaluation and evidence
 - The system under test does not own the authoritative definition of pass/fail.
 - Deterministic host/verifier evidence precedes semantic model grading when machine-observable.
 - Deterministic harness/integration correctness and stochastic model behavioral reliability are separate scores.
 - Model-role promotion uses repeated trials/pass distributions and exact model/runtime/harness/fixture identity rather than one successful run.
+- Memory-maintenance promotion also measures false invalidation, missed contradictions, provenance and current/history retrieval correctness.
 - Reliability classes such as `USUALLY_PASSES`/`ALWAYS_PASSES` are useful reference patterns, not preselected ACL thresholds.
 - Missing required evidence yields explicit invalid/failure rather than implicit pass.
 - Verifier tests/hashes/sidecars/control roots stay outside worker mutation authority.
-- Trace/model/tool data may contain secrets; raw traces, operational telemetry and product analytics have separate audiences/retention.
+- Trace/model/tool/memory data may contain secrets; raw traces, operational telemetry and product analytics have separate audiences/retention.
+- OpenTelemetry and runtime metrics are operational evidence, not authoritative memory/effect settlement or independent acceptance.
 - Provider/runtime request-replay logs are sensitive evidence when they contain full prompts/tool schemas/project data.
 - Evidence export/delivery has its own settlement state.
 - Protocol/SDK/harness/evaluator failures are classified separately from model failures.
-- Memory failures are additionally classified as epistemic, transcript-projection, integration, restore, retention or runtime/configuration failures rather than one generic memory/model failure.
+- Memory failures are classified as epistemic, contradiction/invalidation, transcript-projection, integration, restore, retention, routing/isolation, embedding/retrieval or runtime/configuration failures rather than one generic memory/model failure.
 - Runtime/adapter/schema/compiler/scheduler/hardware/harness failures are separately classified from model-decision failures.
 - Harness/runtime build, tool/extension mode and model/provider configuration are benchmark identity fields; same-model scores under different harnesses are not interchangeable.
+- Historical managed-product benchmark scores are evidence, not current self-hosted component guarantees.
 - Realized context, GPU/CPU placement and runtime cache/load metrics supplement independent host performance and verifier-owned success evidence.
 
 ## Historical failure/redesign controls retained
@@ -350,4 +385,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 19 is complete once `projects/gemini-cli.md`, catalog, state and watchlist are committed. The next task is **Graphiti deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Microsoft Agent Framework.
+Task 20 is complete once `projects/graphiti.md`, catalog, state and watchlist are committed. The next task is **Microsoft Agent Framework deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Google ADK.
