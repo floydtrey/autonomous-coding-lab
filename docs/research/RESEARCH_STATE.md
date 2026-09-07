@@ -2,7 +2,7 @@
 
 **Branch:** `research/agent-landscape`
 **Status:** current task complete; stopped before next task
-**Current phase:** 22 — Google ADK deep research complete
+**Current phase:** 23 — LiteLLM deep research complete
 **Execution:** research only; no worker/model execution authorized by this branch
 
 ## Completed campaign checkpoints
@@ -25,67 +25,105 @@
 - Task 20: **Graphiti** — `projects/graphiti.md`.
 - Task 21: **Microsoft Agent Framework** — `projects/microsoft-agent-framework.md`.
 - Task 22: **Google ADK** — `projects/google-adk.md`.
+- Task 23: **LiteLLM** — `projects/litellm.md`.
 
-## Task 22 work completed
-- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, and `watchlist.md` before beginning Task 22.
-- Began from finalized Task 21 checkpoint `a5376589aa278089abfbdeb9415690053355394e`.
-- Confirmed Task 22 scope as Google ADK only and preserved LiteLLM as next-task-only.
-- Pinned canonical `google/adk-python` research to revision `b0180620f4c2f4f4467a89c37a30f75bf849700b` and stable release `v2.8.0` (2026-08-26).
-- Deep-researched deterministic Workflow graph validation, dependency-ready concurrency, nested/dynamic execution and history-derived replay.
-- Verified ADK resumability is explicitly experimental/best-effort and provides at-least-once resumed tool execution; side-effecting tools therefore require idempotency/reconciliation.
-- Deep-researched Session/event/state persistence and current DatabaseSessionService stale-writer protection using locks, storage revision markers and transaction boundaries.
-- Preserved partial streamed events and `temp:` state as non-durable state distinct from durable semantic events.
-- Preserved session history, scoped key-value state and opt-in long-term MemoryService as separate state/trust planes.
-- Deep-researched current HITL confirmation binding to historical function-call ID/name/arguments.
-- Cross-checked open/reopened #6461 and retained `event.author == "user"` as a current authenticated-principal weakness across remote/A2A/HTTP boundaries.
-- Retained fixed #6977 as a control-plane regression fixture showing confirmation pauses must not be reinterpreted as ordinary model/tool-result content.
-- Deep-researched code-executor tiers from explicitly unsafe local subprocess through Docker and stronger GKE/gVisor/managed sandbox paths.
-- Deep-researched LiteLLM-backed provider portability only as an ADK adapter surface; LiteLLM itself was not independently researched.
-- Cross-checked current open #6482 and retained model-name/provider rewrite behavior as a current local/OpenAI-compatible adapter failure fixture.
-- Preserved tool/schema composition as deployment-specific through fixed #5130 and current open #6984.
-- Deep-researched MCP integration and retained its effect-aware retry boundary: automatically retry only while no remote tool effect could yet have occurred.
-- Deep-researched A2A remote-agent state and HITL semantics; retained open #6854 and #6721 as current remote-boundary fixtures.
-- Verified self-hosted FastAPI authentication/authorization is application-owned and local helper storage can fall back to in-memory services when durable paths are unavailable.
-- Deep-researched Runner-global plugin authority and Model Armor boundaries; content screening does not replace tool-output provenance, authorization or sandboxing.
-- Deep-researched AgentEvaluator/OpenTelemetry and preserved response quality, tool trajectory, semantic grading and runtime telemetry as separate evidence classes.
-- Retained open #6099 as a useful decision-ledger gap: traces/tool events do not by themselves connect effect, authenticated principal, policy/refusal, approval and settlement.
-- Wrote detailed evidence, primary sources, current/fixed failure surfaces, candidate invariants, reuse candidates and explicit non-conclusions to `projects/google-adk.md`.
-- Appended exactly 18 Task 22 records after the 197 Task 21 catalog records, producing 215 total records.
-- Preserved task boundary: no LiteLLM deep research, dependency/provider/model/sandbox/workflow/memory selection, benchmark execution, ACL/Vera redesign or worker/model execution was begun.
+## Task 23 work completed
+- Re-read `README.md`, `PROCESS.md`, `RESEARCH_STATE.md`, `watchlist.md`, and `sources.md` before beginning Task 23.
+- Began from finalized Task 22 checkpoint `6d2ca64aadb96d8da6ff818f6ce0bb14f70759d3`.
+- Confirmed Task 23 scope as LiteLLM only and preserved vLLM as Task 24 next-only.
+- Verified canonical `BerriAI/litellm`, observed default branch `litellm_internal_staging`, pinned revision `168a0055a244acdcf97c330c52e085ab40b1424c`, and stable release `v1.100.0`.
+- Verified non-enterprise source is MIT licensed and current release notes expose Cosign-signed Docker-image provenance.
+- Deep-researched Python SDK versus Proxy/AI Gateway authority/deployment boundaries.
+- Deep-researched provider-specific request/response transformation, supported-parameter mapping, native versus emulated structured output and `drop_params` downgrade behavior.
+- Derived that common OpenAI-shaped APIs are translation contracts, not provider/model/backend semantic equivalence.
+- Deep-researched LiteLLM local Ollama adapter paths and current source behavior.
+- Verified current `ollama_chat` declares `tool_choice` while deliberately removing it because it can hang requests.
+- Cross-checked open #35711 against pinned `ollama/` streaming source and verified non-streaming JSON tool-call reconstruction remains absent from the streaming iterator.
+- Preserved `ollama/` versus `ollama_chat/`, streaming versus non-streaming, native versus emulated tool transport as separate capability identities.
+- Deep-researched LiteLLM's `hosted_vllm` adapter boundary only; vLLM itself was not researched.
+- Retained open #32281 as a LiteLLM MCP-to-OpenAI tool-schema compatibility fixture without attributing it to vLLM independently.
+- Deep-researched structured-output emulation and retained open #35677 as a schema-envelope leakage fixture.
+- Deep-researched Router deployment identity, load-balancing/retry/fallback/cooldown settings and distributed health state.
+- Verified request-local fallback attempt identity prevents cyclic/re-walked deterministic failures.
+- Verified provider-scoped file/batch/fine-tuning resource semantics can block inappropriate cross-provider/model-group fallback.
+- Derived effect/resource-aware replay/fallback as a high-value ACL invariant.
+- Verified Proxy can re-authorize router-configured fallback targets against the caller's key/team/project model access through `enforce_fallback_model_access`; current lookup failure fails closed when enforcement applies.
+- Deep-researched current cooldown causality safeguards that prevent caller-scoped 404/tiny-timeout failures and caller metadata from poisoning shared deployment health.
+- Verified dynamic client-side credential requests can carry effective deployment identity so one tenant's bad credentials do not cool a shared deployment for others.
+- Deep-researched current `CooldownCache` / DualCache state and its Redis-versus-local TTL reconciliation.
+- Cross-checked open #38927 against current Langfuse header-metadata mutation source and retained observability/retry-state contamination as an open current-source seam without claiming a fresh runtime reproduction.
+- Deep-researched open #38142 and derived an ordered per-attempt routing evidence requirement; final success alone does not prove the initial/preferred provider path was healthy.
+- Deep-researched open #33371 and kept provider error classification separate from ACL effect replay authorization.
+- Deep-researched open #38610 as a v1.100.0-era stream-commit fixture: HTTP 200/message_start can become irreversible before a fallback failure is known.
+- Deep-researched open #37140 as a non-streaming client-disconnect/upstream-cancellation fixture.
+- Deep-researched Proxy authentication/model-access and preserved gateway key/team/project identity as distinct from ACL/Vera principal/task/effect identity.
+- Deep-researched current endpoint/credential/nested-config/fallback-target hardening in `auth_utils.py`.
+- Compared current source with reviewed historical 2026 SSRF/provider-credential, Host-header auth-route and MCP-auth advisories; retained them as fixed security regression classes rather than current-v1.100 vulnerabilities.
+- Derived outbound destination plus credential selection as one authority decision and authoritative server-dispatch route identity as the auth input.
+- Deep-researched observability/redaction boundaries and preserved logging/tracing as sensitive operator evidence rather than authoritative acceptance.
+- Preserved mutable model capability/context/cost maps and caches as gateway metadata/performance state rather than measured 32K runtime truth.
+- Wrote detailed evidence, current/fixed failure matrix, 40 candidate invariants, 18 regression fixtures, reuse candidates, primary sources and explicit non-conclusions to `projects/litellm.md`.
+- Prepared exactly 20 Task 23 catalog records for append after the 215 Task 22 records.
+- Preserved task boundary: no vLLM project research, dependency selection, local-model benchmark, gateway adoption or ACL/Vera implementation was begun.
 
-## Highest-value Google ADK findings for later comparison
-1. Deterministic Workflow dependency/concurrency/replay belongs outside model prompt reasoning.
-2. ADK explicitly confirms replayable workflow state is not exactly-once effects: resumability is best-effort and at-least-once.
-3. Session history, scoped state and cross-session memory are separate systems and should remain separate Vera trust/state planes.
-4. Database stale-writer fencing is useful, but generic shared-state replacement is not sufficient for concurrency-sensitive CAS/increment semantics.
-5. Partial stream delivery and temporary state are not durable continuation evidence.
-6. HITL exact-call binding is strong; authenticated principal binding remains a separate required authority dimension.
-7. Confirmation/control events must remain typed control-plane state rather than normal model-visible task results.
-8. Executor choice is a realized security/deployment profile, not a boolean sandbox label.
-9. Provider/model/backend adapters contain behavior-bearing rewrites; `OpenAI-compatible` and model name do not establish equivalent behavior.
-10. Automatic retry is safe only while the runtime can prove no remote effect may yet have begun.
-11. In-process state semantics do not automatically survive an A2A remote boundary.
-12. Remote HITL must preserve typed control response, principal, occurrence and paused destination across transport.
-13. Self-hosted API principal auth and required durability are host-owned deployment gates.
-14. Plugins/guardrails are privileged control-plane code and must remain outside worker mutation authority.
-15. Model Armor/content screening is defense-in-depth, not authorization, provenance or containment.
-16. Tool trajectory and response quality are separate evaluation dimensions; repeated frozen-profile trials are useful for ACL's later 32K benchmark.
-17. A unified effect/decision ledger remains above ordinary runtime trace/session evidence.
-18. ADK does not replace ACL/Vera effect settlement, credential brokering, protected verifier/policy, epistemic memory policy or independent acceptance evidence.
+## Highest-value LiteLLM findings for later comparison
+1. LiteLLM SDK and Proxy are materially different authority/deployment profiles.
+2. Provider normalization is adapter code; a common OpenAI wire shape does not establish semantic parity.
+3. Required parameters silently dropped by `drop_params` cannot retain a verified capability label.
+4. Native and tool-emulated structured output require separate qualification and final authoritative schema validation.
+5. Local capability includes exact LiteLLM provider path and streaming mode; `ollama/` and `ollama_chat/` are not interchangeable.
+6. Current pinned `ollama/` streaming source corroborates #35711's missing tool-call reconstruction path.
+7. Current `ollama_chat` source demonstrates capability metadata may advertise a parameter the adapter deliberately strips.
+8. Strict OpenAI-compatible backends can reveal malformed LiteLLM tool/schema translations hidden by lenient providers.
+9. Router strategy/deployment list/retry/fallback/cooldown/cache state are benchmark identity fields.
+10. Fallback attempt identity should be bounded and cycle-resistant.
+11. Provider-scoped resources/effects can make cross-provider fallback invalid even when plain inference fallback is safe.
+12. Reliability fallback must never widen caller authority; LiteLLM's fallback authorization hook is strong reference material.
+13. Caller-attributable failures and dynamic credentials must not poison shared deployment health.
+14. Distributed cooldown state is operational coordination, not task/effect checkpoint state.
+15. Observability must not mutate canonical request/retry/authorization state; #38927 is a high-value fixture.
+16. Final success does not preserve complete route history; ordered attempt evidence is needed (#38142).
+17. Gateway/provider retryability is separate from ACL effect replay safety.
+18. HTTP/stream commitment, semantic completion and durable success are different states (#38610).
+19. Client disconnect is not upstream generation/resource settlement (#37140).
+20. A credential-bearing gateway must jointly authorize outbound destination and credential selection.
+21. Security validation must cover nested/normalized values and use the server's authoritative dispatch identity.
+22. Exact security-patched LiteLLM revision/container/configuration is part of deployment qualification.
+23. Gateway logs/traces are sensitive operational evidence, not independent verification.
+24. Cache hits and gateway context/capability metadata must not be mistaken for fresh measured 32K model behavior.
+25. LiteLLM remains beneath ACL-owned task/effect identity, idempotency/reconciliation, protected policy/verifier state and independent acceptance.
 
 ## Queue status
-- Tasks 5–22 through **Google ADK (#18): complete**.
-- **LiteLLM (#19): next task only.** No LiteLLM deep research was begun in Task 22.
+- **Pydantic AI (#1): complete.**
+- **Cline (#2): complete.**
+- **LangGraph (#3): complete.**
+- **promptfoo (#4): complete.**
+- **Strands Harness SDK (#5): complete.**
+- **Codex (#6): complete.**
+- **OpenHands (#7): complete.**
+- **SWE-agent / mini-swe-agent (#8): complete.**
+- **llama.cpp (#9): complete.**
+- **OpenAI Agents SDK (#10): complete.**
+- **Model Context Protocol (#11): complete.**
+- **Goose (#12): complete.**
+- **Ollama (#13): complete.**
+- **Letta Code (#14): complete.**
+- **Gemini CLI (#15): complete.**
+- **Graphiti (#16): complete.**
+- **Microsoft Agent Framework (#17): complete.**
+- **Google ADK (#18): complete.**
+- **LiteLLM (#19): complete.** Detailed evidence: `projects/litellm.md`.
+- **vLLM (#20): next task only.** No vLLM project research was begun in Task 23.
 - Remaining ranked queue stays unchanged until separately authorized.
 
 ## Next task
 
-Deep-research **LiteLLM** only.
+Deep-research **vLLM** only.
 
-Do not begin until separately instructed. When begun, inspect canonical current upstream and focus on ACL/Vera-relevant provider normalization, local/OpenAI-compatible routing, retries/fallbacks, structured output/tool schemas, streaming/cancellation, credential/network boundaries, observability/evaluation, security/current failures, reproducibility and reusable mechanisms. Save report/catalog/state/watchlist, make a research-only commit, and stop before vLLM.
+Do not begin until separately instructed. When begun, inspect canonical current upstream and focus on ACL/Vera-relevant inference/runtime architecture, serving APIs, scheduler/concurrency/KV-cache/context behavior, structured output/tool calling, cancellation/timeouts, local hardware/quantization/backend compatibility, observability/metrics, distributed execution, security/current failures, reproducibility and reusable mechanisms. Save report/catalog/state/watchlist, make a research-only commit, and stop before OpenCode.
 
 ## Later tasks
-1. LiteLLM, then the remaining ranked active-project queue one task at a time.
+1. vLLM, then the remaining ranked active-project queue one task at a time.
 2. Deep-research high-value developers/accounts one at a time.
 3. Compare reusable components versus custom-build candidates.
 4. Analyze collaboration/open-source options.
@@ -95,4 +133,4 @@ Do not begin until separately instructed. When begun, inspect canonical current 
 
 ## Stop point
 
-Task 22 ended after Google ADK's current identity/maturity, Workflow orchestration/replay, explicit at-least-once resumability, session/state/memory separation, database stale-writer handling, HITL/principal boundary, executor tiers, provider/local compatibility, schema composition, MCP retry semantics, A2A state/HITL, FastAPI deployment trust, plugin/Model Armor boundaries and evaluation/observability were researched. No LiteLLM research, cross-project winner selection, dependency decision, benchmark execution, ACL/Vera architecture/governance change or worker/model execution was begun.
+Task 23 ended after LiteLLM's current identity/release, SDK-versus-Proxy boundary, provider/local adapter translation, structured-output/tool semantics, router/retry/fallback/resource identity, fallback authorization, cooldown/health state, routing evidence, streaming/cancellation, proxy network/credential security, observability and reproducibility were researched. No vLLM project research, cross-project winner selection, dependency decision, benchmark execution, ACL/Vera architecture/governance change or worker/model execution was begun.

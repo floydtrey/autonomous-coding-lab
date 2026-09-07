@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–22 completed one-project-at-a-time deep research through **Google ADK**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–23 completed one-project-at-a-time deep research through **LiteLLM**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -23,6 +23,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/graphiti.md`
 - `projects/microsoft-agent-framework.md`
 - `projects/google-adk.md`
+- `projects/litellm.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -209,6 +210,38 @@ High-value findings retained for later comparison:
 
 See `projects/google-adk.md` for primary sources, current/fixed failure evidence, reuse candidates and explicit non-conclusions.
 
+## Task 23 — LiteLLM research result
+
+**Status:** current LiteLLM deep research complete; no gateway/provider/runtime/model/router adoption decision made.
+
+High-value findings retained for later comparison:
+- LiteLLM SDK and Proxy are different authority/deployment profiles; the Proxy is a credential-bearing network gateway rather than a transparent adapter.
+- Provider normalization is behavior-bearing transform code. Common OpenAI-shaped requests/responses do not establish semantic parity across providers/backends.
+- Required parameters silently dropped by `drop_params` invalidate the requested capability profile.
+- Native structured output and tool/prompt emulation require separate qualification and final authoritative schema validation.
+- Exact local adapter path matters: current `ollama/` and `ollama_chat/` have different tool/stream semantics; pinned `ollama/` source still corroborates #35711's missing streaming tool-call reconstruction.
+- Current `ollama_chat` source declares `tool_choice` but deliberately removes it because it can hang requests, demonstrating why capability flags remain advisory.
+- Open #32281 is a LiteLLM-side strict OpenAI-compatible tool-schema fixture; Task 23 did not research vLLM independently.
+- Router deployment list/strategy/retry/fallback/cooldown/cache state is benchmark identity because it can change which provider/backend serves one logical model group.
+- Request-local attempted-fallback identity is cycle-resistant and bounded.
+- Provider-scoped files/batches/fine-tuning resources make some cross-provider fallback semantically invalid; effect/resource identity belongs in replay policy.
+- Router-configured fallback can be re-authorized against the caller's model access; reliability must never widen principal authority.
+- Caller-attributable errors and client-side credentials must not poison shared deployment health; trusted server-stamped deployment identity should own cooldown state.
+- Distributed cooldown/cache state is operational coordination, not durable task/effect state.
+- Open #38927 plus current Langfuse mutation source make observability/retry-state separation a high-value regression fixture.
+- Open #38142 shows final success is not complete route evidence; ordered per-attempt deployment/provider/outcome evidence is needed.
+- Gateway/provider `retryable` classification is separate from ACL effect replay safety.
+- Open #38610 demonstrates HTTP/stream commitment can precede semantic success and alter later retry/error semantics.
+- Open #37140 demonstrates client disconnect does not prove upstream generation stopped.
+- Current proxy hardening plus 2026 fixed advisories show outbound destination and provider credential selection form one authority boundary; nested normalized values must be inspected.
+- Authorization should use the server's authoritative dispatch route/action identity rather than attacker-controlled reconstructed text.
+- Rich observability is sensitive operator evidence and must not be allowed to mutate canonical execution state or serve as independent acceptance.
+- Model capability/context/cost maps and caches are mutable gateway state; the 32K benchmark still needs measured realized context and fresh-inference evidence.
+- Exact LiteLLM security patch/container/configuration belongs in deployment qualification; signed immutable release provenance is a useful pattern.
+- LiteLLM remains below ACL-owned task/effect identity, idempotency/reconciliation, credential/workspace governance, protected policy/verifier state and independent acceptance.
+
+See `projects/litellm.md` for primary sources, current/fixed failure evidence, 40 candidate invariants, 18 regression fixtures, reuse candidates and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -232,8 +265,8 @@ See `projects/google-adk.md` for primary sources, current/fixed failure evidence
 16. **Graphiti** — `getzep/graphiti` — **Task 20 complete**.
 17. **Microsoft Agent Framework** — `microsoft/agent-framework` — **Task 21 complete**.
 18. **Google ADK** — `google/adk-python` — **Task 22 complete**.
-19. **LiteLLM** — `BerriAI/litellm` — **next task only**.
-20. **vLLM** — `vllm-project/vllm`.
+19. **LiteLLM** — `BerriAI/litellm` — **Task 23 complete**.
+20. **vLLM** — `vllm-project/vllm` — **next task only**.
 
 ### Tier C — comparative / situational watch
 21. **OpenCode** — `anomalyco/opencode`.
@@ -447,4 +480,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 22 is complete once `projects/google-adk.md`, catalog, state and watchlist are committed. The next task is **LiteLLM deep research only**. Do not begin it until separately instructed, and when it is begun, stop before vLLM.
+Task 23 is complete once `projects/litellm.md`, catalog, state and watchlist are committed. The next task is **vLLM deep research only**. Do not begin it until separately instructed, and when it is begun, stop before OpenCode.
