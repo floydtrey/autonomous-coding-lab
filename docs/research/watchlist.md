@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–27 completed one-project-at-a-time deep research through **smolagents**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–28 completed one-project-at-a-time deep research through **Agno**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -28,6 +28,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/opencode.md`
 - `projects/mem0.md`
 - `projects/smolagents.md`
+- `projects/agno.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -338,6 +339,30 @@ High-value findings retained for later comparison:
 
 See `projects/smolagents.md` for detailed findings, candidate invariants, current regression fixtures, reuse candidates, primary sources and explicit non-conclusions.
 
+## Task 28 — Agno research result
+
+**Status:** current Agno deep research complete; no framework/runtime/memory/provider adoption decision made.
+
+High-value findings retained for later comparison:
+- Stable observed **v3.0.6** and current post-release `main` both report 3.0.6; exact commit is required identity because behavior can change without the package version string changing.
+- Agno separates Agent, Team, Workflow and AgentOS; team `coordinate`/`route`/`broadcast`/`tasks` and structured workflow topology are behavior-bearing profiles.
+- #9348 preserves a useful root-only durable-writer principle while showing that single writer and correct child read visibility are separate requirements.
+- Open #7479 shows concurrent same-session full-JSONB writes can silently lose runs; append history needs atomic append/CAS/locking/fencing rather than stale-snapshot last-writer-wins.
+- Open #10015 shows separate sync/async locks over one cancellation state domain can overwrite cancellation intent; synchronization authority must follow the state, not API style.
+- #7294 demonstrates child completion, delegation-tool completion, stream completion and parent-run completion are separate lifecycle states.
+- #8910/#9278 show a `PAUSED` workflow with a `CANCELLED` continuation child can become unrecoverable; composite parent/child lifecycle invariants must be validated before resume.
+- Open #9983 plus current source show an enabled model-facing `clear_memory` closure can call global `db.clear_memories()`; destructive memory authority must be principal/domain scoped.
+- Current CodeMode is persistent Python/shell and explicitly **not a sandbox**; dill snapshots are executable artifacts whose provenance/storage are part of the trust boundary.
+- DB-backed FileSystem `expected_version` CAS and Studio immutable revisions are strong reuse candidates; local backends explicitly refusing unsupported CAS is preferable to false guarantees.
+- Open #8620 demonstrates why host credentials must be bound to allowed destinations/actions rather than accompany arbitrary model-selected URLs.
+- #9034/current #10031 show provider-adapter failure can masquerade as assistant output; adapter/harness exceptions must remain typed failures and compression/offloading policy is benchmark identity.
+- #9680/#9829 distinguish run return/deletion from result-payload cleanup and final snapshot flush; async completion must await required settlement.
+- v3.0.6 MCP legacy/auto/stateless profiles are separate protocol identities. Current AgentOS refuses approval-dependent tools on a direct MCP surface that would bypass their FunctionCall approval machinery — a valuable fail-closed pattern.
+- Authentication/RBAC, opt-in user isolation, tool-content trust and effect authorization remain separate planes; same logical tool over Agent/REST/MCP/A2A can have different control semantics.
+- Agno remains below ACL-owned scheduling, task/effect identity, containment, writer fencing, credential governance, checkpoint reconciliation and independent verification; Vera retains epistemic memory authority.
+
+See `projects/agno.md` for detailed findings, 32 candidate invariants, regression fixtures, reuse candidates, primary sources and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -368,8 +393,8 @@ See `projects/smolagents.md` for detailed findings, candidate invariants, curren
 21. **OpenCode** — `anomalyco/opencode` — **Task 25 complete**.
 22. **Mem0** — `mem0ai/mem0` — **Task 26 complete**.
 23. **smolagents** — `huggingface/smolagents` — **Task 27 complete**.
-24. **Agno** — `agno-agi/agno` — **next task only**.
-25. **LlamaIndex** — `run-llama/llama_index`.
+24. **Agno** — `agno-agi/agno` — **Task 28 complete**.
+25. **LlamaIndex** — `run-llama/llama_index` — **next task only**.
 26. **CrewAI** — `crewAIInc/crewAI`.
 27. **Mastra** — `mastra-ai/mastra`.
 
@@ -416,18 +441,22 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - A tiny/general tool interface can still carry broad authority; interface simplicity and least privilege are independent dimensions.
 - On-demand meta-tool discovery can reduce context/schema pressure, but generated coordination code must cross the same deterministic effect-authorization boundary as direct tool calls.
 - Thin agent loops are useful only when deterministic lifecycle/authority remains externally owned; action language/profile such as code actions versus native tool calls is separately benchmarked.
+- Agent, team, workflow and service/control-plane topology are separately identifiable runtime layers; orchestration mode/graph belongs in harness identity.
 
 ### Identity, policy, memory and authority
 - Authenticated principal identity is distinct from client-provided `user`/author/channel labels and protocol routing IDs.
+- Missing principal identity must not broaden access or silently join unrelated users into one authoritative `default` domain.
 - Memory scope identifiers such as `user_id`/`agent_id`/`run_id` are partition metadata, not authenticated principal identity; authoritative scope is host-stamped and protected from freeform metadata/model control.
 - Session history, scoped operational state and cross-session memory are separate state/trust planes.
 - Persistent agent/persona identity, conversation/thread identity, project/task/run identity, runtime/transport identity, provider request identity and external-effect identity remain distinct.
+- Component definition, component invocation, team/workflow step, protocol request/task and external effect are separate identities.
 - Personal/identity memory, shared/project memory, task memory, recall/history, raw episodic evidence, semantic facts and trusted policy/configuration are separate state/authority domains.
 - Persistent memory is not verified truth merely because it is durable, Git-tracked or graph-linked.
 - Important memory needs provenance/evidence/trust/confidence/conflict/supersession semantics appropriate to domain risk.
 - Chronological recency is not an authority hierarchy; newer lower-trust evidence cannot silently replace stronger verified memory.
 - Temporal world-valid time and system-ingestion/invalidation time are separate from epistemic/source authority.
 - Canonical memory invalidation is a privileged reversible effect; unconstrained model contradiction output is advisory rather than sufficient authority.
+- Destructive memory effects bind authenticated principal, tenant/domain and exact target scope; database-global clear is a separate admin authority.
 - Current-state memory retrieval and historical/evidence retrieval should be explicit intent/policies rather than silently mixed.
 - Compaction summaries, community summaries and extracted memory are context/learning products, not canonical evidence.
 - Memory-construction buffers/summaries are scope-bearing operational state; they need explicit scope/expiry/relevance rules and must not leak prior-session content into new extraction work.
@@ -455,11 +484,13 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Workspace isolation, Git/ref authority, secrets, verifier roots, memory roots and external effects are separate trust domains.
 - Container/sandbox/runtime selection is not a complete permission profile; mounts/network/user/resources/credentials/capabilities are separate.
 - Configured sandbox and realized sandbox are distinct evidence; required isolation should fail closed when not realized.
-- Local interpreter/AST/import restrictions are never a security boundary; exact executor and realized sandbox profile remain explicit deployment state.
+- Local interpreter/AST/import restrictions and persistent notebook/kernel abstractions are never a security boundary; exact executor and realized sandbox profile remain explicit deployment state.
+- Executable snapshots/pickles are code-bearing authority artifacts and require trusted provenance, protected storage and explicit restore authorization.
 - Incremental capability expansion should request the smallest missing filesystem/network permission rather than disable the entire isolation boundary where practical.
 - Cross-agent memory namespace guards and subagent registry isolation do not replace OS/process/filesystem/network/credential isolation.
 - Local-host worker/tool execution should not inherit ambient supervisor environment/credentials.
 - Model-provider/control-plane credentials should remain outside worker effect planes wherever architecture permits.
+- Credential selection and outbound destination/audience are one authorization decision; model-selected URLs never inherit reusable host credentials by default.
 - Native inference services that spawn engine subprocesses should run under a deliberate service environment; this does not weaken the stronger minimal-environment rule for worker/tool processes.
 - Durable state should reference credentials; live authority is rebound from current trusted policy after resume.
 - Runtime-visible plaintext credentials cannot later be made secret from arbitrary worker code by revocation.
@@ -472,15 +503,21 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Partial streaming output and invocation-local temporary state are not durable continuation evidence.
 - At-least-once workflow/tool resumability requires effect idempotency or reconciliation; replayable state is not exactly-once effect settlement.
 - Concurrency-sensitive shared state needs atomic/CAS semantics rather than generic last-writer dictionary replacement.
+- Append-oriented shared session/run history must use atomic append/CAS/transaction/locking/fencing rather than stale-snapshot whole-array last-writer-wins updates.
+- A single logical state domain cannot be protected by independent sync and async locks; synchronization ownership follows the state, not the API style.
+- One authoritative writer and correct child/read-only visibility are separate concerns.
+- Backends explicitly declare atomic/CAS capabilities; unsupported semantics fail closed rather than pretending parity.
+- Immutable revisions plus revision-guarded head movement are preferred for mutable authoritative configuration where practical.
 - Authoritative shared memory mutations need idempotency plus atomic uniqueness/CAS/transaction/fencing semantics; pre-write similarity/hash searches are not uniqueness guarantees.
 - Logical request/idempotency, run/attempt, process, protocol request, remote task handle and durable session identities remain separate.
 - Transport/session/stream continuity is not authoritative project/task/effect state.
 - Resume/load operations resolve and validate existing authoritative state before creating/mutating state in the same namespace.
+- Composite parent/child lifecycle states have explicit invariants; internally contradictory durable state is reconciled or marked invalid before resume.
 - Each durable state domain needs one authoritative writer; multi-process/multi-host state requires leases/generation/CAS/fencing.
 - Per-request database/memory-domain routing should not mutate shared global driver state across asynchronous/concurrent work.
 - Local PID/age locks and in-process session registries are coordination, not distributed writer fencing.
 - A saved transcript/trajectory/inference cache/remote task handle is not automatically an ACL checkpoint.
-- In-memory agent step history and conversation continuation such as `reset=False` are runtime context, not durable checkpoint authority.
+- In-memory agent step history, persistent interpreter state and conversation continuation are runtime context, not durable checkpoint authority.
 - Re-deriving agent-loop transitions from persisted semantic state is preferable to hidden in-memory loop progress, but state still needs separate workspace/effect/authority evidence before safe continuation.
 - A durable checkpoint still does not imply exactly-once external effects.
 - Durable action/result relationships are atomic semantic state; orphan results/calls are corruption.
@@ -497,6 +534,8 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Lost/expired remote handles do not prove backing computation stopped.
 - Physical persistence retention is separate from model-context compaction and execution settlement.
 - Live execution and required durable recording are separate lifecycle dimensions; loss of required durability must become explicit degraded/paused state rather than invisible logging failure.
+- Async run completion awaits required tool/resource close, snapshot/checkpoint flush, evidence persistence and process settlement before being labeled settled.
+- Deleting a run/session record does not prove detached result payloads/snapshots were deleted; cleanup needs its own settlement evidence.
 - Runtime model residency/keep-alive and KV/prompt cache are performance state, not durable agent continuation authority.
 - Embedding model/dimension/profile is durable memory schema; changing it requires validation/migration rather than silent replacement.
 - Durable harness session/event state is evidence, not safe continuation authority; current workspace/process/effect/credential/policy/verifier state must be validated separately.
@@ -508,7 +547,9 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Progress/heartbeats may control idle timeout but never remove hard maximum deadlines.
 - Response metadata/content type/parser selection must never disable deadline ownership for provider body/stream consumption.
 - Configured timeout/control return, backing worker/process termination and external-effect settlement are separate evidence states.
+- Cancellation intent is monotonic/versioned; stale registration cannot overwrite a newer cancellation decision.
 - Cancellation acknowledgment is not process termination or effect settlement.
+- Child completion, delegation/tool completion, stream closure and parent-run completion are separate lifecycle states.
 - Immediate abort and stop-at-safe-boundary are distinct controls.
 - Retry is not authority to replay a possibly already-executed effect/request.
 - Ambiguous child/provider output after possible effects is not automatically retryable; reconcile before replay.
@@ -520,8 +561,10 @@ This ranks public technical signal, not formal authority, seniority, employment 
 
 ### Model/runtime capability and protocol compatibility
 - Provider/model-name heuristics and adapter rewrites are behavior-bearing deployment state and require exact-profile regression fixtures.
+- Provider/adapter exceptions remain typed harness failures; error text produced by a failed adapter is never a semantically successful model response.
 - Local-model capability is an exact model + runtime + adapter + protocol/tool schema/namespace + configuration property.
 - Harness release/commit/generation is also behavior-bearing benchmark identity; stable and development architecture profiles are separately qualified.
+- A package version string alone is not sufficient harness identity when post-release commits retain the same version.
 - For llama.cpp-class deployments, include build/backend/driver, GGUF/quantization, template/parser/constraint backend, context/KV/cache and optimization/sampling settings.
 - For Goose-like deployments, also record exact Goose/GDK/provider revision, local backend path and extension/tool mode such as direct MCP versus Code Mode.
 - For Ollama deployments, record exact Ollama release/commit/package digest, embedded engine kind/revision/patch profile, immutable model/manifest/template identity, API route, context/KV/parallel/fit settings and realized offload/context.
@@ -529,11 +572,16 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - For Graphiti-like memory deployments, record exact Graphiti revision, database/driver/schema/routing profile, LLM and small-model runtime/client/structured-output mode, prompt/schema revision, embedder model/dimension and reranker.
 - For Mem0-like deployments, record exact SDK/server release or commit, managed-vs-OSS profile, LLM/runtime/prompt/extraction generation, embedder model/dimension, vector/entity/graph/history backends and retrieval/rerank settings.
 - For smolagents-like harnesses, record exact harness revision, `CodeAgent` versus `ToolCallingAgent`, model adapter/runtime, executor/sandbox and prompt/tool projection profile.
+- For Agno-like platforms, record exact commit, Agent/Team/Workflow topology and TeamMode, AgentOS/direct-SDK surface, provider adapter/API path, storage/memory, context compression/offloading, protocol and authorization profiles.
 - Local memory maintenance qualification must test semantic entity resolution/deduplication/contradiction/temporal correctness, not only schema-valid output.
 - Gemini CLI's provider support is Gemini-protocol/cloud-harness evidence and must not be generalized into local/OpenAI-compatible provider parity.
 - Requested runtime settings and realized runtime state are separate evidence; context/offload/device placement must be observed rather than inferred from configuration.
 - Template/schema/protocol capability discovery is not verified end-to-end behavior.
 - MCP capability identity includes protocol era/version, transport, SDK/adapter revision, auth mode and negotiated extensions.
+- Same logical capability over Agent/REST/MCP/A2A is separately qualified whenever approval, hooks, authentication or lifecycle behavior differs.
+- A surface that cannot preserve a required approval/control fails closed rather than silently exposing the effect without that control.
+- Stateless and sessionful protocol modes are separate capability profiles; loss of resumability/notifications is explicit.
+- Remote protocol content and lifecycle status are separately validated; final-looking content does not prove remote task settlement.
 - Core protocol conformance does not imply optional extension parity.
 - Native provider APIs and nominal OpenAI-compatible APIs are separately qualified capability surfaces.
 - Silent modern/legacy/provider fallback must not preserve the same verified-capability label.
@@ -547,8 +595,9 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Schema converters/parsers/constraint compilers are trusted code and require adversarial regression fixtures.
 - Remote schema/resource/auth/discovery URL dereference is a network/SSRF authority surface with private/loopback/redirect/size/time policy.
 - Redirect behavior for authenticated remote tool clients is itself a credential/network policy surface and should be explicitly configured/tested rather than inherited from HTTP-client defaults.
-- Remote prompts, resources, graph episodes, memory and server instructions remain lower-trust model content regardless of valid protocol/storage shape.
-- Ingested episode text is evidence content, never trusted memory/tool/credential-policy instructions by virtue of persistence.
+- Remote prompts, resources, graph episodes, memory, tool outputs and remote-agent messages remain lower-trust model content regardless of valid protocol/storage shape.
+- Ingested episode/tool text is evidence content, never trusted memory/tool/credential-policy instructions by virtue of persistence or formatting.
+- Boundary markers/sanitization may aid representation but do not convert hostile external content into trusted instructions.
 - Cache TTL is freshness guidance, not authorization, provenance or immutable state version.
 - Server-declared public cacheability cannot override ACL/Vera trust isolation.
 - Loopback binding/CORS/Host-header checks and service authentication are separate controls; exposing a local inference or memory API beyond loopback requires explicit outer network/auth policy.
@@ -563,7 +612,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Model-role promotion uses repeated trials/pass distributions and exact model/runtime/harness/fixture identity rather than one successful run.
 - Memory-maintenance promotion also measures false invalidation, missed contradictions, provenance and current/history retrieval correctness.
 - Memory evaluation must freeze retrieval/context budget, backend/profile and judge protocol; managed/proprietary benchmark results are not interchangeable with self-hosted OSS results.
-- Context replay/compaction/truncation policy is behavior-bearing benchmark identity; full-history replay can create harness-driven long-horizon failures independent of model quality.
+- Context replay/compaction/truncation/offloading policy is behavior-bearing benchmark identity; context-management failures are separated from model capability.
 - Reliability classes such as `USUALLY_PASSES`/`ALWAYS_PASSES` are useful reference patterns, not preselected ACL thresholds.
 - Missing required evidence yields explicit invalid/failure rather than implicit pass.
 - Verifier tests/hashes/sidecars/control roots stay outside worker mutation authority.
@@ -597,4 +646,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 27 is complete once `projects/smolagents.md`, `catalog-part2.jsonl`, state and watchlist are committed. The next task is **Agno deep research only**. Do not begin it until separately instructed, and when it is begun, stop before LlamaIndex.
+Task 28 is complete once `projects/agno.md`, `catalog-part2.jsonl`, state and watchlist are committed. The next task is **LlamaIndex deep research only**. Do not begin it until separately instructed, and when it is begun, stop before CrewAI.
