@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–18 completed one-project-at-a-time deep research through **Letta Code**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–19 completed one-project-at-a-time deep research through **Gemini CLI**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -19,148 +19,121 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/goose.md`
 - `projects/ollama.md`
 - `projects/letta-code.md`
+- `projects/gemini-cli.md`
 
 ## Task 15 — Model Context Protocol research result
 
 **Status:** current MCP deep research complete; no dependency/adoption/fork decision made.
 
-High-value findings to carry into later comparison:
+High-value findings retained for later comparison:
+- MCP `2026-07-28` moved the modern core toward stateless request/response semantics; explicit handles/IDs carry application state across requests.
+- Transport connection, JSON-RPC request, MCP Task, ACL task/run/effect and Vera conversation/memory remain distinct identities.
+- The host should retain trust, consent, cross-server context and authorization ownership; protocol-valid tools/prompts/resources do not gain governance authority automatically.
+- Canonical remote-tool identity needs trusted server origin plus protocol/profile and tool-definition/schema identity; names and annotations alone are insufficient.
+- MRTR continuation state can become authority-bearing attacker-controlled input; integrity, replay protection and idempotency remain separate.
+- Cancellation/progress/subscription semantics remain cooperative/transport-level and do not prove backing computation/effects settled.
+- The Tasks extension is useful durable remote-job interoperability, but remote task handles are not ACL continuation checkpoints and task TTL/cancel does not prove computation ended.
+- HTTP authorization is service/audience scoped; token passthrough is forbidden, strongly supporting Vera's future credential-broker/service-grant boundary.
+- Authorization/discovery/resource/schema fetches are SSRF/network-policy surfaces.
+- Optional extensions are independently versioned/negotiated capability; core conformance does not imply Tasks/UI/auth-extension parity.
+- Current issue fixtures #2920, #3348, #3207/#3213 and ext-tasks #11/#20 remain version-scoped interoperability/security test inputs.
+- MCP is strongest as interoperability beneath ACL/Vera-owned scheduling, sandbox/process custody, credential governance, memory, effect ledger, checkpoints and independent verification.
 
-- **Current-generation boundary:** MCP `2026-07-28` intentionally moved from a bidirectional/stateful protocol to a stateless request/response core. Modern MCP has no protocol-level session/initialize handshake; explicit handles/IDs carry application state across requests.
-- **Transport != task identity:** persistent stdio process, HTTP connection, JSON-RPC request, MCP Task, ACL task/run/effect and Vera conversation/memory must remain distinct identities.
-- **Protocol era is behavior-bearing:** modern `2026-07-28+`, legacy `2025-11-25` and earlier, and dual-era fallback have different lifecycle semantics. Record realized version/transport/capabilities rather than a generic `mcp=true` flag.
-- **Host authority is the useful topology:** the MCP host owns user consent, model integration, cross-server context and security. ACL/Vera should retain those responsibilities rather than delegate global authority to MCP servers.
-- **Primitive labels are not authority:** tools are model-controlled protocol primitives; resources are application-driven; prompts are user-selected but server-authored. None should automatically inherit governance or execution authority.
-- **Canonical tool identity needs origin:** tool names are server-local, `serverInfo` is self-reported/not security identity, and tool annotations are untrusted unless the server itself is trusted. ACL should bind tool identity to server/trust origin plus definition/schema digest/version.
-- **Header routing is a policy surface:** `Mcp-Method`, `Mcp-Name` and tool-schema `x-mcp-header` support gateway routing/authorization, but server-authored schema metadata must not define privileged headers without host policy.
-- **Remote resources/prompts remain untrusted context:** resource network fetches need SSRF/size/time policy and prompt/resource/discovery content needs provenance plus injection controls.
-- **MRTR continuation is authority-bearing state:** client-echoed `requestState` must be treated as attacker-controlled if it affects authorization/resource/business logic; integrity binding should include principal, operation/parameter digest and expiry. Integrity does not provide single-use/idempotency by itself.
-- **Open #2920:** URL-mode MRTR still has an unresolved bounded waiting/retry/cancel UX/lifecycle ambiguity; ACL approvals should use their own explicit stable state machine rather than inherit implicit retry semantics.
-- **Cancellation remains cooperative:** request/task cancellation acknowledgment is intent, not proof the backing process/effect stopped. Progress may refresh idle deadlines but a hard maximum deadline remains separate.
-- **Subscription streams are transport observation:** reconnect requires resubscription. Open #3348 identifies a same-revision contradiction between cancellation and subscription teardown documentation, making graceful-vs-abrupt end-state a required interoperability fixture.
-- **Broken stream replay is a new request:** current Streamable HTTP removed `Last-Event-ID` resumability. Reissuing an effect-bearing call after transport loss needs ACL-owned idempotency/reconciliation evidence.
-- **Tasks are durable remote-operation handles:** the official `io.modelcontextprotocol/tasks` extension persists a task before returning its handle, defines explicit working/input-required/terminal states, supports polling/mid-flight input and survives client reconnect if the handle is retained.
-- **Task handle != ACL checkpoint:** a remote task does not capture ACL workspace, process custody, credential/policy state, external-effect evidence or permission to resume the broader project task.
-- **Task input IDs are strong reference material:** input request keys cannot be reused during a task lifetime, allowing deterministic dedupe and exactly-addressed remote approvals/input.
-- **Task cancel/TTL != execution settlement:** `tasks/cancel` is eventually-consistent cooperative intent. Contributor response on ext-tasks #11 confirms storage/retention lifecycle is deliberately separate from terminating the underlying computation.
-- **Task handles need authorization binding:** task IDs may be bearer handles, but the spec also requires per-request authorization checks. Open ext-tasks #20 shows denial/error representation remains a broader protocol concern. ACL should bind remote handle to principal/project/task/effect/policy rather than rely on possession.
-- **No task enumeration:** `tasks/list` does not exist. This reduces cross-caller discovery but means a client that loses its task IDs cannot recover them through protocol enumeration; ACL must persist handles until settlement/retirement.
-- **Out-of-band sensitive elicitation is valuable:** form mode may not request passwords/API keys/access tokens/payment credentials; URL mode keeps those sensitive interactions outside the MCP client/model channel and requires visible destination/consent.
-- **Roots are deprecated and never were access control:** do not map MCP roots to worker filesystem authority.
-- **Sampling is deprecated:** new implementations are directed to direct LLM-provider APIs, reinforcing that MCP should not own ACL's local/cloud model runtime.
-- **Authorization is service-scoped:** HTTP MCP uses OAuth resource-server semantics, PKCE, resource indicators/audience binding, issuer validation and least-privilege scope challenges.
-- **Token passthrough is forbidden:** downstream services require their own audience-correct token. This strongly supports Vera's future credential-broker/service-grant architecture.
-- **Authorization/discovery is an SSRF surface:** server-controlled discovery URLs require DNS/IP/redirect/private-network policy and bounded fetches.
-- **STDIO environment is not permission policy:** even though MCP stdio commonly obtains credentials from environment/config, ACL worker children should receive a minimal explicit environment, not supervisor `os.environ`.
-- **Schema validation is trusted code/network surface:** JSON Schema external refs are disabled by default; opt-in dereference needs network restrictions and unresolved authority-bearing schemas should fail closed.
-- **Cache freshness != provenance/authority:** TTL is a freshness hint, not state-version guarantee; `cacheScope` does not replace access control. MRTR retries are not cacheable.
-- **Open #3207/#3213 are warning fixtures:** current open reports argue that server-controlled public cache scope and discovery `instructions` can amplify cross-user stale/malicious content or prompt injection if clients/intermediaries elevate them. No maintainer resolution was found; preserve these as tests, not universal vulnerability claims.
-- **Extensions are independently versioned capability:** optional, namespaced, disabled by default and explicitly negotiated. Core MCP conformance does not imply Tasks/UI/auth-extension parity.
-- **Tier 1 current-generation support:** lead-maintainer release notes state TypeScript, Python, Go and C# SDKs support `2026-07-28`, but exact SDK/extension behavior still needs deployment qualification.
-- **Boundary:** MCP is strongest as a standardized interoperability layer beneath ACL/Vera-owned scheduling, authorization, credential governance, memory, sandbox/process custody, effect ledger, checkpoints and independent verification.
-
-See `projects/model-context-protocol.md` for primary sources, current open issues, candidate ACL regression fixtures and explicit non-conclusions.
+See `projects/model-context-protocol.md` for primary sources and explicit non-conclusions.
 
 ## Task 16 — Goose research result
 
 **Status:** current Goose deep research complete; no dependency/adoption/fork decision made.
 
-High-value findings to carry into later comparison:
+High-value findings retained for later comparison:
+- `goose-agent` re-derives loop transitions from persisted conversation state rather than hidden loop progress, a useful restart-safe runtime pattern.
+- ACP separates replaceable clients from the full runtime, but ACP/session identity is still not ACL project/run/effect identity.
+- Goose has a small provider boundary, direct Ollama support and built-in llama.cpp-based/MLX local inference; exact harness/provider/backend/model/template/parser/tool-mode identity matters.
+- MCP extension lifecycle/namespacing and secret-triggered restart behavior are useful, while inherited stdio subprocess environment remains broader than ACL should allow.
+- Smart Approval/tool permissions/security inspectors are layered policy, not an OS sandbox; Goose currently does not provide a general OS sandbox.
+- Versioned SQLite sessions and an in-process active-run registry are useful reconstruction/race-control patterns but not durable distributed writer fencing.
+- Recipes are executable configuration; content hashing is useful approval identity, while conversation reset on retry does not roll back workspace/API effects.
+- Internal subagent restrictions and Code Mode provide useful delegation/context-pressure patterns without constituting process isolation.
+- Harbor evidence demonstrates the harness/tool mode itself is a benchmark variable.
+- Current issue fixtures #10325, #11500 and #11399 remain valuable for executable-manifest trust ordering, authenticated redirects and argument-level shell authorization.
+- Goose is strongest as a source of state/provider/MCP/context/eval mechanisms beneath ACL-owned authority, credential, effect and verifier layers.
 
-- **Conversation-derived state machine:** `goose-agent` re-derives the next operation from persisted conversation state and reloads state between passes. Durable markers live on messages instead of hidden loop variables. This is strong restart-safe loop reference material, but not a workspace/effect checkpoint or distributed fence.
-- **ACP separates client from runtime:** Goose can expose the full runtime over stdio or HTTP/WebSocket while clients remain replaceable. This is a useful Vera topology reference, but ACP/session identity remains different from ACL project/run/effect identity.
-- **Small provider boundary:** Goose provider implementations sit behind a minimal stream contract. Current implementations include cloud/OpenAI-compatible paths, Ollama and built-in on-device inference.
-- **Built-in local inference:** `goose-local-inference` runs GGUF through llama.cpp (`llama-cpp-2`) and optionally MLX, with CUDA/Vulkan/MLX paths plus template/tool parsing and tool emulation. Treat capability as exact Goose revision/build + provider/backend + model/template/parser/tool mode/configuration.
-- **MCP extension structure:** extension tools are discovered dynamically, ordinarily namespaced by extension and duplicate public tool names are skipped. Remote tool metadata/annotations remain trust inputs, not authority.
-- **Extension secret/config lifecycle:** resolved secret-bearing extension configuration is kept in memory and relevant config/secret changes can restart an extension. This is useful lifecycle behavior.
-- **Ambient child environment remains a gap:** local stdio extension launch does not clear inherited process environment before applying configured variables. ACL should retain minimal explicit child environments rather than inherit supervisor authority.
-- **Layered permissions:** explicit per-tool permissions, Smart Approval/read-only metadata or classifier output, security inspectors and Goose mode interact. Positive LLM safety classifications are not persisted into broad name-wide grants, which is a useful hardening pattern.
-- **Permission != sandbox:** Autonomous mode is the documented default and allows tools without approval. Current upstream explicitly provides no general OS sandbox; tool execution runs with the user account's authority.
-- **Persistent sessions:** versioned SQLite state stores conversation plus working directory, extension/recipe/provider/model/mode and usage metadata; ACP can replay history, restore provider session state and re-send pending confirmations.
-- **Single-run race control:** ACP maintains a shared per-session active-run/run-ID registry and agent creation is serialized per session, preventing common in-process duplicate-run/MCP-initialization races. Distributed durable state still needs generation/lease/CAS fencing.
-- **Executable recipes:** recipes can contain stdio extension commands and retry/on-failure shell commands. Recipe retry uses deterministic shell success checks and bounded retries but resets conversation rather than rolling back workspace/external effects.
-- **Exact recipe acceptance identity:** Desktop acceptance is SHA-256 content-hash based, so changed recipe content requires a different acceptance record. The trust target should therefore include executable fields, not only natural-language instructions.
-- **Open recipe trust-ordering surface (#10325):** a current open report reproduced v1.45 Desktop stdio-extension execution before `Trust and Execute`; current main still loads session extensions during agent construction and checks user recipe acceptance after session load. Current security scanning still checks hidden Unicode tags in natural-language fields rather than executable extension/retry fields.
-- **Subagent delegation:** internal subagents can be sequential/parallel, inherit parent extensions unless narrowed and cannot recursively spawn subagents or manage extensions/schedules. These are useful control-plane restrictions, but internal subagents are not OS isolation.
-- **Code Mode scales tool context:** three meta-tools let the model discover larger MCP tool sets on demand, batch calls and chain intermediate text results. This is strong evidence for minimizing model-facing tool schemas without deleting outer authority controls.
-- **Harbor makes harness a benchmark variable:** Goose's project-owned terminal-bench tooling compares exact binaries, models and extension/tool modes and records pass/fail/error/timeout, turns, compute, tokens and cost. Current project results show the same model can move materially when harness/tool mode changes.
-- **Telemetry has multiple audiences:** inspected source exposes explicit opt-in PostHog product telemetry plus optional OpenTelemetry/OTLP traces/logs/metrics. Neither replaces verifier-owned pass/fail evidence.
-- **Open MCP redirect surface (#11500):** the current authenticated Streamable-HTTP client still constructs a `reqwest::Client` with default headers and no explicit redirect policy; an assigned maintainer favored disabling redirects and testing that 3xx targets are not contacted.
-- **Open shell-policy surface (#11399):** current permissions are tool-wide and deterministic argument-level shell rules remain under design; maintainer discussion converges on explicit `deny > ask > allow` handling outside Smart Approval plus protection of policy configuration from agent edits.
-- **Governance continuity:** Block Goose → AAIF Goose is a documented continuity transition, not abandonment. Foundation stewardship improves continuity signal but does not replace version pinning, security review or API-compatibility qualification.
-- **Boundary:** Goose is strongest as a source of durable-state, provider, MCP, context-scaling and evaluation mechanisms underneath ACL/Vera-owned process/sandbox authority, credential governance, effect replay safety, protected policy and independent verification.
-
-See `projects/goose.md` for primary sources, current open issues, candidate ACL/Vera regression fixtures and explicit non-conclusions.
+See `projects/goose.md` for primary sources and explicit non-conclusions.
 
 ## Task 17 — Ollama research result
 
 **Status:** current Ollama deep research complete; no dependency/adoption/runtime-winner decision made.
 
-High-value findings to carry into later comparison:
+High-value findings retained for later comparison:
+- Ollama deployment identity includes exact release/build, embedded engine/patch profile, immutable model artifact, template/parser, API route, context/KV settings, backend/device and realized offload.
+- Current Ollama pins and patches llama.cpp, while MLX is a materially different runner profile; direct llama.cpp and Ollama are separately qualified runtimes.
+- SHA-256 artifact identity is stronger benchmark identity than mutable tags.
+- Context defaults are hardware-derived and can diverge from ACL's intended 32K baseline; requested and realized context must be recorded.
+- KV/cache/parallelism/flash-attention/GPU-fit decisions are behavior/performance-bearing state.
+- Scheduler reachability is not scheduler forward progress; cold-load health requires explicit probes.
+- Capability discovery nominates tests but is not verified end-to-end capability.
+- Native tool schema transport loses some general JSON-Schema constraints; ACL must retain and validate against its original authoritative schema.
+- Tools and structured output are separate feature paths; capability composition requires its own fixtures.
+- Native and OpenAI-compatible API routes need separate qualification; `runtime=ollama` also does not prove offline/local execution.
+- Debug request replay is useful but sensitive operational evidence.
+- Current issue fixtures #17099, #17142, #17408, #17444, #17597 and #17957 remain runtime/schema/scheduler/integration tests.
+- Ollama is strongest as inference/runtime beneath ACL-owned scheduling, sandbox/process authority, credentials, state/effects, checkpoints and verification.
 
-- **Ollama is a deployment profile, not merely a model launcher:** runtime build, engine, immutable model artifact, template/parser, API route, context/KV settings, hardware/backend, realized offload and harness adapter all affect behavior.
-- **Pinned and patched llama.cpp:** current Ollama pins llama.cpp through `LLAMA_CPP_VERSION=b10760` and applies compatibility patches before building. Direct llama.cpp and Ollama's embedded engine require separate qualification.
-- **MLX is a different engine profile:** current MLX runner has different implemented chat/template/embedding/device surfaces and its own structured-output path. Capability cannot silently transfer across engines.
-- **Artifact digests beat tags:** model layers/manifests use SHA-256 content identity and downloads are digest-verified. Benchmark manifests should retain layer/model/template/parameter identity; mutable tags remain aliases.
-- **Context default is hardware-derived:** current default is roughly 4K below 24 GiB VRAM, 32K at 24–48 GiB and 256K at/above 48 GiB. Current agent/coding guidance recommends at least 64K, so automatic default is not an agent benchmark policy.
-- **Context precedence is behavior:** request `num_ctx` overrides model/Modelfile, then `OLLAMA_CONTEXT_LENGTH`, then VRAM-tier default, bounded by model context. Record requested and realized values.
-- **Runtime truncation is separate failure state:** llama-server can context-shift/truncate input. Unexpected truncation must not be mislabeled as model forgetting or harness compaction.
-- **KV/cache/fit state matters:** KV type, flash attention, parallel slots, memory-fit target, batch settings and GPU overhead affect fit, context, throughput and potentially quality.
-- **Realized placement is evidence:** open #17099 shows a release-sensitive memory-estimate change can move a model from full GPU to partial CPU and cause a large throughput cliff. Full-GPU and partial-offload runs are different profiles.
-- **Scheduler has useful bounded controls:** queue limits, loaded-runner reuse/refcounts, keep-alive, memory-fit prediction, eviction and a finite one-shot OOM load retry are valuable runtime patterns.
-- **Scheduler transitions need stronger fencing:** open #17408 documents an eviction/reuse race that can leave cold model loads waiting indefinitely while loaded models still answer. Proposed explicit-expiring PR #17416 remained unmerged during Task 17.
-- **Health must include cold-load path:** HTTP responsiveness or already-loaded inference is insufficient proof the scheduler can accept new model work.
-- **Backend observability changes scheduler quality:** CUDA/ROCm/Metal/Vulkan support is broad, but free-VRAM visibility and stable device identity are part of reproducibility.
-- **Capability metadata is discovery only:** current capability assembly depends on config/metadata/template/parser/family heuristics; tool support can be inferred from template markers. `ollama show` should nominate tests, not self-certify production capability.
-- **Native tool schema is narrower than JSON Schema:** current tool structs omit many constraints. Open #17142 documents minimum/maximum/default/pattern/length/const-like fields disappearing before the model.
-- **Tool schemas are not execution validation:** open #17597 shows a surviving `enum` can reach the model yet not constrain tool-call decoding. ACL must validate generated arguments against its original authoritative schema before authorization/effect execution.
-- **Structured output is a separate constraint path:** local `response_format`/format schemas reach engine structured-output machinery rather than carrying the same semantics as ordinary tool parameters.
-- **Feature composition needs tests:** open #17957 shows a model can support tools and response schema individually but fail grammar initialization when both are supplied together.
-- **Harness/client parser belongs in the profile:** #17444 should not be generalized as a universal Ollama tool regression; raw responses worked in other clients, making it useful evidence for integration-specific compatibility testing.
-- **Native and OpenAI-compatible APIs are different surfaces:** upstream promises parts of OpenAI compatibility, not universal parity. Version adapter route separately.
-- **Ollama can be local or remote/cloud:** `OLLAMA_NO_CLOUD` and remote-host policy make local/offline mode explicit. Do not assume `runtime=ollama` proves local execution.
-- **Loopback is part of default security:** normal service defaults to `127.0.0.1:11434`; ordinary routes rely on local/network policy rather than a universal API authentication layer. LAN/external binding requires an explicit outer security boundary.
-- **Debug replay is sensitive evidence:** `OLLAMA_DEBUG_LOG_REQUESTS` can preserve exact request bodies/replay commands, useful for benchmark reproduction but potentially containing project/secrets/context.
-- **Upstream stress tests are a good fixture reference:** current tool stress tests use large coding-agent prompts/tool catalogs, cache reuse and multi-turn tool responses, closer to ACL workloads than toy function calls.
-- **Boundary:** Ollama is strongest as an inference/runtime component below ACL/Vera-owned scheduling, sandbox/process authority, credential policy, task/effect state, checkpoint recovery and independent verification.
-
-See `projects/ollama.md` for primary sources, current open issues, candidate ACL/Vera regression fixtures and explicit non-conclusions.
+See `projects/ollama.md` for primary sources and explicit non-conclusions.
 
 ## Task 18 — Letta Code research result
 
 **Status:** current Letta Code deep research complete; no dependency/adoption/memory-architecture winner decision made.
 
+High-value findings retained for later comparison:
+- Persistent agent identity, conversation thread and live runtime connection are distinct; multiple conversations may share one agent-owned long-term memory.
+- Git-backed MemFS is a distinct curated memory plane from full recall/history.
+- Git gives strong mutation provenance but not truth, source authority, confidence or verification.
+- Persistent memory needs provenance/evidence/trust/conflict/supersession semantics; chronological recency is not an authority hierarchy.
+- Background reflection worktrees expose explicit integration settlement states; generated/committed reflection is not automatically authoritative parent memory.
+- Learned memory, skills and executable mods/security policy are distinct trust classes; learning must not silently deploy code or expand authority.
+- Configured memory sandbox and realized sandbox differ; ordinary internal memory-subagent launch can degrade to unsandboxed operation.
+- Raw provider evidence, canonical semantic messages, stored projections, UI and reflection inputs are separate representations requiring tests.
+- Secret references/substitution are preferable to prompt plaintext, but runtime plaintext still constitutes authority exposure.
+- Side-effect-aware subagent retry is useful: ambiguous failure after possible effects is not automatically replayed.
+- App Server correlation/trajectory ingestion are useful, but runtime idempotency and imported trajectories are not exactly-once effects or trusted truth.
+- Current issue fixtures #4029, #4195, #4249, #4247, #3132 and #3523 preserve separate epistemic/projection/integration/restore/context/retention failure classes.
+- Letta is strongest as persistent identity/memory/runtime reference beneath Vera/ACL-owned provenance policy, authority, effects and verification.
+
+See `projects/letta-code.md` for primary sources and explicit non-conclusions.
+
+## Task 19 — Gemini CLI research result
+
+**Status:** current Gemini CLI deep research complete; no dependency/adoption/model/runtime/sandbox decision made.
+
 High-value findings to carry into later comparison:
+- **Deterministic tiered policy:** current PolicyEngine resolves `ALLOW`, `DENY` and `ASK_USER` from protected rule layers using tool, MCP server, normalized arguments, annotations, subagent identity, approval mode and interactive/headless state. Unresolved headless calls deny and checker failures fail closed.
+- **Policy != sandbox:** approval/policy outcome, capability grant, realized sandbox and external-effect settlement are separate authority/evidence domains.
+- **Argument semantics matter:** open #29189 reproduces on stable `v0.58.0` that Windows can treat `git diff` as read-only while `--output` writes a file. Current main still classifies a safe-git subcommand set without full argument validation; proposed PR #29184 remained open during Task 19.
+- **Shell authorization cannot be name-only:** normalize flags, redirects, aliases/hooks/config and nested interpreters where they can alter effects.
+- **Incremental capability expansion is strong reference material:** sandbox tooling can request explicit filesystem/network permission expansion rather than globally disabling isolation.
+- **Realized sandbox evidence matters:** Linux Bubblewrap implementation includes protected governance paths, environment sanitization and ptrace restriction; configured mode alone is not proof those controls were realized on another platform/backend.
+- **Credential/control-plane separation remains necessary:** Gemini CLI sanitizes sensitive/runtime-altering environment values and MCP subprocess environments, but ACL workers should receive minimal explicit environments with provider/supervisor credentials kept outside worker authority.
+- **Provider boundary is cloud/Gemini oriented:** current first-class ContentGenerator routes are Gemini / Code Assist / Vertex / Gateway. Task 19 found no first-class Ollama, direct llama.cpp, vLLM or generic OpenAI-compatible local provider in that surface.
+- **Custom Gemini base URL is not generic local-provider parity:** a translation gateway would need its own exact capability qualification.
+- **MCP and extensions are executable trust surfaces:** extensions can add MCP servers, policy/checkers, context, commands, hooks, agents and skills.
+- **Configuration hash helps approval identity but not provenance:** extension consent exposes behavior-bearing config and SHA-256 identity, but that is not a publisher signature or proof executed artifacts match reviewed configuration.
+- **Subagent shaping is useful but default inheritance is too broad for ACL:** local subagents isolate registries/context/policy and prevent recursion, yet omission of tools inherits parent tools. ACL should default child effect tools to none and grant explicit subsets.
+- **A2A identity/auth is useful interoperability, not global task authority:** remote-agent auth does not establish ACL project/effect ownership or OS/credential isolation.
+- **Read-before-create resume is critical:** current ACP authenticates early, but `loadSession()` initializes requested-session config before resolving stored state and launches history replay without awaiting it.
+- **Open #28693/#28775 are current recovery fixtures:** their load-corruption reports align with the current ordering seam and should become ACL/Vera resume regression tests.
+- **Append-oriented session state is strong reference material:** `ChatRecordingService` uses semantic JSONL records and transactional repair, separating active context from recoverable durable history.
+- **Live progress can diverge from durable evidence:** ENOSPC can disable future recording while a session continues. ACL should make required-durability loss an explicit pause/degraded lifecycle state.
+- **Open #29198 is a current stable-release retention fixture:** resume then immediate exit can remove later resumability; Task 19 preserved symptom evidence without claiming an unverified complete root cause.
+- **Shadow-Git checkpointing is pre-effect workspace evidence, not full continuation:** it snapshots Git-visible project state plus conversation/tool metadata before modifying file tools but excludes ignored/process/database/network/API/credential state.
+- **Auto-memory extraction is coordination, not truth:** per-workspace atomic locks, PID/age stale detection and bounded batches are useful local coordination, but memory still needs provenance and multi-host writer fencing where applicable.
+- **Deterministic versus stochastic evaluation should remain separate:** Gemini CLI distinguishes integration correctness from model behavioral evals and uses repeated `USUALLY_PASSES` versus `ALWAYS_PASSES` reliability classes.
+- **Harness/model role promotion should use distributions, not one pass:** exact model/runtime/harness/fixture identity and repeated trials belong in ACL's eventual benchmark evidence.
+- **Telemetry is operator evidence:** OpenTelemetry logs/metrics/traces can contain sensitive model/tool context and do not define verifier-owned acceptance.
+- **Protected policy/config is a structural requirement:** recent system-config and extension hardening reinforces that worker-constraining policy/checker/hook/verifier artifacts must be outside worker mutation authority and provenance/version checked.
+- **Boundary:** Gemini CLI is strongest as a mature execution-policy, host-integration, checkpoint/session and eval reference. It does not replace ACL's outer scheduler, distributed writer fencing, external-effect ledger/reconciliation, credential broker, independent verifier, Vera epistemic-memory governance or exact local-runtime qualification.
 
-- **Persistent identity is not a conversation:** Letta separates persistent `agent_id`, individual `conversation_id` threads and live runtime/App Server connections. Multiple conversations of one agent can share long-term memory.
-- **MemFS is a distinct state plane:** one agent owns a persistent Git-backed memory filesystem while full recall/history remains separate. `system/` memory can enter future prompts; other memory files remain out of immediate context until read.
-- **Personal/shared memory need separate authority:** agent-owned identity memory and shared/project/organization memory should not be flattened into one namespace merely because both are text.
-- **Git history is mutation provenance, not truth:** commit/diff/branch history gives strong auditability and rollback material but does not establish source trust, confidence, verification, relevance or authority.
-- **Persistent memory needs epistemic metadata:** Vera should retain source/evidence, observed-vs-inferred status, confidence, verification, conflict/supersession and domain-risk semantics for important memories.
-- **Newest is not automatically strongest:** open #4029 provides prompt/evaluation-scoped evidence that reflection conflict handling can lack restraint. Recency alone must not supersede stronger or safety-critical evidence.
-- **Reflection has explicit settlement states:** current Git-worktree finalization distinguishes `merged`, `no_changes`, `parent_dirty`, `merge_conflict`, `dirty_uncommitted` and `failed`. Model-generated reflection is not automatically integrated memory.
-- **Commit != integration:** open #4249 is current Windows evidence that reflection can create a commit while parent memory refresh/integration remains unsettled.
-- **Memory, skills and trusted mods are different:** current mods can register tools/providers/events/permission overlays/UI and are trusted executable code. Learned memory must not silently deploy code or expand authority.
-- **Configured sandbox != realized sandbox:** the exported memory-confinement API fails closed without its required kernel sandbox, but the ordinary internal memory-subagent launcher can warn and continue unsandboxed when sandboxing is disabled/unavailable/no writable root is found.
-- **Cross-agent memory guard != OS isolation:** protecting another agent's memory namespace does not constrain general shell/filesystem/network/credential authority.
-- **Compaction summary != canonical evidence:** active context can be compacted while full history remains separately recoverable. Summaries are context optimization, not source-of-truth replacement.
-- **Transcript projection is memory integrity:** current local projection preserves semantic parent/tool-result structure, but open #4247 is current-main evidence that reasoning chunks can be joined in a way that changes word continuity. Reflection can later learn from that stored projection.
-- **Provider capability remains exact-deployment behavior:** local/cloud adapters, model/runtime endpoint, context setting and dynamic toolset must be qualified as a tuple rather than inferred from a `supports Letta` label.
-- **Context propagation needs a fixture:** open #3132 reports new local conversations falling back to `128000`; current backend retains the relevant legacy fallback/representation seam. Requested and realized context must be compared.
-- **Tool availability != approval != process authority:** model-facing tool selection, persisted permission mode, allow/deny policy, argument validation and actual OS authority remain separate controls.
-- **Secret references are useful:** Letta can expose secret names/references to the model and substitute/scrub values around execution. Runtime plaintext still represents real authority and must not enter persistent memory.
-- **Ambient child environment remains a gap:** current subagent environment begins from the parent process environment. ACL should retain its stronger minimal-explicit-child-environment rule.
-- **Subagent retry is side-effect aware:** clear truncation/lost-stream cases can be boundedly retried, but ambiguous parse failures are not automatically replayed when a child may already have performed effects.
-- **Cancellation signal != settlement:** child `SIGTERM` does not prove descendants, provider work or external effects stopped.
-- **Stateless label != no durable record:** open #3523 is an issue-scoped retention fixture for supposedly stateless subagent records persisting after execution.
-- **App Server has useful identity/correlation:** Protocol V2 carries agent/conversation runtime scope plus request/event/idempotency metadata appropriate for reconnect and approval flows.
-- **Runtime idempotency != effect ledger:** request/event keys do not establish exactly-once filesystem/API/database effects without ACL/Vera-owned reconciliation.
-- **Trajectory import is lower-trust data:** normalized historical coding-agent trajectories are valuable memory-learning evidence, but imported sessions require provenance/trust and cannot automatically become privileged memory/policy.
-- **Restore must be transactional:** open #4195 is a current-main destructive-restore fixture where active memory can be deleted before replacement copy succeeds. Stage/verify replacement before switching authoritative state.
-- **Failure classes stay separate:** epistemic (#4029), transcript projection (#4247), integration (#4249), restore (#4195), retention (#3523) and context/config propagation (#3132) should not be mislabeled as one generic model-memory failure.
-- **Boundary:** Letta Code is strongest as a persistent identity/memory/runtime protocol reference beneath Vera/ACL-owned truth/provenance policy, credential governance, sandbox/process custody, task/effect state and independent verification.
-
-See `projects/letta-code.md` for primary sources, current issue evidence, 40 candidate ACL/Vera invariants, regression fixtures and explicit non-conclusions.
+See `projects/gemini-cli.md` for primary sources, current issue evidence, candidate ACL/Vera regression fixtures and explicit non-conclusions.
 
 ## Ranked active-project queue — live status
 
@@ -181,8 +154,8 @@ See `projects/letta-code.md` for primary sources, current issue evidence, 40 can
 12. **Goose** — `aaif-goose/goose` — **Task 16 complete**.
 13. **Ollama** — `ollama/ollama` — **Task 17 complete**.
 14. **Letta Code** — `letta-ai/letta-code` — **Task 18 complete**.
-15. **Gemini CLI** — `google-gemini/gemini-cli` — **next task only**.
-16. **Graphiti** — `getzep/graphiti`.
+15. **Gemini CLI** — `google-gemini/gemini-cli` — **Task 19 complete**.
+16. **Graphiti** — `getzep/graphiti` — **next task only**.
 17. **Microsoft Agent Framework** — `microsoft/agent-framework`.
 18. **Google ADK** — `google/adk-python`.
 19. **LiteLLM** — `BerriAI/litellm`.
@@ -238,59 +211,67 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Model proposals and role labels are not authority boundaries.
 - Make model-facing scaffold complexity earn its place; lifecycle, policy, evidence and recovery belong in explicit runtime owners rather than prompt prose.
 - A tiny/general tool interface can still carry broad authority; interface simplicity and least privilege are independent dimensions.
-- On-demand meta-tool discovery can reduce context/schema pressure, but generated coordination code must still cross the same deterministic effect-authorization boundary as direct tool calls.
+- On-demand meta-tool discovery can reduce context/schema pressure, but generated coordination code must cross the same deterministic effect-authorization boundary as direct tool calls.
 
-### Identity, memory and authority
-- Persistent agent/persona identity, conversation/thread identity, task/run identity, runtime/transport identity and effect identity remain distinct.
+### Identity, policy, memory and authority
+- Persistent agent/persona identity, conversation/thread identity, project/task/run identity, runtime/transport identity, provider request identity and external-effect identity remain distinct.
 - Personal/identity memory, shared/project memory, task memory, recall/history and trusted policy/configuration are separate state/authority domains.
 - Persistent memory is not verified truth merely because it is durable or Git-tracked.
 - Important memory needs provenance/evidence/trust/confidence/conflict/supersession semantics appropriate to domain risk.
 - Chronological recency is not an authority hierarchy; newer lower-trust evidence cannot silently replace stronger verified memory.
-- Compaction summaries are context optimization, not canonical evidence.
+- Compaction summaries and extracted memory are context/learning products, not canonical evidence.
 - Learned memory, skills/procedures, trusted executable configuration and security policy are distinct trust classes.
 - Learning/background reflection must not silently expand tools, credentials, network/filesystem authority or deploy trusted code.
 - Imported transcripts/trajectories remain lower-trust data until provenance/trust is evaluated.
-- Canonical effect capability identity includes authoritative origin plus definition/version; name-only dispatch is unsafe across providers/servers.
-- Approval/no-approval policy and actual tool/sandbox authority are separate dimensions.
+- Canonical effect capability identity includes authoritative origin plus definition/version/schema identity; name-only dispatch is unsafe across providers/servers.
+- Approval/no-approval policy, argument validation, capability grant and realized sandbox authority are separate dimensions.
 - Persisted approvals bind to exact call/origin/task/objective/tool/policy versions; incompatible semantic changes invalidate them.
 - Malformed/uninspectable effect parameters fail closed.
 - Revalidate mutable policy immediately before irreversible effects after waits/approval.
-- Child roles may reduce authority but must not widen the parent ceiling.
+- Shell/command policy includes behavior-bearing arguments and redirection; apparently read-only executable/subcommand names are not enough.
+- Child roles may reduce authority but must not widen the parent ceiling; default child effect authority should be explicit rather than inherited by omission.
 - Reviewer/verifier capability should be minimized independently from worker capability.
 - Self-reported server/model/provider names and read-only/tool annotations are metadata/advisory inputs, not security identity or authority.
-- Shared recipes/configuration that can launch processes or shell checks are executable authority artifacts, not passive prompt templates.
+- Shared recipes/extensions/configuration that can launch processes, add tools or run hooks/checkers are executable authority artifacts, not passive prompt templates.
+- Configuration hashes are useful identity but do not replace artifact/publisher provenance, review and immutable versioning.
+- High-trust policy/checker/verifier/hook roots must be structurally outside worker write authority.
 - Mutable model tags are aliases, not immutable runtime/model authority or benchmark identity; retain content/manifests/digests where available.
 
 ### Workspace, sandbox and credentials
 - Workspace isolation, Git/ref authority, secrets, verifier roots, memory roots and external effects are separate trust domains.
 - Container/sandbox/runtime selection is not a complete permission profile; mounts/network/user/resources/credentials/capabilities are separate.
 - Configured sandbox and realized sandbox are distinct evidence; required isolation should fail closed when not realized.
-- Cross-agent memory namespace guards do not replace OS/process/filesystem/network/credential isolation.
-- Local-host worker execution should not inherit ambient supervisor environment/credentials.
-- Native inference services that spawn engine subprocesses should themselves run under a deliberate service environment; this does not weaken the stronger minimal-environment rule for worker/tool processes.
+- Incremental capability expansion should request the smallest missing filesystem/network permission rather than disable the entire isolation boundary where practical.
+- Cross-agent memory namespace guards and subagent registry isolation do not replace OS/process/filesystem/network/credential isolation.
+- Local-host worker/tool execution should not inherit ambient supervisor environment/credentials.
+- Model-provider/control-plane credentials should remain outside worker effect planes wherever architecture permits.
+- Native inference services that spawn engine subprocesses should run under a deliberate service environment; this does not weaken the stronger minimal-environment rule for worker/tool processes.
 - Durable state should reference credentials; live authority is rebound from current trusted policy after resume.
 - Runtime-visible plaintext credentials cannot later be made secret from arbitrary worker code by revocation.
 - Model-facing secret references/substitution are preferable to prompt-visible plaintext but do not eliminate runtime credential exposure.
 - Persistent learned memory should not contain reusable secrets.
 - MCP Roots/workspace hints are not access control.
-- Approval modes, shell classifiers and command policies are not substitutes for OS/process/filesystem/network isolation.
+- Approval modes, safety classifiers and command policies are not substitutes for OS/process/filesystem/network isolation.
 
-### State, recovery, memory settlement and effects
+### State, recovery, durability and effects
 - Logical request/idempotency, run/attempt, process, protocol request, remote task handle and durable session identities remain separate.
 - Transport/session/stream continuity is not authoritative project/task/effect state.
-- Each durable state domain needs one authoritative writer; multi-process state requires leases/generation/CAS/fencing.
+- Resume/load operations resolve and validate existing authoritative state before creating/mutating state in the same namespace.
+- Each durable state domain needs one authoritative writer; multi-process/multi-host state requires leases/generation/CAS/fencing.
+- Local PID/age locks and in-process session registries are coordination, not distributed writer fencing.
 - A saved transcript/trajectory/inference cache/remote task handle is not automatically an ACL checkpoint.
-- Re-deriving agent-loop transitions from persisted semantic state is preferable to hidden in-memory loop progress, but that state still needs separate workspace/effect/authority evidence before safe continuation.
-- In-process per-session run locks prevent local races but do not replace durable distributed writer fencing.
+- Re-deriving agent-loop transitions from persisted semantic state is preferable to hidden in-memory loop progress, but state still needs separate workspace/effect/authority evidence before safe continuation.
 - A durable checkpoint still does not imply exactly-once external effects.
 - Durable action/result relationships are atomic semantic state; orphan results/calls are corruption.
 - Raw provider evidence, canonical semantic messages, persisted projections, UI representations and reflection inputs are separately testable representations.
 - Background memory generation, Git commit and authoritative parent-memory integration are separate settlement states.
 - Reflection conflicts/dirty parents/failed integration remain visible rather than silently counting as learned memory.
 - A restore operation stages and verifies replacement before destroying/switching authoritative current state.
+- Pre-effect shadow-Git/source checkpoints are useful workspace evidence but do not cover ignored files, processes, databases, APIs/network or credentials unless explicitly added.
 - Partial/in-progress work stays visibly interrupted/uncertain after crash/recovery.
-- Lost/expired remote handles do not prove the backing computation stopped.
+- Lost/expired remote handles do not prove backing computation stopped.
 - Physical persistence retention is separate from model-context compaction and execution settlement.
+- Live execution and required durable recording are separate lifecycle dimensions; loss of required durability must become explicit degraded/paused state rather than invisible logging failure.
 - Runtime model residency/keep-alive and KV/prompt cache are performance state, not durable agent continuation authority.
 
 ### Cancellation, timeouts and retry
@@ -311,6 +292,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - For Goose-like deployments, also record exact Goose/GDK/provider revision, local backend path and extension/tool mode such as direct MCP versus Code Mode.
 - For Ollama deployments, record exact Ollama release/commit/package digest, embedded engine kind/revision/patch profile, immutable model/manifest/template identity, API route, context/KV/parallel/fit settings and realized offload/context.
 - For Letta-like stateful harnesses, record exact harness/backend/provider/model/runtime endpoint, dynamic toolset/model settings, requested/realized context and memory/runtime mode.
+- Gemini CLI's provider support is Gemini-protocol/cloud-harness evidence and must not be generalized into local/OpenAI-compatible provider parity.
 - Requested runtime settings and realized runtime state are separate evidence; context/offload/device placement must be observed rather than inferred from configuration.
 - Template/schema/protocol capability discovery is not verified end-to-end behavior.
 - MCP capability identity includes protocol era/version, transport, SDK/adapter revision, auth mode and negotiated extensions.
@@ -332,9 +314,12 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Server-declared public cacheability cannot override ACL/Vera trust isolation.
 - Loopback binding/CORS/Host-header checks and service authentication are separate controls; exposing a local inference API beyond loopback requires an explicit outer network/auth policy.
 
-### Verification and evidence
+### Verification, evaluation and evidence
 - The system under test does not own the authoritative definition of pass/fail.
 - Deterministic host/verifier evidence precedes semantic model grading when machine-observable.
+- Deterministic harness/integration correctness and stochastic model behavioral reliability are separate scores.
+- Model-role promotion uses repeated trials/pass distributions and exact model/runtime/harness/fixture identity rather than one successful run.
+- Reliability classes such as `USUALLY_PASSES`/`ALWAYS_PASSES` are useful reference patterns, not preselected ACL thresholds.
 - Missing required evidence yields explicit invalid/failure rather than implicit pass.
 - Verifier tests/hashes/sidecars/control roots stay outside worker mutation authority.
 - Trace/model/tool data may contain secrets; raw traces, operational telemetry and product analytics have separate audiences/retention.
@@ -365,4 +350,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 18 is complete once `projects/letta-code.md`, catalog, state and watchlist are committed. The next task is **Gemini CLI deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Graphiti.
+Task 19 is complete once `projects/gemini-cli.md`, catalog, state and watchlist are committed. The next task is **Graphiti deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Microsoft Agent Framework.
