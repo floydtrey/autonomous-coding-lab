@@ -2,12 +2,12 @@
 
 **Branch:** `research/agent-landscape`
 **Status:** current task complete; stopped before next task
-**Current phase:** 28 — Agno deep research complete
+**Current phase:** 29 — LlamaIndex deep research complete
 **Execution:** research only; no worker/model execution authorized by this branch
 
 ## Catalog layout
 - `docs/research/catalog.jsonl` remains the original catalog through Task 24 with 257 records and is intentionally left unchanged.
-- `docs/research/catalog-part2.jsonl` begins with Task 25 OpenCode records and now contains Task 26 Mem0, Task 27 smolagents and Task 28 Agno records; it remains the append target for subsequent research tasks unless deliberately consolidated later.
+- `docs/research/catalog-part2.jsonl` begins with Task 25 OpenCode records and now contains Task 26 Mem0, Task 27 smolagents, Task 28 Agno and Task 29 LlamaIndex records; it remains the append target for subsequent research tasks unless deliberately consolidated later.
 - Treat both files together as the research catalog; do not rebuild or rewrite Part 1 merely to add new records.
 
 ## Completed campaign checkpoints
@@ -36,70 +36,70 @@
 - Task 26: **Mem0** — `projects/mem0.md`.
 - Task 27: **smolagents** — `projects/smolagents.md`.
 - Task 28: **Agno** — `projects/agno.md`.
+- Task 29: **LlamaIndex** — `projects/llamaindex.md`.
 
-## Task 28 work completed
-- Began from finalized Task 27 branch head `4ec0f41a45bf6fa8c02ab94ca8284dee21cb50be`.
-- Re-read research governance/process/state/source boundaries and kept LlamaIndex out of scope.
-- Confirmed latest observed stable Agno release **v3.0.6** and current `main` `d703c34f3abf3c41275d3fb2da6e0518a8881f24`; current main still reports package version 3.0.6, so exact commit remains required identity.
-- Mapped Agent, Team, Workflow and AgentOS as distinct layers and retained TeamMode `coordinate`, `route`, `broadcast` and `tasks` plus workflow Step/Loop/Parallel/Condition/Router structures as behavior-bearing orchestration profiles.
-- Preserved component definition, invocation, session, workflow step, protocol request and ACL effect as distinct identities.
-- Retained #9348's root-only nested-team DB ownership as a useful single-writer principle while preserving its history-propagation failure as evidence that writer ownership and child read visibility are separate.
-- Retained open #7479 as a same-session storage regression fixture: concurrent runs can silently lose history through stale-snapshot full-JSONB last-writer-wins updates.
-- Derived atomic append/CAS/row-lock/lease/fencing requirements for authoritative shared session state rather than whole-document LWW persistence.
-- Retained open #10015 as a mixed sync/async cancellation race: separate locks over the same dictionaries can overwrite cancellation intent and member-run mappings.
-- Retained #7294 as a child/delegation/stream lifecycle fixture showing member completion can precede parent delegation completion by a timeout-scale interval.
-- Retained #8910/#9278 as HITL continuation fixtures where workflow `PAUSED` and executor child `CANCELLED` become contradictory durable state and make resume impossible.
-- Derived explicit cross-level parent/child lifecycle invariants and reconciliation-before-resume requirements.
-- Mapped current `MemoryManager`, including LLM-driven memory maintenance, database UserMemory storage, default memory-management model behavior and user-scope semantics.
-- Retained open #9983 and corroborated current source: when the model-facing `clear_memory` tool is enabled, its closure calls unscoped `db.clear_memories()`, providing a cross-principal destructive-memory fixture.
-- Preserved memory `user_id` as storage scope rather than authenticated principal and rejected generic/default user fallbacks for authoritative multi-user domains.
-- Inspected current CodeMode: persistent per-session IPython Python/shell execution, explicit non-sandbox status, executable dill snapshots, session-keyed kernels, snapshot limits/eviction and team namespace sharing.
-- Preserved CodeMode/persistent interpreter state as runtime state rather than ACL continuation authority and required ACL-owned containment, process custody, credentials and snapshot provenance.
-- Retained DB-backed FileSystem `expected_version` CAS/atomic semantics and local-backend explicit CAS rejection as strong capability-honesty patterns; retained Studio immutable revisions plus guarded current-version updates as a reuse candidate.
-- Retained open #8620 as a credential/audience fixture: configured Authorization/Cookie headers can accompany a model-selected URL; treated #8847 as related external-send authority design evidence rather than a proven framework escape.
-- Retained #8494 as indirect-prompt-injection/content-trust evidence while rejecting text sanitization alone as an authorization boundary.
-- Verified broad provider/local support including distinct native Ollama chat and Ollama Responses paths while keeping exact adapter/runtime/API/tool/context profile qualification mandatory.
-- Retained #9034/current #10031 provider-adapter signature-drift behavior as a critical harness fixture: adapter exceptions can become normal assistant text instead of typed run failure.
-- Preserved tool-result compression/offloading/history policy as behavior-bearing benchmark identity and current fail-loud incompatibility as preferable to silent reference corruption.
-- Retained maintainer-tracked #9680/#9829 as cleanup/settlement evidence: run deletion can leave detached result payloads and async run return can precede final CodeMode snapshot flush.
-- Mapped v3.0.6 MCP legacy/auto/stateless profiles, server-card/auth/Host-Origin controls and direct-tool publication semantics.
-- Preserved Agno's fail-closed MCP rule: tools requiring confirmation/user-input/external-execution are refused when the direct MCP surface would bypass normal FunctionCall controls.
-- Preserved same logical tool over Agent/REST/MCP/A2A as separate security/lifecycle profiles whenever hook/approval/auth behavior differs.
-- Reviewed A2A task/card/send/stream surfaces and retained current documentation caveat that remote content and lifecycle status can diverge.
-- Reviewed AgentOS JWT/RBAC and opt-in user isolation; retained #9741 as a narrower REST/WebSocket auth-path consistency fixture.
-- Reviewed OpenInference/OpenTelemetry tracing plus accuracy/performance/reliability eval surfaces as useful evidence mechanisms rather than independent ACL acceptance authority.
-- Wrote detailed findings, 32 candidate invariants, regression fixtures, reuse candidates, sources and explicit non-conclusions to `projects/agno.md`.
-- Appended 14 Task 28 Agno records to `catalog-part2.jsonl`; the original 257-record `catalog.jsonl` remains untouched.
-- No LlamaIndex research, cross-project framework winner selection, Agno adoption, model/runtime assignment, 32K benchmark execution or ACL/Vera implementation/governance change was begun.
+## Task 29 work completed
+- Began from finalized Task 28 branch head `e7c403311f28753c22f9945c59f2b33ef7004029` and verified no concurrent branch drift before writes.
+- Re-read README, PROCESS, RESEARCH_STATE, sources and watchlist governance and kept CrewAI out of scope.
+- Confirmed latest observed stable LlamaIndex release **v0.14.24** and current `run-llama/llama_index` main `d2ac544a27c73d2a68e9c57efec4b2ac0ef99892`; current core still reports 0.14.24, so exact source commit remains behavior-bearing identity.
+- Identified the current split between `llama-index-core` and the separately versioned `llama-index-workflows` runtime maintained in `run-llama/llama-agents`; preserved both identities in future benchmark/deployment manifests.
+- Mapped current `FunctionAgent`, `ReActAgent`, `CodeActAgent` and multi-agent `AgentWorkflow` plus typed agent/workflow events, explicit root/handoff topology and shared Workflow Context state.
+- Preserved agent definition, invocation, Workflow run, Context/session, protocol request, tool call and external effect as separate identities.
+- Verified Workflow Context is serializable/restorable and is distinct from agent Memory; preserved Context, Memory and RAG/index state as separate persistence/trust planes.
+- Preserved JSON Context as continuation evidence rather than ACL checkpoint authority and marked pickle-backed Context restoration as trusted executable deserialization.
+- Retained open **#22559** as a high-value at-least-once replay fixture: `wait_for_event` can replay a step and repeat pre-wait external effects; nondeterministic waiter IDs can break response matching across replay.
+- Derived stable logical effect/idempotency and waiter/correlation identity requirements before HITL/replay boundaries.
+- Inspected the separately versioned Workflows runtime's current `WorkflowHandler`: graceful cancellation delegates to a runtime adapter and waits only for a bounded interval; preserved cancel request, backing-operation termination and effect/resource settlement as separate states.
+- Retained current `AgentWorkflow._call_tool()` behavior where ordinary tool exceptions become model-visible `ToolOutput(is_error=True)`; preserved tool error and effect settlement as separate state.
+- Retained open **#20386** as design evidence for deterministic host-owned tool I/O mediation: authoritative IDs should be injected before execution and outputs can be deterministically filtered/redacted before model exposure.
+- Preserved `can_handoff_to` as orchestration routing rather than a security capability and kept child/peer effect authority independently host-derived.
+- Retained open **#22071** and corroborated the current `workflow_as_mcp(workflow: Workflow, ...)` API shape: one mutable Workflow instance can be reused across MCP clients while only Context is per-run, enabling cross-tenant `self.*` state leakage.
+- Derived immutable/request-scoped workflow-instance and protocol-lifecycle isolation requirements.
+- Retained open current-main **#22701** as a memory isolation fixture: shared `VectorMemoryBlock` state can pin later retrievals to the first session filter and mutate caller-owned filter/message objects.
+- Preserved memory/session namespace as scope metadata rather than authenticated principal identity and required per-call host-stamped immutable scope.
+- Retained open **#22248** as a state-projection freshness fixture: canonical `ctx.store` state can change while the next LLM call receives a stale model-visible projection.
+- Preserved canonical state and model-visible prompt projection as separately versioned/tested representations.
+- Retained open **#21666** as memory-poisoning design evidence and preserved persistent/retrieved memory as untrusted content, not verified truth or policy authority.
+- Inspected current `CodeActAgent`: model-authored Python is delegated to caller-provided `code_execute_fn`; preserved code execution support and OS/process sandboxing as separate capabilities.
+- Required exact CodeAct executor/container/process/network/mount/resource/credential/cleanup profile as benchmark/security identity.
+- Mapped RAG/indexing as separate source-document/node/transformation/embedding/index/vector/retrieval/citation planes and retained v0.14.24 fixes such as **#22133** as derived-state integrity fixtures.
+- Retained recent chat/memory/AG-UI fixes (#22124, #22179, #22162, #22103, #22109, #22189) as representation/protocol integration fixtures; preserved fail-loud missing tool-call identity rather than fabricated correlation IDs.
+- Verified official local Ollama LLM/embedding paths and llama.cpp integration; retained the v0.14.24 effective-context fix as evidence that requested and realized context are separate benchmark fields.
+- Preserved exact integration package, model/runtime/template/tool/schema/stream/context profile as provider capability identity rather than nominal provider support.
+- Reviewed OpenTelemetry/LlamaTrace and evaluation surfaces as operational/semantic evidence rather than independent ACL verifier authority.
+- Wrote detailed findings, 36 candidate invariants, 18 regression fixtures, reuse candidates, primary sources and explicit non-conclusions to `projects/llamaindex.md`.
+- Appended 16 Task 29 LlamaIndex records to `catalog-part2.jsonl`; the original 257-record `catalog.jsonl` remains untouched.
+- No CrewAI research, framework winner selection, LlamaIndex adoption, model/runtime assignment, 32K benchmark execution or ACL/Vera implementation/governance change was begun.
 
-## Highest-value Agno findings for later comparison
-1. **Agno is a platform/runtime reference, not just a loop.** Agent, Team, Workflow and AgentOS are distinct architecture layers worth comparing independently.
-2. **Exact commit remains identity even when package version does not change.** Current main contains post-v3.0.6 fixes while still reporting 3.0.6.
-3. **Single writer and readable child state are separate problems.** #9348 preserves root-owned persistence intent while exposing nested history loss.
-4. **#7479 is a strong shared-session fixture.** Whole-JSONB last-writer-wins persistence can silently discard concurrent runs.
-5. **#10015 is a strong cancellation fixture.** Separate sync/async locks cannot safely govern one shared state domain.
-6. **Composite lifecycle invariants matter.** #8910/#9278 show a durable PAUSED parent with CANCELLED continuation child can become unrecoverable.
-7. **Memory deletion scope is effect authority.** #9983 shows an enabled model-facing clear path can reach every user's memories through a global DB clear.
-8. **CodeMode is explicitly not containment.** Persistent Python/shell plus executable dill snapshots require outer ACL isolation and trusted snapshot provenance.
-9. **DB FileSystem CAS is a positive reusable pattern.** Unsupported local CAS fails explicitly; Studio combines immutable revisions and guarded head movement.
-10. **Credentials bind to destinations.** #8620 demonstrates why a toolkit credential cannot safely follow a model-selected arbitrary URL.
-11. **Provider exceptions must remain typed failures.** #9034/#10031 show adapter failure can otherwise masquerade as assistant output.
-12. **Async completion requires cleanup settlement.** #9680/#9829 separate run return from snapshot/result-payload cleanup.
-13. **Agno's MCP fail-closed publication is high-value reference material.** If required approval semantics cannot survive direct MCP invocation, current AgentOS refuses the tool instead of silently downgrading it.
-14. **Authentication, RBAC, user isolation, content trust and effect authorization remain separate.** AgentOS has all of these concerns, but one does not imply the others.
-15. **Agno remains below ACL-owned scheduling, task/effect identity, containment, writer fencing, credentials, reconciliation/checkpoint authority and independent verification; Vera retains epistemic memory authority.**
+## Highest-value LlamaIndex findings for later comparison
+1. **Core framework and Workflow runtime are separately versioned identities.** Current core delegates Workflow execution to `llama-index-workflows`; one package version is insufficient benchmark identity.
+2. **Context, Memory and RAG/index state are distinct planes.** A restorable Context is continuation evidence, not complete checkpoint/effect settlement.
+3. **#22559 is a critical effect-replay fixture.** HITL/replay can re-run code before a wait, so external effects require stable IDs/idempotency and reconciliation.
+4. **Cancellation return is not settlement.** Current `cancel_run()` can return after a bounded wait without proving backing work/effects ended.
+5. **Tool errors are not effect evidence.** AgentWorkflow can convert exceptions into model-visible error results after an ambiguous external effect.
+6. **Host-owned deterministic tool I/O matters.** #20386 reinforces authenticated identifier injection and model-visible output filtering outside model control.
+7. **Handoffs route work but do not grant authority.** Child/peer capability remains an outer ACL concern.
+8. **#22071 is a strong protocol/object-isolation fixture.** Per-run Context does not isolate mutable `self.*` fields on one workflow instance shared by MCP clients.
+9. **#22701 is a strong memory-isolation fixture.** Per-session filters must be built per call and must not mutate reusable shared component state.
+10. **Canonical state and prompt projection can diverge.** #22248 demonstrates the need to version/test model-visible state freshness independently.
+11. **Persistent memory remains untrusted content.** Storage/retrieval does not create truth, instruction authority or authentication.
+12. **CodeActAgent does not supply containment.** `code_execute_fn` and its realized sandbox profile own the security boundary.
+13. **RAG ingestion is multi-plane derived state.** Source evidence, nodes, embeddings, indexes and citations need explicit generation/reconciliation identity.
+14. **Protocol/message projections are separately testable.** Recent AG-UI/chat/memory fixes show canonical execution state can be lost or mutated between representations.
+15. **Requested and effective context are separate.** The llama.cpp context metadata fix directly supports ACL's planned measured 32K qualification.
+16. **LlamaIndex remains below ACL-owned scheduling, task/effect identity, containment, credentials, writer fencing, reconciliation/checkpoint authority and independent verification; Vera retains epistemic memory authority.**
 
 ## Queue status
-- Tasks 5–28 project deep research are complete through **Agno**.
-- **LlamaIndex (#25 in ranked active-project queue): next task only.** No LlamaIndex research was begun in Task 28.
-- Remaining ranked queue stays unchanged until separately authorized.
+- Tasks 5–29 project deep research are complete through **LlamaIndex**.
+- **CrewAI (#26 in ranked active-project queue): next task only.** No CrewAI research was begun in Task 29.
+- **Mastra** remains after CrewAI.
 
 ## Next task
 
-Deep-research **LlamaIndex** only.
+Deep-research **CrewAI** only.
 
-Do not begin until separately instructed. When begun, inspect canonical current upstream and focus on ACL/Vera-relevant agent/workflow architecture, provider/local-model support, tools/protocol integration, storage/indexing/retrieval/memory, state/session persistence, concurrency/writer ownership, retries/cancellation/timeouts, security/credential/content-trust boundaries, observability/evaluation, current failures, reproducibility and reusable mechanisms. Save report/catalog-part2/state/watchlist, make a research-only commit/checkpoint, and stop before CrewAI.
+Do not begin until separately instructed. When begun, inspect canonical current upstream and focus on ACL/Vera-relevant agent/crew/flow architecture, model/provider/local-model support, tools/code execution, memory/knowledge, state/persistence, concurrency/writer ownership, retries/cancellation/timeouts, security/credentials/content trust, protocol integrations, observability/evaluation, current failures, reproducibility and reusable mechanisms. Save report/catalog-part2/state/watchlist, make a research-only checkpoint, and stop before Mastra.
 
 ## Stop point
 
-Task 28 ended after Agno's current architecture, Agent/Team/Workflow/AgentOS layering, team/delegation modes, session persistence and writer races, cancellation/HITL lifecycle, memory authority, CodeMode execution/snapshots, FileSystem CAS/versioning, tool/credential boundaries, provider/local-model adapters, MCP/A2A surfaces, AgentOS auth/isolation, cleanup settlement, observability/evaluation and current 2026 failures were deeply researched. No LlamaIndex research, cross-project framework winner selection, 32K benchmark execution or ACL/Vera implementation/governance change was begun.
+Task 29 ended after LlamaIndex's current package/runtime split, agents and multi-agent handoffs, Workflow Context/Memory separation, HITL/replay effects, cancellation settlement, tool/error/effect semantics, MCP workflow instance isolation, memory/session isolation, state projection freshness, CodeAct executor boundary, RAG/index derived-state lifecycle, local/provider integrations, protocol projections, observability/evaluation and current/recent 2026 failures were deeply researched. No CrewAI research, cross-project framework winner selection, 32K benchmark execution or ACL/Vera implementation/governance change was begun.
