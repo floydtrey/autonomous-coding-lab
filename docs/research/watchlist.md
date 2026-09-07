@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–25 completed one-project-at-a-time deep research through **OpenCode**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–26 completed one-project-at-a-time deep research through **Mem0**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -26,6 +26,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/litellm.md`
 - `projects/vllm.md`
 - `projects/opencode.md`
+- `projects/mem0.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -293,6 +294,28 @@ High-value findings retained for later comparison:
 
 See `projects/opencode.md` for detailed findings, candidate invariants, regression fixtures, reuse candidates, sources and explicit non-conclusions.
 
+## Task 26 — Mem0 research result
+
+**Status:** current Mem0 deep research complete; no memory-backend/adoption/provider/model decision made.
+
+High-value findings retained for later comparison:
+- Current `main` reports Python package **2.0.20**; exact SDK/release, managed-vs-OSS mode, LLM, embedder, vector/entity/graph/history backend and retrieval/extraction profile are memory deployment identity.
+- `user_id`/`agent_id`/`run_id` are useful memory scopes, but they are not authenticated principal identity; 2026 P0 bugs #6277/#6342/#6367/#6655 show why host authorization must stamp and protect scope.
+- Persistent memory is an evidence-derived claim, not verified truth; raw evidence, extracted fact, summary, relation, trust/confidence and supersession state remain distinct.
+- Current #6515/#6531 and accepted #6243 expose separate duplicate-add and entity-link TOCTOU races; authoritative multi-writer memory needs idempotency plus atomic/CAS/transaction/fencing semantics.
+- Delete/forget is a multi-plane effect. #4863, #3245, #6627 and #6512 show primary, entity/graph, bulk-enumeration and history-retention states can diverge.
+- Successful SDK deletion is not proof of full erasure; high-value forget operations need an explicit erasure ledger plus read-back/reconciliation across canonical, vector, entity/graph, history, caches and retention planes.
+- Audit/history retention and user-data erasure are separate policies and must be intentionally reconciled.
+- #4187 is a strong paper-versus-implementation temporal fixture: described soft invalidation and actual hard deletion diverged; chronological recency must not become Vera's authority hierarchy.
+- Memory poisoning remains an application/control-plane concern; #5195/#5331/#5349/#5434 show persistent malicious instructions are not eliminated merely by using a memory backend.
+- Current self-hosted auth is stronger than older builds, but fixed #5127 demonstrates that authenticated data-plane keys and global provider-configuration authority must remain separate.
+- Official local Ollama support is real, while #6724 demonstrates that a specific local model can still return malformed extraction shapes; local memory maintenance requires exact profile qualification.
+- Recent #7195/#7198 show memory-construction buffers/summaries are their own scope-bearing state and can contaminate later extraction or cause silent memory loss even when database scope is correct.
+- Current managed benchmark results explicitly include proprietary optimizations unavailable in OSS and fixed retrieval budgets; they are not self-hosted guarantees.
+- Mem0 remains below Vera-owned provenance/truth policy, authenticated authorization, writer fencing, erasure settlement, credential/security authority and independent verification.
+
+See `projects/mem0.md` for detailed findings, 20 candidate invariants, current/fixed regression fixtures, reuse candidates, primary sources and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -321,8 +344,8 @@ See `projects/opencode.md` for detailed findings, candidate invariants, regressi
 
 ### Tier C — comparative / situational watch
 21. **OpenCode** — `anomalyco/opencode` — **Task 25 complete**.
-22. **Mem0** — `mem0ai/mem0` — **next task only**.
-23. **smolagents** — `huggingface/smolagents`.
+22. **Mem0** — `mem0ai/mem0` — **Task 26 complete**.
+23. **smolagents** — `huggingface/smolagents` — **next task only**.
 24. **Agno** — `agno-agi/agno`.
 25. **LlamaIndex** — `run-llama/llama_index`.
 26. **CrewAI** — `crewAIInc/crewAI`.
@@ -373,6 +396,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 
 ### Identity, policy, memory and authority
 - Authenticated principal identity is distinct from client-provided `user`/author/channel labels and protocol routing IDs.
+- Memory scope identifiers such as `user_id`/`agent_id`/`run_id` are partition metadata, not authenticated principal identity; authoritative scope is host-stamped and protected from freeform metadata/model control.
 - Session history, scoped operational state and cross-session memory are separate state/trust planes.
 - Persistent agent/persona identity, conversation/thread identity, project/task/run identity, runtime/transport identity, provider request identity and external-effect identity remain distinct.
 - Personal/identity memory, shared/project memory, task memory, recall/history, raw episodic evidence, semantic facts and trusted policy/configuration are separate state/authority domains.
@@ -383,6 +407,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Canonical memory invalidation is a privileged reversible effect; unconstrained model contradiction output is advisory rather than sufficient authority.
 - Current-state memory retrieval and historical/evidence retrieval should be explicit intent/policies rather than silently mixed.
 - Compaction summaries, community summaries and extracted memory are context/learning products, not canonical evidence.
+- Memory-construction buffers/summaries are scope-bearing operational state; they need explicit scope/expiry/relevance rules and must not leak prior-session content into new extraction work.
 - Learned memory, skills/procedures, trusted executable configuration and security policy are distinct trust classes.
 - Learning/background reflection must not silently expand tools, credentials, network/filesystem authority or deploy trusted code.
 - Imported transcripts/trajectories/raw episodes remain lower-trust data until provenance/trust is evaluated.
@@ -421,6 +446,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Partial streaming output and invocation-local temporary state are not durable continuation evidence.
 - At-least-once workflow/tool resumability requires effect idempotency or reconciliation; replayable state is not exactly-once effect settlement.
 - Concurrency-sensitive shared state needs atomic/CAS semantics rather than generic last-writer dictionary replacement.
+- Authoritative shared memory mutations need idempotency plus atomic uniqueness/CAS/transaction/fencing semantics; pre-write similarity/hash searches are not uniqueness guarantees.
 - Logical request/idempotency, run/attempt, process, protocol request, remote task handle and durable session identities remain separate.
 - Transport/session/stream continuity is not authoritative project/task/effect state.
 - Resume/load operations resolve and validate existing authoritative state before creating/mutating state in the same namespace.
@@ -434,6 +460,8 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Raw provider/episode evidence, canonical semantic facts/messages, persisted projections, summaries/UI and reflection inputs are separately testable representations.
 - Primary memory graph writes and post-write derived maintenance can have different transaction/settlement boundaries; full operation success requires both to settle or reconcile.
 - Memory deletion is a multi-object effect and needs crash reconciliation rather than inference from one missing record.
+- Memory forget/erasure completion requires explicit accounting for canonical facts, vectors, entity/graph state, histories/audits, caches and other retained copies; an SDK success response is not settlement proof.
+- Audit retention and user-data erasure are separate lifecycle/policy dimensions and must be reconciled intentionally.
 - Background memory generation, Git commit and authoritative parent-memory integration are separate settlement states.
 - Reflection conflicts/dirty parents/failed integration remain visible rather than silently counting as learned memory.
 - A restore operation stages and verifies replacement before destroying/switching authoritative current state.
@@ -471,6 +499,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - For Ollama deployments, record exact Ollama release/commit/package digest, embedded engine kind/revision/patch profile, immutable model/manifest/template identity, API route, context/KV/parallel/fit settings and realized offload/context.
 - For Letta-like stateful harnesses, record exact harness/backend/provider/model/runtime endpoint, dynamic toolset/model settings, requested/realized context and memory/runtime mode.
 - For Graphiti-like memory deployments, record exact Graphiti revision, database/driver/schema/routing profile, LLM and small-model runtime/client/structured-output mode, prompt/schema revision, embedder model/dimension and reranker.
+- For Mem0-like deployments, record exact SDK/server release or commit, managed-vs-OSS profile, LLM/runtime/prompt/extraction generation, embedder model/dimension, vector/entity/graph/history backends and retrieval/rerank settings.
 - Local memory maintenance qualification must test semantic entity resolution/deduplication/contradiction/temporal correctness, not only schema-valid output.
 - Gemini CLI's provider support is Gemini-protocol/cloud-harness evidence and must not be generalized into local/OpenAI-compatible provider parity.
 - Requested runtime settings and realized runtime state are separate evidence; context/offload/device placement must be observed rather than inferred from configuration.
@@ -503,6 +532,7 @@ This ranks public technical signal, not formal authority, seniority, employment 
 - Deterministic harness/integration correctness and stochastic model behavioral reliability are separate scores.
 - Model-role promotion uses repeated trials/pass distributions and exact model/runtime/harness/fixture identity rather than one successful run.
 - Memory-maintenance promotion also measures false invalidation, missed contradictions, provenance and current/history retrieval correctness.
+- Memory evaluation must freeze retrieval/context budget, backend/profile and judge protocol; managed/proprietary benchmark results are not interchangeable with self-hosted OSS results.
 - Reliability classes such as `USUALLY_PASSES`/`ALWAYS_PASSES` are useful reference patterns, not preselected ACL thresholds.
 - Missing required evidence yields explicit invalid/failure rather than implicit pass.
 - Verifier tests/hashes/sidecars/control roots stay outside worker mutation authority.
@@ -536,4 +566,4 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 25 is complete once `projects/opencode.md`, catalog, state and watchlist are committed. The next task is **Mem0 deep research only**. Do not begin it until separately instructed, and when it is begun, stop before smolagents.
+Task 26 is complete once `projects/mem0.md`, `catalog-part2.jsonl`, state and watchlist are committed. The next task is **smolagents deep research only**. Do not begin it until separately instructed, and when it is begun, stop before Agno.
