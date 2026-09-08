@@ -1,6 +1,6 @@
 # Research Watchlist
 
-Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–30 completed one-project-at-a-time deep research through **CrewAI**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
+Task 3 established the research-priority queues. Task 4 added transition/status evidence. Tasks 5–31 completed one-project-at-a-time deep research through **Mastra**. Rank continues to mean **study/watch sooner because the candidate is expected to reduce ACL/Vera uncertainty**; completed research is not an adoption list.
 
 Detailed evidence remains authoritative in the dedicated reports. This watchlist is the compact queue and cross-project invariant index.
 
@@ -31,6 +31,7 @@ Detailed evidence remains authoritative in the dedicated reports. This watchlist
 - `projects/agno.md`
 - `projects/llamaindex.md`
 - `projects/crewai.md`
+- `projects/mastra.md`
 
 ## Task 15 — Model Context Protocol research result
 
@@ -420,6 +421,35 @@ High-value findings retained for later comparison:
 
 See `projects/crewai.md` for detailed findings, 40 candidate invariants, 18 regression fixtures, reuse candidates, primary sources and explicit non-conclusions.
 
+## Task 31 — Mastra research result
+
+**Status:** current Mastra deep research complete; no framework/runtime/provider/memory/sandbox adoption decision made.
+
+High-value findings retained for later comparison:
+- Latest stable observed **@mastra/core 1.64.0** and current main **1.65.0-alpha.8** are separate package/runtime profiles; Mastra's separately versioned memory, MCP, sandbox, storage, eval and observability packages are also behavior-bearing identity.
+- Ordinary Agent, durable/evented Agent, workflow, worker/pubsub and Inngest-style execution are distinct runtime profiles.
+- Current durable-agent docs explicitly warn that recovery reissues LLM calls and re-executes tool calls; recovery is therefore at-least-once unless external effect idempotency/reconciliation proves otherwise.
+- Current docs explicitly state multi-replica durable recovery has no built-in distributed lease/lock; external leader election or fencing is required.
+- Open **#22863** is a critical shutdown/drain fixture: pubsub/worker teardown can precede full evented-work settlement; current main still exposes a fixed five-second background-task shutdown grace constant.
+- Durable snapshot, stream cache, run status, observer registry and external effect are separate state/lifecycle planes.
+- Tool approval can use request context/workspace; the 1.64.0 **#22841** fix restores request context for durable per-tool approval checks after resume.
+- Persist policy inputs/context and re-evaluate current protected policy after resume rather than serializing executable policy closures.
+- Open **#19911** preserves protocol-level A2A pre-agent authorization as a separate boundary from agent/tool approval after invocation.
+- Mastra memory cleanly separates message history, working memory, semantic recall, observational memory and one-call context, useful Vera reference material.
+- Resource/thread IDs are namespace metadata, not authenticated principal identity.
+- Working memory, cross-thread semantic recall and observational memory may be projected into system messages; prompt placement does not upgrade source trust.
+- Open **#20148** shows thread creation needs storage-level atomic insert-if-absent rather than read-then-upsert.
+- Open **#22188** shows PostgreSQL observational-memory generations can duplicate under concurrency; process-local locks do not provide distributed writer fencing.
+- Open **#19740** preserves an ended-observation-turn reuse lifecycle fixture for multi-step parent/subagent execution.
+- Subagent memory isolation uses fresh delegation threads and deterministic resource scoping, but host authorization must remain external to string-derived namespaces.
+- Mastra's broad sandbox-provider abstraction and unified `workingDirectory` are useful, but common API does not imply equivalent containment.
+- Warm sandbox/repo templates are executable provenance-bearing environment artifacts and belong in benchmark/deployment identity.
+- Ollama/local/OpenAI-compatible routing is real but still requires exact model/runtime/router/context/tool qualification.
+- MCP/A2A status and tracing/eval surfaces are operational evidence, not ACL effect authority or independent verifier acceptance.
+- Mastra remains below ACL-owned effect identity/idempotency, distributed fencing, principal/credential authority, sandbox policy, checkpoint acceptance and independent verification; Vera retains epistemic truth/provenance authority.
+
+See `projects/mastra.md` for detailed findings, 40 candidate invariants, 18 regression fixtures, reuse candidates, primary sources and explicit non-conclusions.
+
 ## Ranked active-project queue — live status
 
 ### Tier A — completed
@@ -724,4 +754,6 @@ Explicit continuity controls:
 
 ## Next research task boundary
 
-Task 30 is complete once `projects/crewai.md`, `catalog-part2.jsonl`, state and watchlist are committed. The next task is **Mastra deep research only**. Do not begin it until separately instructed.
+Task 31 is complete once `projects/mastra.md`, `catalog-part2.jsonl`, state and watchlist are committed.
+
+The ranked active-project queue established by this campaign is now complete through Mastra. **No next project/task is inferred or authorized.** Await explicit instruction before beginning additional research, cross-project synthesis, benchmark work or implementation.
