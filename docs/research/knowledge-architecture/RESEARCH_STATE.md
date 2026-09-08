@@ -3,7 +3,7 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `research/agent-landscape`  
 **Campaign:** Knowledge Architecture Evidence Campaign  
-**Status:** KA-6 complete; stopped before next task  
+**Status:** KA-7 + KA-8 bounded research block complete; stopped before next project  
 **Historical starting checkpoint:** `76a262889a4577613520931cc475e8888844f8fc`
 
 ## Governing plan
@@ -11,6 +11,8 @@
 Read `CAMPAIGN_PLAN.md` before doing any work in this campaign.
 
 The completed Tasks 1–31 project-by-project campaign remains historical evidence. Do not restart it and do not rewrite its catalogs.
+
+The campaign plan originally described one revisit per bounded task. After KA-6, the user explicitly authorized **KA-7 Google ADK and KA-8 Microsoft Agent Framework together as one bounded research block** to reduce per-task overhead while preserving separate evidence attribution and reports. That user instruction authorizes only this two-project block; it does not authorize later queue items.
 
 ## Completed tasks
 
@@ -44,103 +46,186 @@ Detailed report: `projects/mastra.md`
 **Status:** complete.  
 Detailed report: `projects/langgraph.md`
 
+### KA-7 — Google ADK Knowledge-Architecture Revisit
+
+**Status:** complete within the user-authorized KA-7 + KA-8 bounded block.  
+Detailed report: `projects/google-adk.md`
+
+### KA-8 — Microsoft Agent Framework Knowledge-Architecture Revisit
+
+**Status:** complete within the user-authorized KA-7 + KA-8 bounded block.  
+Detailed report: `projects/microsoft-agent-framework.md`
+
 Cumulative ledgers updated:
 
 - `invariants.md`
 - `failure-patterns.md`
 
-## KA-6 boundary and verification
+---
 
-- Re-read root research governance, campaign plan/state, cumulative invariant/failure ledgers and the historical Task 7 LangGraph report.
-- Verified the clean ACL starting branch head at `c223920e625305fea8a8b7a7f04b2ffaa40088d2` before KA-6 writes.
-- Reverified `langchain-ai/langgraph` current `main` at `81bf17b23123e4ef8b9d5f49fa09a0122fc2edd1`, with `langgraph` version `1.2.11`.
-- Confirmed that this is the same upstream source revision/package version used by the historical Task 7 report; KA-6 is therefore a deeper knowledge-substrate analysis plus new issue evidence, not an upstream implementation-delta study.
-- Inspected current checkpointer and Store separation, checkpoint lineage/pending writes, runtime identity/authenticated-server-user separation, Store record/filter/index/TTL semantics, DeltaChannel reconstruction, serializer behavior and context/replay boundaries.
-- Rechecked official current LangGraph Persistence and Memory documentation.
-- Rechecked historical high-impact current/open issue evidence including #8039, #8458, #8579, #8653, #8582, #8531 and #7206.
-- Added post-historical issue evidence including #8837, #8836, #8835, #8834, #8833, #8831, #8829, #8826, #8822 and #8821.
-- Evaluated LangGraph against all 26 campaign evidence questions.
-- Treated open issues as scoped failure evidence, not as proof of universal production frequency or maintainer-confirmed behavior for untested backends.
-- Retained #8832 only as qualified API/backend evidence because the issue's correction notes the raw `batch()`/`PutOp` validation bypass is intentionally treated as an internal-path behavior in current tests.
-- Updated recurrence rather than duplicating existing Graphiti/Mem0/Letta/LlamaIndex/Mastra concepts.
-- Moved KA-I-033 from single-task candidate to cross-project **reinforced** status.
-- Added 3 materially distinct LangGraph-derived invariant candidates: KA-I-038–040.
-- Moved KA-F-031 and KA-F-038 to cross-project **reinforced** status.
-- Added 4 materially distinct LangGraph-derived failure patterns: KA-F-039–042.
-- Did not select LangGraph, a Store, checkpointer, database, final schema, ontology, retrieval engine or execution framework.
-- Did not modify historical `catalog.jsonl`, `catalog-part2.jsonl`, root research state or historical project reports.
-- Did not begin Google ADK research.
+## KA-7 + KA-8 block boundary and verification
 
-## Highest-value KA-6 findings
+- Re-read root research governance, campaign plan/state, cumulative invariant/failure ledgers and the historical Google ADK / Microsoft Agent Framework reports before writing campaign changes.
+- Verified the ACL branch remained on the legitimate KA-6 LangGraph commit `df5d7c1a4fdcf3072107ae90c1aac59b93c73473` before any KA-7/KA-8 branch mutation.
+- Confirmed no partial KA-7 or KA-8 files existed on the branch; research report blobs were staged detached from the branch until the final atomic commit.
+- Preserved the user's explicit block-level authorization while keeping Google and Microsoft evidence in separate project reports.
+- Did not reopen or rewrite the historical Tasks 1–31 catalogs/reports.
+- Did not begin OpenAI Agents SDK research.
 
-1. **Checkpointers and Stores are explicitly different persistence systems.** Checkpointers persist thread/replay state; Stores persist application-defined long-term cross-thread memory. This is strong evidence against collapsing replayable execution state and semantic knowledge into one object.
-2. **Execution identity is rich but not semantic identity.** Thread, run, checkpoint, task, attempt and interrupt IDs are useful recovery identities but do not identify people/devices/assertions/resources.
-3. **Namespace/thread IDs are not principals.** Current `Runtime` separately exposes authenticated `ServerInfo.user`, while Store namespaces and runtime `user_id` values remain application routing/scope.
-4. **Store is not a complete epistemic truth substrate.** Its ordinary record has namespace/key/value plus record timestamps and optional semantic score, not required verified/inferred/disputed/confidence/world-valid-time/supersession/authority-use fields.
-5. **Store record time is not world-valid time.** `created_at`/`updated_at` describe persistence history, not the time interval in which a proposition was true.
-6. **Semantic Store search remains derived retrieval.** Embedding profile/field selection/backend and `SearchItem.score` do not encode truth or authority.
-7. **Backend semantics alter realized retrieval behavior.** #8831 shows default ordering/pagination divergence; #8829 shows unsupported filter requests can fail loudly on one backend and silently look like no-match on others; #8833 shows pending-write retry conflict behavior can differ by saver.
-8. **Read-only retrieval can become an implicit write.** #8835 plus current `InMemoryStore` source show returned nested objects can alias canonical memory, so context-redaction/projection mutations silently alter stored knowledge. This creates KA-I-038 and KA-F-039.
-9. **Value equality is not semantic round-trip fidelity.** #8826 plus current serializer source show a timezone-aware datetime can compare equal after checkpoint restoration while losing `ZoneInfo`/`fold`, causing future DST arithmetic to differ. This creates KA-I-039 and KA-F-040.
-10. **Live and replay state semantics must agree.** #8821 plus current `DeltaChannel` source show `update()` and `replay_writes()` can produce different states for the same overwrite+write batch. This creates KA-I-040 and KA-F-041.
-11. **Derived index identity can be one-to-many.** #8822 shows one deduplicated semantic derivation may need to attach to several distinct record targets, reinforcing source/derived identity separation.
-12. **Long-term knowledge revision is not pinned by a checkpoint.** Store is separately injected from checkpoint state, so deterministic replay that reads Store knowledge requires explicit pinned-revision, read-set, fresh-read or non-deterministic semantics. This independently reinforces KA-I-033 and KA-F-031.
-13. **Checkpoint, pending writes and external effects are separate settlement planes.** #8039 demonstrates crash recovery can replay or reexecute based on which persistence component settled first; checkpoints are not an exactly-once effect ledger.
-14. **Partial control-flow settlement is real.** #8834 shows a state write can settle while a conditional router fails, then resume returns normally with no pending task. This reinforces mutation/transition settlement tracking.
-15. **Approval/resume identity must be exact and durable.** #8579 shows scalar ambiguity with multiple interrupts; #8836 shows zero-match ID maps can silently no-op; these require fail-closed target semantics.
-16. **Consumed approval state must stop being actionable.** #8837 shows a consumed resume payload can remain in durable pending writes and answer a later interrupt. This independently reinforces KA-F-038.
-17. **Untracked input and resumability are separate claims.** #8582 shows a failed task can remain replayable while runtime-only input needed to reproduce it is intentionally absent.
-18. **Production wiring profile matters.** #8653 shows config-injected checkpointer hydration can differ from graph-attached local/dev topology and can commit a wrongly empty state.
-19. **Hierarchical replay identity must survive forks.** #8458 shows a parent fork can regenerate child task/namespace identity and orphan the explicitly selected subgraph checkpoint.
-20. **Retention requires dependency closure.** Current checkpoint contracts warn that DeltaChannel state may depend on ancestor checkpoints/writes; #8531 proposes fail-closed pruning when that closure cannot be preserved.
-21. **Deletion requires fencing.** #7206 shows stale pre-delete writers can resurrect a deleted thread unless deletion retires an identity generation/tombstone.
-22. **TTL is not semantic expiration or privacy erasure.** Store TTL is backend-dependent and best-effort physical retention behavior.
-23. **Checkpoint history is execution history, not epistemic history.** LangGraph still lacks a general current/historical/false/unknown/disputed/superseded truth model for Store records.
-24. **Execution graph relationships are not world relationships.** Control-flow edges, checkpoint parent links and namespace hierarchy are distinct from canonical typed world/provenance/authority relations.
-25. **Prompt placement does not upgrade provenance.** Retrieved long-term memory and tool descriptions remain content even when included in model-visible privileged-looking prompt channels.
-26. **LangGraph is strongest here as evidence for execution/replay lineage and persistence boundaries, not as a complete general knowledge ontology.**
+### Google ADK upstream verification
 
-## Cumulative ledger changes after KA-6
+- Canonical repo: `google/adk-python`.
+- Current `main`: `b0180620f4c2f4f4467a89c37a30f75bf849700b`.
+- Current source version: `google-adk 2.8.0`.
+- This is the same source revision used by the historical Task 22 report, so KA-7 is a deeper knowledge-substrate pass plus current issue verification rather than a source-delta study.
+- Inspected current session model, database session revision markers, generic memory service, `MemoryEntry`, Vertex AI Memory Bank integration, confirmation processing, resumability contracts, A2A/MCP boundaries and current issue evidence.
+- Evaluated all 26 campaign evidence questions.
 
-### Invariants
+### Microsoft Agent Framework upstream verification
 
-- KA-I-033 becomes **reinforced** with independent LangGraph checkpointer-vs-Store replay evidence.
-- KA-I-038 is new: canonical reads used for retrieval/projection/context must not mutate canonical state through incidental aliasing.
-- KA-I-039 is new: persistence round-trips must preserve behavior-bearing semantic metadata, not only current equality.
-- KA-I-040 is new: live transition and replay/reconstruction semantics must be equivalent for the same persisted transition evidence.
-- Existing namespace/principal, temporal, retrieval, derived-state, backend, authority, deletion, schema/profile, provenance, context, settlement and identity invariants gain additional LangGraph evidence.
+- Canonical repo: `microsoft/agent-framework`.
+- Current `main`: `44dc76ce818b779a2ccf4ed73e0be505ec1552c8`.
+- Current Python core version: `agent-framework-core 1.17.0`.
+- Historical Task 21 used older upstream `afdc0db...`; KA-8 therefore includes a meaningful implementation-delta review.
+- Inspected current workflow checkpoint lineage, staged/committed state, edge-runner delivery state, restore/orphan-task protection, session/history storage, Harness `MemoryContextProvider`, file-access/approval surfaces, serialization/profile behavior and current issue/PR evidence.
+- Evaluated all 26 campaign evidence questions.
 
-### Failure patterns
+### Evidence handling rules retained
 
-- KA-F-031 becomes **reinforced** with LangGraph's separately mutable Store outside checkpoint replay identity.
-- KA-F-038 becomes **reinforced** with #8837 consumed-resume replay evidence.
-- KA-F-039 is new: read-only retrieval/projection aliases canonical stored memory and silently mutates it.
-- KA-F-040 is new: serialization loses behavior-bearing semantics while preserving apparent value equality.
-- KA-F-041 is new: live state transition and replay reconstruction disagree for the same persisted writes.
-- KA-F-042 is new: authority-bearing resume/approval targets no current request but silently no-ops instead of failing closed.
-- Existing deletion, realized-profile, backend-query, settlement and transformation-provenance families gain additional recurrence.
+- Open issues are scoped failure evidence, not claims of universal production frequency.
+- Merged/current source is preferred when it materially changes the interpretation of an older issue.
+- A project-specific report does not borrow the other project's evidence except where it explicitly identifies independent recurrence in the cumulative block.
+- Existing invariant/failure IDs are reused whenever the new evidence matches an existing concept; new IDs are created only for materially distinct concepts.
+- No final architecture rule is selected during the evidence campaign.
+
+---
+
+## Highest-value KA-7 — Google ADK findings
+
+1. **Session state and long-term memory are separate planes.** `Session`/events handle conversation/execution continuity; `BaseMemoryService` handles longer-lived `(app_name, user_id)` memory.
+2. **Operational IDs are not universal semantic identity.** Session IDs, event IDs, function-call IDs, memory IDs and storage update markers solve different lifecycle problems.
+3. **Current #7058 shows capability name != occurrence identity.** Two concurrent same-name streaming tool calls can overwrite task tracking so one survives teardown.
+4. **Database session storage provides a strong positive revision pattern.** `_storage_update_marker`, locks and stale-session rejection distinguish a persisted revision from a generic mutable session object.
+5. **Storage revision != truth revision.** A compare-and-write marker prevents stale mutation but does not verify semantic truth.
+6. **`MemoryEntry` is useful provenance scaffolding but not a complete epistemic assertion.** It has content/ID/author/timestamp/metadata without universal verified/inferred/disputed/current/superseded/valid-interval fields.
+7. **Memory/time semantics are multi-purpose.** Event/memory time, storage/update time and managed TTL/revision expiration are distinct.
+8. **Managed Memory Bank is a derived/profile-dependent memory plane.** Generation/consolidation/revision behavior depends on backend/service/configuration.
+9. **Managed ingest can be asynchronous.** Current source can schedule Memory Bank ingestion in a background task and return before remote settlement.
+10. **Exact-call tool confirmation is a positive pattern.** Current confirmation logic resolves the original call and validates ID/name/args/tool requirements before applying approval.
+11. **Exact call binding still needs authenticated principal binding.** A message/event role or memory namespace does not prove which real principal supplied authority.
+12. **#6721 shows same function name != same continuation/origin.** A relayed remote confirmation can lose resume semantics when classification keys only on shared function name.
+13. **#7060 shows transport liveness != remote logical-session validity.** A cached MCP session can be dead server-side while HTTP transport remains alive.
+14. **A2A boundaries can change state semantics.** #6854 reports state not transparently crossing remote agent boundaries, so in-process behavior cannot define a distributed state contract.
+15. **Resumability is explicitly best-effort and at-least-once.** Temporary/in-memory state is lost and resumed tools must be idempotent.
+16. **Generic memory delete/forget is not a complete privacy-erasure contract.** Raw session events, managed derived memory and external copies remain separate planes.
+17. **Knowledge retrieval does not grant tool authority.** Scope strings and model-visible content remain separate from authenticated principal/policy.
+18. **ADK is strongest here as evidence for session/memory/call/remote-session boundaries, not as a complete general Vera truth ontology.**
+
+---
+
+## Highest-value KA-8 — Microsoft Agent Framework findings
+
+1. **MAF now exposes both execution-recovery and knowledge-memory layers.** Current source provides a rich comparative substrate for ACL/Vera boundaries.
+2. **Checkpoint lineage is explicit.** `checkpoint_id` + `previous_checkpoint_id` define history; current docs explicitly warn `iteration_count` is not unique.
+3. **Hidden behavior-bearing delivery state must be checkpointed.** Merged PR #7948/current source carries fan-in edge state under `_edge_state` because omitting it caused lost or stale restored behavior.
+4. **Old-generation work must be cancelled and joined before restore.** Current edge-delivery source explicitly prevents orphan siblings from mutating restored state after a failed superstep.
+5. **Reproduced #7859 shows failed staged writes can leak into later runs.** `State._pending` can survive a failed generation and later be committed by a successful run when failure paths do not discard it.
+6. **Harness memory has a clean layered shape:** raw transcript archive -> extracted topic records -> rebuildable `MEMORY.md` -> selected model context.
+7. **Topic records retain contributing session IDs.** This provides useful coarse provenance but not claim-level evidence/derivation identity.
+8. **Memory extraction/consolidation are semantic transforms.** Consolidation can remove duplicates and drop memories judged stale, so it needs transformation provenance/restraint.
+9. **MAF's memory merge locks are process/event-loop/profile scoped.** They do not establish cross-replica conditional-write semantics for every backing store.
+10. **Storage/memory owner/isolation keys are not authenticated principal identity.** Current #8147 further exposes lifecycle/hosting semantics around isolation-key providers.
+11. **Persistent knowledge read vs mutation authority is a distinct policy boundary.** Current `MemoryContextProvider` gives model tools for read/search/write/delete/consolidate; knowledge mutation needs separately governable authority classes in Vera.
+12. **Current file-access source explicitly warns about autoapproval by tool name.** Another local implementation using a trusted file-tool name may inherit approval and bypass the intended human boundary.
+13. **Merged PR #6966 is a positive exact-invocation approval pattern.** Approval is bound to call ID, function, args, security label, session and response details and consumed once.
+14. **Pending authority state needs terminal closure.** #7872 and reproduced #7890 show unresolved tool/approval state can remain indefinitely or accumulate without bound.
+15. **Reproduced #8140 shows live/model projection can be clean while durable state is corrupt.** The model-facing list is deduplicated but the persisted AG-UI snapshot can retain duplicated tool calls and reopen an already-executed approval after reload.
+16. **Context is explicitly partial.** Only selected topics/recent turns are auto-loaded, so prompt absence is not canonical absence.
+17. **Workflow recovery remains distinct from external effect settlement.** Strong checkpointing does not imply exactly-once outside-world effects.
+18. **MAF is strong evidence for recovery lineage, state-plane separation and layered memory, not a complete epistemic/world-relationship ontology.**
+
+---
+
+## Cross-project recurrence produced by the bounded block
+
+The larger two-project unit produced two immediately reinforced concepts that would have remained single-project candidates if the projects had been closed in isolation.
+
+### KA-I-041 / KA-F-043 — background occurrence identity and generation fencing
+
+Independent evidence:
+
+- Google ADK #7058: same-name concurrent streaming calls overwrite task tracking, leaving an orphan after run teardown.
+- Microsoft Agent Framework current restore/orphan-task source: sibling work must be cancelled and awaited because old-generation tasks can mutate state after checkpoint restore.
+
+Result:
+
+- **KA-I-041 — reinforced**
+- **KA-F-043 — reinforced**
+
+### KA-I-042 / KA-F-044 — trusted tool/continuation identity cannot be name-only
+
+Independent evidence:
+
+- Google ADK #6721: same confirmation function name but different remote/local origin changes continuation semantics.
+- Microsoft Agent Framework current file-access source: local autoapproval keys on tool name and explicitly warns name collisions can bypass the human boundary.
+
+Result:
+
+- **KA-I-042 — reinforced**
+- **KA-F-044 — reinforced**
+
+This supports continuing carefully bounded multi-project units where evidence attribution remains separate and block-level recurrence is reconciled only after each project report is complete.
+
+---
+
+## Cumulative ledger changes after KA-7 + KA-8
+
+### New/changed invariants
+
+- **KA-I-041 — reinforced:** every mutating concurrent/background operation needs occurrence identity bound to run/generation plus settle/cancel/fence semantics across generation transitions.
+- **KA-I-042 — reinforced:** authority-bearing tool/continuation classification must bind trusted origin/implementation/occurrence/schema profile, not display/function name alone.
+- **KA-I-043 — candidate:** persistent-knowledge mutation authority is policy-distinct from read/retrieval authority; append/revise/delete/consolidate/ownership changes need separate action classes.
+- **KA-I-044 — candidate:** transport liveness is distinct from logical remote-session/continuation validity.
+- **KA-I-045 — candidate:** pending authority/effect-continuation records need explicit terminal/expiry/drain semantics and bounded retention.
+- MAF adds independent evidence to raw evidence vs derived memory, source/derived/presentation identity, transformation provenance, derived coverage and consolidation settlement families.
+- Google ADK and MAF add recurrence to namespace/principal, temporal, backend/profile, context-construction and mutation-settlement families.
+
+### New/changed failure patterns
+
+- **KA-F-043 — reinforced:** background/mutating lifecycle coarsened or unfenced across generation change allows stale/orphan work to mutate post-teardown/restored state.
+- **KA-F-044 — reinforced:** name-only authority/continuation classification lets same-name different-origin/implementation operations inherit or lose approval semantics.
+- **KA-F-045 — observed:** memory retrieval authority implicitly extends to persistent append/delete/consolidation without an independent knowledge-mutation authority decision.
+- **KA-F-046 — observed:** remote logical-session validity inferred from transport liveness causes retries to reuse a dead remote session generation.
+- **KA-F-047 — observed:** staged mutation state from a failed/cancelled operation survives and later commits under an unrelated successful run.
+- **KA-F-048 — observed:** pending approval/tool-continuation state lacks complete terminal/expiry/drain lifecycle and remains actionable or accumulates after its originating interaction.
+- KA-F-032 gains ADK remote-projection and MAF #8140 live-vs-durable projection evidence.
+- KA-F-038 gains MAF #8140 adjacent recurrence because durable historical duplication can reopen consumed approval state after reload.
+
+No invariant/failure pattern becomes a final architecture rule during this block.
+
+---
 
 ## Current task
 
 **No task is currently assigned.**
 
-The campaign is stopped after KA-6.
+The campaign is stopped after the user-authorized KA-7 + KA-8 bounded block.
 
 ## Planned next candidate
 
-**KA-7 — Google ADK Knowledge-Architecture Revisit**
+**KA-9 — OpenAI Agents SDK Knowledge-Architecture Revisit**
 
-This is the next planned revisit in `CAMPAIGN_PLAN.md`, but it is **not authorized merely by queue order**.
+This is the next planned revisit in `CAMPAIGN_PLAN.md`, but queue order is **not authorization**.
 
-Do not begin KA-7 until the user explicitly instructs the next bounded task to start.
+Do not begin KA-9 until the user explicitly instructs the next bounded task/block to start.
 
-When authorized, Google ADK must be researched as its own task and then stopped before Microsoft Agent Framework.
+When authorized, OpenAI Agents SDK must be researched against current upstream source/docs/issues and evaluated against all 26 evidence questions. Do not silently include MCP or later projects unless the user explicitly authorizes another multi-project block.
 
 ## Prohibited work at this state
 
 Do not:
 
-- begin Google ADK or any later revisit without explicit authorization;
+- begin OpenAI Agents SDK, MCP or any later revisit without explicit authorization;
 - synthesize the final conceptual schema;
 - select a database/storage engine;
 - implement retrieval;
@@ -160,13 +245,13 @@ For orientation only; queue order is not authorization:
 4. ~~KA-4 LlamaIndex~~ — complete
 5. ~~KA-5 Mastra~~ — complete
 6. ~~KA-6 LangGraph~~ — complete
-7. KA-7 Google ADK — not started / not authorized
-8. Microsoft Agent Framework
-9. OpenAI Agents SDK
-10. Model Context Protocol
+7. ~~KA-7 Google ADK~~ — complete
+8. ~~KA-8 Microsoft Agent Framework~~ — complete
+9. OpenAI Agents SDK — not started / not authorized
+10. Model Context Protocol — not started / not authorized
 
-After these, the campaign plan requires a bounded coverage scan before any additional project revisit is promoted.
+After the planned revisits, the campaign plan requires a bounded coverage scan before any additional project revisit is promoted.
 
 ## Stop point
 
-KA-6 LangGraph research is complete and saved. No Google ADK research, cross-project synthesis, gap research, retrieval-requirements task, architecture selection or implementation work has begun.
+KA-7 Google ADK and KA-8 Microsoft Agent Framework research are complete as one user-authorized bounded block with separate reports and one cumulative ledger reconciliation. No OpenAI Agents SDK/MCP research, final synthesis, storage/retrieval selection, schema selection or implementation work has begun.
