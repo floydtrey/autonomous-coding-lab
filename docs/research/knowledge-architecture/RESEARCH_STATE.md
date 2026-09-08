@@ -3,7 +3,7 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `research/agent-landscape`  
 **Campaign:** Knowledge Architecture Evidence Campaign  
-**Status:** KA-4 complete; stopped before next task  
+**Status:** KA-5 complete; stopped before next task  
 **Historical starting checkpoint:** `76a262889a4577613520931cc475e8888844f8fc`
 
 ## Governing plan
@@ -34,77 +34,101 @@ Detailed report: `projects/letta-code.md`
 **Status:** complete.  
 Detailed report: `projects/llamaindex.md`
 
+### KA-5 — Mastra Knowledge-Architecture Revisit
+
+**Status:** complete.  
+Detailed report: `projects/mastra.md`
+
 Cumulative ledgers updated:
 
 - `invariants.md`
 - `failure-patterns.md`
 
-## KA-4 boundary and verification
+## KA-5 boundary and verification
 
-- Re-read root research governance, campaign plan/state, cumulative invariant/failure ledgers and the historical Task 29 LlamaIndex report.
-- Verified the clean ACL starting branch head at `1869aecfdf97ff25e12b9e4ae77f326018a73742` before final KA-4 writes.
-- Reverified `run-llama/llama_index` current `main` at `d2ac544a27c73d2a68e9c57efec4b2ac0ef99892`, with `llama-index-core` version `0.14.24`.
-- Confirmed that this is the same upstream revision used by historical Task 29, so KA-4 is a deeper knowledge-substrate analysis rather than an upstream-delta study.
-- Inspected current document/node/resource identity, node parsing/source relationships, ingestion/document management, transformation caching, docstore/index/vector/graph/property-graph storage planes, metadata/filter semantics, retrieval fusion, citation projection, vector memory, persistence and replacement/delete behavior.
-- Rechecked current/recent issue/PR evidence relevant to identity, derivation, filtering, multi-store settlement, context freshness, memory scope, deletion and replacement.
-- Evaluated LlamaIndex against all 26 campaign evidence questions.
-- Distinguished current defects from historical reports: notably, #22543 describes a recent Managed LanceDB delete-predicate defect, but pinned current source already escapes document IDs; it is not recorded as a current-main defect.
-- Treated #21666 as memory-poisoning design/security signal rather than proof of a confirmed exploit.
-- Updated recurrence instead of duplicating existing Graphiti/Mem0/Letta concepts.
-- Added 2 materially distinct LlamaIndex-derived invariant candidates: KA-I-036–037.
-- Added 4 materially distinct LlamaIndex-derived failure patterns: KA-F-033–036.
-- Moved KA-I-002, KA-I-013, KA-I-026, KA-I-030 and KA-I-035 from single-task candidates to cross-project **reinforced** status.
-- Reinforced/broadened KA-F-002, KA-F-012 and KA-F-029 with independent LlamaIndex evidence and added recurrence to several existing backend/filter/settlement/deletion/projection families.
-- Did not select LlamaIndex, a vector store, graph store, SQL store, document store, filesystem, final schema, ontology, retrieval engine or conceptual architecture.
+- Re-read root research governance, campaign plan/state, cumulative invariant/failure ledgers and the historical Task 31 Mastra report.
+- Verified the clean ACL starting branch head at `44a7de7b87ae66fa78431de5085701f9f937f343` before KA-5 writes.
+- Reverified `mastra-ai/mastra` current `main` at `d7bd6f7a91daf528f34d628faede4a916421b0dd`, with `@mastra/core` version `1.65.0-alpha.9`.
+- Compared current upstream with the Task 31 revision `685616780ea68e55c23c5980c17d5eee9a8f0aa9` rather than assuming yesterday's report was still exact.
+- Inspected current memory overview, Observational Memory docs/source, OM record and buffered-chunk schemas, source-message recall ranges, `asOf` observation reconstruction, working memory/extractors, semantic-recall derivation, context construction, storage capability flags, Mongo retention behavior, deletion/vector cleanup, `Memory.settled()`, durable-agent recovery and current/recent issue/PR evidence.
+- Rechecked current issue/PR evidence including #22863, #20148, #22188, #19740, #19911, merged #21041, merged #22960, open #22767 and current-head fix #23271.
+- Evaluated Mastra against all 26 campaign evidence questions.
+- Treated open PR #22767 as current failure evidence, not as a merged fix.
+- Treated current recovery leasing as profile-dependent/in transition: source and merged #22960 show lease/fencing machinery, while current docs still retain an older no-distributed-lock warning. No universal backend guarantee was claimed.
+- Updated recurrence rather than duplicating existing Graphiti/Mem0/Letta/LlamaIndex concepts.
+- Added **no new invariant IDs** because Mastra's strongest lessons fit existing candidate families.
+- Moved KA-I-032 and KA-I-036 from single-task candidates to cross-project **reinforced** status.
+- Added 2 materially distinct Mastra-derived failure patterns: KA-F-037–038.
+- Moved KA-F-023, KA-F-025 and KA-F-032 from single-task observed patterns to cross-project **reinforced** status.
+- Added Mastra recurrence to multiple existing identity, deletion, profile, prompt-boundary, settlement and transformation-provenance failure families.
+- Did not select Mastra, Observational Memory, a vector store, SQL/NoSQL store, final schema, ontology, retrieval engine or conceptual architecture.
 - Did not modify historical `catalog.jsonl`, `catalog-part2.jsonl`, root research state or historical project reports.
-- Did not begin Mastra research.
+- Did not begin LangGraph research.
 
-## Highest-value KA-4 findings
+## Highest-value KA-5 findings
 
-1. **Source, derivative and presentation identities must remain distinct.** LlamaIndex uses source relationships between documents and derived nodes; #22133 shows one-to-many derivatives are lost when source/ref-document ID is reused as derivative uniqueness, while #22537 shows citation chunks break downstream source addressing when parent IDs/offsets are copied into a new projection.
-2. **Lineage is not identity reuse.** A derived chunk/citation should have its own identity and retain an explicit relation to its source/parent.
-3. **Resource identity, locator and observed content digest differ.** Current `MediaResource.hash` hashes the path/URL string when only a locator is available; a mutable object at the same locator therefore has different semantics from a content-addressed version.
-4. **Source provenance is useful but incomplete without derivation provenance.** SOURCE relations, offsets, ref-doc mappings and `triplet_source_id` are valuable, but a general derivation record still needs model/prompt/parser/runtime/source-revision/settlement identity.
-5. **Transformation caches are generation-sensitive derived state.** LlamaIndex hashes node content plus serialized transformation configuration, but no universal implementation/model/prompt generation manifest covers every behavior-bearing dependency.
-6. **Property graphs are derived semantic projections, not automatically canonical relationship truth.** Default extraction is model-driven and lacks generic verification/confidence/world-valid-time semantics.
-7. **Graph absence is not false.** Extraction can be capped, fail parsing, be filtered or be deleted; missing derived triples therefore cannot establish negative knowledge.
-8. **Property-graph source deletion can miss derivatives.** Current `PropertyGraphIndex._delete_node()` deletes by source node ID rather than using the provenance-aware `delete_llama_nodes()` path that follows `triplet_source_id`.
-9. **Relationship and entity lifecycles need governed cardinality semantics.** The simple property graph can delete relation endpoints along with one triplet, which is unsafe as a universal many-to-many lifecycle rule.
-10. **High-level filter vocabulary is not a backend semantic guarantee.** Core/local and external stores differ in supported operators/nesting/query modes, and current PGVector source plus #22475 demonstrate backend query construction can alter intended predicate behavior.
-11. **Composite retrieval is an execution contract.** `QueryFusionRetriever` makes candidate-producing retrievers, query expansion, dedup identity, fusion math, weights and final cutoff order part of realized retrieval behavior; this independently reinforces KA-I-026.
-12. **Retrieval/fusion scores remain relevance signals.** LlamaIndex reuses one score field across vector, sparse and multiple fusion algorithms; that does not encode truth, confidence, verification or authority.
-13. **Context construction is separate from host state and retrieval.** Metadata projection, postprocessors, citation re-chunking, synthesizers and state prompts alter model-visible context; #22248 shows host workflow state can change while the next LLM prompt remains stale.
-14. **Request scope must be invocation-local.** Current `VectorMemoryBlock` plus #22701 show a session filter written into reusable query state, causing later sessions to remain pinned to the first session and mutating caller-owned objects.
-15. **Namespace/session IDs are routing state, not principals.** They can support isolation but are not an authorization model.
-16. **Persistent memory remains untrusted content.** Retrieval/persistence does not make model-visible content policy or execution authority.
-17. **Multi-store mutation/persistence has settlement phases.** Docstore, vector store, index store, graph store, cache and persisted files are independent planes without one universal cross-store transaction/generation contract.
-18. **Safe replacement cannot be delete-then-insert.** Current `update_ref_doc()` deletes the old active version before inserting the new one; #22733 documents the failure window, independently reinforcing Letta's staged-replacement invariant.
-19. **Delete from an index is not erasure.** `delete_ref_doc()` can intentionally retain docstore state, while vector/graph/cache/source/backups have separate lifecycle semantics.
-20. **Serialization compatibility is not semantic re-derivation.** Historical embeddings, graph extractions and caches do not become equivalent to newly derived state merely because their serialized records still load.
-21. **Hash meaning must be explicit.** Node/resource hashes are used for dedup, change detection and retrieval fusion, but they can represent content+metadata state, locator fingerprints or other operational identities rather than one universal semantic identity.
-22. **LlamaIndex is strongest as a reference for derivation/retrieval architecture, not as a complete epistemic truth substrate.** Temporal validity, verification/conflict state, normalized applicability and authority remain outside the ordinary core node/index model.
+1. **Mastra has multiple distinct memory/knowledge planes.** Raw messages, working memory, semantic vectors, OM active observations, buffered observations, reflection generations, extracted values and model-visible context are not one state.
+2. **Raw evidence can remain addressable after compression.** OM retrieval mode stores observation-group ranges back to source message IDs and can recall the underlying raw messages.
+3. **Current, historical, buffered and pending memory are explicit lifecycle states.** OM generations/history and buffered chunks provide a useful positive model for derived-state lifecycle.
+4. **Background consolidation should activate atomically with source consumption.** `swapBufferedToActive()` is documented to activate derived content and move source message IDs into the observed set together; this independently reinforces KA-I-032.
+5. **Source, derivative and presentation identity remain distinct.** OM chunks have their own IDs/source message IDs, while current #23271 shows how reused provider-local block IDs corrupted live presentation even though persisted representation was different; this independently reinforces KA-I-036.
+6. **OM provides good coarse provenance but not a complete epistemic claim envelope.** Source ranges, generations, config and timestamps do not encode verified/inferred/disputed/confidence/applicability for every remembered proposition.
+7. **OM `asOf` is projection-visibility time, not general world-valid time.** Observation availability and semantic validity must remain distinct.
+8. **Reflection replaces the current compact projection while preserving history.** Mutation history does not prove semantic correctness of the model's merge/compression decisions.
+9. **Resource and thread are routing/scope identities, not authenticated principals.** FGA, tool approval and A2A pre-execution authorization remain separate authority planes.
+10. **Resource-scope memory can legitimately share user-level knowledge while contaminating transient task state.** Current docs explicitly warn that one thread may continue another thread's unfinished work.
+11. **Context construction is separate from retrieval.** `Memory.getContext()` combines OM, working memory, recent/unobserved history, other-thread context and continuation reminders with explicit channel placement.
+12. **Prompt position does not upgrade provenance.** OM/working memory can enter a system-message channel while remaining user/model-derived content.
+13. **Structured extractors improve shape, not truth.** Extracted values are model-derived projections requiring derivation provenance when they matter to automation.
+14. **Backend capability flags are semantic.** OM support, partial updates, message deletion, resource memory, clone behavior and retention differ across adapters.
+15. **Backward compatibility can preserve weaker consistency.** Current `patchThread()` explicitly notes that legacy adapters can retain the old title-clobbering race; merged #21041 documents the stale read/backfill/write failure.
+16. **Thread/OM uniqueness still needs storage-level atomicity.** #20148 and #22188 remain current concurrency evidence; #19740 remains lifecycle-state evidence.
+17. **Delete/retention is multi-plane.** Current Mongo pruning excludes OM from age-based retention and cannot reach semantic vectors; vector cleanup can continue after primary deletion returns.
+18. **`Memory.settled()` is a quiescence barrier, not a successful-reconciliation certificate.** It waits for tracked background work but documented child failures do not reject it. This becomes KA-F-037.
+19. **Historical replay is not current authority.** Open PR #22767 reports stale approval/suspension events becoming actionable after settlement unless current durable suspension state is checked. This becomes KA-F-038.
+20. **Live event projections can disagree with persisted evidence.** Current head #23271 fixes a live/persisted transcript-span mismatch and independently reinforces KA-F-032.
+21. **Durable recovery remains at-least-once for model/tool execution.** Snapshots support continuation but do not replace effect identity/idempotency/settlement.
+22. **Recovery leasing has materially evolved since Task 31.** Current source and merged #22960 show dedicated lease/fencing support, but public docs still include the older multi-replica race warning. Exact source/backend/profile identity is therefore essential.
+23. **Mastra is strongest as evidence for memory lifecycle, context and execution boundaries, not as a complete epistemic truth substrate.** Typed world relationships, structured negative/unknown states and general applicability remain outside the ordinary memory model.
+
+## Cumulative ledger changes after KA-5
+
+### Invariants
+
+- KA-I-032 becomes **reinforced** with independent Mastra buffered-activation/source-consumption evidence.
+- KA-I-036 becomes **reinforced** with independent Mastra derivative/source identity plus current live-projection identity evidence.
+- KA-I-033 and KA-I-034 gain adjacent Mastra evidence but remain candidates because the stronger formulations are not independently established in full.
+- No new invariant ID is added.
+
+### Failure patterns
+
+- KA-F-023 becomes **reinforced** with Mastra read-modify-write/concurrency evidence.
+- KA-F-025 becomes **reinforced**, narrowly scoped to persistent-domain context contaminating transient episode/task work.
+- KA-F-032 becomes **reinforced** by current Mastra #23271 live-versus-persisted projection evidence.
+- KA-F-037 is new: a join/quiescence barrier that absorbs child failures is mistaken for successful reconciliation.
+- KA-F-038 is new: replayed historical approval/suspension evidence is treated as current actionable authority without validating current durable state.
 
 ## Current task
 
 **No task is currently assigned.**
 
-The campaign is stopped after KA-4.
+The campaign is stopped after KA-5.
 
 ## Planned next candidate
 
-**KA-5 — Mastra Knowledge-Architecture Revisit**
+**KA-6 — LangGraph Knowledge-Architecture Revisit**
 
 This is the next planned revisit in `CAMPAIGN_PLAN.md`, but it is **not authorized merely by queue order**.
 
-Do not begin KA-5 until the user explicitly instructs the next bounded task to start.
+Do not begin KA-6 until the user explicitly instructs the next bounded task to start.
 
-When authorized, Mastra must be researched as its own task and then stopped before LangGraph.
+When authorized, LangGraph must be researched as its own task and then stopped before Google ADK.
 
 ## Prohibited work at this state
 
 Do not:
 
-- begin Mastra or any later revisit without explicit authorization;
+- begin LangGraph or any later revisit without explicit authorization;
 - synthesize the final conceptual schema;
 - select a database/storage engine;
 - implement retrieval;
@@ -122,8 +146,8 @@ For orientation only; queue order is not authorization:
 2. ~~KA-2 Mem0~~ — complete
 3. ~~KA-3 Letta Code~~ — complete
 4. ~~KA-4 LlamaIndex~~ — complete
-5. KA-5 Mastra — not started / not authorized
-6. LangGraph
+5. ~~KA-5 Mastra~~ — complete
+6. KA-6 LangGraph — not started / not authorized
 7. Google ADK
 8. Microsoft Agent Framework
 9. OpenAI Agents SDK
@@ -133,4 +157,4 @@ After these, the campaign plan requires a bounded coverage scan before any addit
 
 ## Stop point
 
-KA-4 LlamaIndex research is complete and saved. No Mastra research, cross-project synthesis, gap research, retrieval-requirements task, architecture selection or implementation work has begun.
+KA-5 Mastra research is complete and saved. No LangGraph research, cross-project synthesis, gap research, retrieval-requirements task, architecture selection or implementation work has begun.
