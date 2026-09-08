@@ -3,7 +3,7 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `research/agent-landscape`  
 **Campaign:** Knowledge Architecture Evidence Campaign  
-**Status:** KA-9 + KA-10 bounded research block complete; ten-project high-yield revisit sequence complete; stopped before coverage scan  
+**Status:** ten-project high-yield revisit sequence and bounded coverage scan complete; stopped before promoted Agno revisit  
 **Historical starting checkpoint:** `76a262889a4577613520931cc475e8888844f8fc`
 
 ## Governing plan
@@ -12,271 +12,291 @@ Read `CAMPAIGN_PLAN.md` before doing any further work in this campaign.
 
 The completed Tasks 1–31 project-by-project campaign remains historical evidence. Do not restart it and do not rewrite its catalogs.
 
-The campaign originally used one project revisit per bounded task. After KA-6, the user explicitly authorized two-project bounded blocks provided that:
+The ten high-yield knowledge-architecture revisits are complete. The post-revisit coverage scan required by `CAMPAIGN_PLAN.md` is also complete.
 
-- each project retains separate evidence attribution/reporting;
-- the same 26 evidence questions are evaluated per project;
-- cumulative ledgers are reconciled only after project-specific analysis;
-- the block produces one atomic research-only commit;
-- work stops before the next unauthorized campaign phase.
+Detailed project-specific evidence remains in:
 
-The user explicitly authorized the current **KA-9 OpenAI Agents SDK + KA-10 Model Context Protocol** block.
+- `projects/graphiti.md`
+- `projects/mem0.md`
+- `projects/letta-code.md`
+- `projects/llamaindex.md`
+- `projects/mastra.md`
+- `projects/langgraph.md`
+- `projects/google-adk.md`
+- `projects/microsoft-agent-framework.md`
+- `projects/openai-agents-sdk.md`
+- `projects/model-context-protocol.md`
 
----
+Coverage-scan detail is in:
 
-## Completed high-yield revisit sequence
+- `COVERAGE_SCAN.md`
 
-### KA-1 — Graphiti Knowledge-Architecture Revisit
-
-**Status:** complete.  
-Detailed report: `projects/graphiti.md`
-
-### KA-2 — Mem0 Knowledge-Architecture Revisit
-
-**Status:** complete.  
-Detailed report: `projects/mem0.md`
-
-### KA-3 — Letta Code Knowledge-Architecture Revisit
-
-**Status:** complete.  
-Detailed report: `projects/letta-code.md`
-
-### KA-4 — LlamaIndex Knowledge-Architecture Revisit
-
-**Status:** complete.  
-Detailed report: `projects/llamaindex.md`
-
-### KA-5 — Mastra Knowledge-Architecture Revisit
-
-**Status:** complete.  
-Detailed report: `projects/mastra.md`
-
-### KA-6 — LangGraph Knowledge-Architecture Revisit
-
-**Status:** complete.  
-Detailed report: `projects/langgraph.md`
-
-### KA-7 — Google ADK Knowledge-Architecture Revisit
-
-**Status:** complete.  
-Detailed report: `projects/google-adk.md`
-
-### KA-8 — Microsoft Agent Framework Knowledge-Architecture Revisit
-
-**Status:** complete.  
-Detailed report: `projects/microsoft-agent-framework.md`
-
-### KA-9 — OpenAI Agents SDK Knowledge-Architecture Revisit
-
-**Status:** complete within the user-authorized KA-9 + KA-10 bounded block.  
-Detailed report: `projects/openai-agents-sdk.md`
-
-### KA-10 — Model Context Protocol Knowledge-Architecture Revisit
-
-**Status:** complete within the user-authorized KA-9 + KA-10 bounded block.  
-Detailed report: `projects/model-context-protocol.md`
-
-Cumulative ledgers updated:
+Cumulative evidence ledgers remain:
 
 - `invariants.md`
 - `failure-patterns.md`
 
-The planned ten-project high-yield revisit sequence is now complete.
+---
+
+## Completed campaign tasks
+
+1. **KA-1 — Graphiti Knowledge-Architecture Revisit** — complete
+2. **KA-2 — Mem0 Knowledge-Architecture Revisit** — complete
+3. **KA-3 — Letta Code Knowledge-Architecture Revisit** — complete
+4. **KA-4 — LlamaIndex Knowledge-Architecture Revisit** — complete
+5. **KA-5 — Mastra Knowledge-Architecture Revisit** — complete
+6. **KA-6 — LangGraph Knowledge-Architecture Revisit** — complete
+7. **KA-7 — Google ADK Knowledge-Architecture Revisit** — complete
+8. **KA-8 — Microsoft Agent Framework Knowledge-Architecture Revisit** — complete
+9. **KA-9 — OpenAI Agents SDK Knowledge-Architecture Revisit** — complete
+10. **KA-10 — Model Context Protocol Knowledge-Architecture Revisit** — complete
+11. **Bounded post-revisit coverage scan** — complete
+
+No final architecture rule, storage choice, retrieval implementation or ACL/Vera implementation has been authorized by completion of these tasks.
 
 ---
 
-## KA-9 + KA-10 block boundary and verification
+## Coverage-scan boundary and verification
 
-- Re-read root research governance, campaign plan/state, cumulative ledgers and historical OpenAI Agents SDK / MCP reports before research writes.
-- Verified the ACL starting branch head at `1cb06faac3b75cd89c2cad7f372788eb512c5c5e` (`research: complete ADK and MAF knowledge architecture block`).
-- Preserved separate OpenAI and MCP project reports despite the shared block.
-- Used current upstream source, current issue evidence and current official documentation where relevant.
-- Evaluated both projects against all 26 campaign evidence questions.
-- Reused existing invariant/failure IDs wherever possible.
-- Added only one materially distinct invariant family and no new failure-pattern IDs.
-- Did not modify runtime code, historical catalogs, root historical research state or historical project reports.
-- Did not begin the required post-revisit coverage scan.
-- Did not begin synthesis, storage selection, retrieval design or implementation.
+The user explicitly authorized the required bounded coverage scan after KA-10.
 
-### OpenAI Agents SDK upstream verification
+The scan:
 
-Canonical repo:
+- re-read root research governance, campaign plan/state and cumulative ledgers;
+- verified the branch began at `5f22e168cec42a4df3c58f21429a33615b721758` (`research: complete OpenAI Agents SDK and MCP knowledge architecture block`);
+- reviewed the 17 completed historical project reports not already included in KA-1 through KA-10;
+- applied the campaign plan's uniqueness test rather than automatically deep-revisiting every project;
+- reviewed all 26 evidence questions for strong, partial and weak coverage;
+- identified project gaps separately from domain/standards gaps;
+- did not recheck promoted-project upstream source during the scan;
+- therefore did not change invariant/failure status from historical report evidence alone;
+- did not begin Agno, standards research, retrieval requirements, hostile scenarios, synthesis or implementation.
 
-`openai/openai-agents-python`
+Historical reports scanned:
 
-Historical Task 14 revision:
-
-`1d471a4775bf2f40179f411824da383deb4c3fca`
-
-Current `main` inspected:
-
-`544b8b03b8cf95e62c7f5ebb89adfc4bd66c9d1f`
-
-Current package metadata:
-
-`openai-agents 0.22.1`
-
-The current source is 27 commits ahead of the historical revision. Relevant current changes include Session/RunState persistence, compaction, guardrail documentation and runner-owned model-provider lifecycle behavior.
-
-Current source/docs/issues inspected included:
-
-- `src/agents/run_state.py` (`CURRENT_SCHEMA_VERSION = "1.17"`);
-- `src/agents/run_internal/session_persistence.py`;
-- `src/agents/run_internal/model_provider_lifecycle.py`;
-- `src/agents/memory/openai_responses_compaction_session.py`;
-- current HITL/guardrail/session/RunState documentation;
-- #4775, #4896, #4679 and #4889.
-
-Official current OpenAI Agents SDK web documentation was rechecked as an external/current source.
-
-### MCP upstream verification
-
-Canonical core repo:
-
-`modelcontextprotocol/modelcontextprotocol`
-
-Historical Task 15 revision:
-
-`e76e9c572c6f2bfcb730357101acc90f2f802e02`
-
-Current core `main` inspected:
-
-`aa8ce049f089f92618340190d4ece141f663310d`
-
-The core repository is seven commits ahead, but its only substantive content delta relevant here is the new Filesystems Working Group charter plus docs navigation. The released normative specification remains `2026-07-28` and the previously studied core lifecycle semantics are unchanged.
-
-Tasks extension:
-
-`modelcontextprotocol/ext-tasks@9263312d11a682ac83f83fe84794d4627efd22f5`
-
-This is unchanged from the historical Task 15 report.
-
-Current source/issues inspected included:
-
-- core `2026-07-28` statelessness/request-response specification;
-- MRTR and `requestState` security requirements;
-- Tools;
-- Resources/authorization/cancellation/subscription semantics revalidated from historical report;
-- Tasks extension source/specification;
-- new Filesystems Working Group charter;
-- #3348, #3350 and #3268.
-
-Current MCP release/specification material was also rechecked through official project web sources.
+- Pydantic AI / Harness
+- Cline
+- promptfoo
+- Strands Harness SDK
+- Codex
+- OpenHands
+- SWE-agent / SWE-ReX / mini-swe-agent
+- llama.cpp
+- Goose
+- Ollama
+- Gemini CLI
+- LiteLLM
+- vLLM
+- OpenCode
+- smolagents
+- Agno
+- CrewAI
 
 ---
 
-## Highest-value KA-9 — OpenAI Agents SDK findings
+## Coverage-scan result
 
-1. **`RunState` is a semantic recovery snapshot, not generic memory.** Current schema version `1.17` explicitly tracks behavior-bearing resume semantics and rejects unknown newer schema versions rather than guessing.
-2. **Session history, RunState, provider continuation, sandbox/workspace and external effects are separate planes.** They should not be collapsed into one agent-state record.
-3. **Exact-call approval is strong occurrence-bound authority.** Per-call approvals bind call identity; hosted MCP sticky approval additionally scopes by server label + tool name.
-4. **Approval freshness across time is a separate host responsibility.** #4896 and maintainer guidance state approval is final for that invocation, while a policy-sensitive host should persist a policy/approval version and refuse to resume the old invocation if authority semantics changed.
-5. **Resume is therefore a trust/authority boundary.** Principal, policy, tool/capability definition, credential/resource generation and approval validity may need to be re-established before execution resumes.
-6. **Pending source input has settlement states.** Client Session persistence and server-managed acceptance differ; accepted occurrences are tracked separately from still-pending input.
-7. **#4775 exposes a lost-ack ambiguity.** Session history may have committed a staged input while RunState still sees it pending, causing duplicate logical input and repeated guardrail work on retry.
-8. **Compaction is derived destructive replacement.** #4679 demonstrated stale-snapshot history loss/resurrection; current source now protects snapshot-through-replacement with mutation locking/generation checks and rollback state.
-9. **History rewrite needs occurrence lineage.** Current nested-history ownership uses occurrence identity/digest reconciliation rather than assuming presentation identity equals source identity.
-10. **Parallel guardrails are not pre-effect gates.** Current docs explicitly warn that model/tool execution may already have begun before a parallel input guardrail trips; blocking mode is required when policy means “no execution before pass.”
-11. **Preapproval and pre-effect validation are different transitions.** Tool input guardrails can run before approval and again immediately before execution.
-12. **Runner-owned provider cleanup is fenced through cancellation.** Cleanup is shielded until it settles, reinforcing generation-transition closure.
-13. **Output presentation and effect evidence differ.** A rejected terminal tool output may be sanitized or dropped from the replay-visible suffix even though the tool effect already occurred.
-14. **#4889 adds resource-identity evidence:** two lexical paths can denote one filesystem object under case-folding; locator-string inequality is not resource-object identity.
-15. **Sessions/RunState remain execution/conversation evidence, not a canonical truth ontology.** They lack general verified/inferred/disputed/superseded/world-valid-time/unknown semantics.
+### One project promoted: Agno
 
----
+The scan promotes **Agno only** to a future separately authorized bounded knowledge-architecture revisit.
 
-## Highest-value KA-10 — MCP findings
+Why Agno is unique enough:
 
-1. **Modern MCP remains explicitly stateless at the transport core.** An open connection/process is not a conversation, task, session or authority context.
-2. **Cross-request state must use explicit identifiers/handles.** Hidden connection state is intentionally non-authoritative.
-3. **MRTR continuation state is explicit and attacker-controlled.** Authority-relevant `requestState` must be integrity-protected and bound to authenticated principal, short expiry and originating method/parameter digest.
-4. **Integrity does not guarantee single-use.** If a continuation must be consumed at most once, the server must enforce consumption state separately.
-5. **Tasks are durable execution state machines with receiver-generated task IDs.** Task state is not canonical semantic truth and does not itself prove domain effect delivery.
-6. **Cancellation request/state is not universal effect settlement.** Protocol cleanup and external-world final state remain distinct.
-7. **Tools are model-controlled capabilities below host governance.** Tool availability may vary by per-request authorization; service auth does not automatically approve an exact model-selected effect.
-8. **Tool name is server-local presentation/discovery identity, not globally sufficient authority identity.** Trusted server/profile/schema context matters.
-9. **Resources are addressable content, not canonical truth or complete resource-version identity.** URI, logical resource and observed content/version remain distinct concepts.
-10. **The new Filesystems WG is directional evidence only.** Planned create/update/delete/stat, optimistic concurrency and cache/write coherence confirm mutable-resource concerns, while host sandbox semantics and write policy remain outside that proposed wire work.
-11. **#3348 remains open:** cancellation and subscription documents disagree on stream teardown semantics, reinforcing exact spec/schema/SDK profile identity.
-12. **#3350 is gap evidence, not adopted protocol.** Its Tool Outcome Attestation proposal starts from the fact that protocol/HTTP success is not a shared attested delivery outcome.
-13. **Core conformance and extension conformance are independently qualified.** A generic MCP/Tier claim does not prove Tasks or another extension/profile behaves identically.
-14. **Prompts/resources/tool metadata remain remote content.** Transport authenticity does not convert them into Vera policy.
-15. **MCP remains an interoperability substrate, not Vera's epistemic truth model.**
+- the historical report contains first-class persistent `UserMemory` / `MemoryManager` mutation behavior;
+- issue/current-source evidence recorded in that report shows an LLM-facing `clear_memory` path can call unscoped database-level `clear_memories()`;
+- with multiple users sharing the database, a clear initiated through one user's memory-management surface can remove another user's memory;
+- this directly targets persistent-knowledge ownership and destructive mutation scope, not merely generic tool permissions or sandboxing;
+- it can potentially independently reinforce `KA-I-034` and `KA-I-043`, and strengthen/refine `KA-F-045`, **but only after current-upstream revalidation**.
+
+Suggested future task label:
+
+**KA-11 — Agno Knowledge-Architecture Revisit**
+
+This label is orientation only. Queue position is not authorization.
+
+### No other historical project promoted
+
+The other 16 reports contain useful evidence but do not pass the uniqueness threshold for another full KA revisit now.
+
+Key reasons:
+
+- CrewAI memory/consolidation/prompt-injection behavior substantially overlaps Mem0/Mastra/MAF/Letta.
+- OpenHands, Goose, Codex, Gemini CLI, Cline, Strands, OpenCode and Pydantic AI primarily deepen execution/recovery/authority/profile families already well covered.
+- promptfoo is primarily evaluator/verifier evidence, not missing knowledge semantics.
+- smolagents and the SWE-agent lineage primarily reinforce thin-loop/execution-boundary and delegation lessons.
+- llama.cpp, LiteLLM and vLLM are runtime/gateway profile evidence rather than a missing knowledge model.
+- Ollama contains useful content-addressed artifact evidence, but the efficient follow-up is the later general resource/artifact identity study rather than a whole Ollama KA revisit.
 
 ---
 
-## Cross-project result: KA-I-046
+## Twenty-six-question coverage summary
 
-The KA-9 + KA-10 block produced one materially distinct invariant and independent evidence from both projects.
+### Strong enough for requirements without another project revisit
 
-### KA-I-046 — reinforced
+- 1 Stable identity
+- 2 Identity versus namespace
+- 10 Knowledge versus authority
+- 12 Canonical versus derived state
+- 13 Structured retrieval
+- 15 Full-text retrieval
+- 16 Semantic retrieval
+- 17 Composite retrieval
+- 18 Context construction
+- 19 Memory poisoning / prompt injection
+- 20 Concurrency
+- 21 Derived-state integrity
+- 24 Recovery semantics
 
-> Durable approval or continuation authority must be bound to the exact operation semantics and current authority context/version under which it was created; if principal, policy, capability definition or salient effect parameters change, reuse is invalid and requires a new authority/operation boundary.
+### Requirement evidence adequate, but later formal/domain research still needed
 
-Independent evidence:
+- 3 Provenance
+- 5 Temporal truth
+- 6 Conflict and supersession
+- 22 Deletion and retention
+- 23 Schema/version evolution
 
-- **KA-9 OpenAI Agents SDK:** #4896 plus maintainer guidance — approval remains final for the invocation; policy-sensitive hosts should persist a policy/approval version and create a new call/run boundary if authority context changed before resume.
-- **KA-10 MCP:** MRTR requires authority-relevant `requestState` to be protected and bound to authenticated principal, expiry and originating method/parameter digest; true at-most-once use requires server-side consumption state.
+### Weak/under-specified positive semantics; later gap research required
 
-This is not a final architecture decision, but it is now strong enough for **reinforced** status in the evidence ledger.
+- 4 Epistemic state
+- 7 Relationships
+- 9 Actionability
+- 11 Resources and artifacts
+- 14 Relationship retrieval
+- 25 Unknown/negative knowledge
+- 26 Scope of truth
+
+### Project follow-up plus later formal gap work
+
+- 8 Permissions and sensitivity — **Agno promoted** for persistent-memory ownership/mutation scope; later ABAC/ReBAC/privacy work still needed.
 
 ---
 
-## Cumulative ledger state after KA-10
+## Cumulative ledger state after the scan
 
 ### Invariants
 
-Invariant IDs now run through **KA-I-046**.
+Invariant IDs remain **KA-I-001 through KA-I-046**.
 
-New this block:
+No invariant status changes in the coverage scan.
 
-- **KA-I-046 — reinforced** as described above.
+Candidates that remain especially relevant:
 
-No other invariant was promoted to a new status solely because of this block.
+- KA-I-004 — identity merge/split is auditable/reversible
+- KA-I-005 — ambiguous/unresolved identity is representable
+- KA-I-007 — governed relationship semantics
+- KA-I-031 — active context identifies exact settled knowledge revision
+- KA-I-034 — private/shared knowledge ownership and explicit read/write authority
+- KA-I-037 — logical resource vs locator vs observed content/version digest
+- KA-I-038 — canonical reads use snapshot/value semantics or explicit mutation contract
+- KA-I-039 — persistence round-trip preserves semantic metadata
+- KA-I-040 — live/replay transition equivalence
+- KA-I-043 — knowledge mutation authority distinct from retrieval
+- KA-I-044 — transport liveness distinct from logical continuation validity
+- KA-I-045 — pending authority/continuation terminal-expiry lifecycle
 
-Important recurrence:
+Coverage-scan disposition:
 
-- KA-I-017/018 — semantic checkpoint/profile identity;
-- KA-I-023/027/035 — compaction/derived replacement provenance and generation control;
-- KA-I-028/032 — settlement must drive source-input consumption/retry;
-- KA-I-036 — source/derived/presentation identity;
-- KA-I-041 — old-generation cleanup/fencing;
-- KA-I-042 — trusted tool/origin identity;
-- KA-I-043–045 — receive adjacent MCP evidence but remain candidates.
-
-Candidates remain:
-
-- KA-I-004
-- KA-I-005
-- KA-I-007
-- KA-I-031
-- KA-I-034
-- KA-I-037
-- KA-I-038
-- KA-I-039
-- KA-I-040
-- KA-I-043
-- KA-I-044
-- KA-I-045
+- **Agno follow-up:** KA-I-034 and KA-I-043.
+- **Identity/entity-resolution gap:** KA-I-004 and KA-I-005.
+- **Relationship/ontology gap:** KA-I-007.
+- **Resource/artifact gap:** KA-I-037.
+- **Schema/recovery/hostile-test follow-up:** KA-I-038–040.
+- **Retrieval/context requirements:** KA-I-031.
+- **Runtime/authority hostile tests:** KA-I-044–045.
 
 ### Failure patterns
 
 Failure IDs remain **KA-F-001 through KA-F-048**.
 
-No new failure ID is added in KA-9 + KA-10.
+No new failure ID and no status change is made during the scan.
 
-Important recurrence:
+Agno's historical destructive-memory-scope evidence must be reverified before deciding whether it:
 
-- KA-F-013 — realized deployment/profile identity;
-- KA-F-019 — storage/protocol/task success != full settlement;
-- KA-F-020 — transformation provenance;
-- KA-F-023 — stale snapshot/replacement concurrency;
-- KA-F-027 — derived summary not exhaustive evidence;
-- KA-F-032 — model/protocol presentation != canonical source/effect evidence;
-- KA-F-043 — generation cleanup/fencing;
-- KA-F-044 — name-only authority identity.
+- independently reinforces existing `KA-F-045`;
+- is better represented as a narrower scope failure under `KA-F-001`/`KA-F-045`; or
+- warrants a materially distinct new failure class.
 
-OpenAI #4896 is deliberately retained as positive invariant/host-boundary guidance rather than mislabeled as an SDK bug. MCP #3350 is deliberately retained as gap/proposal evidence rather than treated as an adopted protocol or new failure class.
+---
+
+## Prioritized later gap-research map
+
+These are candidates only; none is authorized automatically.
+
+### Priority A — epistemic, temporal, conflict and negative-knowledge semantics
+
+Questions: 4, 5, 6, 25, 26.
+
+Candidate subjects:
+
+- temporal/bitemporal data semantics;
+- event sourcing and correction history;
+- identity/entity resolution;
+- structured assertion applicability.
+
+### Priority B — relationships and ontology evolution
+
+Questions: 7 and 14, plus parts of 23/26.
+
+Candidate subjects:
+
+- controlled relationship vocabularies;
+- relationship provenance/time;
+- ontology evolution and migration;
+- canonical relationship truth versus derived association graphs.
+
+### Priority C — formal provenance
+
+Question: 3 plus parts of 11/21/23.
+
+Candidate subject:
+
+- W3C PROV and related evidence-lineage standards, bounded to ACL/Vera usefulness.
+
+### Priority D — knowledge authorization, purpose and sensitivity
+
+Question: 8 plus 9/10/22.
+
+After Agno, candidate subjects:
+
+- ABAC/ReBAC-style knowledge access;
+- ownership/shared/private domains;
+- read/write/delete/consolidate/use-for-automation distinctions;
+- purpose/sensitivity/retention.
+
+### Priority E — content-addressed resource/artifact identity
+
+Question: 11.
+
+Candidate subjects:
+
+- logical resource identity;
+- locators/replicas;
+- immutable content digest/version;
+- extraction/derivation provenance;
+- cache/index/embedding relationships.
+
+Use Ollama and LlamaIndex as implementation examples rather than promoting a whole Ollama revisit.
+
+### Priority F — privacy deletion and retention
+
+Question: 22.
+
+Candidate subjects:
+
+- canonical/derived/cache/backup erasure;
+- audit retention versus user-data retention;
+- tombstones/fencing;
+- delayed cleanup and erasure verification.
+
+### Priority G — non-AI operational-domain validation
+
+Question: 26 and generality of the eventual model.
+
+Candidate subject:
+
+- Home Assistant / Matter-style devices, entities, locations, sensor observations, stale/unavailable state, capabilities and shared-household authority.
+
+This is intended to prevent AI/coding research vocabulary from becoming the shape of Vera's general knowledge system.
 
 ---
 
@@ -284,58 +304,45 @@ OpenAI #4896 is deliberately retained as positive invariant/host-boundary guidan
 
 **No task is currently assigned.**
 
-The ten-project high-yield revisit sequence is complete.
-
-The campaign is stopped after KA-10.
+The bounded coverage scan is complete.
 
 ## Planned next candidate
 
-**Bounded coverage scan**
+**KA-11 — Agno Knowledge-Architecture Revisit**
 
-This is the next campaign phase required by `CAMPAIGN_PLAN.md`, but it is **not authorized merely because the ten planned revisits are complete**.
+This is the only project promoted by the coverage scan, but it is **not authorized merely because it is next**.
 
-Do not begin the coverage scan until the user explicitly authorizes it.
+When explicitly authorized, the Agno revisit should be narrow:
 
-The coverage scan should:
-
-- review all 26 evidence questions across the completed reports/ledgers;
-- identify questions with weak, single-source, contradictory or missing evidence;
-- identify domains/projects that materially cover those gaps;
-- avoid broad new research unless a gap justifies promoting a specific follow-up;
-- preserve candidate versus reinforced status;
-- surface counterevidence/qualifications;
-- stop before final synthesis unless separately authorized.
+- reverify current upstream rather than trusting the historical report alone;
+- focus on persistent memory ownership and subject/domain scope;
+- distinguish authenticated principal from `user_id`/storage scope;
+- inspect memory read/add/update/delete/clear/consolidate authority separately;
+- inspect shared/team/agent/user memory domains where current source provides them;
+- inspect deletion settlement/provenance/epistemic/temporal fields only where they bear on the 26 questions;
+- reuse existing invariant/failure IDs unless evidence is materially distinct;
+- research/docs only;
+- one atomic commit;
+- stop before any standards/gap task.
 
 ## Prohibited work at this state
 
 Do not:
 
-- begin the bounded coverage scan without explicit authorization;
-- start additional project revisits merely because they are interesting;
+- begin Agno without explicit authorization;
+- begin standards/domain gap research automatically;
+- begin retrieval-requirements questions;
+- begin hostile/adversarial scenario review;
 - synthesize the final conceptual schema;
 - select a database/storage engine;
 - implement retrieval or context construction;
 - create embeddings;
-- migrate old catalogs;
+- migrate historical catalogs;
 - benchmark models;
 - implement ACL or Vera;
 - run autonomous workers;
 - convert candidate invariants into final architecture rules.
 
-## Planned campaign sequence status
-
-1. ~~KA-1 Graphiti~~ — complete
-2. ~~KA-2 Mem0~~ — complete
-3. ~~KA-3 Letta Code~~ — complete
-4. ~~KA-4 LlamaIndex~~ — complete
-5. ~~KA-5 Mastra~~ — complete
-6. ~~KA-6 LangGraph~~ — complete
-7. ~~KA-7 Google ADK~~ — complete
-8. ~~KA-8 Microsoft Agent Framework~~ — complete
-9. ~~KA-9 OpenAI Agents SDK~~ — complete
-10. ~~KA-10 Model Context Protocol~~ — complete
-11. Bounded coverage scan — **next candidate; not authorized**
-
 ## Stop point
 
-KA-9 OpenAI Agents SDK and KA-10 MCP research are complete as one user-authorized bounded block with separate reports and one cumulative ledger reconciliation. The ten-project revisit sequence is complete. No coverage scan, final synthesis, storage/retrieval selection, schema selection or implementation work has begun.
+The ten high-yield revisits and the bounded coverage scan are complete. One historical project, Agno, is promoted for a separately authorized current-upstream revisit. The remaining weak evidence areas are classified as later standards/domain gaps rather than excuses to restart broad agent-framework research. No Agno revisit, gap research, retrieval study, hostile review, synthesis, storage selection or implementation has begun.
