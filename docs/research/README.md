@@ -20,3 +20,14 @@ Research topics include:
 Work one research task at a time. Read `RESEARCH_STATE.md` first. Do not begin future phases to conserve effort or pre-summarize later work. Save evidence and sources, update the catalog/state, commit the research-only changes, and stop.
 
 This branch must not modify ACL runtime code or authorize worker/model execution.
+
+## Knowledge Architecture Evidence Campaign
+
+The completed Tasks 1–31 project campaign is now followed by a separate bounded evidence campaign for the future general ACL/Vera knowledge substrate.
+
+Before any knowledge-architecture revisit or synthesis, read:
+
+- `knowledge-architecture/CAMPAIGN_PLAN.md`
+- `knowledge-architecture/RESEARCH_STATE.md`
+
+The dedicated campaign state defines the currently authorized bounded task. The historical root `RESEARCH_STATE.md`, catalogs and project reports remain evidence and should not be rewritten merely to fit a future schema.
