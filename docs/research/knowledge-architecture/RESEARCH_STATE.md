@@ -3,7 +3,7 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `research/agent-landscape`  
 **Campaign:** Knowledge Architecture Evidence Campaign  
-**Status:** KA-3 complete; stopped before next task  
+**Status:** KA-4 complete; stopped before next task  
 **Historical starting checkpoint:** `76a262889a4577613520931cc475e8888844f8fc`
 
 ## Governing plan
@@ -16,92 +16,95 @@ The completed Tasks 1–31 project-by-project campaign remains historical eviden
 
 ### KA-1 — Graphiti Knowledge-Architecture Revisit
 
-**Status:** complete.
-
-Detailed report:
-
-- `projects/graphiti.md`
+**Status:** complete.  
+Detailed report: `projects/graphiti.md`
 
 ### KA-2 — Mem0 Knowledge-Architecture Revisit
 
-**Status:** complete.
-
-Detailed report:
-
-- `projects/mem0.md`
+**Status:** complete.  
+Detailed report: `projects/mem0.md`
 
 ### KA-3 — Letta Code Knowledge-Architecture Revisit
 
-**Status:** complete.
+**Status:** complete.  
+Detailed report: `projects/letta-code.md`
 
-Detailed report:
+### KA-4 — LlamaIndex Knowledge-Architecture Revisit
 
-- `projects/letta-code.md`
+**Status:** complete.  
+Detailed report: `projects/llamaindex.md`
 
 Cumulative ledgers updated:
 
 - `invariants.md`
 - `failure-patterns.md`
 
-### KA-3 boundary and verification
+## KA-4 boundary and verification
 
-- Re-read root research governance, campaign plan/state and the historical Task 18 Letta Code report.
-- Verified ACL starting branch head at `4aece181bab2720bba77db5a256c7a4ae068d7d4` before KA-3 writes.
-- Reverified current `letta-ai/letta-code` `main` at `2f0fb7c12c6973be7d52d9c7d3bf0bf4d9120cb8`, package version `0.31.13`.
-- Compared the current upstream revision to the historical Letta research revision `701f2a5367828847313876c735ade27b9df97689`; current main was eight commits ahead and the core memory architecture remained materially recognizable.
-- Revisited current MemFS prompts, memory filesystem/worktree/Git and local prompt-compilation source, recall prompts, shared-memory guidance, and current/recent issue evidence relevant to the campaign matrix.
-- Evaluated Letta Code against all 26 campaign evidence questions.
-- Updated recurrence in the cumulative invariant/failure ledgers rather than duplicating existing Graphiti/Mem0 concepts.
-- Added 5 materially distinct Letta-derived invariant candidates (KA-I-031–035).
-- Added 5 materially distinct Letta-derived failure patterns (KA-F-028–032).
-- Independently reinforced 21 existing invariant families with Letta evidence.
-- Newly reinforced KA-I-027, KA-I-028 and KA-I-029 from single-task candidates to cross-project evidence.
-- Newly reinforced KA-F-003 and KA-F-004 with Letta conflict-resolution evidence and added further recurrence to KA-F-013, KA-F-016, KA-F-019, KA-F-020 and KA-F-027.
-- Did not select Letta Code, Git, a filesystem schema, a graph database, vector database, storage engine, final ontology, retrieval engine or final conceptual model.
+- Re-read root research governance, campaign plan/state, cumulative invariant/failure ledgers and the historical Task 29 LlamaIndex report.
+- Verified the clean ACL starting branch head at `1869aecfdf97ff25e12b9e4ae77f326018a73742` before final KA-4 writes.
+- Reverified `run-llama/llama_index` current `main` at `d2ac544a27c73d2a68e9c57efec4b2ac0ef99892`, with `llama-index-core` version `0.14.24`.
+- Confirmed that this is the same upstream revision used by historical Task 29, so KA-4 is a deeper knowledge-substrate analysis rather than an upstream-delta study.
+- Inspected current document/node/resource identity, node parsing/source relationships, ingestion/document management, transformation caching, docstore/index/vector/graph/property-graph storage planes, metadata/filter semantics, retrieval fusion, citation projection, vector memory, persistence and replacement/delete behavior.
+- Rechecked current/recent issue/PR evidence relevant to identity, derivation, filtering, multi-store settlement, context freshness, memory scope, deletion and replacement.
+- Evaluated LlamaIndex against all 26 campaign evidence questions.
+- Distinguished current defects from historical reports: notably, #22543 describes a recent Managed LanceDB delete-predicate defect, but pinned current source already escapes document IDs; it is not recorded as a current-main defect.
+- Treated #21666 as memory-poisoning design/security signal rather than proof of a confirmed exploit.
+- Updated recurrence instead of duplicating existing Graphiti/Mem0/Letta concepts.
+- Added 2 materially distinct LlamaIndex-derived invariant candidates: KA-I-036–037.
+- Added 4 materially distinct LlamaIndex-derived failure patterns: KA-F-033–036.
+- Moved KA-I-002, KA-I-013, KA-I-026, KA-I-030 and KA-I-035 from single-task candidates to cross-project **reinforced** status.
+- Reinforced/broadened KA-F-002, KA-F-012 and KA-F-029 with independent LlamaIndex evidence and added recurrence to several existing backend/filter/settlement/deletion/projection families.
+- Did not select LlamaIndex, a vector store, graph store, SQL store, document store, filesystem, final schema, ontology, retrieval engine or conceptual architecture.
 - Did not modify historical `catalog.jsonl`, `catalog-part2.jsonl`, root research state or historical project reports.
-- Did not begin LlamaIndex research.
+- Did not begin Mastra research.
 
-### Highest-value KA-3 findings
+## Highest-value KA-4 findings
 
-1. **Persistent agent identity and conversation identity are separate.** Letta models a long-lived `agent_id` with multiple `conversation_id`s and per-agent durable memory.
-2. **Recall evidence and curated memory are distinct planes.** Conversation history remains separately searchable from editable future-facing MemFS knowledge.
-3. **Active context is revisioned.** Local compilation reads committed Git `HEAD`, excludes pending uncommitted files and records `memfsRevision` in the compiled-prompt result.
-4. **Git mutation provenance is not epistemic provenance.** Commits/diffs explain repository change, not truth, confidence, verification, world-valid time or authority.
-5. **Background reflection is an integration state machine.** Explicit finalize statuses determine whether transcript input is consumed and whether context is recompiled.
-6. **Committed is not the same as integrated or synchronized.** #4266 shows valid reflection commits discarded at finalize; #4249 shows local memory commits can fail subsequent sync/refresh.
-7. **Reflection retries require semantic idempotency.** #4266 documents duplicate/triplicate dangling commits from repeated attempts over the same transcript evidence.
-8. **The current latest-evidence conflict heuristic is unsafe as a universal truth rule.** #4029 reports a 120-run prompt evaluation with 50% failure on restraint cases, including safety-critical downgrade and confabulated merge examples.
-9. **Memory, skills and harness authority are different state classes.** Security/compliance rules and secrets that must not depend on model recall belong outside editable memory.
-10. **Shared memory is a separate organization-owned domain.** Multiple agents can attach independent shared Git repositories, but #4267 identifies missing fine-grained user/role/task projection and governed write semantics.
-11. **Context construction is not retrieval.** Committed MemFS, recall search, external resources, shared repositories and skills enter context through different mechanisms.
-12. **Derived views can disagree with canonical state.** #3845/#3894 show false zero/incomplete file views while committed MemFS remains intact.
-13. **Restore must be transactional.** #4195 and current source show active memory is removed before the replacement backup is copied/validated.
-14. **Persistent memory is part of execution/replay identity.** #3807 documents deterministic-orchestration problems when inherited memory is not a declared task input.
-15. **Record history is not bitemporal truth.** Git/message timestamps are strong transaction history but do not encode a general world-valid interval model.
-16. **Structured epistemic states remain necessary.** Plain text cannot reliably distinguish explicit, inferred, verified, disputed, unknown or historically true knowledge.
-17. **Letta is a strong mechanism reference rather than a complete general knowledge substrate.** The observed gaps remain evidence for later synthesis, not a framework-selection decision.
+1. **Source, derivative and presentation identities must remain distinct.** LlamaIndex uses source relationships between documents and derived nodes; #22133 shows one-to-many derivatives are lost when source/ref-document ID is reused as derivative uniqueness, while #22537 shows citation chunks break downstream source addressing when parent IDs/offsets are copied into a new projection.
+2. **Lineage is not identity reuse.** A derived chunk/citation should have its own identity and retain an explicit relation to its source/parent.
+3. **Resource identity, locator and observed content digest differ.** Current `MediaResource.hash` hashes the path/URL string when only a locator is available; a mutable object at the same locator therefore has different semantics from a content-addressed version.
+4. **Source provenance is useful but incomplete without derivation provenance.** SOURCE relations, offsets, ref-doc mappings and `triplet_source_id` are valuable, but a general derivation record still needs model/prompt/parser/runtime/source-revision/settlement identity.
+5. **Transformation caches are generation-sensitive derived state.** LlamaIndex hashes node content plus serialized transformation configuration, but no universal implementation/model/prompt generation manifest covers every behavior-bearing dependency.
+6. **Property graphs are derived semantic projections, not automatically canonical relationship truth.** Default extraction is model-driven and lacks generic verification/confidence/world-valid-time semantics.
+7. **Graph absence is not false.** Extraction can be capped, fail parsing, be filtered or be deleted; missing derived triples therefore cannot establish negative knowledge.
+8. **Property-graph source deletion can miss derivatives.** Current `PropertyGraphIndex._delete_node()` deletes by source node ID rather than using the provenance-aware `delete_llama_nodes()` path that follows `triplet_source_id`.
+9. **Relationship and entity lifecycles need governed cardinality semantics.** The simple property graph can delete relation endpoints along with one triplet, which is unsafe as a universal many-to-many lifecycle rule.
+10. **High-level filter vocabulary is not a backend semantic guarantee.** Core/local and external stores differ in supported operators/nesting/query modes, and current PGVector source plus #22475 demonstrate backend query construction can alter intended predicate behavior.
+11. **Composite retrieval is an execution contract.** `QueryFusionRetriever` makes candidate-producing retrievers, query expansion, dedup identity, fusion math, weights and final cutoff order part of realized retrieval behavior; this independently reinforces KA-I-026.
+12. **Retrieval/fusion scores remain relevance signals.** LlamaIndex reuses one score field across vector, sparse and multiple fusion algorithms; that does not encode truth, confidence, verification or authority.
+13. **Context construction is separate from host state and retrieval.** Metadata projection, postprocessors, citation re-chunking, synthesizers and state prompts alter model-visible context; #22248 shows host workflow state can change while the next LLM prompt remains stale.
+14. **Request scope must be invocation-local.** Current `VectorMemoryBlock` plus #22701 show a session filter written into reusable query state, causing later sessions to remain pinned to the first session and mutating caller-owned objects.
+15. **Namespace/session IDs are routing state, not principals.** They can support isolation but are not an authorization model.
+16. **Persistent memory remains untrusted content.** Retrieval/persistence does not make model-visible content policy or execution authority.
+17. **Multi-store mutation/persistence has settlement phases.** Docstore, vector store, index store, graph store, cache and persisted files are independent planes without one universal cross-store transaction/generation contract.
+18. **Safe replacement cannot be delete-then-insert.** Current `update_ref_doc()` deletes the old active version before inserting the new one; #22733 documents the failure window, independently reinforcing Letta's staged-replacement invariant.
+19. **Delete from an index is not erasure.** `delete_ref_doc()` can intentionally retain docstore state, while vector/graph/cache/source/backups have separate lifecycle semantics.
+20. **Serialization compatibility is not semantic re-derivation.** Historical embeddings, graph extractions and caches do not become equivalent to newly derived state merely because their serialized records still load.
+21. **Hash meaning must be explicit.** Node/resource hashes are used for dedup, change detection and retrieval fusion, but they can represent content+metadata state, locator fingerprints or other operational identities rather than one universal semantic identity.
+22. **LlamaIndex is strongest as a reference for derivation/retrieval architecture, not as a complete epistemic truth substrate.** Temporal validity, verification/conflict state, normalized applicability and authority remain outside the ordinary core node/index model.
 
 ## Current task
 
 **No task is currently assigned.**
 
-The campaign is stopped after KA-3.
+The campaign is stopped after KA-4.
 
 ## Planned next candidate
 
-**KA-4 — LlamaIndex Knowledge-Architecture Revisit**
+**KA-5 — Mastra Knowledge-Architecture Revisit**
 
 This is the next planned revisit in `CAMPAIGN_PLAN.md`, but it is **not authorized merely by queue order**.
 
-Do not begin KA-4 until the user explicitly instructs the next bounded task to start.
+Do not begin KA-5 until the user explicitly instructs the next bounded task to start.
 
-When authorized, LlamaIndex must be researched as its own task and then stopped before Mastra.
+When authorized, Mastra must be researched as its own task and then stopped before LangGraph.
 
 ## Prohibited work at this state
 
 Do not:
 
-- begin LlamaIndex or any later revisit without explicit authorization;
+- begin Mastra or any later revisit without explicit authorization;
 - synthesize the final conceptual schema;
 - select a database/storage engine;
 - implement retrieval;
@@ -118,8 +121,8 @@ For orientation only; queue order is not authorization:
 1. ~~KA-1 Graphiti~~ — complete
 2. ~~KA-2 Mem0~~ — complete
 3. ~~KA-3 Letta Code~~ — complete
-4. KA-4 LlamaIndex — not started / not authorized
-5. Mastra
+4. ~~KA-4 LlamaIndex~~ — complete
+5. KA-5 Mastra — not started / not authorized
 6. LangGraph
 7. Google ADK
 8. Microsoft Agent Framework
@@ -130,4 +133,4 @@ After these, the campaign plan requires a bounded coverage scan before any addit
 
 ## Stop point
 
-KA-3 Letta Code research is complete and saved. No subsequent project, cross-project synthesis, gap research, retrieval-requirements task, architecture selection or implementation work has begun.
+KA-4 LlamaIndex research is complete and saved. No Mastra research, cross-project synthesis, gap research, retrieval-requirements task, architecture selection or implementation work has begun.

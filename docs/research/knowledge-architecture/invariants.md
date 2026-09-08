@@ -1,73 +1,64 @@
 # Knowledge Architecture Candidate Invariants
 
-This ledger accumulates evidence-backed **candidate** invariants during the Knowledge Architecture Evidence Campaign.
-
-These are not final architecture rules. A candidate gains weight when independent projects/standards support it, and may be narrowed, split or rejected when counterevidence appears.
+This ledger accumulates evidence-backed **candidate** invariants during the Knowledge Architecture Evidence Campaign. These are not final architecture rules.
 
 ## Status meanings
 
-- **candidate** — supported by at least one bounded research task; not yet cross-project validated.
-- **reinforced** — supported independently by multiple campaign tasks.
-- **qualified** — retained but narrowed by counterexamples/scope.
-- **rejected** — evidence showed the proposed invariant was too strong or wrong.
-- **promoted later** — reserved for the eventual synthesis phase; not used merely because a candidate feels persuasive.
+- **candidate** — supported by one bounded task.
+- **reinforced** — independently supported by multiple tasks.
+- **qualified** — retained with narrower scope after counterevidence.
+- **rejected** — evidence showed the formulation was too strong or wrong.
 
 ## Ledger
 
-| ID | Candidate invariant | Evidence/tasks | Current scope / rationale | Status |
-|---|---|---|---|---|
-| KA-I-001 | Raw/source evidence must remain separately addressable from derived semantic knowledge. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti episodes, Mem0 semantic-memory separation, and Letta recall-history versus curated MemFS independently show that compact learned memory is a lossy derivative and must not replace source experience. | reinforced |
-| KA-I-002 | Internal semantic entity identity is distinct from external/source identity. | KA-1 Graphiti | A graph UUID identifies a resolved record, not necessarily a person/account/device/repository identity in the outside world. Mem0/Letta provide adjacent identity-separation evidence but do not independently establish the full entity-resolution rule. | candidate |
-| KA-I-003 | Namespace/domain identifiers are not authenticated principal identity. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti `group_id`, Mem0 user/agent/run/app scopes, and Letta agent/conversation/repository identifiers route state. Letta separately applies harness auth/cross-agent guards, reinforcing that an ID string alone is not authority. | reinforced |
-| KA-I-004 | Identity merge/split is a first-class, auditable and reversible knowledge transition. | KA-1 Graphiti | Current Graphiti dedup can change the surviving UUID while the ordinary ingest path discards duplicate-pair evidence. | candidate |
-| KA-I-005 | Ambiguous/unresolved identity must be representable; identity resolution must not force a merge. | KA-1 Graphiti | False merges and false splits are both observed Graphiti failure classes; semantic/string heuristics are not universally decisive. | candidate |
-| KA-I-006 | Supersession/invalidation is a privileged, reversible, provenance-bearing semantic transition. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti exposes unsafe invalidation failures; Mem0 Dream preserves non-destructive supersession; Letta reflection edits durable future-facing memory and #4029 shows unsafe replacement when recency substitutes for epistemic policy. | reinforced |
-| KA-I-007 | Relationship labels alone are insufficient for safe reasoning about replacement; governed relationship semantics are required where consequences depend on them. | KA-1 Graphiti | Graphiti PR #1729 exposes cardinality/replacement ambiguity (`WORKS_AT` versus `USES`) not represented by the current edge-type map. | candidate |
-| KA-I-008 | World/event-valid time and system record/transaction time must remain distinct. | KA-1 Graphiti; KA-2 Mem0 | Graphiti exposes separate validity/transaction fields; Mem0 Platform distinguishes imported/event timestamps from system storage time. Letta adds strong record history but does not independently supply world-valid intervals. | reinforced |
-| KA-I-009 | Current-state, historical, conflict and evidence retrieval are distinct query intents. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti and Mem0 explicitly separate current/history concerns; Letta independently separates searchable recall evidence from curated current MemFS and retains Git history behind current `HEAD`. | reinforced |
-| KA-I-010 | Retrieval relevance/rank is not epistemic confidence, truth or authority. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti/Mem0 hybrid scores and Letta FTS/vector/hybrid recall all optimize discovery/relevance; none establishes truth, verification or authority. | reinforced |
-| KA-I-011 | Derived state such as embeddings, indexes, summaries, projections and association graphs must carry generation/profile identity and be rebuildable from more canonical evidence where practical. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti/Mem0 derived-state failures plus Letta's revisioned prompt compilation and misleading/incomplete UI projections independently show that derivatives can drift without canonical loss. | reinforced |
-| KA-I-012 | Storage/backend/query implementations must be qualified against semantic invariants; declaring a conceptual model is not sufficient. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti backend temporal/routing differences, Mem0 backend filter mismatch, and Letta local/API/cloud retrieval/transcript differences show realized backends can materially change semantics. | reinforced |
-| KA-I-013 | Knowledge-domain routing for a request must be immutable/request-scoped when concurrent access can occur. | KA-1 Graphiti | Shared mutable Graphiti driver routing caused silent cross-group writes. Letta has concurrency-aware repository mechanics but KA-3 does not independently reproduce this exact routing failure. | candidate |
-| KA-I-014 | Principal, purpose, sensitivity and hard eligibility constraints should be applied before protected knowledge is exposed to a model. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti/Mem0 show filtering cannot substitute for governance; Letta adds cross-agent memory guards and separate attached-resource projections while #4267 documents the remaining need for finer principal/task/role policy. | reinforced |
-| KA-I-015 | Retrieved/persistent memory remains untrusted content unless its source is separately established as trusted; prompt position does not upgrade provenance. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | All three systems feed persistent content back to models. Letta most explicitly separates editable memory from harness-enforced security/policy and keeps secrets out of MemFS. | reinforced |
-| KA-I-016 | Delete/forget completion is a multi-plane reconciliation result, not a single successful delete return or current-view removal. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti/Mem0 leave derived/history concerns; Letta Git history/remotes/backups show removing current content is distinct from historical retention or verified erasure. | reinforced |
-| KA-I-017 | Schema/ontology/derivation changes do not retroactively reinterpret historical records without an explicit migration or re-derivation event. | KA-1 Graphiti; KA-2 Mem0 | Graphiti custom-type evolution and Mem0 v2→v3 migration establish this. Letta supplies adjacent runtime/config migration evidence but not an independent ontology/derivation reinterpretation case. | reinforced |
-| KA-I-018 | Realized capability identity includes exact source/build/backend/schema/model/prompt/profile, not only a project or package name. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti/Mem0 profile differences and Letta local/API/cloud plus model-dependent reflection behavior show the same project label can realize materially different knowledge behavior. | reinforced |
-| KA-I-019 | Security/provenance metadata required for policy must be end-to-end verified through persistence, read, filtering, derived projection and migration. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti/Mem0 expose metadata/filter gaps; Letta's coarse shared-repository attachment and existing-repo sync configuration show policy-relevant state must survive every projection/runtime/migration boundary. | reinforced |
-| KA-I-020 | Knowledge retrieval never grants execution authority. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Letta independently provides a strong positive separation: memory/skills can inform behavior while tools, credentials, permissions and safety-critical enforcement remain harness-owned. | reinforced |
-| KA-I-021 | The substrate must distinguish unknown, known-false, not-established, conflicting and historically-true-but-no-longer-current states. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | All three systems provide partial lifecycle/history but lack the full taxonomy. Letta #4029 shows practical harm when contradiction/restraint state is inferred from prose instead of represented explicitly. | reinforced |
-| KA-I-022 | Assertion/relationship applicability must support structured scope such as environment, version, machine, project, person, role, task and time without relying only on arbitrary blobs or storage location. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti/Mem0 provide partial scope; Letta adds agent/conversation/org/repository scope while #4267 explicitly identifies missing role/task/user projection/write semantics. | reinforced |
-| KA-I-023 | Transformation decisions that can materially alter future reasoning need provenance of their own. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Graphiti/Mem0 transformations and Letta reflection commits/merge history show source provenance alone is insufficient. Letta #4040 further questions merge-report evidence that is not preserved in the commit itself. | reinforced |
-| KA-I-024 | Context construction is a separate layer from retrieval and must consider trust, freshness, permissions, actionability, relevance, revision and token budget. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Letta independently constructs context from committed MemFS, conversation metadata and skill projections while recall/shared resources remain separate retrieval planes. | reinforced |
-| KA-I-025 | Epistemic basis and verification state are separate from speaker attribution, storage state and retrieval status. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | Letta Git authorship/recall identity still cannot tell explicit versus inferred, confirmed versus anecdotal or verified versus disputed; #4029 directly demonstrates why the distinction matters. | reinforced |
-| KA-I-026 | Composite retrieval must define which retrievers can introduce candidates, which only rerank, and where hard gates/thresholds apply. | KA-2 Mem0 | Mem0 OSS computes semantic, BM25 and entity signals but only semantic hits enter the candidate pool. Letta exposes different search modes but KA-3 did not inspect enough ranking internals to independently validate this exact candidate-entry rule. | candidate |
-| KA-I-027 | Derived aggregates, summaries and projections must expose their source revision, coverage/generation window and eligibility/type rules. | KA-2 Mem0; KA-3 Letta Code | Mem0 Dream is forward/scope/cadence limited; Letta prompt/view projections are revision/type limited and #3845/#3894 show false absence when a derived view's coverage is mistaken for canonical inventory. | reinforced |
-| KA-I-028 | Mutation settlement state must drive success reporting, history/derivation, context refresh and source-input consumption. | KA-2 Mem0; KA-3 Letta Code | Mem0 can build downstream state from intended rather than settled writes; Letta reflection explicitly consumes transcripts only after `merged`/`no_changes`, while #4266/#4249 show why commit/integration/sync stages must remain distinct. | reinforced |
-| KA-I-029 | Transient episode/conversation identity is distinct from persistent knowledge-domain/agent scope. | KA-2 Mem0; KA-3 Letta Code | Mem0 #7195 shows contamination when long-lived scope doubles as episode identity; Letta independently models persistent `agent_id` with multiple `conversation_id`s. | reinforced |
-| KA-I-030 | Derived association graphs used for retrieval are distinct from canonical typed relationship assertions. | KA-2 Mem0 | Mem0 Platform explicitly uses entity↔memory association for ranking without typed entity relationships. Letta KA-3 does not independently add a comparable derived association graph. | candidate |
-| KA-I-031 | Active model context must identify the exact settled knowledge revision it was constructed from; pending/uncommitted knowledge must not silently become active canonical context. | KA-3 Letta Code | Local prompt compilation reads committed Git `HEAD`, excludes uncommitted state, and records `memfsRevision` with the compiled prompt. | candidate |
-| KA-I-032 | Background consolidation input should be marked consumed only after canonical integration settles, and retries need stable source/operation identity for idempotency. | KA-3 Letta Code | Reflection consumes transcript input only for `merged`/`no_changes`; #4266 shows repeated retries can regenerate duplicate dangling commits over the same evidence slice. | candidate |
-| KA-I-033 | Persistent knowledge revision/profile is part of execution/replay identity whenever reproducibility or deterministic retry matters. | KA-3 Letta Code | #3807 documents headless tasks whose undeclared inherited agent memory makes equal declared inputs diverge and failed retries inherit prior state. | candidate |
-| KA-I-034 | Personal/private and shared/project knowledge domains require distinct ownership plus explicit read/write authority; attaching a shared resource is not a complete fine-grained policy model. | KA-3 Letta Code | Letta organization-owned shared repositories are independent of agent MemFS; #4267 identifies the need for user/role/task projection and governed write semantics beyond whole-repo attachment. | candidate |
-| KA-I-035 | Restore/replacement of canonical knowledge must stage and validate the replacement before destructive cutover, then reconcile derived projections. | KA-3 Letta Code | #4195 and current restore source show active memory is removed before backup copy succeeds, so recovery can destroy the last good state. | candidate |
+| ID | Candidate invariant | Evidence/tasks | Status |
+|---|---|---|---|
+| KA-I-001 | Raw/source evidence must remain separately addressable from derived semantic knowledge. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-002 | Internal semantic entity identity is distinct from external/source identity. | KA-1 Graphiti; KA-4 LlamaIndex | reinforced |
+| KA-I-003 | Namespace/domain identifiers are not authenticated principal identity. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-004 | Identity merge/split is a first-class, auditable and reversible knowledge transition. | KA-1 Graphiti | candidate |
+| KA-I-005 | Ambiguous/unresolved identity must be representable; identity resolution must not force a merge. | KA-1 Graphiti | candidate |
+| KA-I-006 | Supersession/invalidation is a privileged, reversible, provenance-bearing semantic transition. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-007 | Relationship labels alone are insufficient for safe replacement reasoning; governed relationship semantics are required where consequences depend on them. | KA-1 Graphiti | candidate |
+| KA-I-008 | World/event-valid time and system record/transaction time must remain distinct. | KA-1 Graphiti; KA-2 Mem0 | reinforced |
+| KA-I-009 | Current-state, historical, conflict and evidence retrieval are distinct query intents. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code | reinforced |
+| KA-I-010 | Retrieval relevance/rank is not epistemic confidence, truth or authority. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-011 | Derived state such as embeddings, indexes, summaries, projections and graphs must carry generation/profile identity and be rebuildable from more canonical evidence where practical. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-012 | Storage/backend/query implementations must be qualified against semantic invariants; declaring a conceptual model is not sufficient. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-013 | Knowledge-domain routing for a request must be immutable/request-scoped when concurrent or reusable components can occur. | KA-1 Graphiti; KA-4 LlamaIndex | reinforced |
+| KA-I-014 | Principal, purpose, sensitivity and hard eligibility constraints should be applied before protected knowledge is exposed to a model. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-015 | Retrieved/persistent memory remains untrusted content unless its source is separately established as trusted; prompt position does not upgrade provenance. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-016 | Delete/forget completion is a multi-plane reconciliation result, not a single successful delete return or current-view removal. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-017 | Schema/ontology/derivation changes do not retroactively reinterpret historical records without an explicit migration or re-derivation event. | KA-1 Graphiti; KA-2 Mem0; KA-4 LlamaIndex | reinforced |
+| KA-I-018 | Realized capability identity includes exact source/build/backend/schema/model/prompt/profile, not only a project or package name. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-019 | Security/provenance metadata required for policy must be end-to-end verified through persistence, read, filtering, derived projection and migration. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-020 | Knowledge retrieval never grants execution authority. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-021 | The substrate must distinguish unknown, known-false, not-established, conflicting and historically-true-but-no-longer-current states. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-022 | Assertion/relationship applicability must support structured scope such as environment, version, machine, project, person, role, task and time without relying only on arbitrary blobs or storage location. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-023 | Transformation decisions that can materially alter future reasoning need provenance of their own. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-024 | Context construction is a separate layer from retrieval and must consider trust, freshness, permissions, actionability, relevance, revision and token budget. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-025 | Epistemic basis and verification state are separate from speaker attribution, storage state and retrieval status. | KA-1 Graphiti; KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-026 | Composite retrieval must define which retrievers can introduce candidates, which only rerank, and where hard gates/thresholds apply. | KA-2 Mem0; KA-4 LlamaIndex | reinforced |
+| KA-I-027 | Derived aggregates, summaries and projections must expose their source revision, coverage/generation window and eligibility/type rules. | KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-028 | Mutation settlement state must drive success reporting, history/derivation, context refresh and source-input consumption. | KA-2 Mem0; KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-029 | Transient episode/conversation identity is distinct from persistent knowledge-domain/agent scope. | KA-2 Mem0; KA-3 Letta Code | reinforced |
+| KA-I-030 | Derived semantic/association graphs used for retrieval are distinct from canonical typed relationship assertions. | KA-2 Mem0; KA-4 LlamaIndex | reinforced |
+| KA-I-031 | Active model context must identify the exact settled knowledge revision it was constructed from; pending knowledge must not silently become active canonical context. | KA-3 Letta Code | candidate |
+| KA-I-032 | Background consolidation input should be marked consumed only after canonical integration settles, and retries need stable source/operation identity for idempotency. | KA-3 Letta Code | candidate |
+| KA-I-033 | Persistent knowledge revision/profile is part of execution/replay identity whenever reproducibility or deterministic retry matters. | KA-3 Letta Code | candidate |
+| KA-I-034 | Personal/private and shared/project knowledge domains require distinct ownership plus explicit read/write authority. | KA-3 Letta Code | candidate |
+| KA-I-035 | Restore/replacement of active knowledge must stage and validate the replacement before destructive cutover, then reconcile derived projections. | KA-3 Letta Code; KA-4 LlamaIndex | reinforced |
+| KA-I-036 | Source/resource identity, derived-record identity and presentation-projection identity are distinct; lineage must not be implemented by identity reuse. | KA-4 LlamaIndex (#22133, #22537) | candidate |
+| KA-I-037 | Logical resource identity, locator/address and observed content/version digest are distinct and must be represented separately. | KA-4 LlamaIndex (`MediaResource.hash`) | candidate |
 
-## Recurrence tracking
+## KA-4 recurrence update
 
-After KA-3:
-
-- KA-3 independently reinforces **21 existing invariant families**: KA-I-001, 003, 006, 009–012, 014–016, 018–025, 027–029.
-- KA-I-027, KA-I-028 and KA-I-029 move from single-task candidates to **reinforced** because Letta supplies independent evidence for derivative coverage, settlement-driven mutation semantics, and episode-versus-persistent-scope identity.
-- KA-I-031–035 are new Letta-derived candidates and remain single-task evidence.
-- KA-I-002, 004, 005, 007, 013, 026 and 030 remain single-task candidates because Letta supplied only adjacent, not equivalent, evidence.
+- KA-4 adds independent evidence to existing families covering source/derived separation, identity, backend qualification, scope isolation, metadata/provenance, context construction, derived integrity, deletion, settlement and safe replacement.
+- KA-I-002, KA-I-013, KA-I-026, KA-I-030 and KA-I-035 move from single-task candidates to **reinforced**.
+- KA-I-036 and KA-I-037 are new LlamaIndex-derived candidates.
+- KA-I-004, KA-I-005, KA-I-007 and KA-I-031–034 remain single-task candidates.
 - No invariant is promoted to a final architecture rule during the evidence campaign.
 
 ## Next update rule
 
-Later tasks should:
-
-1. cite the existing invariant ID when independent evidence supports it;
-2. add the new project/task to the evidence column;
-3. note meaningful counterexamples or narrower scope;
-4. create a new ID only when the concept is materially distinct;
-5. keep positive mechanism evidence separate from final architecture selection.
+Later tasks should reuse an existing invariant ID when independent evidence supports it, add the new evidence/task, record counterexamples or narrower scope, and create a new ID only for a materially distinct concept.
