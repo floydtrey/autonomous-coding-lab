@@ -3,7 +3,7 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `research/agent-landscape`  
 **Campaign:** Knowledge Architecture Evidence Campaign  
-**Status:** KA-2 complete; stopped before next task  
+**Status:** KA-3 complete; stopped before next task  
 **Historical starting checkpoint:** `76a262889a4577613520931cc475e8888844f8fc`
 
 ## Governing plan
@@ -22,8 +22,6 @@ Detailed report:
 
 - `projects/graphiti.md`
 
-KA-1 established the initial candidate-invariant and failure-pattern ledgers and stopped before Mem0.
-
 ### KA-2 — Mem0 Knowledge-Architecture Revisit
 
 **Status:** complete.
@@ -32,68 +30,78 @@ Detailed report:
 
 - `projects/mem0.md`
 
+### KA-3 — Letta Code Knowledge-Architecture Revisit
+
+**Status:** complete.
+
+Detailed report:
+
+- `projects/letta-code.md`
+
 Cumulative ledgers updated:
 
 - `invariants.md`
 - `failure-patterns.md`
 
-### KA-2 boundary and verification
+### KA-3 boundary and verification
 
-- Re-read root research governance, campaign plan/state and the prior historical Mem0 report.
-- Reverified current `mem0ai/mem0` `main` at `dae67f74f5cc7bf138c7d7d6f9cec5ce4b4373b3`, package version `2.0.20`.
-- Revisited current Python OSS source, current first-party migration/Platform documentation, and current/recent issues/PRs only where they affected the knowledge-architecture evidence matrix.
-- Evaluated Mem0 against all 26 campaign evidence questions.
-- Updated recurrence status in the invariant/failure ledgers rather than duplicating Graphiti-derived concepts.
-- Added 6 materially distinct invariant candidates/concepts (KA-I-025–030), with KA-I-025 immediately marked reinforced because the epistemic-basis gap was independently observed in KA-1 and KA-2.
-- Added 7 materially distinct Mem0 failure/anti-pattern entries (KA-F-021–027).
-- Reinforced 19 existing candidate invariants with independent Mem0 evidence.
-- Reinforced 10 existing failure/anti-pattern classes with independent Mem0 evidence.
-- Did not select Mem0, a vector database, a graph database, a storage engine, a final ontology, a retrieval engine, or a final conceptual model.
-- Did not modify historical `catalog.jsonl`, `catalog-part2.jsonl`, root research state or completed historical project reports.
-- Did not begin Letta Code research.
+- Re-read root research governance, campaign plan/state and the historical Task 18 Letta Code report.
+- Verified ACL starting branch head at `4aece181bab2720bba77db5a256c7a4ae068d7d4` before KA-3 writes.
+- Reverified current `letta-ai/letta-code` `main` at `2f0fb7c12c6973be7d52d9c7d3bf0bf4d9120cb8`, package version `0.31.13`.
+- Compared the current upstream revision to the historical Letta research revision `701f2a5367828847313876c735ade27b9df97689`; current main was eight commits ahead and the core memory architecture remained materially recognizable.
+- Revisited current MemFS prompts, memory filesystem/worktree/Git and local prompt-compilation source, recall prompts, shared-memory guidance, and current/recent issue evidence relevant to the campaign matrix.
+- Evaluated Letta Code against all 26 campaign evidence questions.
+- Updated recurrence in the cumulative invariant/failure ledgers rather than duplicating existing Graphiti/Mem0 concepts.
+- Added 5 materially distinct Letta-derived invariant candidates (KA-I-031–035).
+- Added 5 materially distinct Letta-derived failure patterns (KA-F-028–032).
+- Independently reinforced 21 existing invariant families with Letta evidence.
+- Newly reinforced KA-I-027, KA-I-028 and KA-I-029 from single-task candidates to cross-project evidence.
+- Newly reinforced KA-F-003 and KA-F-004 with Letta conflict-resolution evidence and added further recurrence to KA-F-013, KA-F-016, KA-F-019, KA-F-020 and KA-F-027.
+- Did not select Letta Code, Git, a filesystem schema, a graph database, vector database, storage engine, final ontology, retrieval engine or final conceptual model.
+- Did not modify historical `catalog.jsonl`, `catalog-part2.jsonl`, root research state or historical project reports.
+- Did not begin LlamaIndex research.
 
-### Highest-value KA-2 findings
+### Highest-value KA-3 findings
 
-1. **Current OSS v3 is ADD-only on the inferred write path.** Semantic capture is now intentionally separated from later update/delete/current-state lifecycle decisions.
-2. **Mem0 OSS is primarily a derived semantic-memory plane, not a durable raw-evidence corpus.** The SQLite message buffer retains only recent source messages per scope, and mutation history does not provide general source/evidence/derivation provenance.
-3. **Attribution is not epistemic state.** User/assistant attribution is useful, but explicit statements, recommendations, researched claims, inferences, verified facts and disputed facts still require a separate epistemic envelope.
-4. **Scope IDs are not principals.** Current code fixes historical scope-metadata mutation/injection bugs; Platform docs also explicitly distinguish user/agent/run/app scopes from graph entities.
-5. **Persistent scope and conversational episode identity differ.** #7195 shows a last-k context cache keyed only by user/agent/run can mix unrelated sessions.
-6. **Managed Dream provides useful non-destructive lifecycle semantics.** Supersede, Merge and Synthesis preserve prior records, while `latest_only` makes current-state retrieval an explicit intent.
-7. **Derived synthesis needs coverage metadata.** Dream Synthesis is forward-only, scope-restricted, threshold-gated and scheduled; derivative absence cannot mean source absence.
-8. **Graph Memory is a retrieval association graph, not a typed relationship truth model.** It links entity mentions/memories and contributes ranking; it explicitly does not create typed entity relationships.
-9. **“Hybrid retrieval” must define candidate semantics.** OSS calculates semantic, BM25 and entity signals, but only semantic results enter the candidate set and semantic thresholding happens before combination.
-10. **Backend filter semantics are correctness/security behavior.** Current OpenSearch source/#7214 show high-level advanced predicates can be silently dropped while a narrower filter still runs.
-11. **Retrieval score is not truth.** Mem0’s combined semantic/BM25/entity score and Platform Memory Decay can encode topical relevance and access recency/frequency in the same public ranking.
-12. **Concurrency still breaks integrity above the backend.** #6515 demonstrates hash-dedup TOCTOU duplicates; #6243 demonstrates lost entity links from read-modify-write races.
-13. **Current source exposes a direct settlement mismatch.** Individual fallback vector inserts may fail, yet history, entity maintenance and returned ADD results are still built from the intended record list.
-14. **Derived entity state is best-effort.** Failures are intentionally non-fatal, but #4863 shows stale derived links can survive update/delete; readiness/reconciliation must therefore be explicit.
-15. **Delete, privacy erasure and audit retention are separate operations.** Vector memories can be removed while plaintext old memory remains in SQLite history; #6512 documents the resulting retention concern.
-16. **v2→v3 is a semantic migration.** Extraction, graph behavior, retrieval defaults, API contracts and backend/language behavior changed materially; a project/package label is not sufficient derivation identity.
-17. **Remembered policy/configuration text cannot own authority.** #4926’s deterministic-policy retrieval request is evidence that critical policy must not depend on similarity, but the ACL/Vera answer remains protected policy/configuration outside ordinary semantic-memory authority.
-18. **Model/prompt/parser profile is part of memory provenance.** #5901/#6724 show malformed but plausible model output shapes can alter ingestion correctness, especially in local/open-compatible deployments.
+1. **Persistent agent identity and conversation identity are separate.** Letta models a long-lived `agent_id` with multiple `conversation_id`s and per-agent durable memory.
+2. **Recall evidence and curated memory are distinct planes.** Conversation history remains separately searchable from editable future-facing MemFS knowledge.
+3. **Active context is revisioned.** Local compilation reads committed Git `HEAD`, excludes pending uncommitted files and records `memfsRevision` in the compiled-prompt result.
+4. **Git mutation provenance is not epistemic provenance.** Commits/diffs explain repository change, not truth, confidence, verification, world-valid time or authority.
+5. **Background reflection is an integration state machine.** Explicit finalize statuses determine whether transcript input is consumed and whether context is recompiled.
+6. **Committed is not the same as integrated or synchronized.** #4266 shows valid reflection commits discarded at finalize; #4249 shows local memory commits can fail subsequent sync/refresh.
+7. **Reflection retries require semantic idempotency.** #4266 documents duplicate/triplicate dangling commits from repeated attempts over the same transcript evidence.
+8. **The current latest-evidence conflict heuristic is unsafe as a universal truth rule.** #4029 reports a 120-run prompt evaluation with 50% failure on restraint cases, including safety-critical downgrade and confabulated merge examples.
+9. **Memory, skills and harness authority are different state classes.** Security/compliance rules and secrets that must not depend on model recall belong outside editable memory.
+10. **Shared memory is a separate organization-owned domain.** Multiple agents can attach independent shared Git repositories, but #4267 identifies missing fine-grained user/role/task projection and governed write semantics.
+11. **Context construction is not retrieval.** Committed MemFS, recall search, external resources, shared repositories and skills enter context through different mechanisms.
+12. **Derived views can disagree with canonical state.** #3845/#3894 show false zero/incomplete file views while committed MemFS remains intact.
+13. **Restore must be transactional.** #4195 and current source show active memory is removed before the replacement backup is copied/validated.
+14. **Persistent memory is part of execution/replay identity.** #3807 documents deterministic-orchestration problems when inherited memory is not a declared task input.
+15. **Record history is not bitemporal truth.** Git/message timestamps are strong transaction history but do not encode a general world-valid interval model.
+16. **Structured epistemic states remain necessary.** Plain text cannot reliably distinguish explicit, inferred, verified, disputed, unknown or historically true knowledge.
+17. **Letta is a strong mechanism reference rather than a complete general knowledge substrate.** The observed gaps remain evidence for later synthesis, not a framework-selection decision.
 
 ## Current task
 
 **No task is currently assigned.**
 
-The campaign is stopped after KA-2.
+The campaign is stopped after KA-3.
 
 ## Planned next candidate
 
-**KA-3 — Letta Code Knowledge-Architecture Revisit**
+**KA-4 — LlamaIndex Knowledge-Architecture Revisit**
 
 This is the next planned revisit in `CAMPAIGN_PLAN.md`, but it is **not authorized merely by queue order**.
 
-Do not begin KA-3 until the user explicitly instructs the next bounded task to start.
+Do not begin KA-4 until the user explicitly instructs the next bounded task to start.
 
-When authorized, Letta Code must be researched as its own task and then stopped before LlamaIndex.
+When authorized, LlamaIndex must be researched as its own task and then stopped before Mastra.
 
 ## Prohibited work at this state
 
 Do not:
 
-- begin Letta Code or any later revisit without explicit authorization;
+- begin LlamaIndex or any later revisit without explicit authorization;
 - synthesize the final conceptual schema;
 - select a database/storage engine;
 - implement retrieval;
@@ -109,8 +117,8 @@ For orientation only; queue order is not authorization:
 
 1. ~~KA-1 Graphiti~~ — complete
 2. ~~KA-2 Mem0~~ — complete
-3. KA-3 Letta Code — not started / not authorized
-4. LlamaIndex
+3. ~~KA-3 Letta Code~~ — complete
+4. KA-4 LlamaIndex — not started / not authorized
 5. Mastra
 6. LangGraph
 7. Google ADK
@@ -122,4 +130,4 @@ After these, the campaign plan requires a bounded coverage scan before any addit
 
 ## Stop point
 
-KA-2 Mem0 research is complete and saved. No subsequent project, cross-project synthesis, gap research, retrieval-requirements task, architecture selection or implementation work has begun.
+KA-3 Letta Code research is complete and saved. No subsequent project, cross-project synthesis, gap research, retrieval-requirements task, architecture selection or implementation work has begun.
