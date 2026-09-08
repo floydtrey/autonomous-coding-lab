@@ -3,16 +3,16 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `research/agent-landscape`  
 **Campaign:** Knowledge Architecture Evidence Campaign  
-**Status:** project revisits, coverage scan, promoted Agno revisit and first standards/domain gap task complete; stopped before relationship/ontology gap research  
+**Status:** project revisits, coverage scan, promoted Agno revisit and two standards/domain gap tasks complete; stopped before formal-provenance gap research  
 **Historical starting checkpoint:** `76a262889a4577613520931cc475e8888844f8fc`
 
 ## Governing plan
 
 Read `CAMPAIGN_PLAN.md` before doing any further work in this campaign.
 
-The completed Tasks 1–31 project-by-project campaign remains historical evidence. Do not restart it and do not rewrite its catalogs merely to fit the future knowledge model.
+The completed Tasks 1–31 project campaign remains historical evidence. Do not restart it or rewrite historical catalogs merely to fit the future knowledge model.
 
-No completed evidence task authorizes final architecture synthesis, database selection, retrieval implementation, embeddings, model benchmarking or ACL/Vera implementation.
+No completed evidence task authorizes final architecture synthesis, storage/database selection, retrieval implementation, embeddings, model benchmarking, ACL/Vera implementation or autonomous worker execution.
 
 ---
 
@@ -39,6 +39,7 @@ No completed evidence task authorizes final architecture synthesis, database sel
 ### Standards/domain gap research
 
 13. **KA-G1 — Epistemic, Temporal, Conflict and Negative-Knowledge Semantics** — complete
+14. **KA-G2 — Relationships and Ontology Evolution** — complete
 
 ---
 
@@ -65,345 +66,298 @@ Coverage scan:
 Gap research:
 
 - `gaps/epistemic-temporal-conflict.md`
+- `gaps/relationships-ontology-evolution.md`
 
 Cumulative ledgers:
 
 - `invariants.md`
 - `failure-patterns.md`
 
-This state file is intentionally a compact current checkpoint. Detailed prior evidence remains in the dedicated reports rather than being duplicated here.
+This state is intentionally a compact checkpoint. Detailed evidence remains in the dedicated reports.
 
 ---
 
-# KA-G1 boundary and verification
+# KA-G2 boundary and verification
 
-The user explicitly authorized continuation into the standards/domain gap phase after KA-11.
+The user explicitly authorized KA-G2 after KA-G1.
 
-KA-G1 was bounded to Priority A semantics only:
+Starting branch/head for the task:
 
-- epistemic state;
-- unknown/negative knowledge;
-- temporal/bitemporal semantics;
-- conflict/supersession;
-- correction history;
-- structured temporal/method applicability where directly relevant.
+`18b571c1000fe9b5fcc5ca01556f52fbb372bf17`
+
+Starting message:
+
+`research: complete epistemic and temporal semantics gap`
+
+KA-G2 was bounded to:
+
+- first-class relationship assertions;
+- relationship/predicate semantic identity;
+- direction/inverse semantics;
+- symmetry/asymmetry/transitivity and related property characteristics;
+- direct relationship versus transitive closure/inference;
+- qualifiers/applicability and statement occurrence identity;
+- relationship retrieval/path semantics;
+- validation constraints versus logical entailment;
+- controlled vocabulary reuse/extension;
+- ontology/vocabulary versioning;
+- deprecation/replacement;
+- semantic migration and historical interpretation.
 
 Explicitly excluded:
 
-- identity/entity-resolution research;
-- controlled relationship/ontology research;
-- formal provenance standards beyond source/reference distinctions needed for this task;
-- ABAC/ReBAC authorization;
-- privacy erasure mechanics;
+- full formal provenance/W3C PROV study;
+- ABAC/ReBAC/actionability policy;
 - resource/artifact identity;
-- retrieval-requirements construction;
-- hostile/adversarial review execution;
-- architecture synthesis;
-- storage technology selection;
+- privacy erasure/retention mechanics;
+- Home Assistant/Matter operational-domain validation;
+- representative retrieval-question construction;
+- hostile/adversarial scenario execution;
+- final conceptual schema synthesis;
+- storage/graph/database selection;
 - implementation.
 
-Starting branch verified at:
+## Primary evidence inspected
 
-`efda61ba0fd1146d0da98b85e218f475cad4a42d`
+### W3C RDF 1.2 Concepts and Abstract Data Model
 
-Expected commit message at start:
-
-`research: complete Agno knowledge architecture revisit`
-
-Governance re-read:
-
-- `docs/research/README.md`
-- `docs/research/PROCESS.md`
-- `docs/research/sources.md`
-- `docs/research/watchlist.md`
-- `docs/research/knowledge-architecture/CAMPAIGN_PLAN.md`
-- this campaign state
-- cumulative invariant/failure ledgers
-
----
-
-# KA-G1 primary evidence
-
-## W3C OWL 2 Primer
-
-https://www.w3.org/TR/owl-primer/
+https://www.w3.org/TR/rdf12-concepts/
 
 Used for:
 
-- open-world assumption;
-- explicit negative property assertions;
-- distinction between missing fact and known false relation.
+- proposition versus asserted triple;
+- triple terms/reifiers;
+- multiple reifiers for one proposition;
+- reification without asserting truth;
+- change over time;
+- stable intended IRI referent;
+- entailment profile separation.
 
-## W3C SHACL
+Qualification: RDF 1.2 was inspected as a 2026 Candidate Recommendation Snapshot; it is standards-direction evidence, not a technology-selection decision.
+
+### W3C OWL 2
+
+https://www.w3.org/TR/owl-primer/  
+https://www.w3.org/TR/owl2-quick-reference/
+
+Used for:
+
+- inverse/symmetric/asymmetric/reflexive/irreflexive properties;
+- functional/inverse-functional properties;
+- transitive properties;
+- subproperties/disjoint properties;
+- domain/range;
+- property chains;
+- ontology version IRI;
+- prior/backward-compatible/incompatible/deprecated version annotations.
+
+### W3C SKOS Reference
+
+https://www.w3.org/TR/skos-reference/
+
+Used for:
+
+- direct hierarchy versus transitive closure;
+- associative versus hierarchical relations;
+- inverse relation semantics;
+- mapping relations such as exact/close/broad/narrow/related match;
+- integrity conditions;
+- domain/range as inference rather than validation.
+
+### W3C SHACL
 
 https://www.w3.org/TR/shacl/
 
 Used for:
 
-- validation as a separate bounded operation over data/shapes graphs;
-- closed-shape and required-property constraints;
-- validation reports;
-- evidence that “closed” semantics belong to an explicit validation contract rather than a universal truth default.
+- validation as a separate layer from ontology entailment;
+- node/property shapes;
+- property paths;
+- cardinality/type/value constraints;
+- closed shapes.
 
-## Wikibase/Wikidata
+### SPARQL 1.2 Query
+
+https://www.w3.org/TR/sparql12-query/
+
+Used for:
+
+- inverse/sequence/alternative/arbitrary-length property paths;
+- graph connectivity/path retrieval;
+- evidence that connectivity retrieval is distinct from derivation/explanation provenance.
+
+Qualification: SPARQL 1.2 was a 2026 Working Draft; the task used its path model directionally and did not make adoption decisions.
+
+### Wikibase / Wikidata
 
 https://www.mediawiki.org/wiki/Wikibase/DataModel  
+https://doc.wikimedia.org/Wikibase/master/php/docs_topics_json.html  
+https://www.wikidata.org/wiki/Help:Property_constraints_portal  
 https://www.wikidata.org/wiki/Help:Statements/en  
-https://www.wikidata.org/wiki/Help:Ranking  
-https://www.wikidata.org/wiki/Help:Qualifier  
-https://www.wikidata.org/wiki/Help:Sources  
-https://www.wikidata.org/wiki/Help:Deprecation/en
+https://www.wikidata.org/wiki/Help:Qualifier
 
 Used for:
 
-- concrete value vs some-value-unknown vs no-value;
-- multiple/conflicting statements;
-- references;
-- qualifiers;
-- preferred/normal/deprecated ranks;
-- retaining historically wrong/superseded claims rather than deleting them;
-- measurement/time precision as separate from statement rank.
+- stable Property identity independent of labels;
+- direction-specific relationship meaning;
+- statement occurrence IDs;
+- main claim versus qualifiers/references/rank;
+- multiple statements for one property/value;
+- contextual/time qualifiers;
+- property constraints and exceptions;
+- symmetric/inverse/type/cardinality/qualifier constraints;
+- schema/datatype evolution where historical records may lag migration.
 
-## XTDB
+### OBO Foundry
 
-https://docs.xtdb.com/about/time-in-xtdb.html  
-https://docs.xtdb.com/concepts/key-concepts.html  
-https://docs.xtdb.com/quickstart/sql-overview.html  
-https://docs.xtdb.com/tutorials/immutability-walkthrough/part-4
-
-Used for:
-
-- valid time;
-- system/transaction time;
-- late/backdated/future-effective updates;
-- immutable system-time audit;
-- corrected historical truth versus history as known at the time.
-
-## Microsoft SQL Server temporal guidance
-
-https://learn.microsoft.com/en-us/sql/relational-databases/tables/temporal/overview  
-https://learn.microsoft.com/en-us/sql/relational-databases/tables/temporal-table-usage-scenarios
-
-Used as independent evidence that system/transaction time may be unsuitable as business validity when data arrives late.
-
-## KurrentDB / EventStoreDB
-
-https://docs.kurrent.io/getting-started/introduction  
-https://docs.kurrent.io/getting-started/concepts  
-https://docs.kurrent.io/getting-started/features  
-https://docs.kurrent.io/server/v26.0/http-api/optional-http-headers  
-https://docs.kurrent.io/dev-center/use-cases/time-travel/tutorial-summary
+https://obofoundry.org/principles/fp-007-relations.html  
+https://obofoundry.org/principles/fp-019-term-stability.html  
+https://obofoundry.org/id-policy.html
 
 Used for:
 
-- append-only immutable event history;
-- stream ordering/revision;
-- projection reconstruction/time travel;
-- optimistic concurrency / expected revision;
-- comparison of event history with bitemporal truth semantics.
+- reuse of governed relation identifiers;
+- relation interoperability;
+- subproperty alignment and property-chain governance;
+- stable meaning/identifier policy;
+- meaning-changing revision requires a new identifier;
+- deprecation rather than identifier reuse;
+- exact `replaced_by` versus inexact `consider` guidance;
+- removal/replacement of obsolete logical uses;
+- stable current and dated version artifacts.
 
 ---
 
-# Highest-value KA-G1 findings
+# Highest-value KA-G2 findings
 
-## 1. Absence is not false
+## 1. Relationship type identity is not its label
 
-OWL's open-world semantics directly supports the rule that a missing fact may simply be unknown.
+A stable relationship/predicate identity must be independent of display labels, aliases, localization and model-generated phrasing.
 
-OWL negative property assertions show that known-negative is an explicit assertion, not inferred from lack of a positive triple.
+Natural-language similarity cannot safely collapse distinct relations such as:
 
-Wikibase independently distinguishes:
+- owns;
+- assigned_to;
+- uses;
+- located_at;
+- observed_at;
+- parent_of / has_parent.
 
-- concrete value;
-- some value exists but is unknown;
-- no value exists;
-- no statement/not established.
+## 2. Governed relation semantics are behavior-bearing
 
-Architecture consequence:
+Direction, inverse, symmetry/asymmetry, transitivity, functionality/cardinality, domain/range, subproperty, disjointness and property-chain rules can change inference.
 
-> Retrieval/search failure does not create negative knowledge by itself.
+When ACL/Vera relies on them, they must be explicit/versioned rather than hidden in application code or inferred from labels.
 
-## 2. Closed-world negative inference requires a completeness contract
+## 3. Logical inference and validation are different layers
 
-The system may treat absence as meaningful only when the relevant population is explicitly known to be complete for the bounded scope.
+OWL/SKOS semantics can entail new facts.
 
-The completeness contract needs enough identity to bind:
+SHACL/Wikidata-style constraints can instead validate or flag expected usage and may permit exceptions.
 
-- subject/entity set;
-- predicate/property;
-- time/validity interval;
-- environment/project/device/version scope where applicable;
-- authoritative source/evidence population;
-- search/filter profile.
+ACL/Vera must distinguish:
 
-This produces new candidate invariant **KA-I-047**.
+- semantic entailment rule;
+- hard validation rule;
+- soft quality expectation;
+- UI/editor suggestion;
+- security/policy eligibility.
 
-## 3. Pairwise negative, no-value and unknown-value are distinct
+## 4. Direct relation and transitive closure are different knowledge
 
-Examples that must remain distinguishable:
+SKOS's direct hierarchy versus transitive hierarchy, plus OWL transitivity/property chains, establish that direct asserted edges must remain distinguishable from inferred closure.
 
-- `Device A is not in Room B`;
-- `Person A has no current employer`;
-- `Person A's current employer exists but is unknown`;
-- no current-employer evidence exists.
+## 5. Assertion occurrence identity is distinct from the abstract proposition
 
-A single nullable field cannot safely encode these meanings.
+RDF 1.2 permits multiple reifiers for the same proposition.
 
-## 4. Epistemic dimensions must not collapse into one status/confidence field
+Wikibase gives statements their own IDs plus qualifiers/references/rank.
 
-Standards evidence supports separating:
+Therefore identical subject-predicate-object propositions may require multiple separately addressable occurrences because source, time, epistemic basis or applicability differs.
 
-- proposition/value state;
-- epistemic basis;
-- references/provenance;
-- qualifiers/applicability;
-- verification/dispute state;
-- current/default selection rank;
-- uncertainty/precision.
+This produces new **KA-I-048**.
 
-`KA-I-025` and `KA-I-010` gain direct standards/domain recurrence.
+## 6. Qualifiers/applicability can change relationship meaning
 
-## 5. Conflicting assertions can coexist
+Time, role, method, environment, version and other qualifiers may be intrinsic to interpretation of one relationship occurrence.
 
-Wikibase allows multiple values and even multiple preferred statements where disagreement remains.
+This strongly reinforces structured applicability under **KA-I-022**.
 
-Default/current selection is therefore not equivalent to deleting alternatives.
+## 7. Relationship retrieval has different intents
 
-Conflict detection/adjudication should be separate from ingestion.
+At least:
 
-## 6. Wrong/superseded claims can remain useful historical evidence
+- direct assertion retrieval;
+- inference-aware retrieval;
+- path/connectivity retrieval;
+- explanation/evidence-chain retrieval.
 
-Wikidata deprecation guidance retains many statements that are now known wrong or superseded.
+A path endpoint result is not the same thing as a direct source assertion.
 
-A key distinction:
+Consequential reasoning needs reconstructable support from asserted edges plus inference/vocabulary profile.
 
-- proposition `P` may be false;
-- proposition `Source S claimed P` may remain true and historically important.
+This produces new **KA-I-049**.
 
-This sharpens provenance/current-history semantics without selecting Wikibase.
+## 8. Controlled vocabulary does not mean frozen universal ontology
 
-## 7. Valid time and system/record time are different
+Evidence supports:
 
-XTDB provides strong positive semantics:
+- small governed core;
+- stable IDs;
+- definitions;
+- explicit extension;
+- aliases/mappings;
+- optional subproperty alignment;
+- version/deprecation lifecycle.
 
-- system time = when information entered/changed in the database;
-- valid time = when it was true/effective in the world.
+## 9. Exact and approximate mappings are different
 
-Microsoft independently warns transaction time may be wrong for delayed business data.
+SKOS exact/close/broad/narrow/related mappings and OBO `replaced_by` versus `consider` demonstrate that approximate mappings must not be upgraded to exact equivalence for convenience.
 
-A single timestamp is therefore insufficient for Vera's general knowledge model.
+## 10. Meaning-changing vocabulary updates must not reuse semantic identity
 
-## 8. “What was true then?” and “what did we know then?” are different queries
+OBO requires a new identifier when a term's intended referents change materially.
 
-At minimum future retrieval requirements need:
+Historical relationship assertions therefore must not silently inherit a new meaning because a label remained unchanged.
 
-- current state as best known now;
-- historical world state as best known now after later corrections;
-- historical knowledge state as it was known at the time;
-- conflict/evidence history.
+This strongly reinforces **KA-I-017**.
 
-This materially strengthens `KA-I-008` and `KA-I-009`.
+## 11. Deprecation is not deletion
 
-## 9. Backdating a correction must not backdate knowledge history
+Deprecated relation definitions may remain historically addressable, with exact or inexact replacement guidance.
 
-If an event happened at 02:10 but Vera learned it at 03:00:
+Active logical uses of obsolete vocabulary require explicit repair/migration.
 
-- valid/event time may be 02:10;
-- record/knowledge time remains 03:00.
+## 12. Ontology/vocabulary profile is part of semantic reproducibility
 
-Later correction of valid time must not rewrite the audit history of when Vera learned/applied it.
+Derived relationships may differ when ontology/inference rules differ.
 
-## 10. Event sourcing and bitemporality solve different problems
-
-KurrentDB provides strong evidence for:
-
-- append-only history;
-- mutation/event ordering;
-- projection rebuild;
-- concurrency checks.
-
-But an event store does not automatically provide:
-
-- proposition truth;
-- epistemic basis;
-- source trust;
-- conflict semantics;
-- valid-time correction.
-
-Likewise bitemporal rows do not automatically provide event intent/provenance.
-
-Future synthesis should test whether Vera needs distinct but linked:
-
-- evidence/observation/event history;
-- temporal assertions;
-- materialized current projections.
-
-## 11. Event occurrence is not world truth
-
-For Vera, durable evidence should often record:
-
-`Camera-7 emitted match(Alice, .72) at T`
-
-rather than prematurely collapsing it into:
-
-`Alice was in the kitchen at T`.
-
-The latter is a derived proposition requiring source/identity/trust reasoning.
-
-This strengthens `KA-I-001` and `KA-I-025`.
-
-## 12. Significant correction writes need revision/concurrency protection
-
-Kurrent expected-revision semantics provide a mature analogue for preventing stale writers from appending over an unseen concurrent change.
-
-This maps to existing concurrency requirements; no new invariant/failure ID was needed.
-
-## 13. Correction/deprecation is not privacy erasure
-
-Retaining old claims is desirable for ordinary correction/audit.
-
-Privacy/legal erasure may require actual removal across canonical and derived planes.
-
-The later privacy gap remains necessary.
+A consequential derived relationship should therefore be able to identify the semantic/inference profile under which it was produced.
 
 ---
 
-# Cumulative ledger state after KA-G1
+# Cumulative ledger state after KA-G2
 
 ## Invariants
 
-Invariant IDs now run **KA-I-001 through KA-I-047**.
+Invariant IDs now run **KA-I-001 through KA-I-049**.
 
-New:
+Status change:
 
-### KA-I-047 — candidate
+- **KA-I-007 — candidate → reinforced**
+  - Graphiti/Agno provided prior project evidence;
+  - KA-G2 independently supplies OWL/SKOS/Wikibase/OBO governed-relation semantics.
 
-A missing value or unsuccessful search may be promoted from `not-established` to `known-negative` only when an explicit, evidence-backed completeness/closed-world contract covers the relevant subject set, predicate, scope, time and source/search population; otherwise absence remains unknown/not-established.
+New candidates:
 
-Evidence:
+- **KA-I-048 — candidate**
+  - relationship semantic identity is distinct from individual relationship-assertion occurrence identity.
+- **KA-I-049 — candidate**
+  - direct assertions, derived/entailed relationships and path connectivity are distinct retrieval intents; consequential derived relationships require explainable supporting assertion chains plus inference/vocabulary profile.
 
-- W3C OWL open-world assumption;
-- W3C OWL explicit negative property assertions;
-- W3C SHACL bounded validation model;
-- Wikibase/Wikidata some-value/no-value semantics.
-
-No status promotions are required because the affected existing invariants were already reinforced.
-
-Strong new recurrence recorded for:
-
-- KA-I-001
-- KA-I-006
-- KA-I-008
-- KA-I-009
-- KA-I-010
-- KA-I-021
-- KA-I-022
-- KA-I-025
-
-Candidates remaining:
+Candidates remaining after KA-G2:
 
 - KA-I-004 — reversible identity merge/split transition
-- KA-I-007 — governed relationship semantics
 - KA-I-031 — exact settled knowledge revision for active context
 - KA-I-037 — logical resource vs locator vs content/version digest
 - KA-I-038 — canonical read isolation/value semantics
@@ -412,33 +366,48 @@ Candidates remaining:
 - KA-I-044 — transport liveness vs logical continuation validity
 - KA-I-045 — terminal/expiry lifecycle for pending authority/effects
 - KA-I-047 — closed-world negative inference requires completeness contract
+- KA-I-048 — relation semantic identity vs assertion occurrence identity
+- KA-I-049 — direct vs inferred/path relationship retrieval and explanation
+
+Strong recurrence without status changes:
+
+- KA-I-002
+- KA-I-005/006
+- KA-I-008/009
+- KA-I-012
+- KA-I-017/018
+- KA-I-022/023
+- KA-I-025
+- KA-I-030
 
 ## Failure patterns
 
 Failure IDs remain **KA-F-001 through KA-F-049**.
 
-No new failure ID was created.
+No new failure ID or status change is made.
 
 Reason:
 
-- this task supplied standards/domain semantic evidence rather than a new concrete implementation incident;
-- “absence -> false” is nominated for later hostile/acceptance testing, but adding an observed failure ID from standards doctrine alone would weaken the failure ledger's incident/reproduction discipline.
+- KA-G2 is standards/domain evidence rather than a new implementation incident/reproduction;
+- existing **KA-F-005** remains the concrete fixture for treating relationship name + shared endpoint as sufficient supersession proof.
 
 ---
 
-# Twenty-six-question disposition after KA-G1
+# Twenty-six-question disposition after KA-G2
 
-## Strong enough for later requirements/synthesis without another project revisit
+## Strong enough for later requirements/synthesis without another agent-framework revisit
 
 - 1 Stable identity
 - 2 Identity vs namespace/principal
-- 4 Epistemic state — **positive semantics materially improved by KA-G1**
-- 5 Temporal truth — **positive bitemporal semantics materially improved by KA-G1**
-- 6 Conflict/supersession — **retention/deprecation/current-selection semantics materially improved by KA-G1**
-- 8 Permissions/sensitivity — formal authorization gap still required
+- 4 Epistemic state
+- 5 Temporal truth
+- 6 Conflict/supersession
+- 7 Relationships — **positive semantics materially improved by KA-G2**
+- 8 Permissions/sensitivity — formal authorization gap still remains
 - 10 Knowledge vs authority
 - 12 Canonical vs derived
 - 13 Structured retrieval
+- 14 Relationship retrieval — **positive semantics materially improved by KA-G2**
 - 15 Full-text retrieval
 - 16 Semantic retrieval
 - 17 Composite retrieval
@@ -446,182 +415,105 @@ Reason:
 - 19 Memory poisoning/prompt injection
 - 20 Concurrency
 - 21 Derived-state integrity
+- 23 Schema/version evolution — **ontology evolution materially improved by KA-G2**
 - 24 Recovery semantics
-- 25 Unknown/negative knowledge — **positive semantics materially improved by KA-G1**
+- 25 Unknown/negative knowledge
 
-## Still requires bounded gap research
+## Still requires bounded direct gap/domain research
 
-- 3 Formal provenance
-- 7 Governed relationships
+- 3 Formal provenance/evidence lineage
 - 9 Actionability/use-purpose semantics
 - 11 Resources/artifacts
-- 14 Relationship retrieval
 - 22 Privacy deletion/retention
-- 23 Ontology/schema evolution — partial evidence exists
-- 26 Scope of truth — temporal/method scope improved; cross-domain applicability still partial
+- 26 Scope of truth / generality — non-AI operational validation still needed
+
+Question 8 also still benefits from direct ABAC/ReBAC-style authorization study despite strong project evidence.
 
 ---
 
-# Remaining gap map
+# Requirements carried forward from KA-G2
 
-These are candidates only; phase order is not authorization.
-
-## Priority B — relationships and ontology evolution
-
-Relevant questions:
-
-- 7 Relationships
-- 14 Relationship retrieval
-- parts of 23 and 26
-
-Candidate focus:
-
-- controlled relationship vocabulary;
-- relationship provenance and validity time;
-- inverse/symmetric/transitive/cardinality semantics only where safe;
-- relationship identity;
-- ontology/vocabulary evolution and migration;
-- canonical relationship assertions vs derived association graphs.
-
-## Priority C — formal provenance
-
-Relevant questions:
-
-- 3 Provenance
-- parts of 11/21/23
-
-Candidate focus:
-
-- W3C PROV and related lineage models;
-- source -> evidence -> assertion -> derivation chains;
-- derivation/activity identity;
-- responsibility/agent attribution without turning provenance into trust.
-
-## Priority D — knowledge authorization, purpose and sensitivity
-
-Relevant questions:
-
-- 8
-- 9
-- 10
-- 22
-
-Candidate focus:
-
-- ABAC/ReBAC-style access;
-- principal/subject/owner/purpose separation;
-- read/write/delete/consolidate/use-for-automation authority classes;
-- sensitivity/retention.
-
-## Priority E — content-addressed resource/artifact identity
-
-Relevant question:
-
-- 11
-
-Candidate focus:
-
-- logical resource identity;
-- locator/replica;
-- content digest/version;
-- extraction/derivation lineage;
-- cache/index/embedding relationships.
-
-## Priority F — privacy deletion and retention
-
-Relevant question:
-
-- 22
-
-Candidate focus:
-
-- canonical/derived/cache/backup erasure;
-- audit retention vs user-data retention;
-- tombstones/fencing;
-- delayed cleanup;
-- erasure verification.
-
-## Priority G — non-AI operational-domain validation
-
-Relevant question:
-
-- 26 and generality of the eventual model
-
-Candidate focus:
-
-- Home Assistant / Matter-style devices;
-- entities and replacement hardware;
-- rooms/locations;
-- sensor observations;
-- stale/unavailable state;
-- capabilities;
-- shared-household authority.
-
-This remains necessary to prevent coding-agent vocabulary from becoming Vera's general schema.
+1. Relationship types have stable semantic IDs independent of labels.
+2. Behavior-bearing relation semantics are explicit/versioned when relied upon.
+3. Relationship assertion occurrences may have first-class identity separate from the abstract proposition.
+4. Qualifiers/applicability can be part of statement meaning.
+5. References/evidence remain separate from qualifiers and currentness/rank.
+6. Direct and inferred relationships remain distinguishable.
+7. Consequential path/derived answers can be traced to supporting direct assertions and inference profile.
+8. Validation constraints and logical inference rules remain separate layers.
+9. Soft constraints may have exceptions and do not automatically negate sourced observations.
+10. Controlled vocabularies remain extensible.
+11. Exact and approximate mappings remain distinct.
+12. Meaning-changing vocabulary edits require new semantic identity or explicit migration rather than silent reinterpretation.
+13. Deprecated relation definitions remain historically addressable where retention policy permits.
+14. Exact replacement and candidate/inexact replacement remain distinct.
+15. Vocabulary/inference profile belongs in derivation/reproducibility identity when it changes semantics.
+16. Existing historical assertions do not automatically inherit new ontology semantics.
 
 ---
 
-# Current task
+# Nominated later hostile scenarios
+
+Do not execute them in this state.
+
+- two different relation IDs share one label;
+- label unchanged while relation meaning changes;
+- direct edge confused with transitive closure;
+- property-chain result shown as direct source fact;
+- same subject/relation/object asserted by different sources with different validity;
+- soft constraint treated as logical impossibility;
+- domain/range inference treated as input validation;
+- functional relation silently merges identities;
+- inexact replacement auto-migrated as exact;
+- deprecated relation remains active in inference chains;
+- old assertions reinterpreted under new relation definition without migration;
+- path result loses evidence-bearing supporting edges;
+- cyclic traversal runs unbounded;
+- close-match mapping treated as exact equivalence;
+- derived relation built under ontology V1 replayed under V2 without qualification.
+
+---
+
+## Current task
 
 **No task is currently assigned.**
 
-KA-G1 is complete.
+KA-G2 is complete.
 
 ## Planned next candidate
 
-**KA-G2 — Relationships and Ontology Evolution**
+**KA-G3 — Formal Provenance / Evidence Lineage**
 
-This is only the next candidate from the gap map. It is **not authorized merely because it is next**.
+Suggested bounded focus:
 
-A future bounded KA-G2 should research current primary standards/domain evidence around:
+- W3C PROV Entity/Activity/Agent distinctions;
+- generation/use/derivation/attribution/association relationships;
+- source evidence versus transformation provenance;
+- revision/bundle/collection applicability where useful;
+- requirements for ACL/Vera without adopting PROV wholesale.
 
-- relationship identity;
-- typed/governed predicates;
-- inverse/symmetric/transitive semantics and their hazards;
-- cardinality/functional relationships;
-- relationship qualifiers/provenance/time;
-- ontology/vocabulary versioning and migration;
-- canonical relationship truth versus derived association graphs.
+This candidate is **not authorized merely because it is next**.
 
-It must stop before formal provenance (Priority C).
-
----
-
-# Prohibited work at this state
+## Prohibited work at this state
 
 Do not:
 
-- begin KA-G2 or another gap task without explicit authorization;
-- restart broad agent-framework research;
-- build the representative retrieval-question set;
-- execute the hostile/adversarial review;
+- begin KA-G3 without explicit authorization;
+- begin authorization/actionability gap research automatically;
+- begin resource/artifact gap research;
+- begin privacy/retention gap research;
+- begin Home Assistant/Matter operational validation;
+- construct the representative retrieval-requirements suite;
+- execute hostile/adversarial scenario review;
 - synthesize the final conceptual schema;
-- select a database, graph engine, vector store or event store;
+- select a graph/database/storage engine;
 - implement retrieval/context construction;
 - create embeddings;
-- migrate historical catalogs;
 - benchmark models;
 - implement ACL or Vera;
 - run autonomous workers;
-- convert candidate/reinforced invariants into final architecture rules.
+- promote evidence-campaign invariants into final architecture rules.
 
----
+## Stop point
 
-# Stop point
-
-The campaign now has strong direct evidence for the major epistemic/temporal semantics that agent frameworks left underspecified:
-
-- missing != false;
-- explicit negative/no-value != unknown;
-- unknown != not-established;
-- conflicting assertions can coexist;
-- source claim != proposition truth;
-- current selection != deletion of history;
-- valid/world time != system/record time;
-- corrected history != history as believed at the time;
-- event history != epistemic truth;
-- correction != privacy erasure.
-
-New candidate invariant **KA-I-047** captures the critical rule that negative knowledge derived from absence requires an explicit completeness/closed-world contract.
-
-No relationship/ontology research, formal provenance research, authorization/privacy research, resource-identity research, retrieval study, hostile review, synthesis, storage selection or implementation has begun.
+KA-G1 and KA-G2 are complete. Epistemic/temporal/negative semantics and relationship/ontology semantics now have direct standards evidence. The remaining major gaps are formal provenance, authorization/actionability, resources/artifacts, privacy/retention and non-AI operational-domain validation. No later gap task, retrieval study, hostile review, synthesis, storage selection or implementation has begun.
