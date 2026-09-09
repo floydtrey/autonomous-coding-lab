@@ -46,13 +46,9 @@ Architecture decisions are not silently rewritten when they change. A later deci
 
 **Status:** Accepted
 
-Knowledge Core will be designed as its own local/network-capable service rather than as code owned directly by Vera or ACL.
+Knowledge Core will be designed as its own local/network-capable service rather than as code owned directly by Vera or ACL. Vera, ACL, and future clients interact through a defined interface and do not directly own/manipulate the canonical database. Initial deployment may be on one computer, but the service must be movable later without client redesign.
 
-Vera, ACL, and future clients interact with Knowledge Core through a defined interface. They do not directly own or manipulate the canonical knowledge database.
-
-The initial deployment may run on the same physical computer as Vera and ACL, but the interface must allow Knowledge Core to move to another process, VM, or machine later without redesigning its clients.
-
-**Reason:** preserves storage independence, establishes a clean trust/component boundary, supports reuse by multiple clients, and allows later physical isolation.
+**Reason:** preserves storage independence, a clean trust/component boundary, reuse, and later physical isolation.
 
 ---
 
@@ -60,13 +56,9 @@ The initial deployment may run on the same physical computer as Vera and ACL, bu
 
 **Status:** Accepted
 
-PostgreSQL will be the initial physical database for canonical Knowledge Core state.
+PostgreSQL is the initial source of canonical semantic state. Embeddings, vector/full-text indexes, summaries, caches, graph projections, and current-state projections are derived/rebuildable where practical and do not become independent truth merely because they optimize retrieval. The six conceptual families do not have to map one-to-one to six tables.
 
-PostgreSQL is the source of canonical semantic state. Search-oriented structures such as embeddings, vector indexes, full-text indexes, summaries, caches, graph projections, and current-state projections are derived/rebuildable where practical and do not become independent sources of truth merely because they are optimized for retrieval.
-
-This decision does not require the six conceptual primitive families to map one-to-one to six PostgreSQL tables.
-
-**Reason:** the validated architecture requires strong structured constraints, transactions, temporal/history support, provenance, concurrency control, and mixed retrieval without prematurely operating several independent data systems.
+**Reason:** strong structured constraints, transactions, temporal/history support, provenance, concurrency control, and mixed retrieval without premature distributed complexity.
 
 ---
 
@@ -74,17 +66,9 @@ This decision does not require the six conceptual primitive families to map one-
 
 **Status:** Accepted
 
-Knowledge Core stores canonical RESOURCE identity, metadata, exact observed version/digest, lineage, locators, ownership/sensitivity references, and related semantics in PostgreSQL.
+PostgreSQL stores RESOURCE identity, metadata, exact version/digest, lineage, locators, ownership/sensitivity references, and semantics. Large PDFs, images, archives, models, source bundles, video, and similar bytes live in a separately managed artifact store.
 
-Large raw bytes such as PDFs, images, archives, model files, large source bundles, video, and similar artifacts will normally live outside PostgreSQL in a separately managed artifact/file store.
-
-The exact artifact-storage mechanism remains open.
-
-**Reason:** preserves the conceptual distinction:
-
-`logical resource != locator != representation != exact content/version`
-
-and avoids making the relational database the bulk binary store.
+**Reason:** preserves `logical resource != locator != representation != exact content/version` and avoids using PostgreSQL as bulk binary storage.
 
 ---
 
@@ -92,15 +76,9 @@ and avoids making the relational database the bulk binary store.
 
 **Status:** Accepted
 
-AI reasoning does not grant itself authority.
+AI reasoning does not grant itself authority. Vera or another client requests an operation; Authority evaluates whether that exact operation is permitted for the authenticated principal, purpose, context, policy version, freshness requirements, and obligations. Retrieval alone never grants execution permission. Authority may initially share a machine but must be separable later.
 
-Vera or another AI/client may request an operation. A separate Authority service evaluates whether that exact operation is permitted for the authenticated principal, purpose, context, policy version, freshness requirements, and relevant obligations.
-
-Knowledge retrieval does not itself grant execution permission.
-
-The Authority service may initially live on the same physical computer, but it must be separable later without redesigning Vera or Knowledge Core.
-
-**Reason:** prevents knowledge, prompt content, model reasoning, or retrieved instructions from becoming authorization merely because the AI can see them.
+**Reason:** prevents model reasoning, knowledge, prompt text, or retrieved instructions from becoming authorization.
 
 ---
 
@@ -108,21 +86,11 @@ The Authority service may initially live on the same physical computer, but it m
 
 **Status:** Accepted
 
-Static or slowly changing root authority material should be capable of living on controller-enforced hardware write-protected media.
+Static/slow-changing root authority material should be capable of living on controller-enforced hardware write-protected media: root policy, trusted-principal/verification roots, capability/confirmation rules, policy-version metadata, and appropriate verification material. Writable requests, approvals, denials, attempts, results, audits, and effect settlement remain elsewhere.
 
-Candidate contents include:
+Physical write protection is not assumed to stop a compromised host from bypassing Authority; OS/process isolation and credential separation remain required layers.
 
-- root authority policy;
-- trusted-principal definitions or verification roots;
-- capability/confirmation rules;
-- policy-version metadata;
-- cryptographic verification material that does not itself need to be writable during normal operation.
-
-Normal writable operational data such as requests, approvals, denials, attempts, results, audit records, and effect settlement do not belong on the read-only authority medium merely because they relate to authority.
-
-The architecture must not assume physical write protection alone prevents a compromised host from bypassing the Authority service. OS/process isolation and credential separation remain required defense layers.
-
-**Reason:** creates a low-cost physical barrier against software or an AI modifying the root rules that constrain it, while preserving the option to move Authority onto a separate machine later.
+**Reason:** low-cost physical barrier against software/AI modifying root rules while retaining an easy path to a separate Authority machine later.
 
 ---
 
@@ -130,42 +98,11 @@ The architecture must not assume physical write protection alone prevents a comp
 
 **Status:** Accepted
 
-Knowledge Core must not normally overwrite prior canonical knowledge in a way that destroys the previous state.
+Ordinary learning/correction never destroys prior canonical state. Corrections, contradictions, supersessions, invalidations, and replacements create new assertion/version/transition records while earlier history and provenance remain addressable. Undo/reversal records another transition that restores an earlier or newly corrected state as current without erasing the mistaken intermediate state.
 
-When new information corrects, contradicts, supersedes, invalidates, or replaces earlier knowledge, the system records a new assertion/version/transition while retaining the earlier canonical history and its provenance.
+Derived current projections may be rebuilt. Privacy erasure is a separate privileged lifecycle and is not ordinary undo.
 
-Conceptually:
-
-```text
-old assertion/state
-        |
-        +-- remains historically addressable
-        |
-        v
-new correction/supersession
-        |
-        v
-current projection now selects the newer applicable state
-```
-
-If the correction itself is later discovered to be wrong, Knowledge Core requires an explicit **undo/reversal capability**. Undo does not delete the mistaken correction or silently rewrite history. It records another transition that makes the appropriate earlier state (or a newly corrected state) current again while preserving the complete sequence of what happened.
-
-Example:
-
-```text
-A1: Robert works_for Acme            recorded Jan 1
-A2: Robert works_for BetaCorp        recorded Mar 1, supersedes A1
-A3: correction: A2 was erroneous     recorded Mar 2
-    current view returns A1 again where applicable
-
-History still contains A1 -> A2 -> A3.
-```
-
-This permits rollback/recovery, historical truth and belief queries, auditability, conflict preservation, provenance of corrections, and safe experimentation.
-
-Derived current-state projections may be replaced/rebuilt because they are not canonical history. Privacy erasure is a separate governed process and may intentionally remove/fence data according to deletion requirements; it is not ordinary undo.
-
-**Reason:** an overwrite-only design would destroy fallback state and make mistakes difficult or impossible to reverse safely. The validated architecture requires both world-time history and knowledge/transaction-time history.
+**Reason:** preserves fallback, audit, historical truth/belief queries, conflicts, provenance, and reversible mistakes.
 
 ---
 
@@ -173,19 +110,11 @@ Derived current-state projections may be replaced/rebuilt because they are not c
 
 **Status:** Accepted
 
-Canonical ASSERTION records must not be implemented as an opaque generic JSON document or an untyped entity-attribute-value bucket.
+Canonical ASSERTION records are not opaque generic JSON or an untyped EAV bucket. Query/constraint/authorization/history/provenance-critical semantics use explicit typed relational fields or governed relational child records: identity, predicate/profile, subject, typed object/value, epistemic/polarity state, world-valid time, knowledge-record time/revision, applicability, lifecycle, sensitivity/ownership references, and profile revision.
 
-Semantics that Knowledge Core must reliably query, constrain, authorize against, reconstruct historically, or use for provenance are represented through explicit typed relational fields and/or governed relational child records.
+`JSONB` may be a bounded profile-governed extension area, but may not replace typed core fields, hide authority-critical semantics, or become an ungoverned alternate truth store.
 
-These include assertion identity; governed predicate/profile identity; subject/referent identity; typed object/value; epistemic basis and polarity/value state; world-valid time; record/knowledge time and revision identity; applicability/scope; lifecycle relationships; sensitivity/ownership references; and semantic profile revision.
-
-PostgreSQL `JSONB` may be used as a bounded extension area for profile-specific or uncommon metadata when doing so avoids needless schema churn. JSONB must not replace typed core fields, hide authority-critical semantics, or become an alternate ungoverned source of canonical meaning.
-
-Profile-defined JSON extensions, if canonical, must be validated against the applicable semantic-profile revision so their meaning is explicit and replayable.
-
-The exact table split and exact representation of assertion subjects/objects/participants remain detailed-schema questions.
-
-**Reason:** typed core semantics plus governed bounded extensions preserves correctness and extensibility without creating either a JSON-everything model or a table for every domain concept.
+**Reason:** preserves both correctness and extensibility.
 
 ---
 
@@ -193,32 +122,9 @@ The exact table split and exact representation of assertion subjects/objects/par
 
 **Status:** Accepted
 
-Knowledge Core will use a small physical identity/reference registry so every addressable canonical record can have one stable internal reference regardless of semantic family.
+A small physical reference registry gives each addressable canonical record one stable internal reference across Entity, Assertion, Occurrence, Resource/version, and Semantic Profile/revision. Specialized tables retain their own semantics and constraints. Assertions/provenance can safely reference this address space; scalar values remain typed. The registry is physical addressing, not a seventh conceptual primitive or an untyped graph.
 
-Conceptually:
-
-```text
-knowledge_ref
-  ref_id
-  physical_kind
-
-        +--> entity
-        +--> assertion
-        +--> occurrence
-        +--> resource
-        +--> exact resource version
-        +--> semantic profile/revision
-```
-
-The registry is a physical addressing mechanism, not a seventh conceptual primitive and not evidence that all referenced records have the same semantics.
-
-Specialized canonical tables retain their own typed fields and constraints. Assertions may point to a `subject_ref_id`, reference-valued objects may point to an `object_ref_id`, and provenance links may use the same stable address space.
-
-Scalar assertion values remain typed rather than being converted into fake reference objects. Genuinely multi-part propositions may use governed participant/role records rather than opaque JSON.
-
-A registry reference by itself grants no ownership, truth, sensitivity level, relationship meaning, or authority.
-
-**Reason:** preserves foreign-key integrity across conceptual families while avoiding sprawling family-specific nullable foreign keys or weak application-only polymorphic IDs.
+**Reason:** preserves foreign-key integrity without sprawling family-specific nullable foreign keys or weak application-only polymorphic IDs.
 
 ---
 
@@ -226,28 +132,11 @@ A registry reference by itself grants no ownership, truth, sensitivity level, re
 
 **Status:** Accepted
 
-Knowledge Core will represent at least two independent temporal axes:
+Knowledge Core separates **world-valid time** from **knowledge-record time**. World applicability uses PostgreSQL temporal/range-capable fields where appropriate and preserves uncertainty/precision. Every canonical assertion/occurrence/lifecycle transition receives immutable recorded timestamp plus stable replay/order identity. Late correction appends at the actual record time with whatever earlier world-valid interval is supported; it never pretends the system knew it earlier.
 
-1. **World-valid time** — when an assertion is claimed to be true/applicable in the external world.
-2. **Knowledge-record time** — when Knowledge Core learned, accepted, or recorded that assertion/transition.
+Current state is a derived/rebuildable projection. Absolute instants use timezone-aware timestamps; conflicting overlapping claims remain representable.
 
-These axes must never be collapsed into one timestamp.
-
-World-valid applicability will use PostgreSQL temporal/range-capable fields where appropriate, normally an interval equivalent to `tstzrange` for timestamp-granularity state. Open-ended applicability is represented explicitly. Source precision/uncertainty must be preserved when evidence only establishes a day, coarse interval, unknown boundary, or other non-exact time.
-
-Every canonical assertion, occurrence, correction, supersession, reversal, and lifecycle transition receives immutable record-time identity including a database-recorded timestamp plus a stable revision/order identity sufficient for deterministic replay.
-
-Late correction appends a new record at the actual knowledge-record time and may carry an earlier world-valid interval. It does not rewrite when the earlier record was learned.
-
-Lifecycle changes are themselves timestamped/revisioned canonical transitions. Historical-belief queries use only records/transitions that existed by the requested knowledge-record time.
-
-The current-state projection is derived/rebuildable and may be maintained transactionally for fast reads.
-
-Absolute instants use timezone-aware timestamps internally; original timezone, date precision, uncertain boundaries, or source temporal wording are retained where materially necessary to avoid false precision.
-
-PostgreSQL temporal constraints may enforce real invariants, but the architecture will not prohibit overlapping world-valid assertion ranges merely because they conflict; conflict is intentionally representable.
-
-**Reason:** supports both "what do we now believe was true at T?" and "what did Knowledge Core believe at T?" while preserving late corrections, conflicts, replay, rollback, and auditability.
+**Reason:** supports both current reconstruction of history and historical belief without rewriting the learning timeline.
 
 ---
 
@@ -255,23 +144,11 @@ PostgreSQL temporal constraints may enforce real invariants, but the architectur
 
 **Status:** Accepted
 
-Knowledge Core will store provenance/evidence as explicit typed directed links among addressable records, anchored to exact source/version and occurrence identity where applicable.
+Provenance/evidence is stored as explicit typed directed links among addressable records, pinned to exact resource version and occurrence/activity context where applicable. Relations are governed/versioned rather than free text. Provenance is traversable backward for explanation and forward for impact/rebuild/deletion reconciliation.
 
-A provenance link has stable identity, source and target references, governed provenance relation type/profile revision, record/revision identity, optional activity/occurrence reference, and bounded qualifiers.
+Provenance does not replace domain relationships, currentness transitions, confidence/truth, sensitivity clearance, permission, or authority.
 
-Representative governed relations include `wasDerivedFrom`, `supportedBy`, `wasAttributedTo`, `usedSource`, and `wasGeneratedBy`. Free-text relation names are not sufficient canonical semantics.
-
-Mutable sources must be linked through the exact resource version consumed, not only a mutable URL, path, branch, `latest` alias, or logical resource identity.
-
-Transformation OCCURRENCE records carry the activity context when a process used particular inputs under a particular profile/model/configuration and produced outputs.
-
-Provenance is traversable backward for explanation and forward for impact analysis. Forward impact supports correction, invalidation, deletion/restriction reconciliation, and stale-derivative rebuild.
-
-Provenance does not replace ordinary domain relationships, assertion lifecycle transitions, truth/confidence, sensitivity clearance, permission, or authority.
-
-Derived/rebuildable records retain enough lineage to identify canonical source revisions and derivation/model/profile/configuration revisions.
-
-**Reason:** avoids a single untyped edge model that would blur evidence, domain relationships, correction state, and authority.
+**Reason:** avoids an untyped edge model that blurs evidence, domain semantics, correction state, and authority.
 
 ---
 
@@ -279,21 +156,11 @@ Derived/rebuildable records retain enough lineage to identify canonical source r
 
 **Status:** Accepted
 
-The initial artifact/file store will be a local filesystem directory managed by Knowledge Core rather than a separate object-storage service.
+Initial artifact bytes live in a configurable local filesystem store keyed by SHA-256 digest. Blobs are immutable after ingestion; changed bytes create a new digest and resource-version record. Identical bytes may deduplicate physically but do not merge logical resource identity, provenance, ownership, sensitivity, authority, or history.
 
-Artifact bytes are stored by cryptographic content digest, initially SHA-256, under a configurable storage root. The content-addressed path is an implementation locator for exact bytes, not the logical RESOURCE identity.
+Ingestion stages bytes, verifies digest/size, atomically commits the blob, then records PostgreSQL metadata; orphan cleanup is separate. The backend remains replaceable later by another drive, NAS, or object store.
 
-Artifact blobs are immutable after successful ingestion. Changed bytes create a new digest/blob and new RESOURCE-version record rather than modifying the old blob.
-
-PostgreSQL stores logical resource/version metadata, digest, size, media metadata, locators/filenames, ingestion identity, ownership/sensitivity references, provenance, and current artifact-backend locator.
-
-Identical bytes may be physically deduplicated, but hash equality does not merge logical resources, provenance, ownership, sensitivity, authority, or history.
-
-Ingestion should stage bytes, compute/verify digest and size, atomically commit immutable bytes, then commit the PostgreSQL resource-version metadata. Orphaned temporary/unreferenced blobs are reconciled separately.
-
-The storage root is configurable so it may later move to another drive, NAS, or object-storage backend behind the same interface. A separate S3/MinIO-style service is not required initially.
-
-**Reason:** gives immutable exact-version identity, deduplication, reproducibility, integrity checking, straightforward backup, and low operational complexity while preserving a migration path.
+**Reason:** immutable exact-version identity and reproducibility with very low operational complexity.
 
 ---
 
@@ -301,30 +168,64 @@ The storage root is configurable so it may later move to another drive, NAS, or 
 
 **Status:** Accepted
 
-Knowledge Core will represent semantic vocabulary through explicit logical profile identities and immutable profile revisions in PostgreSQL.
+Knowledge Core distinguishes logical semantic profiles from immutable profile revisions, and stable predicate/kind/role identities from revision-specific definitions. Every assertion whose meaning depends on a vocabulary pins the exact governing profile revision.
 
-At minimum the physical model will distinguish:
+A mutable active revision may guide new writes, but old records are never reinterpreted when it changes. Material meaning changes create a new semantic identity or explicit migration/mapping, not a silent redefinition. Profile dependencies are pinned to exact revisions. Activated revisions are immutable; deprecation preserves history. Explicit transformations to new semantics create new provenance-bearing records.
 
-- `semantic_profile` — stable logical profile identity, such as the core profile, ACL profile, Vera household/device profile, research profile, or software profile;
-- `semantic_profile_revision` — immutable exact revision/snapshot of that profile;
-- stable semantic identities for predicates, kinds, participant roles, applicability concepts, and governed inference/validation rules;
-- revision-specific definitions of those semantic identities.
+Domain concepts such as Home Assistant entities, Git commits, ACL workers, and email threads remain profile semantics over the universal core rather than new universal primitives.
 
-Every assertion and other record whose interpretation depends on vocabulary must retain the exact profile revision under which it was created/interpreted. A mutable "current profile" pointer may be used for new writes, but old records are never reinterpreted merely because that pointer changes.
+**Reason:** allows Vera, ACL, research, software, devices, and future domains to evolve without changing historical meaning.
 
-Compatible metadata/documentation changes may create a new profile revision while retaining the same stable predicate/kind semantic identity. A **material meaning change** creates a new semantic identity or explicit migration/mapping rather than silently redefining the old identifier.
+---
 
-Profile dependencies/imports must be pinned to exact revisions rather than mutable `latest` references where those dependencies affect interpretation.
+## KC-D013 — Knowledge Core API exposes semantic operation classes, not generic CRUD or database access
 
-Profile revisions are immutable once activated for canonical use. Changes are introduced as new revisions. Deprecation does not delete historical definitions.
+**Status:** Accepted
 
-If existing assertions are intentionally transformed to a new semantic meaning/profile, that transformation is explicit, provenance-bearing, and replayable; it creates new records/derivations rather than retroactively rewriting the old assertions.
+Vera, ACL, and other clients will interact with Knowledge Core through semantic operations rather than raw SQL, table CRUD, or arbitrary "update record" endpoints.
 
-Profile-specific validation schemas or bounded extension definitions may use structured JSON where useful, but the profile revision that governs them remains explicit and immutable.
+The API contract must keep at least these action families distinguishable:
 
-The universal core will not add `HomeAssistantEntity`, `GitCommit`, `ACLWorker`, `EmailThread`, or similar domain-specific primitives. Those meanings are introduced through domain profiles over the existing core.
+### Read/retrieval
 
-**Reason:** this lets Vera, ACL, research, software, devices, and future domains evolve independently while preserving historical meaning and preventing vocabulary changes from silently changing the interpretation of old knowledge.
+- resolve/identify candidate entities or resources;
+- retrieve current knowledge;
+- retrieve world-history or historical-belief views;
+- structured/full-text/semantic/relationship search;
+- retrieve conflicts/uncertainty;
+- explain provenance/derivation.
+
+### Ordinary append
+
+- append an assertion/claim;
+- record an occurrence/observation;
+- register/ingest a logical resource and exact version;
+- attach evidence/provenance under governed semantics.
+
+### Revision/lifecycle
+
+- correct/supersede/invalidate an assertion;
+- reverse/undo a prior lifecycle transition;
+- perform explicit identity transitions such as merge, split, replacement, or reassignment.
+
+### Privileged governance
+
+- restrict or erase knowledge;
+- change sensitivity/ownership classifications;
+- activate/register semantic-profile revisions;
+- perform maintenance operations that can alter canonical interpretation or availability.
+
+These are separate Authority action classes where their risk differs. Permission to read does not imply disclose/export/use-for-automation; permission to append does not imply correct/merge/delete/profile-admin.
+
+Clients never receive PostgreSQL credentials and do not set canonical record time/revision themselves. They may supply claimed/source/world time and source evidence; Knowledge Core assigns trusted record-time/revision identity.
+
+Mutation requests identify the semantic operation and target(s) explicitly rather than expressing arbitrary field patches. The API will reserve support for idempotency/precondition metadata; exact concurrency mechanics are decided separately.
+
+Read/search responses are structured and preserve identifiers, temporal/currentness state, provenance/conflict signals, and relevant uncertainty rather than returning only generated prose. Model-facing natural-language context is a later context-construction product, not the canonical API representation.
+
+The API is network-capable by design, but the exact transport/framework is not fixed by this decision. Initial loopback/local deployment may later move across a VM or machine boundary without semantic API redesign.
+
+**Reason:** semantic operations make authority enforceable, preserve non-destructive history, prevent generic update endpoints from bypassing lifecycle rules, and keep the database implementation hidden from clients.
 
 ---
 
@@ -332,31 +233,26 @@ The universal core will not add `HomeAssistantEntity`, `GitCommit`, `ACLWorker`,
 
 These remain deliberately unresolved and should be decided before freezing the deep Knowledge Core folder/package layout:
 
-1. Detailed PostgreSQL table split for entities, assertions, occurrences, resources, resource versions, semantic profiles, assertion values/participants, reference-registry subtype constraints, provenance links, and lifecycle transitions.
-2. Knowledge Core service API and operation classes.
-3. Retrieval pipeline: structured, relationship, full-text, semantic, composite, and context-construction boundary.
-4. Derived-data generation, invalidation, rebuild, and versioning.
-5. Identity-resolution workflow, ambiguity, merge/split, replacement, and reversal mechanics.
-6. Deletion/retention/reconciliation workflow across canonical and derived planes.
-7. Concurrency, revision/precondition, and stale-write protection.
-8. Backup, recovery, restore, and deletion-ledger reconciliation.
-9. Initial OS process/service identities and permission boundaries.
-10. Secret/credential storage and access boundaries.
+1. Detailed PostgreSQL table split for canonical/derived structures.
+2. Retrieval pipeline ordering and context-construction boundary.
+3. Derived-data generation, invalidation, rebuild, and versioning.
+4. Identity-resolution workflow and transition mechanics.
+5. Deletion/retention/reconciliation workflow.
+6. Concurrency, revision/precondition, retry/idempotency, and stale-write protection.
+7. Backup, recovery, restore, and deletion-ledger reconciliation.
+8. Initial OS process/service identities and permission boundaries.
+9. Secret/credential storage and access boundaries.
+10. Exact API transport/framework.
 11. The first implementation vertical slice and its validation gates.
 
 ---
 
 # Documentation workflow
 
-During physical architecture design:
-
-1. Record meaningful accepted decisions here as they are made.
-2. Do not rewrite previous decisions silently; supersede them explicitly when necessary.
-3. Avoid building a deep code/folder skeleton before the structural decisions that determine it are settled.
-4. After the major physical-design decisions are complete, perform one bounded documentation synthesis pass covering final service/component boundaries, data flows, PostgreSQL physical design, artifact storage, security/authority boundaries, API boundaries, package/folder layout, backup/recovery, and build/validation order.
+Record accepted decisions here as they are made; supersede rather than silently rewrite. Avoid freezing a deep code/folder skeleton until structural decisions settle. After the major physical-design choices, perform one bounded architecture synthesis covering service boundaries, flows, PostgreSQL schema, artifact storage, security, API, package/folder layout, backup/recovery, build order, and validation gates.
 
 ---
 
 # Current next decision
 
-The next design discussion should define the Knowledge Core service API by semantic operation classes rather than exposing generic database CRUD. It must keep read/search/explain, append knowledge, correction/reversal, identity transitions, resource ingestion, and privacy/deletion operations distinct so Authority can govern them separately.
+The next design discussion should define retrieval ordering and context construction: authorization/sensitivity filtering, structured and temporal selection, relationship traversal, full-text and semantic candidate generation, provenance/conflict/currentness evaluation, reranking, and the exact point at which safe structured results become model-facing context.
