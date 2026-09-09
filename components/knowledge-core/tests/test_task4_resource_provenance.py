@@ -91,3 +91,26 @@ def test_reingesting_same_exact_version_is_stable(kernel):
     second = service.ingest_resource_version(resource_ref=logical.resource_ref, content=b"stable content", ingestion_kind_revision_ref=resource_refs.resource_ingestion_kind_revision_ref)
     assert second == first
     assert service.current_revision() == revision_after_first
+
+
+def test_same_exact_version_can_gain_new_locator_without_new_version(kernel):
+    service, _core, resource_refs, _session, tmp_path = kernel
+    logical = service.create_resource(kind_revision_ref=resource_refs.artifact_kind_revision_ref)
+    first_path = tmp_path / "first.txt"
+    second_path = tmp_path / "second.txt"
+    first = service.ingest_resource_version(resource_ref=logical.resource_ref, content=b"same bytes", ingestion_kind_revision_ref=resource_refs.resource_ingestion_kind_revision_ref, locator_kind=ResourceLocatorKind.PATH, locator_text=str(first_path))
+    second = service.ingest_resource_version(resource_ref=logical.resource_ref, content=b"same bytes", ingestion_kind_revision_ref=resource_refs.resource_ingestion_kind_revision_ref, locator_kind=ResourceLocatorKind.PATH, locator_text=str(second_path))
+    assert second.resource_version_ref == first.resource_version_ref
+    locators = service.locator_history(resource_ref=logical.resource_ref)
+    assert [row.locator_text for row in locators] == [str(first_path), str(second_path)]
+    assert {row.resource_version_ref for row in locators} == {first.resource_version_ref}
+
+
+def test_domain_relation_cannot_masquerade_as_provenance(kernel):
+    service, core_refs, resource_refs, _session, _tmp_path = kernel
+    robert = service.create_entity(core_refs.person_kind_revision_ref)
+    assertion_ref = service.append_assertion(subject_ref=robert, predicate_revision_ref=core_refs.has_name_predicate_revision_ref, profile_revision_ref=core_refs.profile_revision_ref, value=TypedValue.text("Robert"))
+    logical = service.create_resource(kind_revision_ref=resource_refs.artifact_kind_revision_ref)
+    version = service.ingest_resource_version(resource_ref=logical.resource_ref, content=b"Robert", ingestion_kind_revision_ref=resource_refs.resource_ingestion_kind_revision_ref)
+    with pytest.raises(Exception, match="supports_claim"):
+        service.link_assertion_evidence(assertion_ref=assertion_ref, resource_version_ref=version.resource_version_ref, relation_revision_ref=core_refs.works_for_predicate_revision_ref)
