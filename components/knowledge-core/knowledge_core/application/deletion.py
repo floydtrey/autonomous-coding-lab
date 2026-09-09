@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import delete, or_, select
 
+from knowledge_core.application.history import _as_utc
 from knowledge_core.application.identity import IdentityKnowledgeKernel
 from knowledge_core.domain.assertions import KnowledgeInvariantError
 from knowledge_core.domain.deletion import (
@@ -66,15 +67,15 @@ class DeletionKnowledgeKernel(IdentityKnowledgeKernel):
             action_type=DeletionActionType(row.action_type),
             policy_scope_id=row.policy_scope_id,
             status=DeletionCaseStatus(row.status),
-            requested_at=row.requested_at,
-            settled_at=row.settled_at,
+            requested_at=_as_utc(row.requested_at),
+            settled_at=_as_utc(row.settled_at) if row.settled_at is not None else None,
             targets=tuple(
                 DeletionTargetSnapshot(
                     target_ref=target.target_ref_id,
                     reconciliation_state=DeletionReconciliationState(
                         target.reconciliation_state
                     ),
-                    last_checked_at=target.last_checked_at,
+                    last_checked_at=_as_utc(target.last_checked_at),
                 )
                 for target in targets
             ),
