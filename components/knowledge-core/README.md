@@ -5,9 +5,9 @@ This component is the bounded Knowledge Core Kernel implementation.
 ## Current implementation state
 
 **Branch:** `architecture/knowledge-core`  
-**Task 7 starting checkpoint:** `e018e86f92d5f504637807bdee78c28852498841`  
-**Task 7 implementation commits:** `d82c80925c9359bd75373cc2a619fd7d0da1f66b`, `91707a5e43c0ab9046c5e918c949bbbab45256a4`, `07d5ea7d6bf225c20184342d5c1d72218166c81b`  
-**Status:** Tasks 1–7 are implemented. Kernel Gates 12–16 remain accepted. Task 7 establishes the first bounded FastAPI/Pydantic semantic service boundary, but Gate 19 and the final Kernel acceptance replay are not yet complete.
+**Task 8 starting checkpoint:** `cf0e3703a2fa762147b0f86cc6a3f2dbddd84c08`  
+**Task 8 implementation commit:** `c9dc15332183d05a39f37b338fa2a2459404a851`  
+**Status:** Tasks 1–8 are implemented. Kernel Gates 12–17 are accepted by bounded runtime semantic validation. Gate 18 and Gate 19 remain unresolved; no later implementation task has started.
 
 The architecture documents under `docs/architecture/knowledge-core/` remain the design baseline. Later work must remain bounded by the user and `EXECUTION_GOVERNANCE.md`.
 
@@ -41,160 +41,129 @@ Kernel Gates 12–16 were accepted at checkpoint `e018e86f92d5f504637807bdee78c2
 
 ### Task 7 — bounded FastAPI semantic service boundary
 
+Implemented the first FastAPI/Pydantic service-only semantic boundary for health/status, entities, assertions, temporal retrieval, correction/reversal, and identity transitions. Exposed mutations use Task 3 managed-operation semantics; serving reads and newly executed serving mutations honor the Task 6 fence. Raw SQL/database credentials and privileged deletion/admin routes are not exposed.
+
+The Task 7 review also found and fixed a fence/idempotency ordering bug: serving-fence checks now run inside the managed operation action so a settled retry remains deterministic after later restriction, while a new write against a restricted target still fails closed.
+
+Task 7 intentionally does not expose resource ingestion yet because an exact duplicate re-ingest can be a valid semantic no-op with no new canonical revision, while the current generic managed-operation helper assumes every successful managed operation creates one. That operation-model mismatch must be resolved before the resource/provenance HTTP path and Gate 19 are complete.
+
+### Task 8 — semantic profile immutability / Gate 17
+
 Implemented:
 
-- FastAPI/Pydantic dependencies in the component package;
-- a versioned HTTP boundary under `knowledge_core/api/`;
-- application-layer `ServiceKnowledgeKernel` so HTTP handlers do not query SQL directly;
-- required `X-Knowledge-Caller` context for `/v1/*` semantic operations;
-- `/health` without semantic caller context;
-- `/v1/status` exposing service/API/current-revision state without exposing PostgreSQL credentials;
-- operation-managed entity creation;
-- operation-managed assertion append/correction;
-- operation-managed assertion transition reversal;
-- operation-managed identity merge/replace/reversal;
-- stale-writer mapping to HTTP 409;
-- operation-ID reuse/in-progress/failure mapping to HTTP 409;
-- restricted knowledge mapping to an opaque HTTP 404;
-- serving-safe entity/assertion/current/history/belief reads;
-- deletion-fence checks on newly executed service mutations;
-- deterministic replay of already-settled operations even if the target is restricted later;
-- FastAPI `TestClient` acceptance-test coverage authored for the bounded route surface;
-- explicit exclusion of unmanaged privileged/admin mutation routes.
+- `kc_control.profile_activation` as append-only operational activation history;
+- migration `0007_task8_profile_immutability.py` with chain `0006_task6 -> 0007_task8`;
+- managed/idempotent creation of a new exact semantic profile revision from a source revision;
+- carried-forward kind/predicate identities with **new exact revision refs** pinned to the new profile revision;
+- managed/idempotent activation of a profile revision for new writes;
+- current active-profile selection from the latest activation event rather than mutating an old profile snapshot;
+- explicit assertion-semantic resolution through the assertion’s pinned profile/predicate revision refs;
+- managed creation of a new semantic predicate identity for a material meaning change;
+- an application invariant that rejects changing the currently modeled material predicate shape (`scalar` versus `reference`) under the same predicate identity;
+- focused Gate 17 test coverage for revision activation, old-assertion semantic preservation, new-write use of revision 2, material meaning change, and operation replay.
 
-The HTTP layer does not import or query SQLAlchemy tables. SQL/storage behavior remains behind the application/kernel boundary.
+## Gate 17 semantic conventions
 
-## Task 7 exposed route surface
+### Activation is operational state, not semantic mutation
 
-The first bounded route set is:
+`semantic_profile_revision` remains an exact immutable semantic snapshot. Activation does not change the revision row and does not rewrite assertions.
+
+The operational history is:
 
 ```text
-GET  /health
-GET  /v1/status
-
-POST /v1/entities
-GET  /v1/entities/{ref}
-
-POST /v1/assertions
-GET  /v1/assertions/{ref}
-POST /v1/assertions/{ref}/correct
-POST /v1/transitions/{ref}/reverse
-
-GET  /v1/knowledge/current
-GET  /v1/knowledge/history
-GET  /v1/knowledge/belief
-
-POST /v1/identity/merge
-POST /v1/identity/replace
-POST /v1/identity/transitions/{ref}/reverse
+profile revision 1 --activation event--> current for new writes
+profile revision 2 --activation event--> current for new writes
 ```
 
-Exact route names remain subordinate to the semantic contract in `IMPLEMENTATION_PLAN_V1.md`.
+The latest activation event selects the revision used by callers that ask for the active revision. Older activation events remain in `kc_control.profile_activation`.
 
-## Service safety conventions
+### Assertions remain pinned to the semantics they were written under
 
-### Caller context is identification, not Authority
+An assertion stores both:
 
-`X-Knowledge-Caller` supplies caller identity context to the current kernel operation ledger. Task 7 does **not** implement authentication or the real Authority service. Deployment must not treat this header alone as authorization.
+- `profile_revision_ref`;
+- `predicate_revision_ref`.
 
-`/v1/status` explicitly reports `authority_mode = external-not-implemented`.
+Activating revision 2 therefore does not reinterpret a revision-1 assertion. Resolution follows the exact stored revision refs, not the current activation pointer.
 
-### Serving reads are deletion-aware
+### Material predicate meaning change requires a new identity
 
-Client-facing entity/assertion/current/history/belief paths use Task 6 serving eligibility rather than raw lower-level storage/debug reads.
+The current Kernel physically models predicate meaning only to the bounded extent needed by the first gates, including `value_shape` (`scalar` or `reference`). A change between those shapes is treated as material.
 
-Restricted items are returned as unavailable instead of exposing their underlying raw payload.
+Task 8 rejects appending such a changed shape under the same `semantic_predicate` identity and requires a new predicate identity (or a future explicit governed migration path). This implements the Gate 17 rule without pretending the current small Kernel already models every future semantic dimension such as cardinality, inference flags, or rich validation schema.
 
-### New writes versus settled replays
+## Gate 17 validation performed
 
-Serving-fence checks are performed inside the managed operation action.
+Runtime semantic validation passed the bounded Gate 17 scenarios:
 
-This matters because:
+1. activate profile revision 1;
+2. create an assertion under revision 1;
+3. create revision 2 by carrying forward the same semantic identities into new exact kind/predicate revisions;
+4. activate revision 2;
+5. verify the old assertion still resolves exactly under revision 1 semantics;
+6. create a new assertion under revision 2 and verify it resolves under revision 2 while sharing the unchanged predicate identity;
+7. attempt to change `has_name` from `scalar` to `reference` under the same predicate identity and verify rejection with no canonical revision advance;
+8. create a new predicate identity with `reference` shape and verify the new identity/revision is distinct;
+9. verify profile-revision creation and activation operations replay idempotently.
 
-- a **new** write against a restricted target must fail closed;
-- an **already-committed** operation retry must replay its previously settled result without executing a new mutation.
+**Gate 17 semantic result: PASS.**
 
-The initial Task 7 implementation placed some fence checks before the operation ledger replay decision. Review identified that this could break Task 3 idempotent replay after a later restriction. Commit `91707a5e43c0ab9046c5e918c949bbbab45256a4` moves those checks behind the replay boundary; `07d5ea7d6bf225c20184342d5c1d72218166c81b` adds the regression case.
+Additional validation:
 
-## Resource/provenance HTTP boundary intentionally deferred
-
-Task 7 does **not** expose `/v1/resources/ingest`, provenance-write, deletion/admin, or generic database routes.
-
-This is deliberate, not an accidental omission.
-
-The current Task 3 `_execute_operation()` helper assumes that every successful managed semantic mutation creates a canonical `kc.revision`.
-
-Task 4 intentionally defines an exact resource re-ingest with no new locator as a semantic no-op:
-
-- same logical resource;
-- same exact bytes/digest;
-- no new locator observation;
-- no new `resource_version`;
-- no canonical revision advance.
-
-A thin HTTP wrapper around `ingest_resource_version()` would therefore conflict with the current generic managed-operation invariant on that valid no-op path.
-
-Before exposing resource ingestion, a later bounded task must define and test operation-ledger semantics for successful no-canonical-mutation results (or refactor resource ingest into an equivalent safe transaction model). Do not bypass the operation ledger simply to add the route.
-
-This issue must also be resolved before the final Gate 19/full acceptance replay can claim the complete semantic API path.
-
-## Task 7 validation performed
-
-Validation actually performed for this checkpoint:
-
-- all new Task 7 Python source/test strings compiled successfully;
-- FastAPI/Pydantic/TestClient dependencies are available in the execution environment;
-- isolated API contract smoke test passed:
-  - `/health` -> 200;
-  - missing caller context on `/v1/status` -> 400;
-  - caller-scoped `/v1/status` -> 200;
-  - status reported `database_credentials_exposed = false`;
-  - generated OpenAPI contained the intended 14 bounded route paths;
-- isolated application-service smoke test passed for managed entity dispatch and restriction rejection;
-- replay/fence regression smoke passed:
-  - a committed correction replay returned the identical settled transition after the target was later restricted;
-  - a new correction against the restricted target raised `KnowledgeRestrictedError`;
-- Task 7 committed test module contains four focused HTTP test groups covering service-only access, idempotent writes/stale conflict/fencing, managed identity operations, and absence of unmanaged resource/admin routes;
-- final Task 7 implementation diff from `e018e86` is three commits ahead and zero behind before this documentation checkpoint;
-- the diff is confined to six Knowledge Core files/paths;
-- GitHub exposes no Actions workflow run for implementation head `07d5ea7d6bf225c20184342d5c1d72218166c81b`.
+- new Task 8 source/test strings passed Python syntax compilation before commit;
+- PostgreSQL DDL compilation passed for `kc_control.profile_activation` and its indexes;
+- the Task 8 implementation diff from `cf0e3703` is one commit ahead and zero behind before this documentation checkpoint;
+- the implementation diff is confined to five Knowledge Core paths;
+- GitHub exposes no Actions workflow run for implementation commit `c9dc15332183d05a39f37b338fa2a2459404a851`.
 
 ### Validation not claimed
 
 This checkpoint does **not** claim:
 
-- execution of the exact checked-in `tests/test_task7_api.py` against a materialized full repository checkout;
-- a live PostgreSQL FastAPI integration run;
-- real authentication/TLS/firewall behavior;
-- real Authority-service authorization;
-- resource/provenance mutation over HTTP;
-- Gate 19 acceptance;
+- execution of the exact checked-in `tests/test_task8_profiles.py` from a materialized repository checkout; the local runtime still cannot resolve `github.com`;
+- live PostgreSQL application of migrations `0001_task1` through `0007_task8`;
+- database-level trigger protection against a privileged operator issuing arbitrary direct SQL updates to semantic tables;
+- full future semantic-profile fields such as manifest digests, imports/dependencies, rich validation schemas, cardinality, or inference flags;
+- Gate 18 or Gate 19 acceptance;
 - final 19-gate Kernel acceptance.
 
-The execution environment still cannot resolve GitHub from its local runtime, so the full component checkout cannot be materialized there for exact pytest execution. The GitHub connector itself was used for repository reads/writes.
+Gate 17 is accepted at the Kernel semantic-operation level. Raw direct database mutation remains outside the intended client boundary and is not treated as a supported semantic operation.
 
-## Existing deployment limitations
+## Task 8 architecture decision recorded in controlling state
 
-The following earlier limitations remain:
+The bounded physical decision introduced by Task 8 is:
 
-- migrations `0001_task1` through `0006_task6` have not been applied to a live PostgreSQL service in this environment;
+> **Active semantic-profile revision is append-only operational control, separate from immutable semantic profile revisions.** `kc_control.profile_activation` records activation events ordered by canonical revision; the latest event selects the revision for new writes. Activation never rewrites prior profile/predicate revisions or assertions. Within the current Kernel’s modeled semantics, a predicate `value_shape` change is material and requires a new predicate identity or explicit future migration path.
+
+This decision is consistent with KC-D012 and `PHYSICAL_SCHEMA_V1.md`, which already state that exact profile revisions are immutable and that an “active for new writes” pointer is operational/current configuration rather than a rewrite of historical assertions.
+
+## Existing unresolved Kernel work
+
+The following work remains before a final Kernel checkpoint:
+
+1. **Gate 18 — derived generation staleness/fencing**;
+2. complete safe managed-operation semantics for successful no-canonical-mutation resource re-ingest;
+3. expose the resource/provenance semantic HTTP path only after that operation model is safe;
+4. **Gate 19 — service-only client acceptance replay**;
+5. full 19-gate replay/checkpoint;
+6. live PostgreSQL migration/integration validation when an execution environment is available.
+
+Earlier bounded deployment/privacy limitations also remain:
+
 - Task 6 physically erases only the bounded standalone assertion case, not resource artifact bytes;
 - production backup/restore and multi-service privacy reconciliation remain unproven;
-- raw lower-level Kernel methods remain internal/debug infrastructure and must not be exposed directly by future client APIs.
+- real authentication/TLS/firewall behavior and the real Authority service are not implemented;
+- raw lower-level Kernel methods remain internal/debug infrastructure and must not be exposed as client APIs.
 
 ## Stop point
 
-Task 7 is implemented and checkpoint-ready. **No Task 8 work has started.**
+Task 8 is implemented and **Gate 17 is accepted**. No Gate 18 / Task 9 implementation has started.
 
-Remaining Kernel acceptance work includes:
+The next separately authorized implementation slice is:
 
-1. Gate 17 — semantic profile immutability;
-2. Gate 18 — derived-generation staleness/fencing;
-3. completing the resource/provenance managed HTTP path without weakening operation semantics;
-4. Gate 19 — service-only acceptance replay through FastAPI/TestClient or loopback HTTP;
-5. the final 19-gate Kernel replay/checkpoint.
+> **Gate 18 — derived generation staleness/fencing.**
 
-The next separately authorized implementation slice should remain bounded to the next unresolved Kernel gate(s), rather than adding Vera/ACL domain features, embeddings, or Authority implementation.
+Do not add Vera/ACL domain features, embeddings, or Authority implementation as part of that slice.
 
 ## Development
 
