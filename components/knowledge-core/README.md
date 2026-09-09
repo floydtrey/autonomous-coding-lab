@@ -1,6 +1,6 @@
 # Knowledge Core
 
-This component is the bounded Knowledge Core Kernel V1 implementation.
+This component contains the bounded Knowledge Core Kernel plus accepted post-Kernel PostgreSQL/retrieval validation slices.
 
 ## Current state
 
@@ -8,10 +8,14 @@ This component is the bounded Knowledge Core Kernel V1 implementation.
 **Task 10 checkpoint:** `ea8ff441133329dfc19b631ed0172cdf12561704`  
 **Gate 19 validated implementation head:** `2bdbc2a161bd2756fa7139ecefd4ca8b160f148e`  
 **Final frozen Kernel V1 checkpoint:** `9e904f49480055615bb0cf32360dbdc8400e117c`  
-**Final checkpoint CI:** GitHub Actions run `34350709966` — **47 passed, 2 upstream deprecation warnings**  
-**Status:** **Kernel V1 gates 1–19 accepted. The Kernel boundary is frozen pending a separately authorized next slice.**
+**Final Kernel CI:** GitHub Actions run `34350709966` — **47 passed, 2 upstream deprecation warnings**  
+**PostgreSQL qualification checkpoint:** `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`  
+**RF-2 validated implementation checkpoint:** `479a918762e919851e19fee3b36cc1d95e78f3e8`  
+**First curated real-corpus pilot checkpoint:** `40849bd4de261089a030e09677568c3b4cf1a862`  
+**Latest pilot CI:** GitHub Actions run `34373589343` — **48 fast tests + 11 PostgreSQL tests passed**  
+**Status:** **Kernel V1 remains frozen and accepted. Real PostgreSQL qualification, synthetic lexical RF-2, and the first ten-document curated real-corpus retrieval pilot are complete. No persistent production corpus is imported.**
 
-The controlling acceptance record is `docs/architecture/knowledge-core/CURRENT_STATE.md`. The original plan in `docs/architecture/knowledge-core/IMPLEMENTATION_PLAN_V1.md` is marked complete. The final frozen checkpoint above is the durable restart/reference point for any future Knowledge Core work.
+The controlling acceptance record is `docs/architecture/knowledge-core/CURRENT_STATE.md`. The retrieval/import restart point is `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_HANDOFF.md`. The first real-corpus classification is pinned in `docs/architecture/knowledge-core/REAL_CORPUS_PILOT_MANIFEST.json`.
 
 ## Accepted Kernel capabilities
 
@@ -47,69 +51,81 @@ The client possesses no SQLAlchemy session, database URL, PostgreSQL connection 
 
 Normal client semantics are exercised through FastAPI/TestClient for typed assertions, reference relationships, correction/reversal, bitemporal belief, conflict preservation, stale writes, idempotent retries, exact resource provenance, identity merge/split/replacement, privacy-serving behavior, and semantic-profile pinning.
 
-Privileged privacy reconciliation, profile administration, and derived-generation settlement remain server/control-plane concerns. They are deliberately not normal Vera/ACL endpoints.
+Privileged privacy reconciliation, profile administration, and derived-generation settlement remain server/control-plane concerns.
 
-### Identity service gap fixed during Gate 19
+## Post-Kernel PostgreSQL qualification
 
-Gate 19 found that identity transitions were writable over HTTP but current identity resolution was not readable through the service. That would have forced a client acceptance test to reach behind the API to verify merge/split/replacement behavior.
+A dedicated PostgreSQL 18 workflow now applies the real Alembic chain and exercises transaction/concurrency behavior that SQLite cannot establish.
 
-The bounded fix added:
+Checkpoint `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`, run `34364589918`, proved:
+
+- migrations through `0008_task9` on PostgreSQL;
+- competing stale-writer serialization;
+- same-operation-ID contention/replay;
+- PostgreSQL advisory-lock blocking;
+- generation late-finisher fencing;
+- transactional rollback after partially flushed canonical work.
+
+That PostgreSQL qualification remains accepted and is replayed in later component CI.
+
+## RF-2 lexical retrieval
+
+RF-2 adds PostgreSQL-native whole-resource-version lexical retrieval without changing canonical resource/provenance meaning.
+
+Accepted behavior includes:
+
+- `kc_derived.resource_text_search` via migration `0009_rf2`;
+- `TSVECTOR` + GIN;
+- fixed English `websearch_to_tsquery`, `@@`, and `ts_rank_cd`;
+- exact strict UTF-8 `text/plain` / `text/markdown` artifact indexing;
+- explicit current/unknown/superseded lifecycle and authority metadata;
+- deterministic ranking and current-generation-only serving;
+- service-time deletion/restriction eligibility;
+- `POST /v1/retrieval/search` behind `X-Knowledge-Caller`;
+- exact logical-resource/version/digest/source/generation provenance in results;
+- no database or artifact-store internals in the normal client contract.
+
+RF-2 exact validation at `479a918762e919851e19fee3b36cc1d95e78f3e8`, run `34371352821`:
 
 ```text
-GET /v1/identity/entities/{entity_ref}
+47 fast semantic tests passed
+9 PostgreSQL tests passed
 ```
 
-and made managed merge/replace/reversal rebuild the derived current-identity projection before the operation settles. A normal client can therefore observe identity semantics without SQL/storage access.
+## First curated real-corpus pilot
 
-## Exact repository validation
+The first real-document validation uses the exact ten Markdown files under `docs/architecture/knowledge-core/` at source checkpoint `adb2a48a1e248f24e43550d897eed1b5e300cc26`.
 
-A component workflow runs on the branch with Python 3.12:
+`REAL_CORPUS_PILOT_MANIFEST.json` pins every file to an exact Git blob and explicitly classifies four documents as current and six as superseded/historical before ingest. The pilot ingests only those approved paths into ephemeral PostgreSQL/artifact storage, builds one RF-2 text generation, and runs predeclared known queries.
+
+Exact validation at `40849bd4de261089a030e09677568c3b4cf1a862`, run `34373589343`:
 
 ```text
-python -m pip install -e ".[test]"
-python -m pytest -q
+48 fast tests passed
+11 PostgreSQL tests passed
 ```
 
-The integration gate found and fixed two pre-existing defects before acceptance:
+The pilot required no RF-2 production-code repair.
 
-1. **Editable-package discovery:** setuptools attempted to package both `knowledge_core` and top-level `migrations`. Package discovery is now explicitly limited to `knowledge_core*`.
-2. **Deletion replay timezone normalization:** SQLite persisted timezone-aware deletion-control timestamps but returned naïve values, so an idempotent replay snapshot differed only by `tzinfo`. Deletion snapshots now normalize persisted timestamps to UTC.
-
-GitHub Actions run `34350296337` first validated the implementation head `2bdbc2a161bd2756fa7139ecefd4ca8b160f148e`. After the freeze documentation was committed, run `34350709966` validated the exact final frozen checkpoint `9e904f49480055615bb0cf32360dbdc8400e117c`:
-
-```text
-47 passed, 2 warnings
-```
-
-The two warnings are upstream TestClient/Starlette deprecation warnings and are not semantic failures.
-
-## Gate disposition
-
-- Gates 1–11: accepted and included in the final exact component replay.
-- Gates 12–16: accepted; identity/privacy behavior is also exercised through the Gate 19 service-only replay where externally observable.
-- Gate 17: accepted; old/new assertion semantic revision pinning is verified while profile activation remains server-side administration.
-- Gate 18: accepted; generation administration remains absent from the normal client API and the late-finisher fence remains enforced server-side.
-- Gate 19: **accepted through FastAPI/TestClient service-only replay.**
+A material limitation was exposed: whole-document classification cannot preserve current sections inside a document that also contains stale operational sections. The pilot safely marks mixed files such as `ARCHITECTURE_V1.md` and `DECISIONS.md` historical rather than allowing stale instructions into default retrieval. Chunking/section-level classification is not yet authorized or implemented.
 
 ## Explicit limitations / integration debt
 
-Kernel V1 acceptance does **not** claim:
+Current acceptance does **not** claim:
 
-- live PostgreSQL application of migrations `0001_task1` through `0008_task9` in this execution environment;
-- a real multi-process PostgreSQL write/generation race;
-- production authentication, TLS, firewall policy, or the real Authority service;
+- a persistent deployed repository/document corpus;
+- a general repository-import/update command or stable import identity contract;
+- repository-wide ACL/Vera/RiskCardOCR classification;
+- path rename/move handling across import revisions;
+- PDF/DOCX/HTML extraction or OCR;
+- chunking/section-level retrieval;
+- embeddings/vector search;
+- LLM RAG/summarization;
+- production authentication, TLS, firewall policy, or real Authority-service implementation;
 - production backup/restore orchestration or multi-service privacy reconciliation;
-- physical erasure of resource artifact bytes (bounded physical erasure currently covers standalone assertions);
-- generation IDs attached to every historical derived-family row;
-- Vera domain features, ACL domain profiles, embeddings/vector search, autonomous workers, or action execution.
+- autonomous workers or action execution.
 
-Those items require separately bounded future work. They are not reasons to reopen the accepted V1 semantic Kernel gates.
-
-## Stop boundary
-
-**Stop here.** Do not immediately add Vera/ACL semantics, embeddings, Authority implementation, or production deployment features to this checkpoint.
-
-The next project slice must be selected separately. Candidate directions include live PostgreSQL/deployment validation, retrieval/full-text plus a first real ACL knowledge profile, or Authority-service implementation, depending project priority.
+The next separately authorized retrieval/import task is RI-1: design a falsifiable safe repository-import/update contract before implementing persistent import. See the controlling handoff for scope.
 
 ## Development
 
@@ -127,3 +143,7 @@ alembic upgrade head
 ```
 
 Set `KNOWLEDGE_CORE_DATABASE_URL` before applying PostgreSQL migrations. Client applications must never receive that credential.
+
+## Stop boundary
+
+Do not begin RI-1, persistent/broad corpus import, chunking, embeddings/RAG, Authority implementation, Vera/ACL semantic expansion, or production deployment without separate authorization.
