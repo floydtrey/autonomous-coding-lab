@@ -209,7 +209,17 @@ class OperationKnowledgeKernel(TemporalKnowledgeKernel):
         action: Callable[[], T],
         encode_result: Callable[[T], dict[str, Any]],
         replay: Callable[[dict[str, Any]], T],
+        allow_no_canonical_revision: bool = False,
     ) -> T:
+        """Execute one idempotent semantic operation.
+
+        ``allow_no_canonical_revision`` is deliberately opt-in. Ordinary managed
+        writes still fail if they unexpectedly produce no ``kc.revision``. A bounded
+        semantic operation whose successful result is explicitly allowed to be a
+        canonical no-op (for example exact resource-version re-ingest) may settle
+        the control-ledger row with ``result_revision_id = NULL``.
+        """
+
         digest = _request_digest(
             {
                 "operation_class": operation_class,
@@ -251,7 +261,8 @@ class OperationKnowledgeKernel(TemporalKnowledgeKernel):
         # Every managed canonical write uses one transaction-scoped serialization
         # point on PostgreSQL. This makes a global revision precondition meaningful:
         # once checked, another managed write cannot advance the revision before this
-        # operation settles.
+        # operation settles. Explicit no-op-capable operations use the same lock so
+        # their precondition and no-op determination observe one serialized state.
         self._acquire_canonical_write_lock()
 
         if expected_revision is not None:
@@ -277,14 +288,16 @@ class OperationKnowledgeKernel(TemporalKnowledgeKernel):
             result_revision_id = self.session.scalar(
                 select(Revision.revision_id).where(Revision.operation_id == operation_id)
             )
-            if result_revision_id is None:
+            if result_revision_id is None and not allow_no_canonical_revision:
                 raise KnowledgeInvariantError(
                     "managed semantic operation committed no canonical revision"
                 )
 
             operation.status = "committed"
             operation.settled_at = self._now()
-            operation.result_revision_id = int(result_revision_id)
+            operation.result_revision_id = (
+                int(result_revision_id) if result_revision_id is not None else None
+            )
             operation.error_code = None
             operation.response_metadata = encode_result(result)
 
