@@ -95,103 +95,105 @@ Entity IDs stay stable. Aliases/identifiers are evidence, not identity. Merge/sp
 
 ## KC-D017 — Privacy deletion/restriction is a privileged staged reconciliation lifecycle, not ordinary supersession
 **Status:** Accepted
-Valid erasure/restriction fences access first, then reconciles canonical payload, descendants/derivatives, artifacts, backups/restore, and external/exported state where possible. Minimal non-content control state may remain to prevent resurrection and prove scoped settlement. Old backups are never served before newer deletion/restriction controls are reapplied.
+Valid erasure/restriction fences access first, then reconciles canonical payload, descendants/derivatives, artifacts, backups/restore, and external/exported state where possible. Old backups are never served before newer deletion/restriction controls are reapplied.
 
 ## KC-D018 — Canonical writes use optimistic preconditions, stable operation identities, and idempotent retry semantics
 **Status:** Accepted
-Writes that depend on current state carry expected revision/preconditions and fail stale rather than silently winning. Externally requested mutations use stable operation/idempotency identities so uncertain retries return the prior result rather than duplicate semantic intent. Canonical revision identity supports deterministic replay; current projections and required synchronous updates commit transactionally; derived rebuilds use generation fencing.
+State-dependent writes carry expected revision/preconditions and fail stale rather than silently winning. Stable operation identities make uncertain retries idempotent. Canonical revision identity supports deterministic replay; derived rebuilds use generation fencing.
+
+## KC-D019 — Backup/restore uses coordinated checkpoints and a higher-durability deletion/restriction restore fence
+**Status:** Accepted
+Backups coordinate PostgreSQL and required immutable artifacts through a checkpoint manifest. Derived indexes may rebuild. Minimal deletion/restriction control state has stronger anti-resurrection durability and is reapplied before any restored service is activated. Restore remains non-serving until integrity, restriction, profile, and projection checks pass.
 
 ---
 
-## KC-D019 — Backup/restore uses coordinated checkpoints and a higher-durability deletion/restriction restore fence
+## KC-D020 — Initial same-machine isolation uses separate least-privilege service identities and OS ACL boundaries
 
 **Status:** Accepted
 
-Knowledge Core backups are coordinated across canonical PostgreSQL state and the content-addressed artifact store rather than treating them as unrelated copies.
+The first Windows deployment may run Vera, ACL, Knowledge Core, PostgreSQL, Authority, and Effect Executor on one physical computer, but they will not run as one shared fully privileged identity.
 
-A backup checkpoint/manifest records enough identity to prove what was captured, including at least:
+The architecture requires distinct security principals/service identities for trust boundaries, mapped initially through Windows service identities/local service accounts/service SIDs and NTFS ACLs as appropriate to the implementation.
 
-- Knowledge Core schema/migration revision;
-- canonical PostgreSQL revision/high-water mark and database backup identity;
-- artifact-store backend identity and a manifest/verification state for blobs required by the captured canonical revision;
-- semantic-profile revision state needed to interpret the captured records;
-- deletion/restriction-control high-water mark available at backup time;
-- backup creation/verification status.
+### Human administrator
 
-Because artifact blobs are immutable/content-addressed, artifact backup can be incremental and independently verified by digest. A database checkpoint must not be considered recoverable until all artifact blobs referenced by that checkpoint are either present in the backup set or explicitly classified as external/recoverable by another governed mechanism.
+A human-controlled administrator identity owns installation, trusted binary/configuration updates, service registration, OS permission changes, and emergency recovery.
 
-### Derived indexes are rebuildable
+AI-controlled processes do not receive this administrative token as part of normal operation.
 
-Full-text/vector indexes, embeddings, summaries, relationship closures, current-state projections, and other derived structures do not have to be authoritative backup payloads if they can be deterministically rebuilt from the captured canonical state and required model/profile/configuration artifacts.
+### Vera / ACL / worker identities
 
-They may optionally be backed up for faster recovery, but a restored copy remains derived and must match its recorded source/generation revision before use.
+Vera reasoning and ACL worker processes run without Administrator/LocalSystem authority and have no direct credentials or file permissions for:
 
-### Deletion/restriction control has stronger anti-resurrection durability
+- PostgreSQL canonical database administration;
+- Knowledge Core database credentials;
+- Authority Root policy files beyond any explicitly exposed read result;
+- Authority service executable/configuration write access;
+- Effect Executor executable/configuration write access;
+- downstream action credentials/secrets;
+- trusted service installation directories.
 
-A restore from an older snapshot can legitimately lose newer ordinary knowledge according to the chosen recovery-point objective. It must **not** resurrect knowledge that was validly deleted or restricted after that snapshot.
+ACL workers that execute arbitrary/generated code are treated as the least-trusted ordinary runtime tier. Their project/workspace permissions do not imply permission to modify trusted service binaries, policy, secrets, or OS configuration.
 
-Therefore the minimal deletion/restriction control ledger required to fence erased/restricted records is backed up or replicated separately with a higher durability/freshness target than ordinary periodic Knowledge Core snapshots.
+A later VM/container/second-machine boundary may strengthen this isolation without changing the service/API architecture.
 
-That control copy contains only the minimum non-content identifiers/status needed to reapply restrictions and prevent resurrection; it does not become a duplicate store of erased payload.
+### Knowledge Core service identity
 
-### Restore is staged and non-serving
+Knowledge Core runs under its own service identity. It may:
 
-A restored Knowledge Core remains offline/non-serving until this sequence settles:
+- connect to PostgreSQL using its scoped application database role;
+- read/write the Knowledge Core artifact root;
+- write its designated logs/runtime directories;
+- call Authority for protected Knowledge Core operations as designed.
 
-```text
-restore PostgreSQL checkpoint
-restore/verify required artifact blobs
-        |
-        v
-apply every deletion/restriction control record newer than checkpoint
-        |
-        v
-verify schema + semantic-profile compatibility
-        |
-        v
-reconcile canonical/artifact restrictions
-        |
-        v
-rebuild or validate current-state + derived generations
-        |
-        v
-run integrity/acceptance checks
-        |
-        v
-activate service
-```
+It does not receive Authority Root write permission, Effect Executor downstream credentials, PostgreSQL superuser credentials, or arbitrary write access to Vera/ACL workspaces.
 
-No model/client can query the restored database during the unsafe pre-fence stage.
+The Knowledge Core service binary/configuration install directory should be writable only by the human/admin deployment path, not by the running Knowledge Core service itself unless a narrowly justified update mechanism is designed later.
 
-### Authority and secrets are separate backup domains
+### PostgreSQL service/database identities
 
-The physically read-only Authority Root, Authority/Effect operational state, and service credentials/secrets are not silently bundled into Knowledge Core backups. They have separate backup/recovery procedures appropriate to their trust and secrecy requirements, while the coordinated restore manifest records any required compatible authority/policy version identifiers.
+The PostgreSQL server runs under its own service identity and owns its database data directory according to the PostgreSQL/Windows installation model.
 
-### Recovery must be tested
+Database roles remain separated from OS identity:
 
-A backup procedure is not considered complete merely because files were copied. The implementation plan must include periodic restore tests that verify:
+- Knowledge Core application role: only runtime SQL privileges required by the service;
+- migration/owner role: schema-change privileges, unavailable to ordinary runtime clients and preferably unavailable to the normal Knowledge Core runtime process;
+- PostgreSQL administrative role: retained for human/admin maintenance and recovery, never given to Vera/ACL.
 
-- PostgreSQL recovery;
-- artifact digest completeness;
-- deletion/restriction anti-resurrection;
-- semantic-profile interpretability;
-- derived projection rebuild;
-- current/historical query behavior;
-- service activation gates.
+Vera and ACL never connect directly to PostgreSQL.
 
-Exact RPO/RTO, backup schedule, PostgreSQL backup tooling, media, encryption, and off-machine/off-site replication frequency remain deployment choices.
+### Authority service identity
 
-**Reason:** the system's safety depends not only on recovering data, but on recovering the *right historical state* without reviving forgotten data or serving partially reconciled projections.
+Authority runs under a separate least-privilege trusted service identity. It receives read access to the physically read-only Authority Root and only the writable operational state required for authorization decisions/audit.
+
+Vera/ACL cannot write Authority binaries, configuration, policy, or operational database merely because they can submit authorization requests.
+
+### Effect Executor identity
+
+Effect Executor is separate from Authority and Vera. It receives only the downstream credentials/capabilities needed for the action adapters it is responsible for. Vera/ACL do not receive those secrets. Authority decides; Executor performs the specifically authorized operation.
+
+Executor does not receive permission to rewrite root Authority policy.
+
+### File-system ACL model
+
+NTFS ACLs/service SIDs are used so each service sees only the directories/files it requires. Broad write permissions such as granting all AI processes access to a shared application root are rejected.
+
+Writable runtime/log/cache directories are separate from trusted executable/configuration directories.
+
+### No unnecessary LocalSystem
+
+Trusted services should not run as `LocalSystem` merely for convenience. If a specific component later proves it requires a privilege unavailable under a lower-privilege identity, that privilege is added narrowly and documented rather than elevating the whole stack by default.
+
+**Reason:** one physical machine can still have meaningful trust boundaries if the AI cannot modify the policy engine, executor, service binaries, credentials, or database directly. This provides a practical starting boundary while preserving a straightforward upgrade path to stronger VM or physical isolation.
 
 ---
 
 # Open physical-design decisions
 
 1. Detailed PostgreSQL table split for canonical and derived structures.
-2. Initial OS process/service identities and permission boundaries.
-3. Secret/credential storage and access boundaries.
-4. Exact API transport/framework.
-5. The first implementation vertical slice and its validation gates.
+2. Secret/credential storage and access boundaries.
+3. Exact API transport/framework.
+4. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -203,4 +205,4 @@ Record accepted decisions here as they are made; supersede rather than silently 
 
 # Current next decision
 
-The next design discussion should define initial same-machine process/service identities and OS permissions: which account owns PostgreSQL, which account runs Knowledge Core, which accounts run Vera/ACL, which account can read/write the artifact store, and how Authority/Effect Executor remain inaccessible to AI-controlled processes even before any VM or second machine is introduced.
+The next design discussion should define secrets/credential handling: secrets must remain outside Knowledge Core knowledge/context, outside source control, inaccessible to Vera/ACL, and scoped to the service that needs them, while still being practical to rotate, back up, and migrate if Authority/Executor later move to another machine.
