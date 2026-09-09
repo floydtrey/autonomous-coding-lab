@@ -209,11 +209,50 @@ The exact table split and the exact representation of assertion subjects/objects
 
 ---
 
+## KC-D008 — Canonical records use a universal internal reference registry for cross-family links
+
+**Status:** Accepted
+
+Knowledge Core will use a small physical identity/reference registry so every addressable canonical record can have one stable internal reference regardless of its semantic family.
+
+Conceptually:
+
+```text
+knowledge_ref
+  ref_id
+  physical_kind
+
+        +--> entity
+        +--> assertion
+        +--> occurrence
+        +--> resource
+        +--> exact resource version
+        +--> semantic profile/revision
+```
+
+The registry is a **physical addressing mechanism**, not a seventh conceptual knowledge primitive and not evidence that all referenced records have the same semantics.
+
+Specialized canonical tables retain their own typed fields and constraints. Their primary identity is tied to a valid registry reference of the appropriate physical kind.
+
+Assertions may therefore point safely to a `subject_ref_id`, and reference-valued assertion objects may point to an `object_ref_id`, without using unsafe application-only polymorphic pairs such as `subject_type='entity', subject_id=123` that PostgreSQL cannot fully validate with ordinary foreign keys.
+
+The same reference mechanism may also be used by provenance/evidence links where a source or target can legitimately belong to different canonical families.
+
+Scalar assertion values remain typed rather than being converted into fake reference objects merely for uniformity. The physical assertion-value representation should support governed types such as text, number, boolean, date/time and canonical-record reference, with constraints ensuring the declared type and populated value agree.
+
+For genuinely multi-part or n-ary propositions, additional governed participant/role records may be used rather than serializing the proposition into opaque JSON. The exact participant/value table layout remains part of detailed schema design.
+
+A registry reference by itself grants no ownership, truth, sensitivity level, relationship meaning or authority. Those remain properties of the referenced semantic records and external policy.
+
+**Reason:** this preserves relational foreign-key integrity across the six conceptual families while avoiding both a sprawling matrix of nullable family-specific foreign keys and weak polymorphic IDs validated only by application code. It also gives provenance and assertion references one stable address space without turning the canonical model into an untyped graph.
+
+---
+
 # Open physical-design decisions
 
 These remain deliberately unresolved and should be decided before freezing the deep Knowledge Core folder/package layout:
 
-1. Exact PostgreSQL table/relationship model for the six conceptual primitive families, including assertion subject/object/value representation.
+1. Detailed PostgreSQL table split for entities, assertions, occurrences, resources, resource versions, semantic profiles, assertion values/participants, and reference-registry subtype constraints.
 2. Exact temporal representation for world-valid time, transaction/knowledge time, current projections, corrections, and supersession.
 3. Provenance-link physical representation and traversal strategy.
 4. Artifact/file-store mechanism and content/version layout.
@@ -253,4 +292,4 @@ During physical architecture design:
 
 # Current next decision
 
-The next design discussion should decide the concrete relational shape of assertion subjects/objects/values and how Knowledge Core refers uniformly to entities, resources, occurrences, and other assertions without weakening foreign-key integrity or turning the schema into an untyped generic graph.
+The next design discussion should settle the exact temporal representation: how PostgreSQL distinguishes when something was true in the world from when Knowledge Core learned/recorded it, how corrections preserve both histories, and how a fast current projection is rebuilt from canonical history.
