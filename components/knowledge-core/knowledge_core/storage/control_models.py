@@ -38,3 +38,25 @@ class Operation(Base):
     )
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     response_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+
+class ProfileActivation(Base):
+    __tablename__ = "profile_activation"
+    __table_args__ = {"schema": KC_CONTROL_SCHEMA}
+
+    activation_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    profile_ref_id: Mapped[UUID] = mapped_column(
+        ForeignKey(f"{KC_SCHEMA}.semantic_profile.ref_id"), nullable=False, index=True
+    )
+    profile_revision_ref_id: Mapped[UUID] = mapped_column(
+        ForeignKey(f"{KC_SCHEMA}.semantic_profile_revision.ref_id"), nullable=False
+    )
+    activated_revision_id: Mapped[int] = mapped_column(
+        REVISION_ID_TYPE,
+        ForeignKey(f"{KC_SCHEMA}.revision.revision_id"),
+        nullable=False,
+        index=True,
+    )
+    activated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
