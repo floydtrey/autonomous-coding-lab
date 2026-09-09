@@ -248,25 +248,72 @@ A registry reference by itself grants no ownership, truth, sensitivity level, re
 
 ---
 
+## KC-D009 — Temporal model uses independent world-valid time and immutable knowledge-record time
+
+**Status:** Accepted
+
+Knowledge Core will represent at least two independent temporal axes:
+
+1. **World-valid time** — when an assertion is claimed to be true or applicable in the external world.
+2. **Knowledge-record time** — when Knowledge Core learned, accepted, or recorded that assertion/transition.
+
+These axes must never be collapsed into one timestamp.
+
+World-valid applicability will use PostgreSQL temporal/range-capable fields where appropriate, normally an interval equivalent to `tstzrange` for timestamp-granularity state. Open-ended applicability is represented explicitly rather than by inventing a distant future date. The schema must preserve source precision/uncertainty when the evidence only establishes a day, coarse interval, unknown boundary, or other non-exact time.
+
+Every canonical assertion, occurrence, correction, supersession, reversal, and other lifecycle transition receives immutable record-time identity including:
+
+- a database-recorded timestamp; and
+- a stable revision/order identity sufficient to deterministically order/replay records when timestamps alone are not enough.
+
+Ordinary correction does not update an old assertion to make it appear that Knowledge Core knew the corrected fact earlier. Instead, a new record is appended at the actual knowledge-record time and may carry an earlier world-valid interval.
+
+Example:
+
+```text
+May 15 world time:   Robert actually started at Contoso
+June 2:              Knowledge Core records "Robert started June 2"
+September 8:         correction arrives saying the start was May 15
+
+Current historical reconstruction:
+  May 15 onward -> Contoso
+
+Historical belief as of July 1:
+  Knowledge Core still believed June 2
+
+The September correction does not rewrite the June record time.
+```
+
+Lifecycle changes such as `supersedes`, `invalidates`, `corrects`, or `restores` are themselves timestamped/revisioned canonical transitions. Historical-belief queries reconstruct state using only canonical records/transitions that existed by the requested knowledge-record time.
+
+The **current-state projection is derived and rebuildable**. It may be maintained transactionally for fast reads, but it is not the only record of history and may be regenerated from canonical assertions plus lifecycle transitions.
+
+Internally, absolute instants should use timezone-aware timestamps. Original timezone, date-only precision, uncertain boundaries, or source temporal wording are retained where materially necessary for faithful interpretation rather than being silently promoted to false precision.
+
+PostgreSQL temporal constraints may be used where they enforce a real semantic invariant, but the architecture will not assume that every assertion for a subject/predicate must have non-overlapping world-valid ranges because conflicting assertions are intentionally representable.
+
+**Reason:** this directly supports both "what do we now believe was true at T?" and "what did Knowledge Core believe at T?" while preserving late corrections, conflicts, replay, rollback, and auditability. It also avoids forcing expensive historical reconstruction into every ordinary current-state query.
+
+---
+
 # Open physical-design decisions
 
 These remain deliberately unresolved and should be decided before freezing the deep Knowledge Core folder/package layout:
 
 1. Detailed PostgreSQL table split for entities, assertions, occurrences, resources, resource versions, semantic profiles, assertion values/participants, and reference-registry subtype constraints.
-2. Exact temporal representation for world-valid time, transaction/knowledge time, current projections, corrections, and supersession.
-3. Provenance-link physical representation and traversal strategy.
-4. Artifact/file-store mechanism and content/version layout.
-5. Semantic-profile/vocabulary physical representation and migration rules.
-6. Knowledge Core service API and operation classes.
-7. Retrieval pipeline: structured, relationship, full-text, semantic, composite, and context-construction boundary.
-8. Derived-data generation, invalidation, rebuild, and versioning.
-9. Identity-resolution workflow, ambiguity, merge/split, replacement, and reversal mechanics.
-10. Deletion/retention/reconciliation workflow across canonical and derived planes.
-11. Concurrency, revision/precondition, and stale-write protection.
-12. Backup, recovery, restore, and deletion-ledger reconciliation.
-13. Initial OS process/service identities and permission boundaries.
-14. Secret/credential storage and access boundaries.
-15. The first implementation vertical slice and its validation gates.
+2. Provenance-link physical representation and traversal strategy.
+3. Artifact/file-store mechanism and content/version layout.
+4. Semantic-profile/vocabulary physical representation and migration rules.
+5. Knowledge Core service API and operation classes.
+6. Retrieval pipeline: structured, relationship, full-text, semantic, composite, and context-construction boundary.
+7. Derived-data generation, invalidation, rebuild, and versioning.
+8. Identity-resolution workflow, ambiguity, merge/split, replacement, and reversal mechanics.
+9. Deletion/retention/reconciliation workflow across canonical and derived planes.
+10. Concurrency, revision/precondition, and stale-write protection.
+11. Backup, recovery, restore, and deletion-ledger reconciliation.
+12. Initial OS process/service identities and permission boundaries.
+13. Secret/credential storage and access boundaries.
+14. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -292,4 +339,4 @@ During physical architecture design:
 
 # Current next decision
 
-The next design discussion should settle the exact temporal representation: how PostgreSQL distinguishes when something was true in the world from when Knowledge Core learned/recorded it, how corrections preserve both histories, and how a fast current projection is rebuilt from canonical history.
+The next design discussion should define the physical provenance/evidence-link model: how Knowledge Core can explain where a claim came from and also find everything that depends on a corrected, deleted, or superseded source without turning provenance into an untyped arbitrary graph.
