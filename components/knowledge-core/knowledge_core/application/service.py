@@ -7,10 +7,11 @@ from uuid import UUID
 from knowledge_core.application.assertions import KnowledgeKernel
 from knowledge_core.application.deletion import DeletionKnowledgeKernel
 from knowledge_core.application.history import TemporalKnowledgeKernel
+from knowledge_core.application.operations import _interval_payload, _typed_value_payload
 from knowledge_core.domain.assertions import KnowledgeInvariantError, TypedValue
 from knowledge_core.domain.deletion import KnowledgeRestrictedError
 from knowledge_core.domain.identity import IdentityTransitionSnapshot
-from knowledge_core.domain.temporal import BitemporalAssertion
+from knowledge_core.domain.temporal import BitemporalAssertion, WorldInterval
 from knowledge_core.storage.models import Entity
 
 
@@ -86,6 +87,7 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
         payload = {"kind_revision_ref": str(kind_revision_ref)}
 
         def action() -> UUID:
+            self._require_active_ref(kind_revision_ref)
             return KnowledgeKernel.create_entity(self, kind_revision_ref)
 
         return self._execute_operation(
@@ -107,21 +109,43 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
         source_assertion_ref: UUID,
         replacement_value: TypedValue,
         correction_kind_revision_ref: UUID,
-        replacement_world_interval=None,
+        replacement_world_interval: WorldInterval | None = None,
         caller_principal_ref: str,
     ):
-        if not self.assertion_serving_eligible(source_assertion_ref):
-            raise KnowledgeRestrictedError(
-                f"assertion is unavailable to serving mutations: {source_assertion_ref}"
+        payload = {
+            "source_assertion_ref": str(source_assertion_ref),
+            "replacement_value": _typed_value_payload(replacement_value),
+            "correction_kind_revision_ref": str(correction_kind_revision_ref),
+            "replacement_world_interval": _interval_payload(
+                replacement_world_interval
+            ),
+        }
+
+        def action():
+            if not self.assertion_serving_eligible(source_assertion_ref):
+                raise KnowledgeRestrictedError(
+                    f"assertion is unavailable to serving mutations: {source_assertion_ref}"
+                )
+            self._require_active_ref(correction_kind_revision_ref)
+            return TemporalKnowledgeKernel.correct_assertion(
+                self,
+                source_assertion_ref=source_assertion_ref,
+                replacement_value=replacement_value,
+                correction_kind_revision_ref=correction_kind_revision_ref,
+                replacement_world_interval=replacement_world_interval,
             )
-        return super().correct_assertion_operation(
+
+        return self._execute_operation(
             operation_id=operation_id,
-            expected_revision=expected_revision,
-            source_assertion_ref=source_assertion_ref,
-            replacement_value=replacement_value,
-            correction_kind_revision_ref=correction_kind_revision_ref,
-            replacement_world_interval=replacement_world_interval,
+            operation_class="correct_assertion",
             caller_principal_ref=caller_principal_ref,
+            payload=payload,
+            expected_revision=expected_revision,
+            action=action,
+            encode_result=lambda result: {"transition_ref": str(result.transition_ref)},
+            replay=lambda metadata: self.read_transition(
+                UUID(str(metadata["transition_ref"]))
+            ),
         )
 
     def reverse_assertion_transition_operation(
@@ -133,22 +157,25 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
         correction_kind_revision_ref: UUID,
         caller_principal_ref: str,
     ):
-        transition = self.read_transition(transition_ref)
-        for assertion_ref in (
-            transition.source_assertion_ref,
-            transition.replacement_assertion_ref,
-        ):
-            if assertion_ref is not None and not self.assertion_serving_eligible(assertion_ref):
-                raise KnowledgeRestrictedError(
-                    f"transition references unavailable assertion: {assertion_ref}"
-                )
-
         payload = {
             "transition_ref": str(transition_ref),
             "correction_kind_revision_ref": str(correction_kind_revision_ref),
         }
 
         def action():
+            transition = self.read_transition(transition_ref)
+            for assertion_ref in (
+                transition.source_assertion_ref,
+                transition.replacement_assertion_ref,
+            ):
+                if (
+                    assertion_ref is not None
+                    and not self.assertion_serving_eligible(assertion_ref)
+                ):
+                    raise KnowledgeRestrictedError(
+                        f"transition references unavailable assertion: {assertion_ref}"
+                    )
+            self._require_active_ref(correction_kind_revision_ref)
             return TemporalKnowledgeKernel.reverse_transition(
                 self,
                 transition_ref=transition_ref,
@@ -179,9 +206,6 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
         caller_principal_ref: str,
     ) -> IdentityTransitionSnapshot:
         refs = tuple(entity_refs)
-        for entity_ref in refs:
-            self._require_serving_entity(entity_ref)
-        self._require_serving_entity(representative_ref)
         payload = {
             "entity_refs": [str(ref) for ref in refs],
             "representative_ref": str(representative_ref),
@@ -189,6 +213,10 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
         }
 
         def action() -> IdentityTransitionSnapshot:
+            for entity_ref in refs:
+                self._require_serving_entity(entity_ref)
+            self._require_serving_entity(representative_ref)
+            self._require_active_ref(identity_kind_revision_ref)
             return self.merge_entities(
                 entity_refs=refs,
                 representative_ref=representative_ref,
@@ -218,8 +246,6 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
         identity_kind_revision_ref: UUID,
         caller_principal_ref: str,
     ) -> IdentityTransitionSnapshot:
-        self._require_serving_entity(old_entity_ref)
-        self._require_serving_entity(new_entity_ref)
         payload = {
             "old_entity_ref": str(old_entity_ref),
             "new_entity_ref": str(new_entity_ref),
@@ -227,6 +253,9 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
         }
 
         def action() -> IdentityTransitionSnapshot:
+            self._require_serving_entity(old_entity_ref)
+            self._require_serving_entity(new_entity_ref)
+            self._require_active_ref(identity_kind_revision_ref)
             return self.replace_entity(
                 old_entity_ref=old_entity_ref,
                 new_entity_ref=new_entity_ref,
@@ -255,15 +284,16 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
         identity_kind_revision_ref: UUID,
         caller_principal_ref: str,
     ) -> IdentityTransitionSnapshot:
-        transition = self.read_identity_transition(transition_ref)
-        for member in transition.members:
-            self._require_serving_entity(member.entity_ref)
         payload = {
             "transition_ref": str(transition_ref),
             "identity_kind_revision_ref": str(identity_kind_revision_ref),
         }
 
         def action() -> IdentityTransitionSnapshot:
+            transition = self.read_identity_transition(transition_ref)
+            for member in transition.members:
+                self._require_serving_entity(member.entity_ref)
+            self._require_active_ref(identity_kind_revision_ref)
             return self.reverse_identity_transition(
                 transition_ref=transition_ref,
                 identity_kind_revision_ref=identity_kind_revision_ref,
