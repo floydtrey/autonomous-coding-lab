@@ -8,18 +8,15 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
-from knowledge_core.application.service import ServiceKnowledgeKernel
-from knowledge_core.artifacts.store import LocalArtifactStore
-from knowledge_core.domain.assertions import AssertionSnapshot, KnowledgeInvariantError
-from knowledge_core.domain.deletion import KnowledgeRestrictedError
-from knowledge_core.domain.identity import IdentityTransitionSnapshot
-from knowledge_core.domain.operations import (
-    OperationFailedError,
-    OperationInProgressError,
-    OperationReuseError,
-    StaleWriteError,
+from knowledge_core.api.resource_schemas import (
+    EvidenceLinkRequest,
+    EvidenceTraceResponse,
+    ImpactTraceResponse,
+    ResourceCreateRequest,
+    ResourceIngestRequest,
+    ResourceResponse,
+    ResourceVersionResponse,
 )
-from knowledge_core.domain.temporal import BitemporalAssertion
 from knowledge_core.api.schemas import (
     AssertionCorrectRequest,
     AssertionCreateRequest,
@@ -38,6 +35,20 @@ from knowledge_core.api.schemas import (
     TransitionReverseRequest,
     ValueResponse,
 )
+from knowledge_core.application.resource_service import ResourceServiceKnowledgeKernel
+from knowledge_core.application.service import ServiceKnowledgeKernel
+from knowledge_core.artifacts.store import LocalArtifactStore
+from knowledge_core.domain.assertions import AssertionSnapshot, KnowledgeInvariantError
+from knowledge_core.domain.deletion import KnowledgeRestrictedError
+from knowledge_core.domain.identity import IdentityTransitionSnapshot
+from knowledge_core.domain.operations import (
+    OperationFailedError,
+    OperationInProgressError,
+    OperationReuseError,
+    StaleWriteError,
+)
+from knowledge_core.domain.resources import EvidenceTrace, ImpactTrace, ResourceVersionSnapshot
+from knowledge_core.domain.temporal import BitemporalAssertion
 
 
 SessionFactory = Callable[[], Session]
@@ -96,6 +107,39 @@ def _identity_transition_response(
     )
 
 
+def _resource_version_response(item: ResourceVersionSnapshot) -> ResourceVersionResponse:
+    return ResourceVersionResponse(
+        resource_version_ref=item.resource_version_ref,
+        resource_ref=item.resource_ref,
+        content_digest_algo=item.content_digest_algo,
+        content_digest=item.content_digest,
+        byte_size=item.byte_size,
+        media_type=item.media_type,
+        created_revision_id=item.created_revision_id,
+    )
+
+
+def _evidence_response(item: EvidenceTrace) -> EvidenceTraceResponse:
+    return EvidenceTraceResponse(
+        link_id=item.link_id,
+        assertion_ref=item.assertion_ref,
+        relation_revision_ref=item.relation_revision_ref,
+        resource_version=_resource_version_response(item.resource_version),
+        created_revision_id=item.created_revision_id,
+    )
+
+
+def _impact_response(item: ImpactTrace) -> ImpactTraceResponse:
+    return ImpactTraceResponse(
+        link_id=item.link_id,
+        resource_version_ref=item.resource_version_ref,
+        dependent_ref=item.dependent_ref,
+        dependent_ref_kind=item.dependent_ref_kind,
+        relation_revision_ref=item.relation_revision_ref,
+        created_revision_id=item.created_revision_id,
+    )
+
+
 def create_app(
     *,
     session_factory: SessionFactory,
@@ -111,7 +155,7 @@ def create_app(
     def get_kernel():
         session = session_factory()
         try:
-            yield ServiceKnowledgeKernel(session, artifact_store=artifact_store)
+            yield ResourceServiceKnowledgeKernel(session, artifact_store=artifact_store)
         finally:
             session.close()
 
@@ -399,5 +443,111 @@ def create_app(
                 caller_principal_ref=caller,
             )
         )
+
+    @app.post("/v1/resources", response_model=ResourceResponse, status_code=201)
+    def create_resource(
+        body: ResourceCreateRequest,
+        kernel: ResourceServiceKnowledgeKernel = Depends(get_kernel),
+        caller: str = Depends(caller_context),
+    ) -> ResourceResponse:
+        item = kernel.create_resource_operation(
+            operation_id=body.operation_id,
+            kind_revision_ref=body.kind_revision_ref,
+            caller_principal_ref=caller,
+            expected_revision=body.expected_revision,
+        )
+        # Apply current serving eligibility after operation replay. A settled operation
+        # remains idempotent internally, but later privacy fencing still controls what
+        # the HTTP boundary may disclose now.
+        item = kernel.read_resource_serving(item.resource_ref)
+        return ResourceResponse(
+            resource_ref=item.resource_ref,
+            kind_revision_ref=item.kind_revision_ref,
+            created_revision_id=item.created_revision_id,
+        )
+
+    @app.post("/v1/resources/ingest", response_model=ResourceVersionResponse)
+    def ingest_resource(
+        body: ResourceIngestRequest,
+        kernel: ResourceServiceKnowledgeKernel = Depends(get_kernel),
+        caller: str = Depends(caller_context),
+    ) -> ResourceVersionResponse:
+        item = kernel.ingest_resource_version_operation(
+            operation_id=body.operation_id,
+            resource_ref=body.resource_ref,
+            content=body.content_bytes(),
+            ingestion_kind_revision_ref=body.ingestion_kind_revision_ref,
+            caller_principal_ref=caller,
+            media_type=body.media_type,
+            locator_kind=body.locator_kind,
+            locator_text=body.locator_text,
+            expected_revision=body.expected_revision,
+        )
+        item = kernel.read_resource_version_serving(item.resource_version_ref)
+        return _resource_version_response(item)
+
+    @app.get(
+        "/v1/resource-versions/{resource_version_ref}",
+        response_model=ResourceVersionResponse,
+    )
+    def read_resource_version(
+        resource_version_ref: UUID,
+        kernel: ResourceServiceKnowledgeKernel = Depends(get_kernel),
+        _caller: str = Depends(caller_context),
+    ) -> ResourceVersionResponse:
+        return _resource_version_response(
+            kernel.read_resource_version_serving(resource_version_ref)
+        )
+
+    @app.post(
+        "/v1/assertions/{assertion_ref}/evidence",
+        response_model=EvidenceTraceResponse,
+        status_code=201,
+    )
+    def link_evidence(
+        assertion_ref: UUID,
+        body: EvidenceLinkRequest,
+        kernel: ResourceServiceKnowledgeKernel = Depends(get_kernel),
+        caller: str = Depends(caller_context),
+    ) -> EvidenceTraceResponse:
+        item = kernel.link_assertion_evidence_operation(
+            operation_id=body.operation_id,
+            assertion_ref=assertion_ref,
+            resource_version_ref=body.resource_version_ref,
+            relation_revision_ref=body.relation_revision_ref,
+            caller_principal_ref=caller,
+            expected_revision=body.expected_revision,
+        )
+        return _evidence_response(kernel.read_evidence_serving(item.link_id))
+
+    @app.get(
+        "/v1/assertions/{assertion_ref}/explain",
+        response_model=list[EvidenceTraceResponse],
+    )
+    def explain_assertion(
+        assertion_ref: UUID,
+        kernel: ResourceServiceKnowledgeKernel = Depends(get_kernel),
+        _caller: str = Depends(caller_context),
+    ) -> list[EvidenceTraceResponse]:
+        return [
+            _evidence_response(item)
+            for item in kernel.explain_assertion_serving(assertion_ref=assertion_ref)
+        ]
+
+    @app.get(
+        "/v1/resources/{resource_version_ref}/impact",
+        response_model=list[ImpactTraceResponse],
+    )
+    def resource_impact(
+        resource_version_ref: UUID,
+        kernel: ResourceServiceKnowledgeKernel = Depends(get_kernel),
+        _caller: str = Depends(caller_context),
+    ) -> list[ImpactTraceResponse]:
+        return [
+            _impact_response(item)
+            for item in kernel.impact_from_resource_version_serving(
+                resource_version_ref=resource_version_ref
+            )
+        ]
 
     return app
