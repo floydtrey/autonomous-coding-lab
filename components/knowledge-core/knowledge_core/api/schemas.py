@@ -171,6 +171,15 @@ class IdentityTransitionResponse(BaseModel):
     created_revision_id: int
 
 
+class IdentityResolutionResponse(BaseModel):
+    entity_ref: UUID
+    resolution_group_id: UUID
+    representative_ref: UUID
+    member_refs: list[UUID]
+    source_transition_ref: UUID | None = None
+    source_revision_id: int
+
+
 class StatusResponse(BaseModel):
     service: Literal["knowledge-core"] = "knowledge-core"
     api_version: Literal["v1"] = "v1"
