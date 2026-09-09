@@ -91,103 +91,93 @@ Derived projections/indexes/summaries/embeddings/caches retain source/generation
 
 ## KC-D016 — Identity resolution is non-destructive, transition-based, and reversible
 **Status:** Accepted
-Entity IDs stay stable. Aliases/identifiers are evidence, not identity. Merge/split/replacement/reassignment are explicit provenance-bearing transitions. Merges do not rewrite all assertion foreign keys or delete original entities; a derived current resolution view composes them and can be reversed.
+Entity IDs stay stable. Aliases/identifiers are evidence, not identity. Merge/split/replacement/reassignment are explicit provenance-bearing transitions; merges do not destructively rewrite underlying assertions.
+
+## KC-D017 — Privacy deletion/restriction is a privileged staged reconciliation lifecycle, not ordinary supersession
+**Status:** Accepted
+Valid erasure/restriction fences access first, then reconciles canonical payload, descendants/derivatives, artifacts, backups/restore, and external/exported state where possible. Minimal non-content control state may remain to prevent resurrection and prove scoped settlement. Old backups are never served before newer deletion/restriction controls are reapplied.
 
 ---
 
-## KC-D017 — Privacy deletion/restriction is a privileged staged reconciliation lifecycle, not ordinary supersession
+## KC-D018 — Canonical writes use optimistic preconditions, stable operation identities, and idempotent retry semantics
 
 **Status:** Accepted
 
-Privacy restriction/erasure is separate from ordinary correction, undo, supersession, or invalidation. It may intentionally remove or render inaccessible canonical payloads that ordinary non-destructive history would otherwise preserve.
+Knowledge Core will not use silent last-writer-wins behavior for semantically conflicting canonical changes.
 
-A deletion/restriction operation creates a privileged lifecycle case/occurrence with explicit authorized scope and a state machine that can distinguish at least:
+### Stable operation identity
 
-- requested;
-- immediately fenced/restricted from ordinary retrieval/use;
-- canonical reconciliation pending;
-- canonical payload erased or retained under an explicit bounded exception;
-- descendant/derived reconciliation pending;
-- artifact reconciliation pending;
-- backup/restore fence active;
-- external/exported recipient reconciliation pending/unknown where applicable;
-- settled in declared scope;
-- failed/blocked and requiring intervention.
+Every externally requested mutation receives a stable `operation_id` / idempotency identity scoped to the authenticated caller/action class.
 
-### Access fence first
+If a client experiences an uncertain result, such as a network timeout after submitting a write, it retries using the **same operation identity**.
 
-Once a valid restriction/erasure request is accepted, affected knowledge must be fenced from ordinary reads, semantic retrieval, summaries, embeddings, caches, context construction, and automation **before** all physical cleanup necessarily finishes.
+Knowledge Core must then:
 
-The system must prefer "temporarily unavailable while deletion reconciles" over continuing to expose data because a background cleanup job has not completed.
+- return the already-settled result if that operation previously committed successfully with the same canonical request payload;
+- continue/return the known pending state if the operation is still legitimately in progress;
+- return the prior failure if it is terminal and retry semantics do not permit a new attempt under the same identity;
+- reject reuse of the same operation identity with materially different request semantics/payload.
 
-### Canonical handling
+This prevents a timeout from becoming a duplicate assertion, duplicate correction, duplicate identity transition, or duplicate deletion request.
 
-Depending on the authorized deletion/retention policy, canonical records may have payload fields erased, rows physically removed, references severed, or retained only under a narrowly defined exempt purpose. Ordinary append-only preservation does not override a valid erasure requirement.
+### Optimistic revision/precondition checks
 
-Any minimal tombstone/settlement metadata retained after erasure must be limited to what is necessary to prevent resurrection, prove/reconcile lifecycle state, and satisfy an authorized retention purpose. It must not retain the erased substantive payload merely to preserve an audit trail.
+Operations that depend on a particular current state—correction, supersession, reversal, identity transition, classification change, profile activation, deletion/restriction scope change, etc.—carry an `expected_revision`, expected current target reference, or equivalent semantic precondition.
 
-### Descendants and derived data
+The service checks that precondition inside the same PostgreSQL transaction that appends the new canonical record/transition.
 
-Forward provenance/lineage is used to identify dependent summaries, extracted text, chunks, embeddings, vector/full-text projections, relationship closures, caches, context packages, and other derivatives.
+If the expected state is stale, the operation fails as a **conflict/stale-precondition result** rather than silently applying to a different current state.
 
-Affected descendants are immediately fenced or marked deletion/restriction-pending and are then erased, rebuilt without the deleted source, or otherwise reconciled according to their storage plane.
-
-A vector index, cache, or summary may not remain searchable simply because it is "only derived."
-
-### Artifact blobs and physical deduplication
-
-Deletion of one logical resource/version does not automatically delete a shared content-addressed blob if that exact blob is still legitimately referenced by another independently authorized logical resource/version.
-
-Conversely, physical deduplication is never used as a reason to keep a logical deleted record reachable. Logical references, permissions, provenance, and lifecycle are reconciled independently from whether bytes are physically shared.
-
-When no legitimate retained reference requires a blob, the artifact-store reconciliation process may remove it after the applicable retention/settlement rules permit.
-
-### Backup and restore fence
-
-Backups may be immutable or impractical to surgically rewrite. Therefore Knowledge Core maintains enough deletion/restriction control state, separate from erased payload, to fence forgotten data during any restore.
-
-Restore follows this order:
+Example:
 
 ```text
-restore old canonical/artifact snapshot
-        |
-        v
-DO NOT SERVE IT YET
-        |
-        v
-apply every newer deletion/restriction control record
-        |
-        v
-reconcile canonical + derived + artifact state
-        |
-        v
-validate fences/settlement
-        |
-        v
-only then activate restored service
+Revision 100: A1 is current
+
+Vera reads revision 100
+ACL reads revision 100
+
+Vera corrects A1 -> A2 with expected revision 100
+commit produces revision 101
+
+ACL attempts A1 -> A3 with expected revision 100
+Knowledge Core returns STALE/CONFLICT
+ACL must reread revision 101 and reconsider
 ```
 
-An old backup can never become authoritative merely because it predates a deletion request.
+Independent append-only claims that do not require exclusive current-state assumptions may proceed concurrently; the model should not serialize all knowledge writes unnecessarily.
 
-Backup retention and eventual physical expiry are handled separately from live-data accessibility. If external exports/recipients cannot be controlled, their state is represented honestly as pending/unknown rather than falsely claiming global erasure.
+### Canonical revision/order identity
 
-### Settlement proof without payload retention
+Committed canonical mutations receive stable record/revision identity sufficient for deterministic replay/order. Timestamp alone is not relied upon to establish total ordering where multiple writes may occur at the same timestamp resolution.
 
-The final system should be able to prove that a scoped erasure/restriction workflow settled using opaque record/case identities, timestamps/revisions, policy/scope identifiers, reconciliation statuses, and non-content operational evidence where needed, without requiring retention of the erased personal/substantive content itself.
+### Current projection transactionality
 
-**Reason:** deletion is a multi-plane systems problem. Treating it as a Boolean flag or an ordinary supersession would permit data to survive in embeddings, summaries, caches, artifacts, or restored backups and later reappear.
+When a canonical write has a synchronous current-state/identity projection update, both commit in one PostgreSQL transaction or the canonical write remains authoritative and the projection is clearly marked/rebuilt. The service may not return a settled success that implies a new current state while knowingly committing only half of a required transactional pair.
+
+### Generation fencing
+
+Background derived rebuilds use the generation-fencing rule from KC-D015. A worker building from source revision N cannot overwrite a newer settled generation built from revision N+1 merely because the older job finishes later.
+
+### No ambiguous replay as new semantic intent
+
+A fresh attempt after a terminal conflict or intentional user/model reconsideration receives a **new operation identity** and explicitly references the newer base revision. Reusing the old operation ID is reserved for retry/recovery of the same semantic intent.
+
+### Database locks are an implementation detail
+
+PostgreSQL transactions, constraints, row/advisory locks, and isolation levels may be selected per operation during implementation. The architecture requirement is semantic: preconditions and idempotency must be enforced atomically. A global lock over all Knowledge Core writes is not required.
+
+**Reason:** autonomous clients, network retries, background workers, and late-arriving evidence make concurrency inevitable. Stable operation identity plus optimistic preconditions prevents duplicated intent and stale writers without sacrificing append throughput.
 
 ---
 
 # Open physical-design decisions
 
 1. Detailed PostgreSQL table split for canonical and derived structures.
-2. Concurrency, revision/precondition, retry/idempotency, and stale-write protection.
-3. Backup/recovery implementation details and coordinated checkpoint manifests.
-4. Initial OS process/service identities and permission boundaries.
-5. Secret/credential storage and access boundaries.
-6. Exact API transport/framework.
-7. The first implementation vertical slice and its validation gates.
+2. Backup/recovery implementation details and coordinated checkpoint manifests.
+3. Initial OS process/service identities and permission boundaries.
+4. Secret/credential storage and access boundaries.
+5. Exact API transport/framework.
+6. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -199,4 +189,4 @@ Record accepted decisions here as they are made; supersede rather than silently 
 
 # Current next decision
 
-The next design discussion should define concurrency/retry safety: optimistic revision preconditions, stable operation/idempotency identities, current-projection transactional updates, generation fencing, and what happens when two clients attempt conflicting corrections or the same request is retried after an uncertain network/tool result.
+The next design discussion should define backup/recovery as a coordinated Knowledge Core checkpoint: PostgreSQL canonical state, content-addressed artifacts, immutable semantic-profile revisions, deletion/restriction control state, and the rules for excluding/rebuilding derived indexes while proving a restored system is safe before it serves requests.
