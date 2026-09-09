@@ -21,6 +21,10 @@ test = [
   "httpx>=0.28,<1",
 ]
 
+[tool.setuptools.packages.find]
+include = ["knowledge_core*"]
+exclude = ["migrations*", "tests*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
