@@ -60,3 +60,11 @@ jobs:
 
       - name: Run PostgreSQL qualification suite
         run: python -m pytest -q -m postgresql
+
+      - name: Rehearse RI-4 local-host restart qualification
+        run: >-
+          python tools/ri4_host_qualification.py
+          --repository-root ../..
+          --state-root "$RUNNER_TEMP/knowledge-core-ri4"
+          --port 55432
+          --cleanup
