@@ -107,87 +107,60 @@ Backups coordinate PostgreSQL and immutable artifacts through a checkpoint manif
 
 ## KC-D020 — Initial same-machine isolation uses separate least-privilege service identities and OS ACL boundaries
 **Status:** Accepted
-The first Windows deployment uses distinct least-privilege security principals/service identities for Vera/ACL, Knowledge Core, PostgreSQL, Authority, and Effect Executor. NTFS/service ACLs separate trusted install/config, artifact, runtime, policy, and credential access. AI processes do not run as Administrator/LocalSystem in normal operation and cannot rewrite trusted services or policy. Stronger VM/machine isolation may be added later without redesign.
+The first Windows deployment uses distinct least-privilege security principals/service identities for Vera/ACL, Knowledge Core, PostgreSQL, Authority, and Effect Executor. NTFS/service ACLs separate trusted install/config, artifact, runtime, policy, and credential access. AI processes do not run as Administrator/LocalSystem in normal operation and cannot rewrite trusted services or policy.
+
+## KC-D021 — Secrets and credentials live outside Knowledge Core and are scoped to the consuming trusted service
+**Status:** Accepted
+Secrets are not knowledge, prompts, source control, logs, embeddings, or ordinary configuration. Each trusted service receives only its own scoped secrets through a service-specific OS-protected secret provider. Vera/ACL use opaque capability references and never receive downstream Executor credentials. Secret backup/migration is separate and human-controlled.
 
 ---
 
-## KC-D021 — Secrets and credentials live outside Knowledge Core and are scoped to the consuming trusted service
+## KC-D022 — Initial service implementation uses Python 3.12+ with FastAPI/Pydantic over versioned HTTP/JSON
 
 **Status:** Accepted
 
-Passwords, API tokens, OAuth refresh/access tokens, database administrative credentials, private cryptographic keys, device/home/car service credentials, remote-service cookies/tokens, and similar secret material are **not Knowledge Core knowledge**.
+Knowledge Core's initial service implementation will use the existing repository ecosystem rather than introducing another language/runtime without demonstrated need.
 
-They must not be stored in:
+### Runtime/framework
 
-- canonical ASSERTION/RESOURCE payloads merely because Vera knows a service exists;
-- embeddings, summaries, chunks, vector/full-text indexes, or context packages;
-- model prompts or conversational context;
-- source control or committed configuration files;
-- ordinary logs, traces, error messages, crash reports, or provenance payloads;
-- the hardware read-only Authority Root unless a specific secret is deliberately designed to reside there and can be used without exposing it to AI/client processes.
+- Python `>=3.12`, aligned with the current Worker Lab runtime baseline;
+- FastAPI for the service/application interface;
+- Pydantic models for typed request/response validation and generated API schema;
+- HTTP/JSON as the initial transport;
+- versioned semantic API paths/contracts, beginning with a `/v1` surface or equivalent version marker.
 
-Knowledge Core may store **non-secret references/metadata** such as `credential_ref=toyota_primary`, credential type, owning service, rotation timestamp/version, or capability identifier when needed for orchestration/audit, but the secret value itself remains in the trusted secret provider.
+The exact ASGI server/process wrapper may be selected during implementation; it does not change the semantic API decision.
 
-### Service-scoped secret ownership
+### Local-first binding
 
-Secrets are divided by the service that actually needs them:
+Initial deployment binds the Knowledge Core API to loopback/local access by default rather than exposing it broadly on every network interface.
 
-- **Knowledge Core** — only its runtime PostgreSQL application credential and any narrowly required storage/service credentials;
-- **Authority** — only secrets needed for Authority authentication/verification/operational state; static public verification roots may live on read-only media because they are not secret;
-- **Effect Executor** — downstream action credentials for the adapters it executes, scoped as narrowly as the external service permits;
-- **Vera / ACL** — no raw downstream Authority/Executor secrets merely because they request actions;
-- **migration/admin tooling** — separate schema/administrative credentials unavailable to normal runtime services.
+Moving the service to another VM/machine later may enable a network listener with explicit authentication, transport encryption, firewall rules, and service identity/certificate handling. Clients continue using the same semantic API rather than gaining direct PostgreSQL access.
 
-No shared master secret is introduced merely for convenience.
+### Typed contract
 
-### Initial Windows secret provider
+FastAPI/Pydantic schemas represent semantic request/response objects for the operation classes in KC-D013. The generated OpenAPI contract may be used for client generation/testing, but OpenAPI itself does not become the source of semantic authority; profile and operation rules remain in the architecture/domain model.
 
-The implementation will use a **secret-provider abstraction**. The initial Windows backend uses OS-protected secret storage or an equivalently ACL/DPAPI-protected service-specific secret file/store bound to the trusted service identity.
+### No generic data endpoint
 
-The exact Windows API/library may be selected during implementation, but plaintext `.env` files, repository files, or broadly readable configuration directories are not the normal production secret store.
+The HTTP layer does not expose generic SQL, arbitrary table CRUD, or a "patch any JSON record" endpoint merely because FastAPI makes it easy to create one.
 
-Environment variables may be used for ephemeral development bootstrap only when the risk is understood; they are not the long-term design for high-value credentials because child processes, diagnostics, or misconfiguration can expose them.
+### Authentication versus authorization
 
-### Retrieval by reference, not model text
+Transport/client authentication proves which service/principal is calling. Authority remains a separate decision boundary for what that principal may read/disclose/mutate/use/automate. The web framework's dependency/authentication features do not replace Authority.
 
-When Vera requests an action, it refers to an opaque target/capability/credential reference. The Effect Executor resolves the actual secret internally after Authority approves the exact operation.
+### Streaming is optional
 
-Example:
+Normal request/response JSON is sufficient for the first vertical slice. SSE, JSON-lines streaming, WebSockets, or gRPC are not introduced until an actual workload requires them.
 
-```text
-Vera:       request start_vehicle(vehicle=V1)
-Authority:  approve exact operation O123
-Executor:   resolve credential_ref internally
-            call vehicle service
-
-Vera never receives the password/token.
-```
-
-### Rotation and migration
-
-Secret rotation creates a new secret-provider version/reference and updates the consuming service configuration atomically. Knowledge Core/audit may record non-secret rotation metadata but never the prior/new secret values.
-
-The secret-provider interface must allow later migration when Authority/Executor move to another VM/machine. Migration/export of secrets is a privileged human/admin workflow and is not performed by autonomous AI workers.
-
-### Backup and recovery
-
-Secrets are backed up separately from normal Knowledge Core backups using encryption and human-controlled recovery appropriate to their sensitivity. Restore of Knowledge Core data does not automatically restore or expose service credentials.
-
-If a secret cannot be safely backed up, the recovery plan uses credential reissuance/rotation rather than storing an unsafe duplicate.
-
-### Whole-disk encryption is supplementary
-
-Device/volume encryption such as BitLocker is desirable for the host and backup media but does not replace service-level secret separation or ACLs; a running compromised process must still be prevented from reading another service's credentials.
-
-**Reason:** an AI that can retrieve or rewrite the secret behind an authorized adapter can often bypass the intended Authority boundary. Keeping credentials out of knowledge/model context and scoped to the trusted executor/service preserves the distinction between knowing an action exists and possessing the power to perform it.
+**Reason:** Python already matches the repository, FastAPI/Pydantic gives a strongly typed and debuggable service boundary with generated documentation/testing support, and ordinary HTTP/JSON is easy to inspect locally while naturally extending across a future VM/machine boundary.
 
 ---
 
 # Open physical-design decisions
 
 1. Detailed PostgreSQL table split for canonical and derived structures.
-2. Exact API transport/framework.
-3. The first implementation vertical slice and its validation gates.
+2. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -199,4 +172,4 @@ Record accepted decisions here as they are made; supersede rather than silently 
 
 # Current next decision
 
-The next design discussion should select the initial service transport/framework. The goal is a typed, easy-to-debug local interface that naturally becomes network-capable later without exposing PostgreSQL or tying Vera/ACL directly to the Knowledge Core implementation.
+The next design discussion should convert the accepted semantic/storage rules into the first concrete PostgreSQL schema shape: tables for reference identities, entities, assertions and typed values/participants, lifecycle transitions, occurrences, resources/versions/locators, provenance links, semantic profiles/revisions/definitions, operation/idempotency records, deletion-control state, and rebuildable current/derived projections.
