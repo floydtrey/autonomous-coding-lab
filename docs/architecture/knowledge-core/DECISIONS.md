@@ -113,54 +113,100 @@ The first Windows deployment uses distinct least-privilege security principals/s
 **Status:** Accepted
 Secrets are not knowledge, prompts, source control, logs, embeddings, or ordinary configuration. Each trusted service receives only its own scoped secrets through a service-specific OS-protected secret provider. Vera/ACL use opaque capability references and never receive downstream Executor credentials. Secret backup/migration is separate and human-controlled.
 
+## KC-D022 — Initial service implementation uses Python 3.12+ with FastAPI/Pydantic over versioned HTTP/JSON
+**Status:** Accepted
+Knowledge Core initially uses Python 3.12+, FastAPI, Pydantic, and versioned HTTP/JSON. It binds locally by default and becomes network-exposed only with explicit authentication/encryption/firewalling. The typed semantic API remains independent of PostgreSQL and avoids generic CRUD/SQL endpoints.
+
 ---
 
-## KC-D022 — Initial service implementation uses Python 3.12+ with FastAPI/Pydantic over versioned HTTP/JSON
+## KC-D023 — V1 physical database uses canonical, control, and derived PostgreSQL schemas with an atomic-proposition assertion model
 
 **Status:** Accepted
 
-Knowledge Core's initial service implementation will use the existing repository ecosystem rather than introducing another language/runtime without demonstrated need.
+The first PostgreSQL implementation follows `PHYSICAL_SCHEMA_V1.md` as the current architecture candidate.
 
-### Runtime/framework
+Use one Knowledge Core PostgreSQL database with three physical PostgreSQL schemas:
 
-- Python `>=3.12`, aligned with the current Worker Lab runtime baseline;
-- FastAPI for the service/application interface;
-- Pydantic models for typed request/response validation and generated API schema;
-- HTTP/JSON as the initial transport;
-- versioned semantic API paths/contracts, beginning with a `/v1` surface or equivalent version marker.
+```text
+kc            canonical semantic/history records
+kc_control    operational/idempotency/deletion/backup control
+kc_derived    rebuildable current/search/semantic projections
+```
 
-The exact ASGI server/process wrapper may be selected during implementation; it does not change the semantic API decision.
+### Canonical zone
 
-### Local-first binding
+`kc` contains the durable semantic substrate, including the physical equivalents of:
 
-Initial deployment binds the Knowledge Core API to loopback/local access by default rather than exposing it broadly on every network interface.
+- monotonic canonical revisions;
+- universal `knowledge_ref` identity registry;
+- entities;
+- occurrences;
+- assertions;
+- typed assertion values;
+- governed n-ary participants when needed;
+- assertion lifecycle transitions;
+- reversible identity transitions;
+- typed provenance links;
+- logical resources, exact resource versions and mutable locator history;
+- semantic profiles/revisions and predicate/kind/role definitions;
+- append-oriented record classification history used to rebuild authorization filters.
 
-Moving the service to another VM/machine later may enable a network listener with explicit authentication, transport encryption, firewall rules, and service identity/certificate handling. Clients continue using the same semantic API rather than gaining direct PostgreSQL access.
+Ordinary knowledge in `kc` is append-oriented and non-destructive except for the separately governed erasure lifecycle.
 
-### Typed contract
+### Atomic proposition rule
 
-FastAPI/Pydantic schemas represent semantic request/response objects for the operation classes in KC-D013. The generated OpenAPI contract may be used for client generation/testing, but OpenAPI itself does not become the source of semantic authority; profile and operation rules remain in the architecture/domain model.
+One ASSERTION row normally represents one atomic proposition occurrence under one exact predicate revision.
 
-### No generic data endpoint
+Binary relationships are reference-valued assertions. Multi-valued properties normally use multiple assertions. Truly n-ary propositions use explicit governed participant roles rather than opaque arrays/JSON.
 
-The HTTP layer does not expose generic SQL, arbitrary table CRUD, or a "patch any JSON record" endpoint merely because FastAPI makes it easy to create one.
+Typed values use constrained physical variants such as canonical reference, text, numeric, boolean, date, and timestamp. Profile-governed bounded JSON is the exception, not the default.
 
-### Authentication versus authorization
+### Control zone
 
-Transport/client authentication proves which service/principal is calling. Authority remains a separate decision boundary for what that principal may read/disclose/mutate/use/automate. The web framework's dependency/authentication features do not replace Authority.
+`kc_control` stores non-world operational state required to make the service safe and recoverable, including:
 
-### Streaming is optional
+- semantic API operation/idempotency records;
+- deletion/restriction cases and targets;
+- backup checkpoint manifests;
+- later maintenance/rebuild control records where useful.
 
-Normal request/response JSON is sufficient for the first vertical slice. SSE, JSON-lines streaming, WebSockets, or gRPC are not introduced until an actual workload requires them.
+### Derived zone
 
-**Reason:** Python already matches the repository, FastAPI/Pydantic gives a strongly typed and debuggable service boundary with generated documentation/testing support, and ordinary HTTP/JSON is easy to inspect locally while naturally extending across a future VM/machine boundary.
+`kc_derived` stores rebuildable helpers such as:
+
+- current assertion selection;
+- current identity resolution;
+- current classification/eligibility projection;
+- generation/source metadata;
+- full-text documents;
+- embeddings/vector data when implemented;
+- optional inferred relationship closures.
+
+Multiple competing assertions may remain simultaneously current when conflict is unresolved; the physical model must not force false single-valued certainty.
+
+### Identifier strategy
+
+Addressable semantic/control objects use UUID references, with UUIDv7 preferred for new service-generated identifiers on PostgreSQL 18. Canonical mutation ordering uses a separate monotonic `BIGINT` revision identity.
+
+### Minimal erased tombstone
+
+Privileged erasure may remove specialized canonical payload while retaining a minimal opaque `knowledge_ref` tombstone when necessary for anti-resurrection/deletion-control integrity. The tombstone must not retain substantive erased content.
+
+### Derived search
+
+PostgreSQL full-text materialization belongs in `kc_derived`. pgvector embedding rows belong there when semantic retrieval is implemented; vector index choice is benchmarked later and is not required for the first canonical slice.
+
+### Scope of acceptance
+
+This decision accepts the table-family split, semantic constraints, and transaction boundaries in `PHYSICAL_SCHEMA_V1.md`. It does **not** claim every column/table name is permanently frozen before the first DDL validation gates run.
+
+**Reason:** the design is now concrete enough to implement and test without collapsing the conceptual distinctions or introducing unnecessary distributed infrastructure.
 
 ---
 
 # Open physical-design decisions
 
-1. Detailed PostgreSQL table split for canonical and derived structures.
-2. The first implementation vertical slice and its validation gates.
+1. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -172,4 +218,4 @@ Record accepted decisions here as they are made; supersede rather than silently 
 
 # Current next decision
 
-The next design discussion should convert the accepted semantic/storage rules into the first concrete PostgreSQL schema shape: tables for reference identities, entities, assertions and typed values/participants, lifecycle transitions, occurrences, resources/versions/locators, provenance links, semantic profiles/revisions/definitions, operation/idempotency records, deletion-control state, and rebuildable current/derived projections.
+The next design discussion should choose the smallest first implementation vertical slice. It must prove the difficult architecture properties early—append-only correction/reversal, current-view rebuild, bitemporal queries, typed values, provenance to an exact resource version, stale-write/idempotent retry behavior, and service-only access—without implementing Vera, Authority, embeddings, or the full domain vocabulary yet.
