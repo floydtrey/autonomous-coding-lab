@@ -343,23 +343,77 @@ Derived/rebuildable records must retain sufficient lineage metadata to identify 
 
 ---
 
+## KC-D011 — Initial artifact store is a local immutable content-addressed filesystem
+
+**Status:** Accepted
+
+The initial artifact/file store will be a local filesystem directory managed by Knowledge Core rather than a separate object-storage service.
+
+Artifact bytes are stored by cryptographic content digest, initially SHA-256, under a configurable storage root. The on-disk content-addressed path is an implementation locator for exact bytes; it is not the logical RESOURCE identity.
+
+Conceptually:
+
+```text
+artifact-root/
+  sha256/
+    ab/
+      cd/
+        abcdef...full-digest
+```
+
+Exact directory fan-out may change during implementation without changing this decision.
+
+Artifact blobs are immutable after successful ingestion. Changed bytes create a new digest/blob and a new RESOURCE-version record rather than modifying the old blob in place.
+
+PostgreSQL stores the canonical logical resource/version metadata, including at minimum:
+
+- logical RESOURCE identity;
+- exact resource-version identity;
+- content digest and digest algorithm;
+- byte size;
+- media/type metadata;
+- original/mutable locator(s) and filenames where relevant;
+- observation/ingestion identity;
+- ownership/sensitivity references;
+- provenance/derivation links;
+- current artifact-store locator/backend identity.
+
+Identical bytes may be physically deduplicated to one content-addressed blob, but **hash equality does not merge logical resources, provenance, ownership, sensitivity, authority, or history**. Multiple logical/resource-version records may legitimately reference the same digest.
+
+The ingestion order should prefer:
+
+1. write to a temporary/staging location;
+2. compute and verify digest/size;
+3. atomically move/commit immutable bytes to the final content-addressed location;
+4. commit the PostgreSQL resource-version metadata that references the completed blob;
+5. reconcile/garbage-collect orphaned temporary or unreferenced blobs separately.
+
+This ordering prefers a harmless orphaned blob after a crash over a canonical database record that points to bytes that were never durably committed.
+
+The artifact storage root must be configurable so it may later move to another local drive, NAS, or object-storage backend behind the same Knowledge Core storage interface.
+
+A separate S3/MinIO-style service is not required initially. It should be introduced only if measured capacity, replication, remote access, concurrency, or operations requirements justify the added complexity.
+
+**Reason:** a content-addressed local store gives immutable exact-version identity, deduplication, reproducibility, integrity checking, straightforward backup, and low operational complexity while preserving a clean migration path to another backend later.
+
+---
+
 # Open physical-design decisions
 
 These remain deliberately unresolved and should be decided before freezing the deep Knowledge Core folder/package layout:
 
 1. Detailed PostgreSQL table split for entities, assertions, occurrences, resources, resource versions, semantic profiles, assertion values/participants, reference-registry subtype constraints, provenance links, and lifecycle transitions.
-2. Artifact/file-store mechanism and content/version layout.
-3. Semantic-profile/vocabulary physical representation and migration rules.
-4. Knowledge Core service API and operation classes.
-5. Retrieval pipeline: structured, relationship, full-text, semantic, composite, and context-construction boundary.
-6. Derived-data generation, invalidation, rebuild, and versioning.
-7. Identity-resolution workflow, ambiguity, merge/split, replacement, and reversal mechanics.
-8. Deletion/retention/reconciliation workflow across canonical and derived planes.
-9. Concurrency, revision/precondition, and stale-write protection.
-10. Backup, recovery, restore, and deletion-ledger reconciliation.
-11. Initial OS process/service identities and permission boundaries.
-12. Secret/credential storage and access boundaries.
-13. The first implementation vertical slice and its validation gates.
+2. Semantic-profile/vocabulary physical representation and migration rules.
+3. Knowledge Core service API and operation classes.
+4. Retrieval pipeline: structured, relationship, full-text, semantic, composite, and context-construction boundary.
+5. Derived-data generation, invalidation, rebuild, and versioning.
+6. Identity-resolution workflow, ambiguity, merge/split, replacement, and reversal mechanics.
+7. Deletion/retention/reconciliation workflow across canonical and derived planes.
+8. Concurrency, revision/precondition, and stale-write protection.
+9. Backup, recovery, restore, and deletion-ledger reconciliation.
+10. Initial OS process/service identities and permission boundaries.
+11. Secret/credential storage and access boundaries.
+12. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -385,4 +439,4 @@ During physical architecture design:
 
 # Current next decision
 
-The next design discussion should choose the initial artifact/file-store mechanism and exact-version layout for large resources. The goal is to preserve immutable content identity and reproducible provenance without introducing a separate object-storage service unless it earns its complexity.
+The next design discussion should define how SEMANTIC PROFILE / VOCABULARY definitions are physically versioned and activated. The design must let ACL, Vera, research, device, software, and future domains add governed predicates/kinds without changing the universal core or retroactively changing the meaning of old assertions.
