@@ -5,37 +5,17 @@ This component is the bounded Knowledge Core Kernel implementation.
 ## Current implementation state
 
 **Branch:** `architecture/knowledge-core`  
-**Task 8 starting checkpoint:** `cf0e3703a2fa762147b0f86cc6a3f2dbddd84c08`  
-**Task 8 implementation commit:** `c9dc15332183d05a39f37b338fa2a2459404a851`  
-**Status:** Tasks 1–8 are implemented. Kernel Gates 12–17 are accepted by bounded runtime semantic validation. Gate 18 and Gate 19 remain unresolved; no later implementation task has started.
+**Task 9 starting checkpoint:** `6bd4872531c899298754a4409e88ac90f0edec80`  
+**Task 9 implementation commits:** `0dac8b8d199a87c2698c06fcebdecd6512a94e9b`, `6d60a960fd3886dde81a9aade4909375623103b3`, `cc2f1ae84fdf543e61441e2f641b915c3089e882`  
+**Status:** Tasks 1–9 are implemented. Kernel Gates 12–18 are accepted by bounded runtime semantic validation. Gate 19 and the final Kernel acceptance replay remain unresolved; no later implementation task has started.
 
 The architecture documents under `docs/architecture/knowledge-core/` remain the design baseline. Later work must remain bounded by the user and `EXECUTION_GOVERNANCE.md`.
 
 ## Implemented Kernel boundary
 
-### Task 1 — foundation + typed assertion + correction/undo
+### Tasks 1–6
 
-Implemented canonical revisions/refs, immutable semantic foundations, entities, typed assertions, append-only correction, and explicit reversal.
-
-### Task 2 — bitemporal history + current projection
-
-Implemented independent world/knowledge time, historical belief, conflict preservation, lifecycle-aware current selection, and rebuildable `kc_derived.current_assertion`.
-
-### Task 3 — operation/idempotency + stale-writer protection
-
-Implemented `kc_control.operation`, stable operation IDs/request digests, idempotent settled replay, stale revision rejection, and PostgreSQL managed-write serialization.
-
-### Task 4 — exact resources/provenance
-
-Implemented logical resources, exact resource versions, historical locators, immutable SHA-256 artifacts, exact-version provenance, backward explanation, and forward impact.
-
-### Task 5 — identity transitions
-
-Implemented append-only merge, explicit split reversal, replacement-not-equivalence, and rebuildable current identity projection.
-
-### Task 6 — deletion/restriction fence
-
-Implemented durable restriction/erasure control, serving fences, bounded assertion tombstoning, fail-closed blocked erasure, and anti-resurrection reconciliation.
+Implemented the canonical typed assertion/history foundation, bitemporal current projection, managed operation/idempotency and stale-writer protection, exact resource-version provenance, reversible identity transitions, and deletion/restriction anti-resurrection fence.
 
 Kernel Gates 12–16 were accepted at checkpoint `e018e86f92d5f504637807bdee78c28852498841` through isolated runtime semantic validation.
 
@@ -43,110 +23,113 @@ Kernel Gates 12–16 were accepted at checkpoint `e018e86f92d5f504637807bdee78c2
 
 Implemented the first FastAPI/Pydantic service-only semantic boundary for health/status, entities, assertions, temporal retrieval, correction/reversal, and identity transitions. Exposed mutations use Task 3 managed-operation semantics; serving reads and newly executed serving mutations honor the Task 6 fence. Raw SQL/database credentials and privileged deletion/admin routes are not exposed.
 
-The Task 7 review also found and fixed a fence/idempotency ordering bug: serving-fence checks now run inside the managed operation action so a settled retry remains deterministic after later restriction, while a new write against a restricted target still fails closed.
-
-Task 7 intentionally does not expose resource ingestion yet because an exact duplicate re-ingest can be a valid semantic no-op with no new canonical revision, while the current generic managed-operation helper assumes every successful managed operation creates one. That operation-model mismatch must be resolved before the resource/provenance HTTP path and Gate 19 are complete.
+Task 7 deliberately does not expose resource ingestion yet. Exact duplicate re-ingest can be a valid semantic no-op with no new canonical revision, while the current generic managed-operation helper assumes every successful managed operation creates one. That mismatch must be resolved before the resource/provenance HTTP path and Gate 19 are complete.
 
 ### Task 8 — semantic profile immutability / Gate 17
 
+Implemented append-only `kc_control.profile_activation`, immutable exact profile revisions, managed profile revision creation/activation, exact assertion semantic resolution through pinned revision refs, and the rule that a material predicate shape change requires a new predicate identity or explicit future migration path.
+
+**Gate 17: accepted.**
+
+### Task 9 — derived-generation staleness/fencing / Gate 18
+
 Implemented:
 
-- `kc_control.profile_activation` as append-only operational activation history;
-- migration `0007_task8_profile_immutability.py` with chain `0006_task6 -> 0007_task8`;
-- managed/idempotent creation of a new exact semantic profile revision from a source revision;
-- carried-forward kind/predicate identities with **new exact revision refs** pinned to the new profile revision;
-- managed/idempotent activation of a profile revision for new writes;
-- current active-profile selection from the latest activation event rather than mutating an old profile snapshot;
-- explicit assertion-semantic resolution through the assertion’s pinned profile/predicate revision refs;
-- managed creation of a new semantic predicate identity for a material meaning change;
-- an application invariant that rejects changing the currently modeled material predicate shape (`scalar` versus `reference`) under the same predicate identity;
-- focused Gate 17 test coverage for revision activation, old-assertion semantic preservation, new-write use of revision 2, material meaning change, and operation replay.
+- `kc_derived.generation`;
+- `kc_derived.generation_source`;
+- migration `0008_task9_generation_fencing.py` with chain `0007_task8 -> 0008_task9`;
+- exact generation lineage through canonical source revision high-water, optional exact profile revision, optional model identity/version/config digest, and exact source refs/revisions;
+- explicit generation states `building`, `current`, `stale`, `failed`, `superseded`, `restricted`, and `deletion_pending`;
+- a monotonic `generation_sequence` assigned while holding a PostgreSQL transaction advisory lock;
+- a PostgreSQL/SQLite partial unique index allowing only one `current` generation per derived kind;
+- explicit stale marking when a source/profile change invalidates an earlier generation;
+- atomic promotion of a validated builder to `current`;
+- explicit `supersedes_generation` lineage when a newer generation replaces an older current generation;
+- an out-of-order finish fence: a lower-sequence builder cannot become current after a higher-sequence generation has already settled current;
+- late obsolete builders are marked `stale` rather than silently winning;
+- idempotent reads of already-current/already-stale generation state;
+- focused Task 9 tests authored for the literal Gate 18 sequence, the stronger unmarked-race case, supersession, and exact lineage.
 
-## Gate 17 semantic conventions
+## Gate 18 fencing model
 
-### Activation is operational state, not semantic mutation
+Generation timestamps are descriptive, not the ordering authority for settlement.
 
-`semantic_profile_revision` remains an exact immutable semantic snapshot. Activation does not change the revision row and does not rewrite assertions.
-
-The operational history is:
+The bounded Kernel uses a monotonic sequence allocated under the generation transaction lock:
 
 ```text
-profile revision 1 --activation event--> current for new writes
-profile revision 2 --activation event--> current for new writes
+generation 41 starts
+        |
+        +--- source/profile changes
+        |
+generation 42 starts and settles CURRENT
+        |
+generation 41 finishes late
+        |
+        +--- sequence 41 < current sequence 42
+             => generation 41 becomes STALE
+             => generation 42 remains CURRENT
 ```
 
-The latest activation event selects the revision used by callers that ask for the active revision. Older activation events remain in `kc_control.profile_activation`.
+This avoids using wall-clock completion order as a race-resolution mechanism.
 
-### Assertions remain pinned to the semantics they were written under
+Promotion also releases the existing partial-unique `current` slot before assigning it to the newer generation inside the same serialized transaction. This ordering is intentional for PostgreSQL uniqueness enforcement.
 
-An assertion stores both:
+Derived generation lifecycle is rebuild/control state, not canonical semantic truth. It therefore uses generation fencing rather than pretending every derived-state transition is a new canonical knowledge revision.
 
-- `profile_revision_ref`;
-- `predicate_revision_ref`.
+## Gate 18 validation performed
 
-Activating revision 2 therefore does not reinterpret a revision-1 assertion. Resolution follows the exact stored revision refs, not the current activation pointer.
+Bounded runtime semantic validation passed:
 
-### Material predicate meaning change requires a new identity
+1. create an old derived generation from source/profile revision 1;
+2. mark the old generation stale after the source/profile state changes;
+3. create a new generation against the newer canonical/profile state;
+4. settle the new generation current;
+5. attempt to finish the old stale generation and verify it cannot replace the new current generation;
+6. independently start two builders without explicitly staling the older one, settle the newer one first, and verify the older late finisher is automatically fenced stale;
+7. settle a newer generation over an older current generation and verify the older row becomes `superseded` with explicit supersession lineage;
+8. verify exact source/profile/model/config lineage remains attached to the generation.
 
-The current Kernel physically models predicate meaning only to the bounded extent needed by the first gates, including `value_shape` (`scalar` or `reference`). A change between those shapes is treated as material.
+**Gate 18 semantic result: PASS.**
 
-Task 8 rejects appending such a changed shape under the same `semantic_predicate` identity and requires a new predicate identity (or a future explicit governed migration path). This implements the Gate 17 rule without pretending the current small Kernel already models every future semantic dimension such as cardinality, inference flags, or rich validation schema.
+Additional validation performed:
 
-## Gate 17 validation performed
-
-Runtime semantic validation passed the bounded Gate 17 scenarios:
-
-1. activate profile revision 1;
-2. create an assertion under revision 1;
-3. create revision 2 by carrying forward the same semantic identities into new exact kind/predicate revisions;
-4. activate revision 2;
-5. verify the old assertion still resolves exactly under revision 1 semantics;
-6. create a new assertion under revision 2 and verify it resolves under revision 2 while sharing the unchanged predicate identity;
-7. attempt to change `has_name` from `scalar` to `reference` under the same predicate identity and verify rejection with no canonical revision advance;
-8. create a new predicate identity with `reference` shape and verify the new identity/revision is distinct;
-9. verify profile-revision creation and activation operations replay idempotently.
-
-**Gate 17 semantic result: PASS.**
-
-Additional validation:
-
-- new Task 8 source/test strings passed Python syntax compilation before commit;
-- PostgreSQL DDL compilation passed for `kc_control.profile_activation` and its indexes;
-- the Task 8 implementation diff from `cf0e3703` is one commit ahead and zero behind before this documentation checkpoint;
-- the implementation diff is confined to five Knowledge Core paths;
-- GitHub exposes no Actions workflow run for implementation commit `c9dc15332183d05a39f37b338fa2a2459404a851`.
+- all new Task 9 source/migration/test files passed Python syntax compilation before commit;
+- an isolated SQLAlchemy runtime harness passed the literal Gate 18 sequence and stronger out-of-order race case;
+- PostgreSQL DDL compilation passed for `kc_derived.generation`, `kc_derived.generation_source`, their lineage/index constraints, and the partial unique current-generation index;
+- final Task 9 implementation diff from `6bd48725` is three commits ahead and zero behind before this documentation checkpoint;
+- the implementation diff is confined to seven Knowledge Core paths;
+- GitHub exposes no Actions workflow run for implementation head `cc2f1ae84fdf543e61441e2f641b915c3089e882`.
 
 ### Validation not claimed
 
 This checkpoint does **not** claim:
 
-- execution of the exact checked-in `tests/test_task8_profiles.py` from a materialized repository checkout; the local runtime still cannot resolve `github.com`;
-- live PostgreSQL application of migrations `0001_task1` through `0007_task8`;
-- database-level trigger protection against a privileged operator issuing arbitrary direct SQL updates to semantic tables;
-- full future semantic-profile fields such as manifest digests, imports/dependencies, rich validation schemas, cardinality, or inference flags;
-- Gate 18 or Gate 19 acceptance;
+- execution of the exact checked-in `tests/test_task9_generations.py` from a materialized repository checkout; the local runtime still cannot resolve `github.com`;
+- live PostgreSQL application of migrations `0001_task1` through `0008_task9`;
+- a real concurrent multi-process PostgreSQL race test;
+- generation IDs already attached to every existing current/assertion/identity projection row;
+- Gate 19 acceptance;
 - final 19-gate Kernel acceptance.
 
-Gate 17 is accepted at the Kernel semantic-operation level. Raw direct database mutation remains outside the intended client boundary and is not treated as a supported semantic operation.
+The current Gate 18 slice proves generation lifecycle/fencing and lineage control. Individual derived families can adopt the generation ID as they are moved onto generation-managed rebuilds; that adoption must preserve the fencing rules rather than create an alternate currentness mechanism.
 
-## Task 8 architecture decision recorded in controlling state
+## Task 9 bounded implementation decision
 
-The bounded physical decision introduced by Task 8 is:
+The physical schema already required generation fencing but did not define a race-safe total order for competing builders. Task 9 records the following bounded implementation rule:
 
-> **Active semantic-profile revision is append-only operational control, separate from immutable semantic profile revisions.** `kc_control.profile_activation` records activation events ordered by canonical revision; the latest event selects the revision for new writes. Activation never rewrites prior profile/predicate revisions or assertions. Within the current Kernel’s modeled semantics, a predicate `value_shape` change is material and requires a new predicate identity or explicit future migration path.
+> **Derived-generation promotion uses a monotonic generation sequence, not wall-clock completion time, as the settlement fence.** PostgreSQL generation creation/promotion is serialized with a transaction advisory lock, and a partial unique index permits one current generation per bounded `derived_kind`. A generation with a lower sequence may never replace a higher-sequence generation that has already settled current.
 
-This decision is consistent with KC-D012 and `PHYSICAL_SCHEMA_V1.md`, which already state that exact profile revisions are immutable and that an “active for new writes” pointer is operational/current configuration rather than a rewrite of historical assertions.
+This is an implementation strengthening of KC-D015/KC-D018 and `PHYSICAL_SCHEMA_V1.md`; it does not make derived state canonical truth.
 
 ## Existing unresolved Kernel work
 
 The following work remains before a final Kernel checkpoint:
 
-1. **Gate 18 — derived generation staleness/fencing**;
-2. complete safe managed-operation semantics for successful no-canonical-mutation resource re-ingest;
-3. expose the resource/provenance semantic HTTP path only after that operation model is safe;
-4. **Gate 19 — service-only client acceptance replay**;
-5. full 19-gate replay/checkpoint;
-6. live PostgreSQL migration/integration validation when an execution environment is available.
+1. resolve safe managed-operation semantics for a successful **no-canonical-mutation** resource re-ingest;
+2. expose the resource/provenance semantic HTTP path only after that operation model is safe;
+3. **Gate 19 — service-only client acceptance replay** through FastAPI/TestClient or real loopback HTTP;
+4. full 19-gate replay/checkpoint;
+5. live PostgreSQL migration/integration validation when an execution environment is available.
 
 Earlier bounded deployment/privacy limitations also remain:
 
@@ -157,13 +140,9 @@ Earlier bounded deployment/privacy limitations also remain:
 
 ## Stop point
 
-Task 8 is implemented and **Gate 17 is accepted**. No Gate 18 / Task 9 implementation has started.
+Task 9 is implemented and **Gate 18 is accepted**. No Gate 19 / later implementation work has started.
 
-The next separately authorized implementation slice is:
-
-> **Gate 18 — derived generation staleness/fencing.**
-
-Do not add Vera/ACL domain features, embeddings, or Authority implementation as part of that slice.
+The next separately authorized bounded slice should resolve the resource-ingest operation-model mismatch required for the complete service-only Gate 19 path, then perform Gate 19 acceptance. Do not add Vera/ACL domain features, embeddings, or Authority implementation as part of that slice.
 
 ## Development
 
