@@ -177,11 +177,43 @@ Derived current-state projections may be replaced/rebuilt because they are not c
 
 ---
 
+## KC-D007 — Assertion semantics use typed relational fields with bounded JSON extensibility
+
+**Status:** Accepted
+
+Canonical ASSERTION records must not be implemented as an opaque generic JSON document or an untyped entity-attribute-value bucket.
+
+Semantics that Knowledge Core must reliably query, constrain, authorize against, reconstruct historically, or use for provenance are represented through explicit typed relational fields and/or governed relational child records.
+
+These include at minimum the physical equivalents of:
+
+- assertion identity;
+- governed predicate/profile identity;
+- subject/referent identity;
+- typed object/value identity or scalar value;
+- epistemic basis and polarity/value state;
+- world-valid time;
+- record/knowledge time and revision identity;
+- applicability/scope needed for selection;
+- lifecycle/currentness/supersession relationships;
+- sensitivity/ownership classification references used by external policy;
+- semantic profile revision.
+
+PostgreSQL `JSONB` may be used as a **bounded extension area** for profile-specific or uncommon metadata when doing so avoids needless schema churn. JSONB must not replace the typed core fields above, hide authority-critical semantics, or become an alternate ungoverned source of canonical meaning.
+
+Profile-defined JSON extensions, if canonical, must be validated against the applicable semantic-profile revision so their meaning is explicit and replayable.
+
+The exact table split and the exact representation of assertion subjects/objects/participants remain open; this decision establishes the typing boundary, not the final SQL schema.
+
+**Reason:** a JSON-everything design is initially convenient but would make temporal queries, constraints, conflict handling, provenance, authorization filtering, migrations, and indexing increasingly dependent on application conventions. A fully rigid table for every domain concept would create the opposite problem. Typed core semantics plus governed bounded extensions preserves both correctness and extensibility.
+
+---
+
 # Open physical-design decisions
 
 These remain deliberately unresolved and should be decided before freezing the deep Knowledge Core folder/package layout:
 
-1. PostgreSQL physical model for the six conceptual primitive families.
+1. Exact PostgreSQL table/relationship model for the six conceptual primitive families, including assertion subject/object/value representation.
 2. Exact temporal representation for world-valid time, transaction/knowledge time, current projections, corrections, and supersession.
 3. Provenance-link physical representation and traversal strategy.
 4. Artifact/file-store mechanism and content/version layout.
@@ -221,4 +253,4 @@ During physical architecture design:
 
 # Current next decision
 
-The next design discussion should refine the physical PostgreSQL persistence model, beginning with how append-oriented canonical assertions/history and rebuildable current projections should be represented without turning ASSERTION into an unstructured catch-all record.
+The next design discussion should decide the concrete relational shape of assertion subjects/objects/values and how Knowledge Core refers uniformly to entities, resources, occurrences, and other assertions without weakening foreign-key integrity or turning the schema into an untyped generic graph.
