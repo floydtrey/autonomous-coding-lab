@@ -11,6 +11,8 @@
 **RF-2 completion record:** `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md`  
 **First real-corpus pilot checkpoint:** `40849bd4de261089a030e09677568c3b4cf1a862`  
 **First real-corpus pilot CI:** GitHub Actions run `34373589343` — **success**  
+**Pinned-pilot replay fence checkpoint:** `cbbc4f9e89b571f1d6dd7704f68aa393f03f6aa1`  
+**Replay-fence CI:** GitHub Actions run `34374450129` — **success**  
 **Pilot classification manifest:** `docs/architecture/knowledge-core/REAL_CORPUS_PILOT_MANIFEST.json`
 
 ## Purpose
@@ -123,6 +125,25 @@ The new fast test verifies the ten-document manifest, exact baseline commit, exa
 The two new PostgreSQL tests ingest the exact real Markdown bytes into ephemeral Knowledge Core storage, build one current text generation, execute the predeclared known queries, and verify exact repository/path/commit/digest/resource-version/generation provenance. They also verify the same curated generation through the normal HTTP service-only boundary.
 
 The pilot passed without modification to RF-2 production code.
+
+### Pinned baseline replay fence
+
+The pilot acceptance corpus is intentionally immutable and pinned to exact source commit `adb2a48a1e248f24e43550d897eed1b5e300cc26`. After the pilot passed, checkpoint documentation updates changed `CURRENT_STATE.md` and `RETRIEVAL_FOUNDATION_HANDOFF.md`. A later exact-checkpoint CI run (`34374074126`) correctly failed because the historical pilot test compared the new working-tree bytes with the manifest's old blob identities.
+
+That failure did **not** invalidate the accepted pilot or RF-2. It exposed a replay-harness provenance hazard: a historical acceptance test must never ingest changed current files while continuing to label them with the old source commit.
+
+Checkpoint `cbbc4f9e89b571f1d6dd7704f68aa393f03f6aa1` therefore adds an explicit fail-safe replay fence. The pilot tests first verify whether every checked-out source path still matches its pinned baseline Git blob. If any source differs or is missing, the historical pilot tests skip and cite the already accepted exact pilot run rather than relabeling new bytes as old provenance.
+
+GitHub Actions run `34374450129` validated that fence:
+
+```text
+Alembic 0001_task1 -> 0009_rf2: passed
+Fast semantic suite: 47 passed, 1 intentionally skipped, 11 deselected, 2 upstream warnings
+PostgreSQL suite: 9 passed, 2 intentionally skipped, 48 deselected, 2 upstream warnings
+Workflow conclusion: success
+```
+
+The skip reason explicitly names the changed pinned paths and states that exact pilot acceptance remains GitHub Actions run `34373589343`. This is deliberate historical-fixture behavior, not a loss of test coverage for current RF-2 functionality; the normal RF-2 and PostgreSQL qualification tests continue to run and pass.
 
 ## Material finding — mixed-status documents
 
