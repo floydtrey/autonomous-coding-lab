@@ -5,11 +5,10 @@ This component is the bounded Knowledge Core Kernel implementation.
 ## Current implementation state
 
 **Branch:** `architecture/knowledge-core`  
-**Completed task:** Knowledge Core Kernel Task 4 — resource/artifact ingest + exact-version provenance  
-**Starting Task 4 checkpoint:** `0ca7951ac114890b6a755e0fc2d40992829d97d9`  
-**Task 4 implementation commit:** `8cfd8199e0497dca401de1515b459f68abf15976`  
-**Task 4 hardening/cleanup commits:** `0ed0710a822e8f38ec8aa78acb553c0fc241c69d`, `664e287e74086472b6d278f1e2909d4615473f9d`, `d9fcd2042bb1c27ec0f57c4589541fb833992e57`, `24e0a709e678a80b0fcea5d89e83a0df69e4059c`  
-**Status:** Tasks 1–4 implemented; Task 5 not started
+**Current task:** Knowledge Core Kernel Task 5 — reversible identity merge/split + replacement-not-equivalence  
+**Starting Task 5 checkpoint:** `d02954fe63bd08a4eb55885d407de56d0186f05a`  
+**Task 5 implementation commit:** `1a45f73ab7d3a9ab2fb5762700806e776e3cadc5`  
+**Status:** Tasks 1–4 checkpointed; Task 5 implemented but Gate 12–13 runtime validation is still pending; Task 6 not started
 
 This file is the durable implementation-progress checkpoint for the component. The architecture documents under `docs/architecture/knowledge-core/` remain the design baseline; later work must still be separately bounded by the user and `EXECUTION_GOVERNANCE.md`.
 
@@ -31,96 +30,138 @@ Implemented:
 Implemented:
 
 - independent world-valid and knowledge-record time;
-- timezone-aware half-open world intervals `[valid_from, valid_to)`;
-- historical-belief queries using both world time and knowledge cutoff;
-- late correction without rewriting earlier recorded belief;
-- lifecycle-aware current selection across correction and reversal transitions;
-- conflict preservation when multiple assertions remain simultaneously current;
-- deterministic conflict-group identity;
-- disposable/rebuildable `kc_derived.current_assertion` projection.
+- historical-belief queries;
+- late correction without rewriting prior belief;
+- lifecycle-aware current assertion selection;
+- unresolved conflict preservation;
+- deterministic rebuildable `kc_derived.current_assertion`.
 
 ### Task 3 — operation/idempotency + stale-writer protection
 
 Implemented:
 
 - `kc_control.operation` control ledger;
-- stable UUID operation identities and deterministic request digests;
-- canonical revision binding through `kc.revision.operation_id`;
-- settled replay for identical operation retries;
-- rejection of materially different operation-ID reuse;
-- optimistic revision preconditions for state-dependent correction;
-- durable stale-write conflict state without unintended canonical mutation;
-- one PostgreSQL transaction-scoped advisory lock across Task 3 managed canonical writes.
+- stable operation IDs and request digests;
+- idempotent settled replay;
+- stale revision rejection without unintended canonical mutation;
+- PostgreSQL transaction-scoped serialization for managed writes.
 
 ### Task 4 — resource/artifact ingest + exact-version provenance
 
 Implemented:
 
-- canonical `kc.resource`, `kc.resource_version`, `kc.resource_locator`, and `kc.provenance_link` records;
-- universal `resource` and `resource_version` reference kinds;
-- a separate minimal `resource-test` semantic profile so Task 4 does not silently mutate the earlier `core-test` profile revision;
-- local immutable SHA-256 content-addressed artifact storage outside PostgreSQL;
-- digest/size/backend/key metadata in PostgreSQL while exact artifact bytes remain in the artifact backend;
-- resource-version uniqueness scoped to `(logical resource, digest algorithm, digest)` rather than global semantic merging;
-- physical artifact deduplication without merging distinct logical resource identities;
-- ingestion occurrences and historical locator observations pinned to exact resource versions;
-- stable re-ingest of an already-known exact version without inventing a second version;
-- recording of a newly observed locator for an existing exact version without inventing a new version;
-- typed provenance links using the governed `supports_claim` relation revision;
-- assertion evidence links that target an exact `RESOURCE VERSION`, never a mutable path/URL locator;
-- backward assertion explanation to the exact consumed evidence version;
-- forward impact traversal from an exact resource version to dependent assertion refs;
-- rejection of an ordinary domain reference predicate attempting to masquerade as provenance.
+- logical resources and exact resource versions;
+- historical mutable locators;
+- immutable SHA-256 content-addressed artifact storage;
+- exact-version provenance;
+- backward explanation and forward impact traversal;
+- physical deduplication without logical-resource identity collapse.
 
-Task 4 deliberately does **not** implement identity transitions, deletion/restriction, FastAPI routes, Authority, embeddings, Vera integration, ACL integration, or later Kernel features.
+### Task 5 — identity transitions
 
-## Task 4 semantic conventions
+Implemented in code:
 
-For the bounded Gate 7/8 slice, provenance uses this direction:
+- canonical `kc.identity_transition` records anchored by `OCCURRENCE`;
+- canonical `kc.identity_transition_member` rows with governed member roles;
+- rebuildable `kc_derived.current_identity_member` projection;
+- separate `identity-test` semantic profile with `person`, `device`, `identity_resolution`, and `has_name` test vocabulary;
+- append-only `merge` transitions with an explicit representative;
+- explicit merge reversal as a new `split` transition whose `reverses_transition_ref` points to the original merge;
+- prevention of applying a second reversal to the same merge;
+- deterministic current-equivalence group IDs from active merge membership;
+- singleton fallback semantics when an entity has no active equivalence transition;
+- transitive active-merge projection using connected components;
+- `replace(old,new)` transitions recorded as succession history only;
+- explicit exclusion of `replace` from the equivalence projection;
+- identity history retrieval without rewriting entity or assertion foreign keys;
+- deterministic destruction/rebuild behavior for the current identity projection.
+
+Task 5 deliberately does **not** implement deletion/restriction, FastAPI routes, Authority, embeddings, Vera integration, ACL integration, or later Kernel features.
+
+## Task 5 semantic conventions
+
+### Merge versus stored assertions
+
+A merge does not rewrite assertions from one entity ref onto another entity ref. Canonical assertions retain their original subjects. Current equivalence is represented only by the rebuildable identity projection.
+
+### Reversal
+
+Task 5 represents merge undo as an explicit canonical transition:
 
 ```text
-dependent assertion --supports_claim--> exact resource version
+MERGE(A, B; representative=A)
+SPLIT(A, B; reverses=<merge transition>)
 ```
 
-The mutable locator is historical observation metadata on the logical resource/version. It is never substituted for the exact version in provenance. This lets the same indexed provenance links support both:
+The original merge remains historical evidence. Rebuilding current identity state ignores a merge that has an explicit reversal, so A and B return to separate singleton identities unless another active equivalence transition still connects them.
 
-- backward explanation: assertion -> exact evidence version;
-- forward impact: exact evidence version -> dependent assertion(s).
+Task 5 implements `split` only as the explicit reversal form needed by Gate 12; it does not introduce a general arbitrary partitioning API.
 
-Identical bytes may share one physical SHA-256 artifact key across logical resources, but each logical resource retains its own semantic `resource_version` ref. Physical deduplication therefore does not collapse provenance, ownership, or resource identity.
+### Replacement is not equivalence
 
-## Task 4 validation checkpoint
+A replacement records succession:
 
-Validation performed before this durable checkpoint:
+```text
+old device --replace--> new device
+```
 
-- Task 4 Python source syntax pre-check: passed;
-- local SHA-256 artifact-store commit/read/verify harness: passed;
-- Task 4 SQLAlchemy resource/provenance models created successfully under isolated SQLite schema translation;
-- the same Task 4 SQLAlchemy tables/indexes compiled successfully to PostgreSQL DDL;
-- isolated SQLite Task 4 semantic harness: passed for distinct mutable-path versions, exact-byte retrieval, backward explanation, forward impact, and locator history;
-- isolated negative/re-ingest harness: passed for stable exact re-ingest and rejection of a non-provenance domain relation;
-- committed focused Task 4 tests contain six cases covering the Gate 7/8 behaviors and the two review edge cases;
-- GitHub Actions for the final Task 4 implementation head before checkpoint: no workflow run existed.
+It does not place the two devices in the same resolution group and does not make historical assertions about the old device become assertions about the new device. This is the bounded Gate 13 rule.
 
-The bounded validation proves the intended Task 4 semantics, but it is not a claim of a complete repository-side CI run.
+The physical schema reserves the accepted identity transition codes `resolve_same`, `resolve_different`, `merge`, `split`, `replace`, and `reassign_identifier`, but Task 5 application methods implement only the Gate 12–13 operations: merge, merge reversal/split, and replace.
 
-### Validation and implementation limitations
+## Task 5 focused tests authored
 
-The execution environment still did not provide a live PostgreSQL service, so this checkpoint does **not** claim that migrations `0001_task1` through `0004_task4` were applied to a running PostgreSQL database. It also does not claim a live artifact-filesystem/PostgreSQL crash-recovery test.
+`tests/test_task5_identity.py` contains five focused cases covering:
 
-Artifact bytes are committed to the immutable content-addressed backend before the corresponding canonical database mutation settles. If a database transaction fails after the artifact commit, an unreachable immutable artifact blob can remain. That cannot make canonical provenance point to incorrect bytes, but explicit orphan/reconciliation tooling is not implemented in Task 4 and must not be assumed to exist.
+1. two same-name people merge into one current resolution group while both original assertions remain unchanged, then explicit reversal restores separate identities;
+2. the same merge cannot be reversed twice;
+3. a device replacement remains succession history and never becomes current equivalence;
+4. current identity projection destruction/rebuild is deterministic;
+5. invalid merge/replacement shapes are rejected.
 
-A live PostgreSQL migration/integration gate remains required before relying on PostgreSQL-specific runtime behavior in later deployment work.
+## Task 5 validation checkpoint
+
+Validation actually available in this session:
+
+- remote starting HEAD verified as `d02954fe63bd08a4eb55885d407de56d0186f05a`;
+- committed Task 5 diff reviewed against `PHYSICAL_SCHEMA_V1.md` and Kernel Gates 12–13;
+- migration `0005_task5` and SQLAlchemy identity model were checked for field/constraint consistency;
+- implementation diff is one commit ahead and zero behind the Task 4 checkpoint before this documentation commit;
+- GitHub exposes no workflow run and no commit status checks for implementation commit `1a45f73`.
+
+### Validation not completed
+
+The focused Task 5 tests were **authored but not runtime-executed in this session**. The available GitHub connection provides repository reads/writes but no code-execution environment, and the local runtime could not reach GitHub to materialize this branch for test execution.
+
+A live PostgreSQL service was also not available. Therefore this checkpoint does **not** claim:
+
+- Gate 12 or Gate 13 acceptance has passed at runtime;
+- `pytest` execution of `test_task5_identity.py`;
+- Alembic application of migrations `0001_task1` through `0005_task5` to a running PostgreSQL database;
+- live PostgreSQL identity-projection behavior.
+
+The code review did not reveal a blocking identity-model contradiction, but the Kernel implementation plan explicitly says acceptance gates must pass before advancing.
+
+## Known bounded limitations
+
+- Task 5 identity mutation methods are lower-level Kernel operations and are not yet exposed through the future FastAPI/service-only boundary.
+- They are not yet wrapped in dedicated Task 3 operation-ID/idempotency request methods; the later service mutation path must preserve the managed-operation requirements rather than expose unguarded writes.
+- `resolve_same`, `resolve_different`, and `reassign_identifier` are schema-reserved codes only in this slice.
+- The identity projection is derived and must be rebuilt after identity-transition changes; it is not canonical truth.
 
 ## Stop point
 
-Task 4 is complete at this checkpoint. **Task 5 has not been started.**
+Task 5 implementation is checkpointed, but **Task 5 is not yet acceptance-validated and Task 6 has not been started.**
 
-The next separately authorized task from the Kernel build order is:
+The next permitted action is:
 
-> **Knowledge Core Kernel Task 5: identity transitions — reversible identity merge/split semantics + replacement-not-equivalence.**
+> Run the focused Task 5 identity tests and migration validation for Gates 12–13. If they pass, record Task 5 as accepted before beginning Task 6.
 
-That task should cover only the identity boundary needed for Kernel Gates 12 and 13. Do not begin deletion/restriction, FastAPI service routes, Authority, embeddings, Vera, ACL integration, or later Kernel areas implicitly.
+The next separately authorized implementation slice after that validation is expected to be:
+
+> **Knowledge Core Kernel Task 6: deletion/restriction semantic fence + erasure/anti-resurrection behavior for Gates 14–16.**
+
+Do not begin Task 6 while Gate 12–13 validation remains unresolved.
 
 ## Development
 
