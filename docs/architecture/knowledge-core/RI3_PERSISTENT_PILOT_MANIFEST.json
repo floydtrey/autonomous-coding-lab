@@ -1,0 +1,42 @@
+{
+  "schema_version": 2,
+  "manifest_id": "ri3-persistent-operational-pilot-v1",
+  "source_repository_key": "acl-knowledge-core-ri3-pilot",
+  "repository_locator": "git://autonomous-coding-lab/ri3-pilot",
+  "source_commit": "3e675f0ffb584d6b270e0a7c52428c74a5496be3",
+  "previous_manifest_digest": null,
+  "history_policy": "retain_prior_versions_as_superseded",
+  "entries": [
+    {
+      "source_document_key": "kc-current-state",
+      "path": "docs/architecture/knowledge-core/CURRENT_STATE.md",
+      "git_blob_sha": "d6f33cb5aa98888e4c600bbcc7fd71ccb3f37c71",
+      "media_type": "text/markdown",
+      "classification": "approved-current",
+      "retrieval_lifecycle": "current",
+      "authority_rank": 1,
+      "rationale": "Controlling branch-specific Knowledge Core state at the RI-2 checkpoint."
+    },
+    {
+      "source_document_key": "kc-ri2-completion",
+      "path": "docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI2.md",
+      "git_blob_sha": "bc12a15dbac70e1ba538e313ce87dfed41b9e831",
+      "media_type": "text/markdown",
+      "classification": "approved-current",
+      "retrieval_lifecycle": "current",
+      "authority_rank": 5,
+      "rationale": "Accepted RI-2 completion record and current repository-import behavior."
+    },
+    {
+      "source_document_key": "kc-ri1-design",
+      "path": "docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI1.md",
+      "git_blob_sha": "457472f7928994ab40e1c8f4faea7e70e93b7449",
+      "media_type": "text/markdown",
+      "classification": "approved-historical",
+      "retrieval_lifecycle": "superseded",
+      "authority_rank": 20,
+      "rationale": "Historical design record retained for explicit superseded retrieval after RI-2 implementation."
+    }
+  ],
+  "retirements": []
+}
