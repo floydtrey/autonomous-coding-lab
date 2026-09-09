@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "pilot_id": "knowledge-core-architecture-docs-v1",
+  "repository": "floydtrey/autonomous-coding-lab",
+  "source_commit": "adb2a48a1e248f24e43550d897eed1b5e300cc26",
+  "source_directory": "docs/architecture/knowledge-core",
+  "purpose": "First curated real-corpus RF-2 pilot. Classify the bounded Knowledge Core architecture-document set before ingest and validate whole-resource lexical retrieval against exact repository provenance.",
+  "documents": [
+    {
+      "path": "docs/architecture/knowledge-core/ARCHITECTURE_V1.md",
+      "git_blob_sha": "88ecaad5fa0deb30eaea5114a1b49de1af9b981d",
+      "classification": "historical_design",
+      "retrieval_lifecycle": "superseded",
+      "authority_rank": 20,
+      "approved_for_pilot": true,
+      "superseded_by": "docs/architecture/knowledge-core/CURRENT_STATE.md",
+      "rationale": "Core architecture remains useful evidence, but the document-level status says Kernel implementation has not started. Whole-resource retrieval cannot safely treat that stale operational framing as current."
+    },
+    {
+      "path": "docs/architecture/knowledge-core/CURRENT_STATE.md",
+      "git_blob_sha": "db488b585348f8657dc22be891e4520eae9f54ab",
+      "classification": "current_authoritative",
+      "retrieval_lifecycle": "current",
+      "authority_rank": 1,
+      "approved_for_pilot": true,
+      "superseded_by": null,
+      "rationale": "Branch-specific controlling acceptance record and current Knowledge Core status."
+    },
+    {
+      "path": "docs/architecture/knowledge-core/DECISIONS.md",
+      "git_blob_sha": "9a0375f416c0623187f652211f31fd306bed9900",
+      "classification": "historical_mixed",
+      "retrieval_lifecycle": "superseded",
+      "authority_rank": 20,
+      "approved_for_pilot": true,
+      "superseded_by": "docs/architecture/knowledge-core/CURRENT_STATE.md",
+      "rationale": "Individual KC-D decisions remain valuable accepted evidence, but the whole file still says implementation has not started and names Kernel implementation as the current next task. Whole-resource RF-2 therefore classifies the document as historical rather than risk serving stale operational state."
+    },
+    {
+      "path": "docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md",
+      "git_blob_sha": "d22a3dce91e399cae2223af2bf897fff498fe8ed",
+      "classification": "current_authoritative",
+      "retrieval_lifecycle": "current",
+      "authority_rank": 2,
+      "approved_for_pilot": true,
+      "superseded_by": null,
+      "rationale": "Active execution rule for bounded Knowledge Core tasks."
+    },
+    {
+      "path": "docs/architecture/knowledge-core/IMPLEMENTATION_PLAN_V1.md",
+      "git_blob_sha": "b4a0e87335461218b6ee722c6b2c89b5ec79cfea",
+      "classification": "completed_plan",
+      "retrieval_lifecycle": "superseded",
+      "authority_rank": 15,
+      "approved_for_pilot": true,
+      "superseded_by": "docs/architecture/knowledge-core/CURRENT_STATE.md",
+      "rationale": "Accurate completed Kernel plan and evidence, but not a current work plan after gates 1-19 and later retrieval slices completed."
+    },
+    {
+      "path": "docs/architecture/knowledge-core/PHYSICAL_SCHEMA_V1.md",
+      "git_blob_sha": "02aebec62da4f9cfed5320361370e2a80e07f285",
+      "classification": "historical_design",
+      "retrieval_lifecycle": "superseded",
+      "authority_rank": 20,
+      "approved_for_pilot": true,
+      "superseded_by": null,
+      "rationale": "Useful architecture evidence, but explicitly describes a candidate that is not yet implementation DDL. Current physical truth is the implemented migrations/code plus CURRENT_STATE rather than this pre-DDL candidate alone."
+    },
+    {
+      "path": "docs/architecture/knowledge-core/POSTGRES_QUALIFICATION.md",
+      "git_blob_sha": "72b36f488f7bbefabd3899aefe690508a51b1ed6",
+      "classification": "historical_evidence",
+      "retrieval_lifecycle": "superseded",
+      "authority_rank": 10,
+      "approved_for_pilot": true,
+      "superseded_by": "docs/architecture/knowledge-core/CURRENT_STATE.md",
+      "rationale": "Accepted qualification evidence remains inspectable, but its stop boundary predates RF-1/RF-2 and should not answer ordinary current-state questions."
+    },
+    {
+      "path": "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_HANDOFF.md",
+      "git_blob_sha": "30ebbb0206a2d8561c97f21da4ca14462aae10fe",
+      "classification": "current_authoritative",
+      "retrieval_lifecycle": "current",
+      "authority_rank": 1,
+      "approved_for_pilot": true,
+      "superseded_by": null,
+      "rationale": "Current durable restart point and next-task boundary for retrieval/import work."
+    },
+    {
+      "path": "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md",
+      "git_blob_sha": "07f878a0e860433fd55cfe7d2fd7fb861f5cb2a2",
+      "classification": "historical_design",
+      "retrieval_lifecycle": "superseded",
+      "authority_rank": 10,
+      "approved_for_pilot": true,
+      "superseded_by": "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md",
+      "rationale": "Accepted design and falsification record, but its design-only status was followed by the validated RF-2 implementation."
+    },
+    {
+      "path": "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md",
+      "git_blob_sha": "4f650a67a1d3d657e348fd968e050f213d13e9f0",
+      "classification": "current_authoritative",
+      "retrieval_lifecycle": "current",
+      "authority_rank": 3,
+      "approved_for_pilot": true,
+      "superseded_by": null,
+      "rationale": "Validated RF-2 completion record and exact retrieval behavior/evidence."
+    }
+  ],
+  "known_queries": [
+    {
+      "id": "Q1-current-corpus-filter",
+      "query": "Knowledge Core",
+      "include_superseded": false,
+      "exact_paths": [
+        "docs/architecture/knowledge-core/CURRENT_STATE.md",
+        "docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md",
+        "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_HANDOFF.md",
+        "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md"
+      ]
+    },
+    {
+      "id": "Q2-historical-corpus-access",
+      "query": "Knowledge Core",
+      "include_superseded": true,
+      "exact_paths": [
+        "docs/architecture/knowledge-core/ARCHITECTURE_V1.md",
+        "docs/architecture/knowledge-core/CURRENT_STATE.md",
+        "docs/architecture/knowledge-core/DECISIONS.md",
+        "docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md",
+        "docs/architecture/knowledge-core/IMPLEMENTATION_PLAN_V1.md",
+        "docs/architecture/knowledge-core/PHYSICAL_SCHEMA_V1.md",
+        "docs/architecture/knowledge-core/POSTGRES_QUALIFICATION.md",
+        "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_HANDOFF.md",
+        "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md",
+        "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md"
+      ]
+    },
+    {
+      "id": "Q3-current-retrieval-boundary",
+      "query": "\"Current retrieval boundary\"",
+      "include_superseded": false,
+      "must_include": ["docs/architecture/knowledge-core/CURRENT_STATE.md"]
+    },
+    {
+      "id": "Q4-execution-governance",
+      "query": "\"documentation and checkpoint reserve\"",
+      "include_superseded": false,
+      "must_include": ["docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md"]
+    },
+    {
+      "id": "Q5-stale-kernel-status-default",
+      "query": "\"Kernel implementation not yet started\"",
+      "include_superseded": false,
+      "exact_paths": []
+    },
+    {
+      "id": "Q6-stale-kernel-status-historical",
+      "query": "\"Kernel implementation not yet started\"",
+      "include_superseded": true,
+      "must_include": [
+        "docs/architecture/knowledge-core/ARCHITECTURE_V1.md",
+        "docs/architecture/knowledge-core/DECISIONS.md"
+      ]
+    },
+    {
+      "id": "Q7-pre-ddl-schema-default",
+      "query": "\"accepted physical-schema architecture candidate\"",
+      "include_superseded": false,
+      "exact_paths": []
+    },
+    {
+      "id": "Q8-pre-ddl-schema-historical",
+      "query": "\"accepted physical-schema architecture candidate\"",
+      "include_superseded": true,
+      "must_include": ["docs/architecture/knowledge-core/PHYSICAL_SCHEMA_V1.md"]
+    },
+    {
+      "id": "Q9-rf2-migration",
+      "query": "0009_rf2",
+      "include_superseded": false,
+      "must_include": [
+        "docs/architecture/knowledge-core/CURRENT_STATE.md",
+        "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md"
+      ]
+    }
+  ],
+  "pilot_stop_boundary": "Validate this exact ten-document corpus only. Do not expand to other ACL/Vera/RiskCardOCR/research/legacy documents, do not add extraction/chunking/embeddings/RAG, and do not persist a production corpus as part of this pilot."
+}
