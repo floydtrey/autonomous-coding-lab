@@ -7,9 +7,11 @@ This component is the bounded Knowledge Core Kernel V1 implementation.
 **Branch:** `architecture/knowledge-core`  
 **Task 10 checkpoint:** `ea8ff441133329dfc19b631ed0172cdf12561704`  
 **Gate 19 validated implementation head:** `2bdbc2a161bd2756fa7139ecefd4ca8b160f148e`  
+**Final frozen Kernel V1 checkpoint:** `9e904f49480055615bb0cf32360dbdc8400e117c`  
+**Final checkpoint CI:** GitHub Actions run `34350709966` — **47 passed, 2 upstream deprecation warnings**  
 **Status:** **Kernel V1 gates 1–19 accepted. The Kernel boundary is frozen pending a separately authorized next slice.**
 
-The controlling acceptance record is `docs/architecture/knowledge-core/CURRENT_STATE.md`. The original plan in `docs/architecture/knowledge-core/IMPLEMENTATION_PLAN_V1.md` is now marked complete.
+The controlling acceptance record is `docs/architecture/knowledge-core/CURRENT_STATE.md`. The original plan in `docs/architecture/knowledge-core/IMPLEMENTATION_PLAN_V1.md` is marked complete. The final frozen checkpoint above is the durable restart/reference point for any future Knowledge Core work.
 
 ## Accepted Kernel capabilities
 
@@ -61,7 +63,7 @@ and made managed merge/replace/reversal rebuild the derived current-identity pro
 
 ## Exact repository validation
 
-A component workflow now runs on the branch with Python 3.12:
+A component workflow runs on the branch with Python 3.12:
 
 ```text
 python -m pip install -e ".[test]"
@@ -73,7 +75,7 @@ The integration gate found and fixed two pre-existing defects before acceptance:
 1. **Editable-package discovery:** setuptools attempted to package both `knowledge_core` and top-level `migrations`. Package discovery is now explicitly limited to `knowledge_core*`.
 2. **Deletion replay timezone normalization:** SQLite persisted timezone-aware deletion-control timestamps but returned naïve values, so an idempotent replay snapshot differed only by `tzinfo`. Deletion snapshots now normalize persisted timestamps to UTC.
 
-GitHub Actions run `34350296337` at `2bdbc2a161bd2756fa7139ecefd4ca8b160f148e` passed the exact checked-in component suite:
+GitHub Actions run `34350296337` first validated the implementation head `2bdbc2a161bd2756fa7139ecefd4ca8b160f148e`. After the freeze documentation was committed, run `34350709966` validated the exact final frozen checkpoint `9e904f49480055615bb0cf32360dbdc8400e117c`:
 
 ```text
 47 passed, 2 warnings
@@ -107,7 +109,7 @@ Those items require separately bounded future work. They are not reasons to reop
 
 **Stop here.** Do not immediately add Vera/ACL semantics, embeddings, Authority implementation, or production deployment features to this checkpoint.
 
-The next project slice must be selected separately. Candidate directions in the architecture plan include retrieval/full-text plus a first real ACL knowledge profile, or Authority-service implementation, depending project priority.
+The next project slice must be selected separately. Candidate directions include live PostgreSQL/deployment validation, retrieval/full-text plus a first real ACL knowledge profile, or Authority-service implementation, depending project priority.
 
 ## Development
 
