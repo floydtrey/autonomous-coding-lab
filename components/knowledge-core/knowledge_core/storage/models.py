@@ -22,6 +22,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 KC_SCHEMA = "kc"
+KC_DERIVED_SCHEMA = "kc_derived"
 REVISION_ID_TYPE = BigInteger().with_variant(Integer, "sqlite")
 
 
@@ -221,6 +222,10 @@ class Assertion(Base):
             "epistemic_basis IN ('stated','observed','imported','configured',"
             "'inferred','derived','verified','other-governed')"
         ),
+        CheckConstraint(
+            "valid_to IS NULL OR valid_from IS NULL OR valid_to > valid_from",
+            name="ck_assertion_valid_interval",
+        ),
         {"schema": KC_SCHEMA},
     )
 
@@ -238,6 +243,13 @@ class Assertion(Base):
     )
     value_state: Mapped[str] = mapped_column(String(32), nullable=False)
     epistemic_basis: Mapped[str] = mapped_column(String(32), nullable=False)
+    valid_from: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    valid_to: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    world_time_precision: Mapped[str | None] = mapped_column(String(32), nullable=True)
     created_revision_id: Mapped[int] = mapped_column(
         ForeignKey(f"{KC_SCHEMA}.revision.revision_id"), nullable=False
     )
@@ -315,3 +327,28 @@ class AssertionTransition(Base):
     created_revision_id: Mapped[int] = mapped_column(
         ForeignKey(f"{KC_SCHEMA}.revision.revision_id"), nullable=False
     )
+
+
+class CurrentAssertion(Base):
+    __tablename__ = "current_assertion"
+    __table_args__ = {"schema": KC_DERIVED_SCHEMA}
+
+    assertion_ref_id: Mapped[UUID] = mapped_column(
+        ForeignKey(f"{KC_SCHEMA}.assertion.ref_id"), primary_key=True
+    )
+    subject_ref_id: Mapped[UUID] = mapped_column(
+        ForeignKey(f"{KC_SCHEMA}.knowledge_ref.ref_id"), nullable=False, index=True
+    )
+    predicate_revision_ref: Mapped[UUID] = mapped_column(
+        ForeignKey(f"{KC_SCHEMA}.semantic_predicate_revision.ref_id"),
+        nullable=False,
+        index=True,
+    )
+    conflict_group_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    source_revision_id: Mapped[int] = mapped_column(
+        ForeignKey(f"{KC_SCHEMA}.revision.revision_id"), nullable=False
+    )
+    projection_revision_id: Mapped[int] = mapped_column(
+        ForeignKey(f"{KC_SCHEMA}.revision.revision_id"), nullable=False
+    )
+    selection_reason: Mapped[str] = mapped_column(String(64), nullable=False)

@@ -15,7 +15,9 @@ def create_database_engine(
 ) -> Engine:
     options: dict[str, object] = {"future": True}
     if sqlite_test_mode:
-        options["execution_options"] = {"schema_translate_map": {"kc": None}}
+        options["execution_options"] = {
+            "schema_translate_map": {"kc": None, "kc_derived": None}
+        }
     engine = create_engine(database_url, **options)
 
     if sqlite_test_mode:
@@ -33,7 +35,7 @@ def create_session_factory(engine: Engine) -> sessionmaker[Session]:
 
 
 def create_test_schema(engine: Engine) -> None:
-    """Create Task 1 tables for unit tests only; production uses Alembic."""
+    """Create bounded Kernel tables for unit tests only; production uses Alembic."""
     Base.metadata.create_all(engine)
 
 
