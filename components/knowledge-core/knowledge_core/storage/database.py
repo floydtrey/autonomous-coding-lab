@@ -16,7 +16,11 @@ def create_database_engine(
     options: dict[str, object] = {"future": True}
     if sqlite_test_mode:
         options["execution_options"] = {
-            "schema_translate_map": {"kc": None, "kc_derived": None}
+            "schema_translate_map": {
+                "kc": None,
+                "kc_control": None,
+                "kc_derived": None,
+            }
         }
     engine = create_engine(database_url, **options)
 

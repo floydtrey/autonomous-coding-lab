@@ -7,6 +7,8 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from knowledge_core.storage.models import Base
+# Register control-schema models in the shared SQLAlchemy metadata.
+from knowledge_core.storage import control_models as _control_models  # noqa: F401
 
 config = context.config
 
