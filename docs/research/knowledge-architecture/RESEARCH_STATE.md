@@ -3,31 +3,27 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `research/agent-landscape`  
 **Campaign:** Knowledge Architecture Evidence Campaign  
-**Status:** project revisits, coverage scan, promoted Agno revisit, all seven bounded standards/domain gap tasks, representative retrieval requirements, hostile/adversarial review, and conceptual architecture synthesis complete; stopped before the hand-authored cross-domain prototype  
+**Status:** all planned research, retrieval requirements, hostile review, conceptual synthesis, and hand-authored cross-domain prototype validation complete; storage/implementation architecture selection is now the next separately authorized phase  
 **Historical starting checkpoint:** `76a262889a4577613520931cc475e8888844f8fc`
 
 ---
 
 # Scope lock
 
-The campaign remains **requirements/architecture validation only** until the prototype gate is complete.
+The evidence/validation campaign is complete.
 
 The user explicitly requested scope-drift protection before KA-G3. That remains controlling.
 
 Do **not**:
 
-- restart broad research without a concrete uncovered evidence gap;
-- reopen completed project/domain revisits merely because an implementation choice is difficult;
-- select PostgreSQL, Neo4j, RDF, a vector store, object store, graph database, policy engine, or other physical storage/implementation technology before the prototype gate;
-- implement a knowledge/resource store;
-- implement retrieval/context construction;
-- create embeddings;
-- implement ACL or Vera;
-- run autonomous workers;
-- weaken the synthesis or acceptance requirements to fit a preferred technology;
-- treat the conceptual primitive names as database tables before the prototype validates them.
+- restart broad agent-framework or domain research without a concrete uncovered failure;
+- reopen completed revisits merely because an implementation choice is difficult;
+- weaken the 52 retrieval requirements, 44 hostile scenarios, six-family synthesis, or 22 prototype acceptance rules to fit a preferred technology;
+- treat conceptual primitive names as mandatory database tables;
+- implement ACL or Vera before a separate implementation plan is authorized;
+- conflate Knowledge, Authority, and Execution during physical design.
 
-The campaign remains governed by `CAMPAIGN_PLAN.md`.
+The campaign remains governed by `CAMPAIGN_PLAN.md` and its detailed artifacts.
 
 ---
 
@@ -56,13 +52,14 @@ The campaign remains governed by `CAMPAIGN_PLAN.md`.
 16. **KA-G4 — Knowledge Authorization + Actionability / Use-Purpose** — complete
 17. **KA-G5 — Resource / Artifact Identity and Lineage** — complete
 18. **KA-G6 — Privacy Deletion / Retention / Erasure Reconciliation** — complete
-19. **KA-G7 — Non-AI Operational-Domain Validation (Home Assistant / Matter-style)** — complete
+19. **KA-G7 — Non-AI Operational-Domain Validation** — complete
 
 ## Pre-build validation/design gates
 
-20. **Representative Retrieval Requirements** — complete
-21. **Hostile / Adversarial Scenario Review** — complete
+20. **Representative Retrieval Requirements** — complete; 52 requirements
+21. **Hostile / Adversarial Scenario Review** — complete; 44 scenarios
 22. **Conceptual Architecture Synthesis** — complete
+23. **Small Hand-Authored Cross-Domain Prototype / Validation** — complete; 22/22 acceptance rules pass
 
 ---
 
@@ -72,208 +69,173 @@ Project revisits live under `projects/`.
 
 Gap reports live under `gaps/`.
 
-Coverage scan:
+Additional campaign artifacts:
 
 - `COVERAGE_SCAN.md`
-
-Cumulative evidence ledgers:
-
 - `invariants.md`
 - `failure-patterns.md`
-
-Retrieval acceptance set:
-
 - `REPRESENTATIVE_RETRIEVAL_REQUIREMENTS.md`
-
-Hostile/adversarial review:
-
 - `HOSTILE_ADVERSARIAL_SCENARIOS.md`
-
-Conceptual synthesis:
-
 - `CONCEPTUAL_ARCHITECTURE_SYNTHESIS.md`
-
-Detailed evidence remains in the dedicated reports. This file is the compact current checkpoint.
+- `CROSS_DOMAIN_PROTOTYPE_VALIDATION.md`
 
 ---
 
-# Conceptual Architecture Synthesis verification and boundary
+# Prototype verification and boundary
 
 User authorization:
 
-- after the hostile/adversarial review, the user explicitly instructed `continue`;
-- the documented next candidate was Conceptual Architecture Synthesis;
-- this authorized synthesis only.
+- after Conceptual Architecture Synthesis, the user explicitly instructed `Continue`;
+- the documented next candidate was the Small Hand-Authored Cross-Domain Prototype / Validation;
+- this authorized the prototype only.
 
 Starting branch/head:
 
-`3c50071fe8b883624b356557be6e2f16783b879d`
+`8b84d966b83355c3566d86452daababb226e065f`
 
 Starting commit message:
 
-`research: complete hostile adversarial scenario review`
+`research: synthesize conceptual knowledge architecture`
 
-The synthesis was bounded to:
+The prototype was bounded to:
 
-- converting accumulated evidence into a minimal technology-neutral conceptual model;
-- resolving candidate primitive overlap;
-- defining canonical-versus-derived boundaries;
-- defining temporal, epistemic, identity, relationship, provenance and resource semantics;
-- defining interfaces between Knowledge, Authority and Execution;
-- preserving domain-profile extensibility;
-- mapping the 52 retrieval requirements and nine hostile seams into the model;
-- defining prototype acceptance rules.
+- a small technology-neutral worked dataset/model;
+- people, aliases, identity ambiguity and explicit identity transition;
+- explicit preferences/user statements;
+- research findings and source derivation;
+- mutable locators plus exact immutable resource versions;
+- device observations, unavailable/stale state and derived current state;
+- temporal relationship history and late correction;
+- conflicting assertions;
+- known-negative claims under explicit completeness;
+- authorization-sensitive knowledge references without implementing policy;
+- command/effect attempt plus later world observation without implementing an effect engine;
+- deletion/restriction and derivative reconciliation;
+- backup restore without forgotten-data resurrection;
+- profile/version evolution;
+- manual validation of all 22 synthesis acceptance rules.
 
 Explicitly excluded:
 
-- physical schema design;
-- SQL/graph/RDF/vector/object-store selection;
-- implementation;
+- production code;
+- database schema;
+- PostgreSQL/SQLite/Neo4j/RDF/vector/object-store selection;
 - embeddings;
 - policy-engine implementation;
 - retrieval implementation;
-- prototype execution itself.
+- ACL/Vera implementation;
+- autonomous workers.
 
 ---
 
-# Synthesis result
+# Prototype result
 
-The synthesis selects six **conceptual primitive families**:
+`CROSS_DOMAIN_PROTOTYPE_VALIDATION.md` records the worked model and validation.
 
-1. **ENTITY** — persistent semantic thing with stable internal identity.
-2. **ASSERTION** — provenance-bearing proposition, including facts, preferences, state claims, relationships, negative assertions and inferred conclusions.
-3. **OCCURRENCE** — bounded event/observation/activity/operation with occurrence identity and time.
-4. **RESOURCE** — logical information/artifact identity distinct from locator and exact observed representation/version.
-5. **EVIDENCE / PROVENANCE LINK** — typed lineage/attribution/support relationships across entities, assertions, resources and occurrences.
-6. **SEMANTIC PROFILE / VOCABULARY DEFINITION** — versioned definitions governing predicates, kinds, inference/applicability semantics and domain extensions.
+## Verdict
 
-The synthesis keeps the following outside the canonical knowledge core:
+**PASS — 22/22 synthesis acceptance rules are representable without a seventh universal primitive family.**
+
+The prototype successfully exercised:
+
+- same-name people without forced merge;
+- auditable identity transition;
+- world truth versus historical belief;
+- late correction without rewriting record history;
+- conflict and provenance preservation;
+- unknown versus known-negative under explicit completeness;
+- direct observation versus inferred current state;
+- direct relationship versus inferred path;
+- relationship semantic identity versus assertion occurrence identity;
+- exact consumed artifact version despite mutable locator;
+- backward explanation and forward impact provenance;
+- derived projection generation/staleness;
+- pre-model sensitivity/permission boundary;
+- read/disclose/automate/mutate authority separation;
+- stale approval invalidation;
+- dynamic target-set binding;
+- API acknowledgement versus physical/effect settlement;
+- retry/duplicate ambiguity;
+- deletion propagation through derivatives;
+- restore without forgotten-data resurrection;
+- domain-profile evolution without historical reinterpretation;
+- people/research/software/projects/devices through the same universal core.
+
+No broad research reopening is justified by the prototype.
+
+No additional universal primitive is required before physical design.
+
+---
+
+# Current conceptual architecture candidate
+
+Six universal primitive families:
+
+1. **ENTITY**
+2. **ASSERTION**
+3. **OCCURRENCE**
+4. **RESOURCE**
+5. **EVIDENCE / PROVENANCE LINK**
+6. **SEMANTIC PROFILE / VOCABULARY DEFINITION**
+
+Outside the canonical knowledge core:
 
 - **AUTHORITY / POLICY**
 - **EFFECT / EXECUTION LEDGER**
 - **DERIVED RETRIEVAL PROJECTIONS**
 - **CONTEXT CONSTRUCTION**
 
-Core governing separation:
+Core rule:
 
 > **Knowledge does not grant authority. Authority does not prove execution. Execution acknowledgement does not prove world settlement.**
 
----
-
-# Important synthesis decisions
-
-## Assertion unifies several earlier candidate classes
-
-The model does **not** require separate universal primitives for Fact, Preference, State or Relationship.
-
-Those are represented as typed ASSERTIONs with different semantic/profile metadata.
-
-Relationship semantics remain governed by versioned predicate definitions, while each relationship assertion occurrence retains its own provenance/time/evidence.
-
-## Observation is composition, not a separate universal storage universe
-
-A direct observation is modeled as:
-
-`OCCURRENCE + one or more grounded ASSERTIONs`
-
-Derived current state is a projection over assertions/observations under freshness, conflict and applicability rules.
-
-## Memory is not a canonical primitive
-
-Conversation memory, summaries, vector memory and similar mechanisms are source/derived/projection concepts built on the canonical substrate.
-
-## Domain concepts remain profiles
-
-Home Assistant entities, Matter endpoints, Git commits, GitHub issues, ACL workers, mine portals and other domain objects map into the universal concepts rather than becoming universal core primitives.
-
-## Physical storage remains undecided
-
-The primitive names above are semantic roles, **not database tables**.
+The primitive names are semantic roles, not physical-table mandates.
 
 ---
 
-# Nine hostile seams disposition
+# Storage/implementation evaluation criteria carried forward
 
-All nine hostile-review seams have an explicit place in the synthesized model:
+A physical architecture must demonstrate, not merely claim:
 
-1. identity transitions -> ENTITY + explicit transition OCCURRENCE/provenance;
-2. world-time vs knowledge-time -> ASSERTION/OCCURRENCE temporal axes;
-3. negative completeness -> ASSERTION epistemic state + completeness evidence;
-4. retrieved content vs instruction -> provenance/content typing + Authority boundary;
-5. authorization obligations/freshness -> external Authority decision context;
-6. target-set/effect settlement -> operation OCCURRENCE + external Effect Ledger;
-7. conflict preservation -> retained competing assertion occurrences + context requirements;
-8. derivative sensitivity/erasure -> lineage + derived generation + reconciliation;
-9. domain profiles -> SEMANTIC PROFILE / VOCABULARY.
+1. typed/queryable ASSERTION semantics without an unstructured everything-blob;
+2. governed provenance-link semantics;
+3. practical current/history/bitemporal retrieval;
+4. exact immutable resource/version identity plus mutable locators;
+5. direct-versus-inferred relationship traversal with explanation;
+6. derived projection source/generation identity and rebuildability;
+7. structured + relationship + full-text + semantic retrieval without semantic similarity becoming truth;
+8. authorization/sensitivity filtering before protected content reaches models;
+9. current policy/approval binding for consequential operations;
+10. stable occurrence/operation identity for retries and concurrency;
+11. effect settlement outside knowledge truth claims;
+12. deletion/restriction propagation across canonical, derived, cache/backup/restore planes;
+13. profile/schema evolution without historical reinterpretation;
+14. optimistic revision/precondition or equivalent stale-write protection;
+15. sufficient performance and maintainability for ACL and Vera without making either domain the storage schema.
 
-No seam requires another broad research pass before the prototype.
-
----
-
-# Retrieval-requirements disposition
-
-All **52 representative retrieval requirements** map to the six primitive families plus the Authority/Effect/Derived/Context interfaces.
-
-No requirement currently forces a seventh universal primitive family.
-
-This mapping remains a synthesis hypothesis until validated by the hand-authored prototype.
+Any storage candidate that requires weakening the campaign requirements should be rejected rather than changing the requirements.
 
 ---
 
-# Cumulative ledger disposition
+# Cumulative evidence ledgers
 
-Evidence ledger IDs remain:
+Invariant IDs remain **KA-I-001 through KA-I-049**.
 
-- **KA-I-001 through KA-I-049**
-- **KA-F-001 through KA-F-049**
+Failure IDs remain **KA-F-001 through KA-F-049**.
 
-The evidence ledgers are intentionally not rewritten into “final” status during synthesis. They remain provenance-bearing records of how the architecture was derived.
-
-The synthesized architecture is the current architecture candidate; the prototype is the falsification gate before physical design.
+The ledgers remain historical evidence records rather than being rewritten as implementation-specific rules.
 
 ---
 
-# Final prototype acceptance rules
+# Campaign gate decision
 
-The hand-authored prototype must demonstrate at least:
+All required pre-storage gates are complete.
 
-1. same-name people without forced merge;
-2. auditable/reversible identity transition;
-3. world truth at T versus historical belief at T;
-4. late correction without rewriting knowledge history;
-5. conflict with source provenance preserved;
-6. unknown versus known-negative under explicit completeness;
-7. direct observation versus inferred current state;
-8. direct relationship versus inferred path;
-9. relationship semantic identity versus assertion occurrence identity;
-10. exact consumed artifact version despite mutable locator;
-11. backward explanation and forward impact provenance;
-12. derived projection generation/staleness;
-13. pre-model permission/sensitivity filtering;
-14. read/disclose/automate/mutate authority separation;
-15. stale approval invalidation;
-16. dynamic target-set binding;
-17. command acknowledgement versus physical settlement;
-18. retry/duplicate ambiguity;
-19. deletion propagation through derivatives;
-20. restore without forgotten-data resurrection;
-21. domain-profile evolution without historical reinterpretation;
-22. people/research/software/projects/devices represented with the same universal core.
+**Gate result: PASS to begin a separately authorized Physical Storage / Implementation Architecture Selection phase.**
 
-Failure of any of these requires revisiting the conceptual synthesis before physical storage selection.
+That future phase should compare candidate physical architectures against the existing requirements and prototype rather than restarting conceptual research.
 
----
-
-# Pre-build scope-locked roadmap
-
-All direct research, retrieval-requirements construction, hostile review and conceptual synthesis are complete.
-
-Remaining path before physical implementation:
-
-1. **Small Hand-Authored Cross-Domain Prototype / Validation**
-2. **Only after that passes: physical storage selection and implementation design**
-
-This sequence remains a scope guard, not blanket authorization.
+It may evaluate technologies such as relational, graph, document, object/content-addressed, full-text and vector components, but no technology is selected by this checkpoint.
 
 ---
 
@@ -281,40 +243,22 @@ This sequence remains a scope guard, not blanket authorization.
 
 **No task is currently assigned.**
 
-Conceptual Architecture Synthesis is complete.
+The Knowledge Architecture Evidence Campaign and its required pre-storage validation gates are complete.
 
 ---
 
 # Planned next candidate
 
-**Small Hand-Authored Cross-Domain Prototype / Validation**
+**Physical Storage / Implementation Architecture Selection**
 
 Suggested bounded focus:
 
-- create a deliberately small technology-neutral example dataset/model, not production code;
-- include people/aliases, identity ambiguity and transition;
-- preferences and explicit user statements;
-- a research source/finding/derivation;
-- a repository/resource with mutable locator and exact version;
-- a device, observations, stale/unavailable state and derived state;
-- temporal relationship history;
-- conflicting assertions;
-- known-negative completeness example;
-- authorization-sensitive knowledge reference without implementing a policy engine;
-- command/effect attempt and later observation without implementing an effect engine;
-- deleted/restricted source plus derivative reconciliation example;
-- profile/version evolution;
-- manually exercise the 22 synthesis acceptance rules and representative retrieval patterns;
-- record any model failure before storage selection.
-
-Explicit exclusions:
-
-- production code;
-- database schema;
-- SQL/graph/RDF/vector-store selection;
-- embeddings;
-- ACL/Vera implementation;
-- autonomous workers.
+- derive physical requirements from the six-family synthesis, 52 retrieval requirements, 44 hostile scenarios, 22 prototype tests and storage criteria above;
+- compare a small number of plausible physical architectures rather than surveying every database;
+- evaluate canonical store, temporal/history strategy, relationship traversal, resource/object storage, full-text, semantic index, provenance, derived projections, concurrency, backup/restore and deletion reconciliation;
+- preserve Knowledge / Authority / Execution separation;
+- produce a recommended implementation architecture and migration/evolution strategy;
+- do not begin production implementation until the architecture selection is explicitly accepted.
 
 Queue position alone is not authorization.
 
@@ -322,6 +266,6 @@ Queue position alone is not authorization.
 
 # Stop point
 
-Conceptual Architecture Synthesis is complete and the campaign is stopped before the small hand-authored cross-domain prototype.
+The hand-authored prototype is complete and the campaign is stopped before physical storage / implementation architecture selection.
 
-No prototype construction, storage selection or implementation was started inside synthesis.
+No physical database, storage engine, graph engine, vector store, object store, schema, API, policy engine, retrieval service, production code, ACL/Vera implementation or autonomous worker was selected or built inside the prototype phase.
