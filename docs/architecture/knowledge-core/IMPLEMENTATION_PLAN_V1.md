@@ -4,7 +4,11 @@
 **Branch:** `architecture/knowledge-core`  
 **Component:** Knowledge Core  
 **Phase:** first implementation vertical slice  
-**Status:** architecture plan; implementation not yet started
+**Status:** **complete — Kernel V1 acceptance gates 1–19 passed; boundary frozen pending a separately authorized next slice**
+
+**Gate 19 validated implementation head:** `2bdbc2a161bd2756fa7139ecefd4ca8b160f148e`  
+**Exact acceptance evidence:** GitHub Actions run `34350296337` — **47 passed, 2 upstream deprecation warnings**.  
+See `docs/architecture/knowledge-core/CURRENT_STATE.md` for the accepted branch-specific checkpoint and remaining integration/deployment limitations.
 
 ---
 
@@ -574,4 +578,4 @@ Do not build embeddings or Vera integration while a lower numbered gate is faili
 
 The first implementation is deliberately a **small systems kernel**, not an assistant.
 
-If it passes, the project will have proven that the storage/API foundation can safely support later Vera and ACL work before either system depends on it.
+**Accepted result:** the V1 Kernel passed all 19 architecture gates. The service/storage foundation is now frozen at this boundary so later Vera/ACL work can depend on an explicitly validated kernel rather than an expanding prototype. Live PostgreSQL migration/deployment validation remains a separately bounded integration item, not an unrecorded extension of this slice.
