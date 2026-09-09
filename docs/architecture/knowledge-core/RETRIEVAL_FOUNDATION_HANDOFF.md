@@ -2,224 +2,162 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **first curated real-corpus retrieval pilot complete — awaiting separate authorization for RI-1 repository-import design**  
-**Frozen Kernel V1 checkpoint:** `9e904f49480055615bb0cf32360dbdc8400e117c`  
-**PostgreSQL qualification checkpoint:** `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`  
-**RF-1 design checkpoint:** `bf31baddb8efdc90ce7a1f1f4c6420d7b9f2cd3b`  
-**RF-2 validated implementation checkpoint:** `479a918762e919851e19fee3b36cc1d95e78f3e8`  
-**RF-2 CI:** GitHub Actions run `34371352821` — **success**  
-**RF-2 completion record:** `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md`  
-**First real-corpus pilot checkpoint:** `40849bd4de261089a030e09677568c3b4cf1a862`  
-**First real-corpus pilot CI:** GitHub Actions run `34373589343` — **success**  
-**Pinned-pilot replay fence checkpoint:** `cbbc4f9e89b571f1d6dd7704f68aa393f03f6aa1`  
-**Replay-fence CI:** GitHub Actions run `34374450129` — **success**  
-**Pilot classification manifest:** `docs/architecture/knowledge-core/REAL_CORPUS_PILOT_MANIFEST.json`
+**Status:** **RI-1 repository-import contract/design complete; RI-2 implementation not started**
 
-## Purpose
+## Accepted checkpoints
 
-This file is the durable restart point for Knowledge Core retrieval/import work. A fresh chat should recover state from the repository rather than relying on prior conversation context.
+- Frozen Kernel V1: `9e904f49480055615bb0cf32360dbdc8400e117c`
+- PostgreSQL qualification: `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`
+- RF-1 retrieval design: `bf31baddb8efdc90ce7a1f1f4c6420d7b9f2cd3b`
+- RF-2 retrieval implementation: `479a918762e919851e19fee3b36cc1d95e78f3e8`
+- RF-2 CI: run `34371352821` — success
+- First curated real-corpus pilot: `40849bd4de261089a030e09677568c3b4cf1a862`
+- Real-corpus pilot CI: run `34373589343` — 48 fast + 11 PostgreSQL tests passed
+- Pinned-pilot replay fence: `cbbc4f9e89b571f1d6dd7704f68aa393f03f6aa1`
+- Replay-fence CI: run `34374450129` — success with intentional historical-fixture skips after source docs changed
+- RI-1 design: `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI1.md`
 
-## Accepted baseline
+## Retrieval baseline
 
-Knowledge Core Kernel V1 remains frozen and accepted. Do not reopen or redesign its 19 accepted gates unless new evidence demonstrates a concrete defect.
+RF-2 remains accepted and unchanged. It retrieves exact whole `ResourceVersion` units using PostgreSQL full-text search, explicit lifecycle/authority metadata, exact source/version provenance, generation fencing, service-time restriction/deletion eligibility, and a service-only API. Supported indexable content remains strict UTF-8 `text/plain` and `text/markdown`.
 
-Post-Kernel Slice 1 — PostgreSQL Qualification remains accepted. It proved the real Alembic chain through `0008_task9`, PostgreSQL application use, stale-writer serialization, same-operation-ID contention/replay, advisory-lock blocking, generation late-finisher fencing, and transactional rollback.
+The first real-corpus pilot proved RF-2 against ten exact Knowledge Core Markdown blobs from source commit `adb2a48a1e248f24e43550d897eed1b5e300cc26`. Four documents were current and six historical/superseded. No production RF-2 repair was required.
 
-RF-1 — Retrieval design and falsifiable acceptance plan — is accepted in:
+The pilot also proved that mutable current checkout bytes must never be relabeled as an older pinned commit. Historical replay now fails safe/skips if pinned source blobs differ; exact accepted replay evidence remains run `34373589343`.
 
-`docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md`
+## RI-1 accepted decisions
 
-RF-2 — synthetic-first PostgreSQL lexical retrieval implementation — is complete and recorded in:
+RI-1 defines the safe persistent repository-import contract before implementation.
 
-`docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md`
+### Stable identity
 
-The first bounded real-corpus retrieval pilot is also complete. It validates RF-2 against exact repository Markdown rather than synthetic strings while deliberately avoiding production persistence or corpus expansion.
+Path is not document identity.
 
-## RF-2 accepted behavior
+Each managed repository has an immutable governed `source_repository_key`. Each managed logical document has an immutable explicit `source_document_key`.
 
-RF-2 implements the smallest deterministic lexical retrieval foundation designed in RF-1:
-
-- exact `resource_version_ref` is the retrieval unit;
-- supported content is strict UTF-8 `text/plain` and `text/markdown` only;
-- immutable artifact bytes remain outside PostgreSQL;
-- `kc_derived.resource_text_search` stores a rebuildable `tsvector` projection and approved source metadata;
-- PostgreSQL full-text retrieval uses fixed `english` configuration, `websearch_to_tsquery`, `@@`, and `ts_rank_cd`;
-- a GIN index supports the text vector;
-- text generations reuse `kc_derived.generation` / `generation_source` with `derived_kind='text'`;
-- lifecycle (`current`, `unknown`, `superseded`) and source authority are explicit classification metadata, not inferred from recency, keywords, or paths;
-- default search excludes superseded rows while explicit historical search can include them;
-- ranking is deterministic: lexical score, lifecycle, authority rank, canonical revision, then exact ref;
-- every returned result contains exact logical-resource/version/digest/source/generation provenance;
-- normal retrieval uses only the current settled text generation;
-- deletion/restriction purges derived lexical rows and service-time `resource_version_serving_eligible()` remains mandatory defense in depth;
-- normal clients use `POST /v1/retrieval/search` with `X-Knowledge-Caller` and receive no database or artifact-store credentials/paths.
-
-## Exact RF-2 validation
-
-GitHub Actions run `34371352821` validated exact implementation commit:
-
-`479a918762e919851e19fee3b36cc1d95e78f3e8`
-
-Evidence:
+The persistent identity binding is:
 
 ```text
-Alembic 0001_task1 -> 0009_rf2: passed
-Fast semantic suite: 47 passed, 9 deselected, 2 upstream warnings
-PostgreSQL suite: 9 passed, 47 deselected, 2 upstream warnings
-Workflow conclusion: success
+(source_repository_key, source_document_key) -> Knowledge Core logical Resource ref
 ```
 
-See `RETRIEVAL_FOUNDATION_RF2.md` for RF2-G1 through RF2-G14 gate disposition.
+Consequences:
 
-## First curated real-corpus pilot — complete
+- same key + changed bytes -> same Resource, new ResourceVersion;
+- same key + renamed path + same bytes -> same Resource and ResourceVersion, new path locator/source observation;
+- same key + path and bytes both changed -> same Resource only with explicit continuity rationale in the manifest;
+- different keys + identical bytes -> distinct logical Resources even if artifact bytes physically deduplicate;
+- true replacement uses a new document key and explicit replacement/supersession metadata rather than stealing the old identity.
 
-### Exact source boundary
+### Manifest chain
 
-The pilot used only the ten Markdown files present in:
+A future importer accepts only an explicit schema-versioned allowlist manifest pinned to an exact Git commit and exact blob IDs.
 
-`docs/architecture/knowledge-core/`
+Each changed manifest names the SHA-256 digest of the previously accepted manifest. Every previously managed document key must appear either as a present entry or an explicit retirement. Silent omission is invalid.
 
-at exact source checkpoint:
+The first implementation history policy is fixed to retain prior exact versions as `superseded` historical retrieval material unless an explicit retirement excludes them.
 
-`adb2a48a1e248f24e43550d897eed1b5e300cc26`
+Retirement is retrieval/import lifecycle only. It is not privacy deletion or canonical erasure.
 
-The checked-in `REAL_CORPUS_PILOT_MANIFEST.json` records every exact path and Git blob SHA plus explicit classification, retrieval lifecycle, authority rank, supersession note, and the known retrieval questions used for acceptance.
+### Source verification
 
-No path was discovered by a broad scanner and no file outside the manifest was ingested.
+All Git verification completes before writes:
 
-### Classification disposition
+- exact immutable commit, not branch/tag/HEAD;
+- exact manifest path at that commit;
+- regular blob object only, not tree/symlink/submodule;
+- exact Git blob ID match;
+- recomputed Git blob identity from exact commit-object bytes;
+- strict UTF-8 and RF-2-supported media type;
+- independent artifact SHA-256 during Knowledge Core ingest.
 
-Ordinary/current retrieval includes exactly four sources:
+The importer may read only explicit manifest paths/objects. It may not recursively scan, glob, or auto-add repository content.
 
-- `CURRENT_STATE.md`;
-- `EXECUTION_GOVERNANCE.md`;
-- `RETRIEVAL_FOUNDATION_HANDOFF.md`;
-- `RETRIEVAL_FOUNDATION_RF2.md`.
+### Durable import-control concepts
 
-Historical mode additionally preserves six explicit superseded sources:
+RI-1 requires persistent control state for:
 
-- `ARCHITECTURE_V1.md`;
-- `DECISIONS.md`;
-- `IMPLEMENTATION_PLAN_V1.md`;
-- `PHYSICAL_SCHEMA_V1.md`;
-- `POSTGRES_QUALIFICATION.md`;
-- `RETRIEVAL_FOUNDATION_RF1.md`.
+1. repository-document bindings;
+2. immutable repository source observations linking manifest/repo/document/commit/path/blob to exact ResourceVersion;
+3. immutable import receipts chained by canonical manifest digest and recording resulting text generation.
 
-### Exact pilot validation
+Exact table names remain RI-2 implementation details.
 
-GitHub Actions run `34373589343` validated exact pilot commit:
+### Plan/apply protocol
 
-`40849bd4de261089a030e09677568c3b4cf1a862`
+Dry-run produces a deterministic `ImportPlan` and performs no writes. It includes exact source proofs, expected previous manifest/current-generation preconditions, per-document actions, exact next generation source set, and plan digest.
 
-Evidence:
+Apply revalidates stale-sensitive source and state preconditions. No new text generation becomes current until the entire manifest settles. A failed/stale import leaves the previously current generation serving. Safely append-only resource/version residue may exist but is not represented as an accepted manifest or current generation.
 
-```text
-Alembic 0001_task1 -> 0009_rf2: passed
-Fast semantic suite: 48 passed, 11 deselected, 2 upstream warnings
-PostgreSQL suite: 11 passed, 48 deselected, 2 upstream warnings
-Workflow conclusion: success
-```
+Reapplying the exact accepted manifest is idempotent and must not create new Resources, ResourceVersions, locators, source observations, receipts, or text generations.
 
-The new fast test verifies the ten-document manifest, exact baseline commit, exact path set, current/superseded counts, and every source Git blob identity.
+Classification-only changes create no ResourceVersion but do require a new import receipt and new retrieval generation.
 
-The two new PostgreSQL tests ingest the exact real Markdown bytes into ephemeral Knowledge Core storage, build one current text generation, execute the predeclared known queries, and verify exact repository/path/commit/digest/resource-version/generation provenance. They also verify the same curated generation through the normal HTTP service-only boundary.
+## RI-2 acceptance boundary
 
-The pilot passed without modification to RF-2 production code.
+`REPOSITORY_IMPORT_RI1.md` defines RI2-G1 through RI2-G18. They cover:
 
-### Pinned baseline replay fence
+- bounded manifest validation;
+- verify-all-before-write behavior;
+- stable first-import bindings;
+- exact replay idempotency;
+- content update identity;
+- rename-only behavior;
+- rename-plus-edit continuity proof;
+- duplicate-content identity separation;
+- classification-only changes;
+- omission fail-closed;
+- explicit retirement retain/exclude semantics;
+- stale manifest/generation rejection;
+- source mutation between plan/apply;
+- failed publication non-serving behavior;
+- current-generation isolation;
+- exact end-to-end provenance;
+- service-only credential separation;
+- instrumentation proving no broad repository scan.
 
-The pilot acceptance corpus is intentionally immutable and pinned to exact source commit `adb2a48a1e248f24e43550d897eed1b5e300cc26`. After the pilot passed, checkpoint documentation updates changed `CURRENT_STATE.md` and `RETRIEVAL_FOUNDATION_HANDOFF.md`. A later exact-checkpoint CI run (`34374074126`) correctly failed because the historical pilot test compared the new working-tree bytes with the manifest's old blob identities.
+The controlled fixtures are synthetic Git history plus one tiny pinned real fixture only. No broad ACL/Vera/RiskCardOCR corpus is authorized.
 
-That failure did **not** invalidate the accepted pilot or RF-2. It exposed a replay-harness provenance hazard: a historical acceptance test must never ingest changed current files while continuing to label them with the old source commit.
+## Explicit non-goals
 
-Checkpoint `cbbc4f9e89b571f1d6dd7704f68aa393f03f6aa1` therefore adds an explicit fail-safe replay fence. The pilot tests first verify whether every checked-out source path still matches its pinned baseline Git blob. If any source differs or is missing, the historical pilot tests skip and cite the already accepted exact pilot run rather than relabeling new bytes as old provenance.
+Do not start any of the following without separate authorization:
 
-GitHub Actions run `34374450129` validated that fence:
+- broad or production repository import;
+- repository-wide automatic discovery/classification;
+- chunking or section-level retrieval;
+- PDF/DOCX/HTML extraction or OCR;
+- embeddings/vector retrieval;
+- LLM summarization/RAG/context assembly;
+- ACL/Vera semantic-profile expansion;
+- production Authority/credentials/network deployment work;
+- autonomous workers/action execution;
+- Kernel V1 redesign.
 
-```text
-Alembic 0001_task1 -> 0009_rf2: passed
-Fast semantic suite: 47 passed, 1 intentionally skipped, 11 deselected, 2 upstream warnings
-PostgreSQL suite: 9 passed, 2 intentionally skipped, 48 deselected, 2 upstream warnings
-Workflow conclusion: success
-```
+## Startup instructions
 
-The skip reason explicitly names the changed pinned paths and states that exact pilot acceptance remains GitHub Actions run `34373589343`. This is deliberate historical-fixture behavior, not a loss of test coverage for current RF-2 functionality; the normal RF-2 and PostgreSQL qualification tests continue to run and pass.
+For the next retrieval/import task:
 
-## Material finding — mixed-status documents
-
-Whole-resource-version classification is safe but coarse.
-
-`ARCHITECTURE_V1.md` and `DECISIONS.md` contain substantial still-valid architecture/decision content while also retaining stale operational statements such as `Kernel implementation not yet started` or obsolete next-task instructions. RF-2 has no section/chunk lifecycle layer, so marking those files `current` would allow stale instructions into ordinary retrieval.
-
-The pilot therefore marks both whole documents `superseded`. This safely suppresses stale operational text but also hides still-valid sections from default retrieval.
-
-Do not infer a fix. A later separately authorized task may choose document refresh/splitting, section-level classification, or a chunk/extraction design. Until then, whole-document manifest classification is intentionally fail-safe.
-
-## Why broad repository/document import remains deferred
-
-Do **not** copy all ACL, Vera, RiskCardOCR, benchmark, research, or legacy documentation into Knowledge Core.
-
-The first real-corpus pilot proves that curated lifecycle classification can protect ordinary retrieval, but it does not establish a safe persistent repository-import/update protocol. A broad import would still leave unresolved questions about stable logical-resource identity across commits, path rename/move, duplicate bytes, deletion, re-import idempotency, manifest evolution, and exact source verification.
+1. Work on branch `architecture/knowledge-core`.
+2. Read root `AGENTS.md`, `docs/START_HERE.md`, and `docs/CURRENT_STATE.md`.
+3. Read:
+   - `docs/architecture/knowledge-core/CURRENT_STATE.md`
+   - `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI1.md`
+   - `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_HANDOFF.md`
+   - `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md`
+   - `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
+   - `components/knowledge-core/README.md`
+4. Verify branch/HEAD before writing.
+5. Preserve frozen Kernel V1 and accepted RF-2 behavior.
+6. Perform only the separately authorized bounded task.
 
 ## Next separately authorized task
 
-### RI-1 — repository import contract and falsifiable acceptance design
+### RI-2 — minimal repository import implementation and controlled fixtures
 
-RI-1 is **not started** and requires separate authorization.
+RI-2 may implement only the smallest application/storage/source-reader/test slice necessary to satisfy RI2-G1 through RI2-G18 using synthetic and tiny-real fixtures.
 
-RI-1 should be design/acceptance only. It should define the smallest safe contract for later persistent import of an approved manifest, including:
-
-1. exact repository/commit/path/blob identity checks before ingest;
-2. stable mapping from approved source identity to logical Knowledge Core `Resource` identity;
-3. exact version creation when source bytes change without trusting mutable path alone;
-4. rename/move semantics distinct from duplicate-content semantics;
-5. explicit lifecycle/authority classification validation rather than inference;
-6. re-run/idempotency behavior for an unchanged manifest;
-7. changed-manifest behavior and text-generation replacement without old/current mixing;
-8. deletion/removal/supersession handling;
-9. bounded dry-run/fail-closed behavior that cannot silently scan or ingest unapproved paths;
-10. service-only/credential separation requirements;
-11. synthetic and tiny-real fixtures that falsify the import identity/update contract before implementation.
-
-RI-1 must not implement a broad importer, persist a production corpus, add chunking, embeddings, RAG, or expand into ACL/Vera semantics.
-
-## Explicit non-goals still in force
-
-Do not begin any of the following without separate authorization:
-
-- persistent/bulk repository import;
-- repository-wide documentation review in one task;
-- broad directory scanning/import discovery;
-- PDF/DOCX/HTML extraction, OCR, or arbitrary binary parsing;
-- chunking or section-level retrieval;
-- embeddings/vector retrieval;
-- LLM summarization/RAG;
-- ACL-specific semantic profiles;
-- Vera-specific semantic profiles;
-- Authority implementation;
-- autonomous workers or action execution;
-- Kernel V1 redesign;
-- production deployment/security/backup expansion.
-
-## Startup instructions for the next Knowledge Core retrieval/import chat
-
-Before changing anything:
-
-1. Work from branch `architecture/knowledge-core`.
-2. Read:
-   - `docs/architecture/knowledge-core/CURRENT_STATE.md`
-   - `docs/architecture/knowledge-core/POSTGRES_QUALIFICATION.md`
-   - `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md`
-   - `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md`
-   - `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_HANDOFF.md`
-   - `docs/architecture/knowledge-core/REAL_CORPUS_PILOT_MANIFEST.json`
-   - `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
-   - `components/knowledge-core/README.md`
-3. Verify the current branch/HEAD before writing.
-4. Inspect current resource/retrieval/generation code only if implementation is in scope.
-5. Preserve the frozen Kernel boundary and exact-version provenance.
-6. Perform only the separately authorized bounded task and stop.
+It must stop before broad persistent import, chunking, embeddings, RAG, semantic expansion, Authority, deployment, or execution work.
 
 ## Stop boundary
 
-**The first curated real-corpus pilot is complete. Stop here. Do not begin RI-1, persistent import, broader corpus expansion, chunking, embeddings, RAG, semantic-profile expansion, Authority, or execution work without separate authorization.**
+**RI-1 is complete. Do not begin RI-2 until the user explicitly authorizes it.**
