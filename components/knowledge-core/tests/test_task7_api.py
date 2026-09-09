@@ -260,11 +260,14 @@ def test_identity_mutations_are_managed_and_replayable(tmp_path):
         engine.dispose()
 
 
-def test_unmanaged_privileged_and_resource_write_routes_are_not_exposed(tmp_path):
+def test_unmanaged_privileged_routes_are_not_exposed(tmp_path):
     engine, _sessions, _artifacts, _core, _identity, client = _fixture(tmp_path)
     try:
         paths = set(client.get("/openapi.json").json()["paths"])
-        assert "/v1/resources/ingest" not in paths
+        # Task 10 intentionally adds the now-managed resource ingest route. The
+        # original safety invariant remains that privileged/admin/raw mutation
+        # surfaces are not exposed to ordinary semantic clients.
+        assert "/v1/resources/ingest" in paths
         assert not any("deletion" in path or "admin" in path for path in paths)
     finally:
         client.close()
