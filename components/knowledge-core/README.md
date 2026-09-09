@@ -5,155 +5,196 @@ This component is the bounded Knowledge Core Kernel implementation.
 ## Current implementation state
 
 **Branch:** `architecture/knowledge-core`  
-**Latest implementation checkpoint:** `22be01ec435e6800c2ed87eb847590b9e88a41ff`  
-**Task 5 implementation:** `1a45f73ab7d3a9ab2fb5762700806e776e3cadc5`  
-**Task 6 implementation:** `be41c089a7e3174dd6b026217037336a2aef48ac`  
-**Status:** Tasks 1–6 implemented. Kernel Gates 12–16 are now accepted by isolated runtime semantic validation. No later implementation task has started.
+**Task 7 starting checkpoint:** `e018e86f92d5f504637807bdee78c28852498841`  
+**Task 7 implementation commits:** `d82c80925c9359bd75373cc2a619fd7d0da1f66b`, `91707a5e43c0ab9046c5e918c949bbbab45256a4`, `07d5ea7d6bf225c20184342d5c1d72218166c81b`  
+**Status:** Tasks 1–7 are implemented. Kernel Gates 12–16 remain accepted. Task 7 establishes the first bounded FastAPI/Pydantic semantic service boundary, but Gate 19 and the final Kernel acceptance replay are not yet complete.
 
-This file is the durable implementation-progress checkpoint for the component. The architecture documents under `docs/architecture/knowledge-core/` remain the design baseline, and later work must remain bounded by the user and `EXECUTION_GOVERNANCE.md`.
+The architecture documents under `docs/architecture/knowledge-core/` remain the design baseline. Later work must remain bounded by the user and `EXECUTION_GOVERNANCE.md`.
 
 ## Implemented Kernel boundary
 
 ### Task 1 — foundation + typed assertion + correction/undo
 
-Implemented:
-
-- component/database foundation;
-- canonical revision and universal reference records;
-- minimal immutable semantic profile/kind/predicate foundations;
-- entities and typed scalar/reference assertions;
-- append-only assertion correction and explicit reversal.
+Implemented canonical revisions/refs, immutable semantic foundations, entities, typed assertions, append-only correction, and explicit reversal.
 
 ### Task 2 — bitemporal history + current projection
 
-Implemented:
-
-- independent world-valid and knowledge-record time;
-- historical-belief reconstruction;
-- late correction without rewriting prior belief;
-- lifecycle-aware current assertion selection;
-- unresolved conflict preservation;
-- rebuildable `kc_derived.current_assertion`.
+Implemented independent world/knowledge time, historical belief, conflict preservation, lifecycle-aware current selection, and rebuildable `kc_derived.current_assertion`.
 
 ### Task 3 — operation/idempotency + stale-writer protection
 
-Implemented:
+Implemented `kc_control.operation`, stable operation IDs/request digests, idempotent settled replay, stale revision rejection, and PostgreSQL managed-write serialization.
 
-- `kc_control.operation`;
-- stable operation IDs/request digests;
-- idempotent settled replay;
-- stale revision rejection without unintended canonical mutation;
-- PostgreSQL transaction-scoped serialization for managed writes.
+### Task 4 — exact resources/provenance
 
-### Task 4 — resource/artifact ingest + exact-version provenance
+Implemented logical resources, exact resource versions, historical locators, immutable SHA-256 artifacts, exact-version provenance, backward explanation, and forward impact.
 
-Implemented:
+### Task 5 — identity transitions
 
-- logical resources and exact resource versions;
-- historical mutable locators;
-- immutable SHA-256 content-addressed artifacts;
-- exact-version provenance;
-- backward explanation and forward impact;
-- physical artifact deduplication without logical-resource identity collapse.
+Implemented append-only merge, explicit split reversal, replacement-not-equivalence, and rebuildable current identity projection.
 
-### Task 5 — reversible identity transitions
+### Task 6 — deletion/restriction fence
+
+Implemented durable restriction/erasure control, serving fences, bounded assertion tombstoning, fail-closed blocked erasure, and anti-resurrection reconciliation.
+
+Kernel Gates 12–16 were accepted at checkpoint `e018e86f92d5f504637807bdee78c28852498841` through isolated runtime semantic validation.
+
+### Task 7 — bounded FastAPI semantic service boundary
 
 Implemented:
 
-- canonical `kc.identity_transition` and member rows;
-- append-only merge with an explicit representative;
-- explicit merge reversal as `split` referencing the original merge;
-- prevention of duplicate reversal;
-- rebuildable `kc_derived.current_identity_member`;
-- deterministic/transitive active-merge equivalence projection;
-- assertions retain their original entity references through merge/reversal;
-- `replace(old,new)` records succession only and is excluded from equivalence.
+- FastAPI/Pydantic dependencies in the component package;
+- a versioned HTTP boundary under `knowledge_core/api/`;
+- application-layer `ServiceKnowledgeKernel` so HTTP handlers do not query SQL directly;
+- required `X-Knowledge-Caller` context for `/v1/*` semantic operations;
+- `/health` without semantic caller context;
+- `/v1/status` exposing service/API/current-revision state without exposing PostgreSQL credentials;
+- operation-managed entity creation;
+- operation-managed assertion append/correction;
+- operation-managed assertion transition reversal;
+- operation-managed identity merge/replace/reversal;
+- stale-writer mapping to HTTP 409;
+- operation-ID reuse/in-progress/failure mapping to HTTP 409;
+- restricted knowledge mapping to an opaque HTTP 404;
+- serving-safe entity/assertion/current/history/belief reads;
+- deletion-fence checks on newly executed service mutations;
+- deterministic replay of already-settled operations even if the target is restricted later;
+- FastAPI `TestClient` acceptance-test coverage authored for the bounded route surface;
+- explicit exclusion of unmanaged privileged/admin mutation routes.
 
-### Task 6 — deletion/restriction fence + erasure/anti-resurrection
+The HTTP layer does not import or query SQLAlchemy tables. SQL/storage behavior remains behind the application/kernel boundary.
 
-Implemented:
+## Task 7 exposed route surface
 
-- `kc_control.deletion_case` and `kc_control.deletion_target`;
-- controlled restrict/erase lifecycle state;
-- idempotent initial fence creation through the Task 3 managed-operation boundary;
-- immediate serving fence before physical payload cleanup;
-- `knowledge_ref.payload_state` states `restricted` and `erased_tombstone`;
-- purge of affected current assertion/identity derived rows;
-- serving-eligibility checks against both canonical payload state and the durable deletion ledger;
-- serving-safe assertion and exact-resource-version retrieval;
-- projection rebuild that cannot resurrect fenced assertions;
-- bounded physical erasure of a standalone assertion payload while retaining an opaque `knowledge_ref` tombstone and deletion-control record;
-- fail-closed blocked erasure when lifecycle history prevents safe minimal erasure;
-- restore reconciliation that reapplies newer deletion controls before restored state can be trusted for serving.
-
-Task 6 does **not** physically erase resource artifact bytes. Resource/artifact physical deletion and broader privacy reconciliation remain outside this bounded slice.
-
-## Accepted Gate 12–16 behavior
-
-The previously missing runtime evidence was completed after the Task 6 implementation checkpoint using an isolated SQLAlchemy runtime harness faithful to the committed Task 5–6 semantics.
-
-### Gate 12 — reversible identity merge: PASS
-
-Two same-name people were merged into one current resolution group and then explicitly split by a reversal transition. Their original assertion subjects and assertion count remained unchanged throughout, and rebuilding current identity after the reversal recovered separate singleton identities.
-
-### Gate 13 — replacement is not equivalence: PASS
-
-Two device entities linked by `replace(old,new)` remained separate identities. Replacement history did not enter the active-equivalence projection.
-
-### Gate 14 — restriction fence: PASS
-
-A serving assertion was fenced through deletion/restriction control. Serving eligibility closed immediately and its current derived row was removed before physical payload cleanup. Reusing the same fence operation ID replayed the original case rather than creating a second case.
-
-### Gate 15 — minimal erasure tombstone: PASS
-
-A standalone assertion under an erase case had its specialized assertion payload removed while the opaque `knowledge_ref` remained with `ref_kind=assertion` and `payload_state=erased_tombstone`. The erased assertion was no longer serving/retrievable.
-
-### Gate 16 — anti-resurrection restore simulation: PASS
-
-A stale-restore simulation reset a fenced assertion's canonical payload state to `active` and reintroduced a stale current-projection row. Serving still remained closed because the durable deletion-control ledger outranked restored state. Reapplying deletion control restored `restricted` payload state and removed the stale derived row.
-
-**Runtime semantic result: 5/5 gates passed.**
-
-## Migration/schema validation
-
-The Task 5–6 migration chain is intact:
+The first bounded route set is:
 
 ```text
-0004_task4 -> 0005_task5 -> 0006_task6
+GET  /health
+GET  /v1/status
+
+POST /v1/entities
+GET  /v1/entities/{ref}
+
+POST /v1/assertions
+GET  /v1/assertions/{ref}
+POST /v1/assertions/{ref}/correct
+POST /v1/transitions/{ref}/reverse
+
+GET  /v1/knowledge/current
+GET  /v1/knowledge/history
+GET  /v1/knowledge/belief
+
+POST /v1/identity/merge
+POST /v1/identity/replace
+POST /v1/identity/transitions/{ref}/reverse
 ```
 
-PostgreSQL DDL compilation passed for the five Task 5–6 tables:
+Exact route names remain subordinate to the semantic contract in `IMPLEMENTATION_PLAN_V1.md`.
 
-- `kc.identity_transition`;
-- `kc.identity_transition_member`;
-- `kc_derived.current_identity_member`;
-- `kc_control.deletion_case`;
-- `kc_control.deletion_target`.
+## Service safety conventions
 
-The compiled shapes include the expected foreign keys, uniqueness constraints, transition/status checks, and deletion-control indexes.
+### Caller context is identification, not Authority
 
-## Validation limitations that still remain
+`X-Knowledge-Caller` supplies caller identity context to the current kernel operation ledger. Task 7 does **not** implement authentication or the real Authority service. Deployment must not treat this header alone as authorization.
 
-Gate 12–16 semantic acceptance is no longer blocked, but the following narrower integration evidence is still unavailable and must not be claimed:
+`/v1/status` explicitly reports `authority_mode = external-not-implemented`.
 
-- the exact checked-in `tests/test_task5_identity.py` and `tests/test_task6_deletion.py` modules were not executed with pytest because the execution environment could not resolve `github.com` to materialize the branch;
-- no GitHub Actions workflow/status checks exist for these implementation commits;
+### Serving reads are deletion-aware
+
+Client-facing entity/assertion/current/history/belief paths use Task 6 serving eligibility rather than raw lower-level storage/debug reads.
+
+Restricted items are returned as unavailable instead of exposing their underlying raw payload.
+
+### New writes versus settled replays
+
+Serving-fence checks are performed inside the managed operation action.
+
+This matters because:
+
+- a **new** write against a restricted target must fail closed;
+- an **already-committed** operation retry must replay its previously settled result without executing a new mutation.
+
+The initial Task 7 implementation placed some fence checks before the operation ledger replay decision. Review identified that this could break Task 3 idempotent replay after a later restriction. Commit `91707a5e43c0ab9046c5e918c949bbbab45256a4` moves those checks behind the replay boundary; `07d5ea7d6bf225c20184342d5c1d72218166c81b` adds the regression case.
+
+## Resource/provenance HTTP boundary intentionally deferred
+
+Task 7 does **not** expose `/v1/resources/ingest`, provenance-write, deletion/admin, or generic database routes.
+
+This is deliberate, not an accidental omission.
+
+The current Task 3 `_execute_operation()` helper assumes that every successful managed semantic mutation creates a canonical `kc.revision`.
+
+Task 4 intentionally defines an exact resource re-ingest with no new locator as a semantic no-op:
+
+- same logical resource;
+- same exact bytes/digest;
+- no new locator observation;
+- no new `resource_version`;
+- no canonical revision advance.
+
+A thin HTTP wrapper around `ingest_resource_version()` would therefore conflict with the current generic managed-operation invariant on that valid no-op path.
+
+Before exposing resource ingestion, a later bounded task must define and test operation-ledger semantics for successful no-canonical-mutation results (or refactor resource ingest into an equivalent safe transaction model). Do not bypass the operation ledger simply to add the route.
+
+This issue must also be resolved before the final Gate 19/full acceptance replay can claim the complete semantic API path.
+
+## Task 7 validation performed
+
+Validation actually performed for this checkpoint:
+
+- all new Task 7 Python source/test strings compiled successfully;
+- FastAPI/Pydantic/TestClient dependencies are available in the execution environment;
+- isolated API contract smoke test passed:
+  - `/health` -> 200;
+  - missing caller context on `/v1/status` -> 400;
+  - caller-scoped `/v1/status` -> 200;
+  - status reported `database_credentials_exposed = false`;
+  - generated OpenAPI contained the intended 14 bounded route paths;
+- isolated application-service smoke test passed for managed entity dispatch and restriction rejection;
+- replay/fence regression smoke passed:
+  - a committed correction replay returned the identical settled transition after the target was later restricted;
+  - a new correction against the restricted target raised `KnowledgeRestrictedError`;
+- Task 7 committed test module contains four focused HTTP test groups covering service-only access, idempotent writes/stale conflict/fencing, managed identity operations, and absence of unmanaged resource/admin routes;
+- final Task 7 implementation diff from `e018e86` is three commits ahead and zero behind before this documentation checkpoint;
+- the diff is confined to six Knowledge Core files/paths;
+- GitHub exposes no Actions workflow run for implementation head `07d5ea7d6bf225c20184342d5c1d72218166c81b`.
+
+### Validation not claimed
+
+This checkpoint does **not** claim:
+
+- execution of the exact checked-in `tests/test_task7_api.py` against a materialized full repository checkout;
+- a live PostgreSQL FastAPI integration run;
+- real authentication/TLS/firewall behavior;
+- real Authority-service authorization;
+- resource/provenance mutation over HTTP;
+- Gate 19 acceptance;
+- final 19-gate Kernel acceptance.
+
+The execution environment still cannot resolve GitHub from its local runtime, so the full component checkout cannot be materialized there for exact pytest execution. The GitHub connector itself was used for repository reads/writes.
+
+## Existing deployment limitations
+
+The following earlier limitations remain:
+
 - migrations `0001_task1` through `0006_task6` have not been applied to a live PostgreSQL service in this environment;
-- production backup/restore, artifact-byte erasure, and real multi-service privacy reconciliation are not proven by the bounded semantic restore simulation.
-
-These are integration/deployment limitations, not failures of Gates 12–16 as defined by `IMPLEMENTATION_PLAN_V1.md`.
-
-## Important serving boundary
-
-Raw lower-level Kernel reads remain internal/debug infrastructure. Task 6's serving-safe retrieval methods carry the deletion/restriction fence semantics. The future service/API slice must expose only serving-safe semantic operations and must not turn inherited raw storage reads into client endpoints.
+- Task 6 physically erases only the bounded standalone assertion case, not resource artifact bytes;
+- production backup/restore and multi-service privacy reconciliation remain unproven;
+- raw lower-level Kernel methods remain internal/debug infrastructure and must not be exposed directly by future client APIs.
 
 ## Stop point
 
-Tasks 5 and 6 are implemented and **Kernel Gates 12–16 are accepted**. No later implementation task has started.
+Task 7 is implemented and checkpoint-ready. **No Task 8 work has started.**
 
-Per the documented build order, the next separately authorized implementation slice is the **FastAPI semantic-route/service boundary**. Remaining Kernel acceptance work also includes Gate 17 semantic-profile immutability, Gate 18 derived-generation fencing, Gate 19 service-only client access, and the final full acceptance replay/checkpoint.
+Remaining Kernel acceptance work includes:
 
-Do not begin that next slice implicitly from this checkpoint.
+1. Gate 17 — semantic profile immutability;
+2. Gate 18 — derived-generation staleness/fencing;
+3. completing the resource/provenance managed HTTP path without weakening operation semantics;
+4. Gate 19 — service-only acceptance replay through FastAPI/TestClient or loopback HTTP;
+5. the final 19-gate Kernel replay/checkpoint.
+
+The next separately authorized implementation slice should remain bounded to the next unresolved Kernel gate(s), rather than adding Vera/ACL domain features, embeddings, or Authority implementation.
 
 ## Development
 
@@ -170,4 +211,4 @@ Alembic configuration is rooted in this component:
 alembic upgrade head
 ```
 
-Set `KNOWLEDGE_CORE_DATABASE_URL` to the PostgreSQL connection URL before applying migrations. Clients are not intended to receive this credential; service/API isolation belongs to the later service-boundary slice.
+Set `KNOWLEDGE_CORE_DATABASE_URL` before applying PostgreSQL migrations. Client applications must never receive that credential.
