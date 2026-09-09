@@ -3,23 +3,23 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `research/agent-landscape`  
 **Campaign:** Knowledge Architecture Evidence Campaign  
-**Status:** project revisits, coverage scan, promoted Agno revisit, and six bounded standards/domain gap tasks complete; stopped before non-AI operational-domain validation  
+**Status:** project revisits, coverage scan, promoted Agno revisit, and all seven bounded standards/domain gap tasks complete; stopped before representative retrieval-requirements construction  
 **Historical starting checkpoint:** `76a262889a4577613520931cc475e8888844f8fc`
 
 ---
 
 # Scope lock
 
-This campaign remains **research/requirements discovery only**.
+This campaign remains **research/requirements discovery and validation only**.
 
-The user explicitly requested scope-drift protection before KA-G3. The remaining pre-build gates remain mandatory.
+The user explicitly requested scope-drift protection before KA-G3. That remains controlling.
 
 Do **not**:
 
 - restart broad agent-framework research;
-- reopen completed project revisits without a concrete evidence gap;
+- reopen completed project/domain revisits without a concrete evidence gap;
 - select a final conceptual schema yet;
-- select PostgreSQL, Neo4j, RDF, graph databases, vector stores, object stores, content-addressable stores, policy engines, backup systems, retention engines, or other implementation technologies;
+- select PostgreSQL, Neo4j, RDF, graph databases, vector stores, object stores, content-addressable stores, policy engines, Home Assistant/Matter implementation stacks, or other implementation technologies;
 - implement a knowledge/resource store;
 - implement authorization, deletion, retention, retrieval or context-construction services;
 - create embeddings;
@@ -27,8 +27,8 @@ Do **not**:
 - benchmark models;
 - implement ACL or Vera;
 - run autonomous workers;
-- treat a local delete return, soft delete, backup expiry, tombstone, hash, locator, provenance record or historical authorization decision as stronger evidence than its actual semantics support;
-- skip retrieval-question, hostile-scenario, synthesis, and small-prototype gates.
+- skip retrieval-question, hostile-scenario, synthesis, and small-prototype gates;
+- treat Home Assistant or Matter concepts as universal core primitives merely because they validated the model.
 
 The campaign remains governed by `CAMPAIGN_PLAN.md`.
 
@@ -59,6 +59,7 @@ The campaign remains governed by `CAMPAIGN_PLAN.md`.
 16. **KA-G4 — Knowledge Authorization + Actionability / Use-Purpose** — complete
 17. **KA-G5 — Resource / Artifact Identity and Lineage** — complete
 18. **KA-G6 — Privacy Deletion / Retention / Erasure Reconciliation** — complete
+19. **KA-G7 — Non-AI Operational-Domain Validation (Home Assistant / Matter-style)** — complete
 
 ---
 
@@ -90,226 +91,150 @@ Gap reports:
 - `gaps/knowledge-authorization-actionability.md`
 - `gaps/resource-artifact-identity-lineage.md`
 - `gaps/privacy-deletion-retention-erasure.md`
+- `gaps/non-ai-operational-domain-validation.md`
 
 Cumulative ledgers:
 
 - `invariants.md`
 - `failure-patterns.md`
 
-This state is intentionally a compact checkpoint. Detailed evidence remains in dedicated reports.
+Detailed evidence remains in dedicated reports. This file is the compact current checkpoint.
 
 ---
 
-# KA-G6 verification and boundary
+# KA-G7 verification and boundary
 
 User authorization:
 
-- after KA-G5, user explicitly instructed `ok continue`;
-- the documented next candidate was KA-G6, so this authorized KA-G6 only.
+- after KA-G6, user explicitly instructed `continue`;
+- the documented next candidate was KA-G7;
+- this authorized KA-G7 only.
 
 Starting branch/head:
 
-`5f4e0fcb67ec2f697a27da12821b912141c366fe`
+`054b74dabdbaa3b6dbe41a50accbef20a3b21dc9`
 
 Starting commit message:
 
-`research: complete resource artifact identity gap`
+`research: complete privacy deletion retention gap`
 
-The branch was verified at that exact checkpoint before KA-G6 writes.
+KA-G7 was bounded to non-AI operational validation using current Home Assistant/Matter-style evidence:
 
-KA-G6 was bounded to:
-
-- delete/forget/erase lifecycle semantics;
-- retention and expiry semantics;
-- soft-delete versus irreversible erasure distinction;
-- restriction/beyond-use semantics;
-- canonical versus derived cleanup;
-- indexes/embeddings/summaries/caches/replicas;
-- backup/restore resurrection hazards;
-- tombstones/anti-resurrection markers;
-- recipient/export propagation as a separate plane;
-- audit evidence versus retained content;
-- source deletion versus derivative invalidation/rebuild;
-- media sanitization as a separate final-disposal layer;
-- multi-plane reconciliation evidence.
+- physical device versus platform/device-registry identity;
+- device versus logical entity/endpoint/capability identity;
+- display/locator identity versus stable identity;
+- observations/state versus entity identity;
+- current state versus history;
+- direct observation versus derived state;
+- unknown/unavailable/stale distinctions;
+- mutable room/area relationships;
+- people versus source trackers;
+- capability discovery/profile version drift;
+- command/effect versus observed settlement;
+- multi-admin/fabric/household authority;
+- replacement/recommissioning hazards;
+- generality of accumulated primitives.
 
 Explicitly excluded:
 
-- legal advice;
-- legal-regime selection;
-- final retention periods;
-- legal-hold policy selection;
-- final sensitivity taxonomy;
-- anonymization-standard selection;
-- final deletion API/schema;
-- database/storage/backup technology selection;
-- cryptographic-erasure implementation selection;
-- implementation;
-- Home Assistant/Matter operational validation;
-- retrieval-question construction;
+- Home Assistant implementation;
+- Matter implementation;
+- Vera smart-home automation implementation;
+- hardware selection;
+- final device ontology;
+- retrieval-requirements construction;
 - hostile-scenario execution;
-- conceptual architecture synthesis.
+- conceptual synthesis;
+- storage selection;
+- implementation.
 
 ---
 
-# KA-G6 primary evidence
+# KA-G7 primary evidence
 
-## GDPR / EUR-Lex
+## Home Assistant
 
-https://eur-lex.europa.eu/eli/reg/2016/679/2016-05-04
+Current documentation inspected on 2026-09-08 included:
 
-Used for:
+- Device registry: `https://developers.home-assistant.io/docs/device_registry_index/`
+- 2026.8 device-registry ownership/splitting change: `https://developers.home-assistant.io/blog/2026/07/21/device-registry-single-config-entry/`
+- Entity registry: `https://developers.home-assistant.io/docs/entity_registry_index/`
+- Devices/services architecture: `https://developers.home-assistant.io/docs/architecture/devices-and-services/`
+- Unknown/unavailable guidance: `https://developers.home-assistant.io/docs/core/integration-quality-scale/rules/entity-unavailable/`
+- State objects: `https://www.home-assistant.io/docs/configuration/state_object`
+- Device tracker: `https://www.home-assistant.io/integrations/device_tracker/`
+- Person: `https://www.home-assistant.io/integrations/person/`
+- Areas: `https://www.home-assistant.io/docs/organizing/areas/`
 
-- storage limitation;
-- erasure;
-- restriction-of-processing distinction;
-- copies/replications;
-- recipient notification;
-- bounded exceptions/retained processing purposes.
+Important current observations:
 
-Qualification: GDPR is architecture evidence here, not selected as Vera's universal legal regime.
+- a physical device supported by several config entries can have one device-registry entry per config entry rather than one universal merged platform object;
+- one device exposes multiple entities/capabilities;
+- stable entity unique IDs are distinct from editable names/entity presentation;
+- IP/name/hostname/URL are unsuitable intrinsic entity IDs;
+- `unknown` and `unavailable` are distinct operational states;
+- stale last-known state should not masquerade as fresh current state;
+- Person presence is a derived result from multiple trackers with source-selection rules;
+- Areas are mutable logical groupings/relationships.
 
-## European Data Protection Board
+## Matter
 
-Current 2026 right-to-erasure coordinated-enforcement material plus storage-limitation guidance.
+Current specification catalog inspected:
 
-Used for:
+`https://csa-iot.org/developer-resource/specifications-download-request/`
 
-- purpose-specific retention;
-- backup deletion challenges;
-- requirement to prevent erased/restricted data from silently returning after restore;
-- deletion-procedure accountability;
-- evidence against one longest retention period for every data class.
+Observed on 2026-09-08:
 
-## UK ICO right-to-erasure guidance
+- Matter 1.6 is the newest listed family;
+- earlier version families remain separately published.
 
-https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-erasure/
+Additional evidence:
 
-Used for:
+- Matter 1.4.2 architecture/security overview: `https://csa-iot.org/newsroom/matter-1-4-2-enhancing-security-and-scalability-for-smart-homes/`
+- Matter device-data/fabric primers from Google Home Developers.
 
-- live-system deletion versus backup overwrite schedules;
-- backup data placed beyond ordinary use when immediate overwrite is impractical;
-- requirement not to reuse erased backup-held data for ordinary processing.
+Important observations:
 
-## NIST SP 800-88 Rev. 2
+- node, endpoint, cluster/capability and fabric are separate scopes;
+- multiple fabrics/admins can coexist for one node;
+- operational credentials/authority are fabric-specific while device data model can be shared;
+- endpoint numbers were not always stable enough across admins/recommissioning, motivating Endpoint Unique IDs in Matter 1.4.2;
+- capability changes can occur after commissioning and require re-evaluation;
+- access control distinguishes subject/fabric/endpoint/cluster and privilege such as View/Operate/Manage/Administer;
+- action attribution is distinct from authorization-entry contents.
 
-https://csrc.nist.gov/pubs/sp/800/88/r2/final
-
-Current final publication: September 2025.
-
-Used for:
-
-- media sanitization as a distinct confidentiality/disposal layer;
-- sanitization program/validation;
-- logical sanitization/cloud relevance;
-- evidence that application-level deletion does not itself prove physical/media sanitization.
-
-## NIST Privacy Framework lifecycle terminology
-
-Used for full lifecycle framing: collection, retention, transformation, use, disclosure, sharing, transmission and disposal.
-
-## Microsoft Azure / Entra soft-delete documentation
-
-Used only as operational corroboration that soft deletion is an intentionally recoverable state and therefore cannot be equated with erasure.
-
-No implementation technology was selected.
+No Home Assistant or Matter implementation technology was selected.
 
 ---
 
-# Highest-value KA-G6 findings
+# Highest-value KA-G7 findings
 
-## 1. Deletion completion is multi-plane reconciliation
-
-A successful active-store delete does not prove removal/inaccessibility from:
-
-- derived indexes;
-- embeddings;
-- summaries;
-- caches;
-- replicas;
-- workflow/checkpoint state;
-- recipients/exports;
-- backups/restore paths.
-
-This directly reinforces **KA-I-016**.
-
-## 2. Soft delete is not erasure
-
-Recoverable deletion and irreversible erasure require different lifecycle states and different user/system claims.
-
-## 3. Retained does not mean ordinarily usable
-
-A bounded retention purpose or backup-retention interval may justify continued possession while ordinary reasoning, model exposure, automation, training or disclosure remain prohibited.
-
-## 4. Backup presence and active knowledge are different
-
-Backup-held data may remain physically present while being fenced from ordinary use, but restore must preserve later deletion/restriction intent before the restored system becomes active.
-
-## 5. Restore is a reconciliation event
-
-An older snapshot must not erase evidence that a newer deletion/restriction occurred.
-
-Conceptually:
-
-`backup snapshot < deletion event < restore`
-
-must not resurrect the deleted information as current knowledge.
-
-## 6. Tombstones/control markers should be minimal
-
-Anti-resurrection/audit state must not defeat erasure by preserving the entire deleted content.
-
-## 7. Source erasure propagates through lineage
-
-Chunks, extracted assertions, summaries, embeddings and indexes must be invalidated, removed or rebuilt according to explicit policy and lineage.
-
-## 8. Derived aggregates may require rebuild rather than blind deletion
-
-A multi-source aggregate may remain legitimate after rebuilding without the erased source.
-
-## 9. Retention is purpose-specific
-
-One maximum retention interval applied indiscriminately is not a sound architecture assumption.
-
-## 10. Expiry and final erasure completion can differ
-
-Expiry may trigger asynchronous reconciliation across planes; the system must distinguish queued/pending cleanup from settled completion.
-
-## 11. Restriction and erasure are different
-
-Restricted data can remain stored while being barred from ordinary processing/use.
-
-## 12. Deletion scope must be explicit
-
-Identity, domain, assertions/resources, time range, derived descendants, recipients and backup generations may all matter.
-
-## 13. Identity ambiguity prevents safe global deletion and false completion
-
-Unknown scope should produce partial/unresolved status rather than unsafe over-deletion or an inaccurate success claim.
-
-## 14. External recipient/export copies are separate reconciliation planes
-
-Local completion is not universal external completion.
-
-## 15. Audit proof should not require retaining erased content wholesale
-
-Minimum control metadata can prove request/decision/reconciliation without keeping the content itself.
-
-## 16. Logical deletion does not imply media sanitization
-
-Deletion claims must identify the layer actually settled.
-
-## 17. Deletion status is plane/generation qualified
-
-A single Boolean cannot safely describe active-store, derived, backup and recipient states simultaneously.
-
-## 18. Completion should be explainable
-
-Future deletion status should identify what was in scope, which planes settled, what remains and why, and what restore-time behavior is required.
+1. **Physical entity identity and platform-registry identity are distinct.** One physical device can have several platform representations.
+2. **Device and capability/entity/endpoint identity are distinct.** One thing may expose many behavior-bearing capabilities.
+3. **Names, IPs, URLs and room assignments are not intrinsic identity.**
+4. **Hardware replacement requires explicit identity transition.** Reusing the old friendly name/role must not rewrite history.
+5. **Area/location is a mutable relationship.** Moving a device does not create a new device.
+6. **Entity identity and temporal state observation are distinct.**
+7. **Unknown, unavailable, stale and known false/off are distinct.**
+8. **Last-known state does not silently become current truth.**
+9. **Person presence is a derived projection.** Multiple trackers can support one person state under explicit selection rules.
+10. **Person != tracker.** Sensor/source identity remains separate from semantic person identity.
+11. **Capability schema != current availability.** A supported capability may be disabled/unavailable or change with profile/version.
+12. **Capability/profile revision is behavior-bearing.** Firmware/reconfiguration can change operational semantics.
+13. **Endpoint address != stable endpoint semantic identity.** Matter 1.4.2 Endpoint Unique IDs directly demonstrate this.
+14. **Node/endpoint/cluster/fabric/principal scopes must not collapse into one `device_id`.**
+15. **Authorization relationships are not automatically canonical world relationships.** Multi-admin/fabric authority does not itself prove human ownership.
+16. **View/read != Operate/Manage/Administer.** Non-AI device control independently validates operation-specific authority.
+17. **Command attempt != observed world result.** Sending `unlock` or `turn_on` is not the same fact as the later lock/light state.
+18. **API acknowledgement != physical settlement.** Effect verification remains separate.
+19. **Disabled/hidden != deleted.** Operational lifecycle/status must not be conflated with erasure.
+20. **Area/group target expansion is a transformation.** The concrete target set can change over time.
+21. **Direct observation != derived operational conclusion.** Derived states need explainable source lineage.
+22. **No smart-home-specific universal primitive is required.** Existing candidate concepts generalize adequately.
 
 ---
 
-# Cumulative ledger disposition after KA-G6
+# Cumulative ledger disposition after KA-G7
 
 ## Invariants
 
@@ -317,114 +242,82 @@ Invariant IDs remain **KA-I-001 through KA-I-049**.
 
 No new invariant ID or status change is required.
 
-KA-G6 supplies direct independent domain evidence for already-reinforced:
+KA-G7 independently validates many already-reinforced families outside AI/software-agent systems, including:
 
-### KA-I-016
-
-> Delete/forget completion is a multi-plane reconciliation result, not a single successful delete return or current-view removal.
-
-Strong recurrence also supports:
-
-- KA-I-001
-- KA-I-004/005
+- KA-I-002
+- KA-I-005
+- KA-I-007
+- KA-I-008/009
 - KA-I-011
 - KA-I-014
-- KA-I-019
-- KA-I-023
-- KA-I-027/028
-- KA-I-034/035
+- KA-I-017/018
+- KA-I-020/021/022/023/024/025
+- KA-I-027/030/034
 - KA-I-036/037
-- KA-I-043
+- KA-I-041/042/046
+- KA-I-048/049
 
-No invariant becomes a final architecture rule yet.
+KA-I-004 remains candidate because replacement-device scenarios motivate explicit identity transitions but do not independently prove a universal reversible merge/split mechanism.
+
+KA-I-047 remains candidate because `unknown`/`unavailable` validates absence-state distinctions but does not independently prove the closed-world completeness contract required for known-negative inference.
+
+No invariant becomes a final architecture rule during KA-G7.
 
 ## Failure patterns
 
 Failure IDs remain **KA-F-001 through KA-F-049**.
 
-No new failure ID/status change is made because KA-G6 supplied direct standards/regulatory/operational semantics rather than a new reproduced project incident.
+No new failure ID/status change is made because this task is cross-domain validation, not a reproduced ACL/Vera implementation incident.
 
 ---
 
-# Twenty-six-question disposition after KA-G6
+# Twenty-six-question disposition after KA-G7
 
-Questions 1–25 now have sufficient direct/project evidence for later requirements/synthesis without another broad framework revisit.
+**All 26 campaign evidence questions now have sufficient project, standards/domain, or cross-domain evidence to proceed to requirements/synthesis gates without another broad research pass.**
 
-KA-G6 materially strengthens:
+KA-G7 closes the remaining direct gap:
 
-- **22 Privacy deletion/retention**
+- **26 Scope of truth / generality**
 
-The only remaining bounded direct research gap is:
+The architecture has now been challenged with a non-AI operational domain involving physical devices, rooms, people, observations, derived state, capabilities, commands and multi-party authority without exposing a missing universal primitive.
 
-- **26 Scope of truth/generality — non-AI operational-domain validation**
-
-KA-G7 is therefore the final planned direct gap-research task.
+No additional direct gap-research task is currently assigned or justified.
 
 ---
 
-# Requirements carried forward from KA-G6
+# Cross-domain acceptance requirements carried forward
 
-1. Delete/forget completion is scoped multi-plane reconciliation.
-2. Soft delete and erasure remain distinct.
-3. Retention and ordinary usability remain distinct.
-4. Restriction/beyond-use prevents ordinary reasoning/action use.
-5. Restore reapplies deletion/restriction newer than the restored snapshot.
-6. Deletion intent survives independently enough to prevent resurrection.
-7. Tombstones/control markers minimize retained content.
-8. Source deletion propagates to descendants according to lineage/policy.
-9. Derived aggregates may invalidate/rebuild without erased inputs.
-10. Retention is purpose/scope specific.
-11. Expiry and final reconciliation may occur at different times.
-12. Recipient/export copies are separate reconciliation planes.
-13. Local deletion does not imply universal external deletion.
-14. Deletion requests bind explicit identity/domain/time/purpose scope.
-15. Ambiguous identity prevents unsafe over-deletion and false completion.
-16. Audit proof need not retain full erased content.
-17. Logical deletion does not imply media sanitization.
-18. Deletion status is plane/generation qualified.
-19. Completion evidence distinguishes settled, pending, restricted-retained, exempt and unresolved planes.
-20. Backup restore cannot silently reactivate erased/restricted knowledge.
-
----
-
-# Nominated later hostile scenarios
-
-Do not execute during KA-G6.
-
-- canonical row deleted but embedding still retrieves content;
-- summary retains erased personal fact;
-- vector/full-text index survives source deletion;
-- cache or replica resurrects deleted data;
-- old backup restore resurrects post-backup deletion;
-- tombstone preserves full erased content;
-- global longest-retention rule applied to every data class;
-- held/restricted data enters normal model context;
-- soft deletion reported as permanent erasure;
-- local delete reported as external-recipient completion;
-- same-name ambiguity deletes wrong person's knowledge;
-- ambiguous identity produces false “all deleted” result;
-- aggregate rebuilt from stale deleted input;
-- audit log preserves deleted sensitive payload;
-- logical delete reported as media sanitization;
-- expired data remains ordinarily usable during cleanup;
-- restore ignores deletion ledger;
-- anti-resurrection state itself lost on restore;
-- restricted backup becomes searchable after recovery;
-- connector re-ingests a deliberately forgotten source;
-- recipient acknowledgement treated as verified erasure without evidence.
+1. Platform/internal object identity is not automatically world identity.
+2. Physical device, logical endpoint/entity and capability remain separable.
+3. Display names and network/location addresses are not intrinsic identity.
+4. Replacement/recommissioning does not silently inherit historical identity.
+5. Location/area assignment is temporal relationship knowledge.
+6. State observations remain separate from entity identity.
+7. Unknown/unavailable/stale/known-value semantics remain distinct.
+8. Derived operational state retains source/derivation lineage when consequential.
+9. Person identity remains separate from tracker/source identity.
+10. Capability profile and availability remain distinct and version-aware.
+11. Operational address/endpoint numbers may differ from stable semantic identity.
+12. Authorization fabric/context remains separate from world relationship truth.
+13. Read/View and Operate/Manage/Administer remain distinct authority classes.
+14. Command attempt and physical/effect settlement remain distinct.
+15. Disabled/hidden/recoverable lifecycle states remain distinct from deletion.
+16. Group/area targeting expansion remains a behavior-bearing selection step.
+17. The universal substrate must support this domain without embedding Home Assistant/Matter concepts into the core schema.
 
 ---
 
 # Pre-build scope-locked roadmap
 
+Direct gap research is now complete.
+
 Remaining path before physical implementation:
 
-1. **KA-G7 — Non-AI Operational-Domain Validation (Home Assistant / Matter-style)**
-2. **Representative Retrieval Requirements** — approximately 40–60 questions
-3. **Hostile / Adversarial Scenario Review**
-4. **Conceptual Architecture Synthesis**
-5. **Small Hand-Authored Cross-Domain Prototype / Validation**
-6. **Only then: physical storage selection and implementation**
+1. **Representative Retrieval Requirements** — approximately 40–60 concrete cross-domain questions and expected semantics
+2. **Hostile / Adversarial Scenario Review**
+3. **Conceptual Architecture Synthesis**
+4. **Small Hand-Authored Cross-Domain Prototype / Validation**
+5. **Only then: physical storage selection and implementation**
 
 This sequence is a scope guard, not blanket authorization.
 
@@ -434,34 +327,21 @@ This sequence is a scope guard, not blanket authorization.
 
 **No task is currently assigned.**
 
-KA-G6 is complete.
+KA-G7 is complete.
 
 ---
 
 # Planned next candidate
 
-**KA-G7 — Non-AI Operational-Domain Validation (Home Assistant / Matter-style)**
+**Representative Retrieval Requirements**
 
 Suggested bounded focus:
 
-- devices/entities versus observations/state;
-- physical device identity versus logical endpoint/entity identity;
-- location/area relationships;
-- state freshness/staleness/unavailable/unknown semantics;
-- event versus current state;
-- replacement hardware and stable user-facing identity;
-- shared-household ownership/authority;
-- automation inputs versus action authority;
-- capability/feature discovery and version drift;
-- whether the knowledge primitives developed from AI/coding domains generalize cleanly to household/IoT operations.
-
-Explicit exclusions:
-
-- Home Assistant/Matter implementation;
-- smart-home hardware selection;
-- Vera automation implementation;
-- final conceptual synthesis;
-- storage selection.
+- construct approximately 40–60 concrete queries/tasks spanning ACL, Vera, research, people, devices, projects, software versions, resources, permissions, history, conflict, provenance and deletion;
+- define what each query must distinguish and what evidence/authority it requires;
+- include current-state, historical, conflict, evidence, direct-vs-derived, structured, relationship, full-text, semantic, composite and authorization-sensitive cases;
+- use these as acceptance requirements for later conceptual synthesis and storage evaluation;
+- do not implement retrieval yet.
 
 Queue position alone is not authorization.
 
@@ -469,6 +349,6 @@ Queue position alone is not authorization.
 
 # Stop point
 
-KA-G6 is complete and the campaign is stopped before KA-G7.
+KA-G7 is complete and all planned direct gap research is complete.
 
-No operational-domain validation, retrieval-requirements construction, hostile review, conceptual synthesis, storage selection, or implementation was started inside KA-G6.
+No retrieval-requirements construction, hostile-scenario execution, conceptual synthesis, prototype construction, storage selection or implementation was started inside KA-G7.
