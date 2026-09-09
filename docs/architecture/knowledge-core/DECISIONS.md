@@ -3,16 +3,18 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
 **Component:** Knowledge Core  
-**Status:** major physical-architecture decisions complete; implementation not yet started  
+**Status:** implementation-ready architecture; Kernel implementation not yet started  
 
 ---
 
 # Purpose
 
-This file records accepted physical-architecture decisions for Knowledge Core. Detailed design artifacts are:
+This file records accepted physical-architecture decisions for Knowledge Core. Detailed design and execution-governance artifacts are:
 
+- `ARCHITECTURE_V1.md`
 - `PHYSICAL_SCHEMA_V1.md`
 - `IMPLEMENTATION_PLAN_V1.md`
+- `EXECUTION_GOVERNANCE.md`
 
 The completed Knowledge Architecture Evidence Campaign remains the requirements/evidence base. Physical choices must not weaken it.
 
@@ -169,14 +171,22 @@ Implementation may surface new bounded decisions. Those must be added here rathe
 
 ---
 
-# Documentation workflow
+# Documentation and execution workflow
 
-The major physical decisions are complete. Perform one bounded architecture synthesis, then freeze an implementation-ready checkpoint. After that, implementation should proceed only through the bounded Kernel plan and stop when its acceptance gates pass or a design failure requires returning here.
+The architecture synthesis and implementation-ready checkpoint are complete.
+
+All future bounded tasks on Knowledge Core must follow `EXECUTION_GOVERNANCE.md`. In particular, documentation/checkpoint capacity is part of the task budget and must be reserved before optional implementation, investigation, or validation consumes the available tool allowance.
+
+A task should stop technical work early rather than risk losing its durable state. Partial implementation with a complete checkpoint is preferable to additional uncheckpointed work.
+
+Material new architecture decisions or failures discovered during implementation must be recorded here or in the controlling implementation state before the task is considered complete.
 
 ---
 
 # Current next task
 
-**Bounded architecture synthesis / implementation-ready checkpoint.**
+**Knowledge Core Kernel implementation — first bounded implementation slice from `IMPLEMENTATION_PLAN_V1.md`.**
 
-After that checkpoint, the next separately controlled phase is **Knowledge Core Kernel implementation** according to `IMPLEMENTATION_PLAN_V1.md`.
+Architecture is implementation-ready. No Knowledge Core production code or database migration has yet been started on this branch.
+
+The Kernel phase must obey `EXECUTION_GOVERNANCE.md` and stop after its documented acceptance gates pass or a design failure requires returning to architecture.
