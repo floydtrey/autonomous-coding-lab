@@ -33,9 +33,10 @@ from knowledge_core.storage.models import Revision
 
 T = TypeVar("T")
 
-# Serializes Task 3 optimistic-precondition checks on PostgreSQL. The lock is scoped
-# to the current transaction and does not leak outside Knowledge Core.
-_POSTGRES_PRECONDITION_LOCK = 1262702416
+# Serializes all Task 3 managed canonical writes on PostgreSQL. State-dependent
+# operations compare their expected revision while holding this transaction lock,
+# so another managed write cannot advance the global revision between check/commit.
+_POSTGRES_CANONICAL_WRITE_LOCK = 1262702416
 
 
 def _canonical_value(value: Any) -> Any:
@@ -121,12 +122,12 @@ class OperationKnowledgeKernel(TemporalKnowledgeKernel):
             error_code=row.error_code,
         )
 
-    def _acquire_precondition_lock(self) -> None:
+    def _acquire_canonical_write_lock(self) -> None:
         bind = self.session.get_bind()
         if bind.dialect.name == "postgresql":
             self.session.execute(
                 text("SELECT pg_advisory_xact_lock(:lock_key)"),
-                {"lock_key": _POSTGRES_PRECONDITION_LOCK},
+                {"lock_key": _POSTGRES_CANONICAL_WRITE_LOCK},
             )
 
     def _validate_existing_operation(
@@ -247,8 +248,13 @@ class OperationKnowledgeKernel(TemporalKnowledgeKernel):
                 replay=replay,
             )
 
+        # Every managed canonical write uses one transaction-scoped serialization
+        # point on PostgreSQL. This makes a global revision precondition meaningful:
+        # once checked, another managed write cannot advance the revision before this
+        # operation settles.
+        self._acquire_canonical_write_lock()
+
         if expected_revision is not None:
-            self._acquire_precondition_lock()
             actual_revision = self.current_revision()
             if actual_revision != expected_revision:
                 operation.status = "conflict"
