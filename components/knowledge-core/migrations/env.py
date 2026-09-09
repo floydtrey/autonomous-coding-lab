@@ -9,6 +9,7 @@ from sqlalchemy import engine_from_config, pool
 from knowledge_core.storage.models import Base
 # Register non-core model modules in the shared SQLAlchemy metadata.
 from knowledge_core.storage import control_models as _control_models  # noqa: F401
+from knowledge_core.storage import deletion_models as _deletion_models  # noqa: F401
 from knowledge_core.storage import identity_models as _identity_models  # noqa: F401
 from knowledge_core.storage import resource_models as _resource_models  # noqa: F401
 
