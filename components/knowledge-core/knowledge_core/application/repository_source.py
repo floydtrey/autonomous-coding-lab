@@ -10,7 +10,7 @@ from knowledge_core.domain.assertions import KnowledgeInvariantError
 from knowledge_core.domain.repository_import import RepositorySourceProof
 
 
-_HEX_OBJECT = re.compile(r"^[0-9a-f]{40,64}$")
+_SHA1_OBJECT = re.compile(r"^[0-9a-f]{40}$")
 
 
 class RepositorySourceReader(Protocol):
@@ -22,10 +22,12 @@ class RepositorySourceReader(Protocol):
 
 @dataclass
 class GitRepositorySourceReader:
-    """Read exact Git objects from one server-configured repository.
+    """Read exact SHA-1 Git objects from one server-configured repository.
 
     The repository root is host configuration. Manifest/client data never becomes
-    a filesystem root or shell command.
+    a filesystem root or shell command. RI-2 intentionally qualifies SHA-1 Git
+    object identities only; SHA-256 repository support requires a later bounded
+    extension with independent SHA-256 Git-object verification.
     """
 
     repository_locator: str
@@ -52,8 +54,10 @@ class GitRepositorySourceReader:
             ) from exc
 
     def read_exact(self, *, source_commit: str, path: str) -> RepositorySourceProof:
-        if not _HEX_OBJECT.fullmatch(source_commit):
-            raise KnowledgeInvariantError("source_commit must be an exact Git object id")
+        if not _SHA1_OBJECT.fullmatch(source_commit):
+            raise KnowledgeInvariantError(
+                "source_commit must be an exact 40-character SHA-1 Git object id"
+            )
         tree = self._git("ls-tree", source_commit, "--", path, text=True).stdout.strip()
         if not tree:
             raise KnowledgeInvariantError(
@@ -63,6 +67,10 @@ class GitRepositorySourceReader:
         mode, object_type, blob_sha = meta.split(" ", 2)
         if resolved_path != path:
             raise KnowledgeInvariantError("Git source path resolved unexpectedly")
+        if not _SHA1_OBJECT.fullmatch(blob_sha):
+            raise KnowledgeInvariantError(
+                "RI-2 repository reader supports SHA-1 Git repositories only"
+            )
         if object_type != "blob" or mode not in {"100644", "100755"}:
             raise KnowledgeInvariantError(
                 "repository import accepts only regular Git blobs"
