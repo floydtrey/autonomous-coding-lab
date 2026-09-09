@@ -10,7 +10,10 @@ from knowledge_core.application.history import TemporalKnowledgeKernel
 from knowledge_core.application.operations import _interval_payload, _typed_value_payload
 from knowledge_core.domain.assertions import KnowledgeInvariantError, TypedValue
 from knowledge_core.domain.deletion import KnowledgeRestrictedError
-from knowledge_core.domain.identity import IdentityTransitionSnapshot
+from knowledge_core.domain.identity import (
+    IdentityResolutionSnapshot,
+    IdentityTransitionSnapshot,
+)
 from knowledge_core.domain.temporal import BitemporalAssertion, WorldInterval
 from knowledge_core.storage.models import Entity
 
@@ -23,7 +26,7 @@ class EntitySnapshot:
 
 
 class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
-    """Semantic application operations safe for the Task 7 HTTP boundary."""
+    """Semantic application operations safe for the HTTP boundary."""
 
     def read_entity_serving(self, entity_ref: UUID) -> EntitySnapshot:
         if not self._direct_ref_serving_eligible(entity_ref):
@@ -46,6 +49,10 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
             )
         if self.session.get(Entity, entity_ref) is None:
             raise KnowledgeInvariantError(f"unknown entity: {entity_ref}")
+
+    def read_identity_serving(self, entity_ref: UUID) -> IdentityResolutionSnapshot:
+        self._require_serving_entity(entity_ref)
+        return self.current_identity(entity_ref=entity_ref)
 
     def serving_current(
         self,
@@ -217,11 +224,13 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
                 self._require_serving_entity(entity_ref)
             self._require_serving_entity(representative_ref)
             self._require_active_ref(identity_kind_revision_ref)
-            return self.merge_entities(
+            transition = self.merge_entities(
                 entity_refs=refs,
                 representative_ref=representative_ref,
                 identity_kind_revision_ref=identity_kind_revision_ref,
             )
+            self.rebuild_current_identity_projection()
+            return transition
 
         return self._execute_operation(
             operation_id=operation_id,
@@ -256,11 +265,13 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
             self._require_serving_entity(old_entity_ref)
             self._require_serving_entity(new_entity_ref)
             self._require_active_ref(identity_kind_revision_ref)
-            return self.replace_entity(
+            transition = self.replace_entity(
                 old_entity_ref=old_entity_ref,
                 new_entity_ref=new_entity_ref,
                 identity_kind_revision_ref=identity_kind_revision_ref,
             )
+            self.rebuild_current_identity_projection()
+            return transition
 
         return self._execute_operation(
             operation_id=operation_id,
@@ -294,10 +305,12 @@ class ServiceKnowledgeKernel(DeletionKnowledgeKernel):
             for member in transition.members:
                 self._require_serving_entity(member.entity_ref)
             self._require_active_ref(identity_kind_revision_ref)
-            return self.reverse_identity_transition(
+            reversal = self.reverse_identity_transition(
                 transition_ref=transition_ref,
                 identity_kind_revision_ref=identity_kind_revision_ref,
             )
+            self.rebuild_current_identity_projection()
+            return reversal
 
         return self._execute_operation(
             operation_id=operation_id,
