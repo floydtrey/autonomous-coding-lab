@@ -29,7 +29,7 @@ from knowledge_core.storage.repository_import_models import (
 from knowledge_core.storage.resource_models import ResourceVersion
 
 
-_HEX_OBJECT = re.compile(r"^[0-9a-f]{40,64}$")
+_SHA1_OBJECT = re.compile(r"^[0-9a-f]{40}$")
 _SUPPORTED_MEDIA = {"text/plain", "text/markdown"}
 _ALLOWED_LIFECYCLE = {"current", "unknown", "superseded"}
 _ALLOWED_HISTORY_POLICY = "retain_prior_versions_as_superseded"
@@ -66,7 +66,7 @@ def _receipt_snapshot(row: RepositoryImportReceipt) -> RepositoryImportReceiptSn
 
 
 class RepositoryImportKnowledgeKernel(RetrievalServiceKnowledgeKernel):
-    """RI-2 governed repository import over exact Git object proofs."""
+    """RI-2 governed repository import over exact SHA-1 Git object proofs."""
 
     def __init__(
         self,
@@ -135,9 +135,9 @@ class RepositoryImportKnowledgeKernel(RetrievalServiceKnowledgeKernel):
             if not isinstance(manifest[field], str) or not manifest[field].strip():
                 raise KnowledgeInvariantError(f"{field} must be a non-empty string")
         source_commit = manifest["source_commit"]
-        if not isinstance(source_commit, str) or not _HEX_OBJECT.fullmatch(source_commit):
+        if not isinstance(source_commit, str) or not _SHA1_OBJECT.fullmatch(source_commit):
             raise KnowledgeInvariantError(
-                "source_commit must be an exact Git object id"
+                "source_commit must be an exact 40-character SHA-1 Git object id"
             )
         previous = manifest["previous_manifest_digest"]
         if previous is not None and (
@@ -191,9 +191,9 @@ class RepositoryImportKnowledgeKernel(RetrievalServiceKnowledgeKernel):
                 raise KnowledgeInvariantError("duplicate active path in manifest")
             paths.add(path)
             blob = raw["git_blob_sha"]
-            if not isinstance(blob, str) or not _HEX_OBJECT.fullmatch(blob):
+            if not isinstance(blob, str) or not _SHA1_OBJECT.fullmatch(blob):
                 raise KnowledgeInvariantError(
-                    "git_blob_sha must be an exact Git object id"
+                    "git_blob_sha must be an exact 40-character SHA-1 Git object id"
                 )
             if raw["media_type"] not in _SUPPORTED_MEDIA:
                 raise KnowledgeInvariantError(
@@ -312,13 +312,15 @@ class RepositoryImportKnowledgeKernel(RetrievalServiceKnowledgeKernel):
                 raise KnowledgeInvariantError(
                     "repository reader returned mismatched source identity"
                 )
+            if not _SHA1_OBJECT.fullmatch(proof.git_blob_sha):
+                raise KnowledgeInvariantError(
+                    "RI-2 source proof must use a SHA-1 Git blob id"
+                )
             if proof.git_blob_sha != entry["git_blob_sha"]:
                 raise KnowledgeInvariantError(
                     "manifest Git blob does not match exact source object"
                 )
-            if len(proof.git_blob_sha) == 40 and _git_blob_sha(
-                proof.content
-            ) != proof.git_blob_sha:
+            if _git_blob_sha(proof.content) != proof.git_blob_sha:
                 raise KnowledgeInvariantError(
                     "Git blob identity does not match exact source bytes"
                 )
