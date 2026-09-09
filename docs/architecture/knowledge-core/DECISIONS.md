@@ -3,13 +3,18 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
 **Component:** Knowledge Core  
-**Status:** active physical-architecture decision log  
+**Status:** major physical-architecture decisions complete; implementation not yet started  
 
 ---
 
 # Purpose
 
-This file records accepted physical-architecture decisions for Knowledge Core as they are made. Detailed architecture documentation will be synthesized after the major structural decisions are complete. The completed Knowledge Architecture Evidence Campaign remains the evidence base; physical choices must not weaken it.
+This file records accepted physical-architecture decisions for Knowledge Core. Detailed design artifacts are:
+
+- `PHYSICAL_SCHEMA_V1.md`
+- `IMPLEMENTATION_PLAN_V1.md`
+
+The completed Knowledge Architecture Evidence Campaign remains the requirements/evidence base. Physical choices must not weaken it.
 
 Conceptual primitive families remain semantic roles rather than mandatory tables: ENTITY, ASSERTION, OCCURRENCE, RESOURCE, EVIDENCE/PROVENANCE LINK, and SEMANTIC PROFILE/VOCABULARY DEFINITION.
 
@@ -117,105 +122,61 @@ Secrets are not knowledge, prompts, source control, logs, embeddings, or ordinar
 **Status:** Accepted
 Knowledge Core initially uses Python 3.12+, FastAPI, Pydantic, and versioned HTTP/JSON. It binds locally by default and becomes network-exposed only with explicit authentication/encryption/firewalling. The typed semantic API remains independent of PostgreSQL and avoids generic CRUD/SQL endpoints.
 
+## KC-D023 — V1 physical database uses canonical, control, and derived PostgreSQL schemas with an atomic-proposition assertion model
+**Status:** Accepted
+`PHYSICAL_SCHEMA_V1.md` is the current physical-schema candidate. One PostgreSQL database uses `kc` for canonical semantic/history records, `kc_control` for safe operation/idempotency/deletion/backup control, and `kc_derived` for rebuildable current/search/semantic projections. Assertions are normally atomic typed propositions. UUID references identify records; monotonic BIGINT revisions order canonical commits. Exact table/column names remain subject to first-DDL validation, but the semantic split is accepted.
+
 ---
 
-## KC-D023 — V1 physical database uses canonical, control, and derived PostgreSQL schemas with an atomic-proposition assertion model
+## KC-D024 — First implementation is a bounded Knowledge Core Kernel validation slice
 
 **Status:** Accepted
 
-The first PostgreSQL implementation follows `PHYSICAL_SCHEMA_V1.md` as the current architecture candidate.
+The first build follows `IMPLEMENTATION_PLAN_V1.md`.
 
-Use one Knowledge Core PostgreSQL database with three physical PostgreSQL schemas:
+It is a kernel validation lab, not a production Vera/ACL memory deployment.
 
-```text
-kc            canonical semantic/history records
-kc_control    operational/idempotency/deletion/backup control
-kc_derived    rebuildable current/search/semantic projections
-```
+The slice will implement just enough real PostgreSQL, FastAPI/Pydantic, local immutable artifact storage, semantic profile loading, canonical history, projections, identity transitions, provenance, deletion fencing, concurrency/idempotency, and test infrastructure to falsify the V1 architecture.
 
-### Canonical zone
+It explicitly excludes:
 
-`kc` contains the durable semantic substrate, including the physical equivalents of:
+- Vera integration;
+- ACL integration;
+- real Authority service implementation;
+- Effect Executor;
+- autonomous workers;
+- embeddings/vector indexes;
+- external graph/vector/search services;
+- full Vera/ACL domain profiles;
+- production backup scheduler;
+- UI.
 
-- monotonic canonical revisions;
-- universal `knowledge_ref` identity registry;
-- entities;
-- occurrences;
-- assertions;
-- typed assertion values;
-- governed n-ary participants when needed;
-- assertion lifecycle transitions;
-- reversible identity transitions;
-- typed provenance links;
-- logical resources, exact resource versions and mutable locator history;
-- semantic profiles/revisions and predicate/kind/role definitions;
-- append-oriented record classification history used to rebuild authorization filters.
+The initial component layout is defined in `IMPLEMENTATION_PLAN_V1.md` under `components/knowledge-core/` with separate API, application, domain, storage, artifact, profile, projection, and Authority-interface boundaries.
 
-Ordinary knowledge in `kc` is append-oriented and non-destructive except for the separately governed erasure lifecycle.
+The slice must pass its 19 kernel gates before domain expansion. Those gates include typed assertions, reference relationships, correction without overwrite, explicit reversal, bitemporal behavior, conflict preservation, exact resource-version provenance, backward/forward lineage, projection rebuild, stale-writer rejection, idempotent retry, reversible identity merge, replacement-not-equivalence, restriction fencing, minimal erasure tombstone, anti-resurrection restore simulation, semantic profile immutability, derived-generation fencing, and service-only client access.
 
-### Atomic proposition rule
+Failure of a gate requires repairing the physical model before adding more features.
 
-One ASSERTION row normally represents one atomic proposition occurrence under one exact predicate revision.
-
-Binary relationships are reference-valued assertions. Multi-valued properties normally use multiple assertions. Truly n-ary propositions use explicit governed participant roles rather than opaque arrays/JSON.
-
-Typed values use constrained physical variants such as canonical reference, text, numeric, boolean, date, and timestamp. Profile-governed bounded JSON is the exception, not the default.
-
-### Control zone
-
-`kc_control` stores non-world operational state required to make the service safe and recoverable, including:
-
-- semantic API operation/idempotency records;
-- deletion/restriction cases and targets;
-- backup checkpoint manifests;
-- later maintenance/rebuild control records where useful.
-
-### Derived zone
-
-`kc_derived` stores rebuildable helpers such as:
-
-- current assertion selection;
-- current identity resolution;
-- current classification/eligibility projection;
-- generation/source metadata;
-- full-text documents;
-- embeddings/vector data when implemented;
-- optional inferred relationship closures.
-
-Multiple competing assertions may remain simultaneously current when conflict is unresolved; the physical model must not force false single-valued certainty.
-
-### Identifier strategy
-
-Addressable semantic/control objects use UUID references, with UUIDv7 preferred for new service-generated identifiers on PostgreSQL 18. Canonical mutation ordering uses a separate monotonic `BIGINT` revision identity.
-
-### Minimal erased tombstone
-
-Privileged erasure may remove specialized canonical payload while retaining a minimal opaque `knowledge_ref` tombstone when necessary for anti-resurrection/deletion-control integrity. The tombstone must not retain substantive erased content.
-
-### Derived search
-
-PostgreSQL full-text materialization belongs in `kc_derived`. pgvector embedding rows belong there when semantic retrieval is implemented; vector index choice is benchmarked later and is not required for the first canonical slice.
-
-### Scope of acceptance
-
-This decision accepts the table-family split, semantic constraints, and transaction boundaries in `PHYSICAL_SCHEMA_V1.md`. It does **not** claim every column/table name is permanently frozen before the first DDL validation gates run.
-
-**Reason:** the design is now concrete enough to implement and test without collapsing the conceptual distinctions or introducing unnecessary distributed infrastructure.
+**Reason:** this proves the hardest architecture properties while changes are still cheap and prevents Vera/ACL features from hiding storage/security flaws behind application complexity.
 
 ---
 
 # Open physical-design decisions
 
-1. The first implementation vertical slice and its validation gates.
+**None required before starting the Knowledge Core Kernel implementation.**
+
+Implementation may surface new bounded decisions. Those must be added here rather than silently changing the accepted architecture.
 
 ---
 
 # Documentation workflow
 
-Record accepted decisions here as they are made; supersede rather than silently rewrite. Avoid freezing a deep code/folder skeleton until structural decisions settle. After the major physical-design choices, perform one bounded architecture synthesis covering service boundaries, flows, PostgreSQL schema, artifact storage, security, API, package/folder layout, backup/recovery, build order, and validation gates.
+The major physical decisions are complete. Perform one bounded architecture synthesis, then freeze an implementation-ready checkpoint. After that, implementation should proceed only through the bounded Kernel plan and stop when its acceptance gates pass or a design failure requires returning here.
 
 ---
 
-# Current next decision
+# Current next task
 
-The next design discussion should choose the smallest first implementation vertical slice. It must prove the difficult architecture properties early—append-only correction/reversal, current-view rebuild, bitemporal queries, typed values, provenance to an exact resource version, stale-write/idempotent retry behavior, and service-only access—without implementing Vera, Authority, embeddings, or the full domain vocabulary yet.
+**Bounded architecture synthesis / implementation-ready checkpoint.**
+
+After that checkpoint, the next separately controlled phase is **Knowledge Core Kernel implementation** according to `IMPLEMENTATION_PLAN_V1.md`.
