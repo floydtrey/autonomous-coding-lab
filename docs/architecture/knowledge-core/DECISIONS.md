@@ -97,87 +97,101 @@ Entity IDs stay stable. Aliases/identifiers are evidence, not identity. Merge/sp
 **Status:** Accepted
 Valid erasure/restriction fences access first, then reconciles canonical payload, descendants/derivatives, artifacts, backups/restore, and external/exported state where possible. Minimal non-content control state may remain to prevent resurrection and prove scoped settlement. Old backups are never served before newer deletion/restriction controls are reapplied.
 
+## KC-D018 — Canonical writes use optimistic preconditions, stable operation identities, and idempotent retry semantics
+**Status:** Accepted
+Writes that depend on current state carry expected revision/preconditions and fail stale rather than silently winning. Externally requested mutations use stable operation/idempotency identities so uncertain retries return the prior result rather than duplicate semantic intent. Canonical revision identity supports deterministic replay; current projections and required synchronous updates commit transactionally; derived rebuilds use generation fencing.
+
 ---
 
-## KC-D018 — Canonical writes use optimistic preconditions, stable operation identities, and idempotent retry semantics
+## KC-D019 — Backup/restore uses coordinated checkpoints and a higher-durability deletion/restriction restore fence
 
 **Status:** Accepted
 
-Knowledge Core will not use silent last-writer-wins behavior for semantically conflicting canonical changes.
+Knowledge Core backups are coordinated across canonical PostgreSQL state and the content-addressed artifact store rather than treating them as unrelated copies.
 
-### Stable operation identity
+A backup checkpoint/manifest records enough identity to prove what was captured, including at least:
 
-Every externally requested mutation receives a stable `operation_id` / idempotency identity scoped to the authenticated caller/action class.
+- Knowledge Core schema/migration revision;
+- canonical PostgreSQL revision/high-water mark and database backup identity;
+- artifact-store backend identity and a manifest/verification state for blobs required by the captured canonical revision;
+- semantic-profile revision state needed to interpret the captured records;
+- deletion/restriction-control high-water mark available at backup time;
+- backup creation/verification status.
 
-If a client experiences an uncertain result, such as a network timeout after submitting a write, it retries using the **same operation identity**.
+Because artifact blobs are immutable/content-addressed, artifact backup can be incremental and independently verified by digest. A database checkpoint must not be considered recoverable until all artifact blobs referenced by that checkpoint are either present in the backup set or explicitly classified as external/recoverable by another governed mechanism.
 
-Knowledge Core must then:
+### Derived indexes are rebuildable
 
-- return the already-settled result if that operation previously committed successfully with the same canonical request payload;
-- continue/return the known pending state if the operation is still legitimately in progress;
-- return the prior failure if it is terminal and retry semantics do not permit a new attempt under the same identity;
-- reject reuse of the same operation identity with materially different request semantics/payload.
+Full-text/vector indexes, embeddings, summaries, relationship closures, current-state projections, and other derived structures do not have to be authoritative backup payloads if they can be deterministically rebuilt from the captured canonical state and required model/profile/configuration artifacts.
 
-This prevents a timeout from becoming a duplicate assertion, duplicate correction, duplicate identity transition, or duplicate deletion request.
+They may optionally be backed up for faster recovery, but a restored copy remains derived and must match its recorded source/generation revision before use.
 
-### Optimistic revision/precondition checks
+### Deletion/restriction control has stronger anti-resurrection durability
 
-Operations that depend on a particular current state—correction, supersession, reversal, identity transition, classification change, profile activation, deletion/restriction scope change, etc.—carry an `expected_revision`, expected current target reference, or equivalent semantic precondition.
+A restore from an older snapshot can legitimately lose newer ordinary knowledge according to the chosen recovery-point objective. It must **not** resurrect knowledge that was validly deleted or restricted after that snapshot.
 
-The service checks that precondition inside the same PostgreSQL transaction that appends the new canonical record/transition.
+Therefore the minimal deletion/restriction control ledger required to fence erased/restricted records is backed up or replicated separately with a higher durability/freshness target than ordinary periodic Knowledge Core snapshots.
 
-If the expected state is stale, the operation fails as a **conflict/stale-precondition result** rather than silently applying to a different current state.
+That control copy contains only the minimum non-content identifiers/status needed to reapply restrictions and prevent resurrection; it does not become a duplicate store of erased payload.
 
-Example:
+### Restore is staged and non-serving
+
+A restored Knowledge Core remains offline/non-serving until this sequence settles:
 
 ```text
-Revision 100: A1 is current
-
-Vera reads revision 100
-ACL reads revision 100
-
-Vera corrects A1 -> A2 with expected revision 100
-commit produces revision 101
-
-ACL attempts A1 -> A3 with expected revision 100
-Knowledge Core returns STALE/CONFLICT
-ACL must reread revision 101 and reconsider
+restore PostgreSQL checkpoint
+restore/verify required artifact blobs
+        |
+        v
+apply every deletion/restriction control record newer than checkpoint
+        |
+        v
+verify schema + semantic-profile compatibility
+        |
+        v
+reconcile canonical/artifact restrictions
+        |
+        v
+rebuild or validate current-state + derived generations
+        |
+        v
+run integrity/acceptance checks
+        |
+        v
+activate service
 ```
 
-Independent append-only claims that do not require exclusive current-state assumptions may proceed concurrently; the model should not serialize all knowledge writes unnecessarily.
+No model/client can query the restored database during the unsafe pre-fence stage.
 
-### Canonical revision/order identity
+### Authority and secrets are separate backup domains
 
-Committed canonical mutations receive stable record/revision identity sufficient for deterministic replay/order. Timestamp alone is not relied upon to establish total ordering where multiple writes may occur at the same timestamp resolution.
+The physically read-only Authority Root, Authority/Effect operational state, and service credentials/secrets are not silently bundled into Knowledge Core backups. They have separate backup/recovery procedures appropriate to their trust and secrecy requirements, while the coordinated restore manifest records any required compatible authority/policy version identifiers.
 
-### Current projection transactionality
+### Recovery must be tested
 
-When a canonical write has a synchronous current-state/identity projection update, both commit in one PostgreSQL transaction or the canonical write remains authoritative and the projection is clearly marked/rebuilt. The service may not return a settled success that implies a new current state while knowingly committing only half of a required transactional pair.
+A backup procedure is not considered complete merely because files were copied. The implementation plan must include periodic restore tests that verify:
 
-### Generation fencing
+- PostgreSQL recovery;
+- artifact digest completeness;
+- deletion/restriction anti-resurrection;
+- semantic-profile interpretability;
+- derived projection rebuild;
+- current/historical query behavior;
+- service activation gates.
 
-Background derived rebuilds use the generation-fencing rule from KC-D015. A worker building from source revision N cannot overwrite a newer settled generation built from revision N+1 merely because the older job finishes later.
+Exact RPO/RTO, backup schedule, PostgreSQL backup tooling, media, encryption, and off-machine/off-site replication frequency remain deployment choices.
 
-### No ambiguous replay as new semantic intent
-
-A fresh attempt after a terminal conflict or intentional user/model reconsideration receives a **new operation identity** and explicitly references the newer base revision. Reusing the old operation ID is reserved for retry/recovery of the same semantic intent.
-
-### Database locks are an implementation detail
-
-PostgreSQL transactions, constraints, row/advisory locks, and isolation levels may be selected per operation during implementation. The architecture requirement is semantic: preconditions and idempotency must be enforced atomically. A global lock over all Knowledge Core writes is not required.
-
-**Reason:** autonomous clients, network retries, background workers, and late-arriving evidence make concurrency inevitable. Stable operation identity plus optimistic preconditions prevents duplicated intent and stale writers without sacrificing append throughput.
+**Reason:** the system's safety depends not only on recovering data, but on recovering the *right historical state* without reviving forgotten data or serving partially reconciled projections.
 
 ---
 
 # Open physical-design decisions
 
 1. Detailed PostgreSQL table split for canonical and derived structures.
-2. Backup/recovery implementation details and coordinated checkpoint manifests.
-3. Initial OS process/service identities and permission boundaries.
-4. Secret/credential storage and access boundaries.
-5. Exact API transport/framework.
-6. The first implementation vertical slice and its validation gates.
+2. Initial OS process/service identities and permission boundaries.
+3. Secret/credential storage and access boundaries.
+4. Exact API transport/framework.
+5. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -189,4 +203,4 @@ Record accepted decisions here as they are made; supersede rather than silently 
 
 # Current next decision
 
-The next design discussion should define backup/recovery as a coordinated Knowledge Core checkpoint: PostgreSQL canonical state, content-addressed artifacts, immutable semantic-profile revisions, deletion/restriction control state, and the rules for excluding/rebuilding derived indexes while proving a restored system is safe before it serves requests.
+The next design discussion should define initial same-machine process/service identities and OS permissions: which account owns PostgreSQL, which account runs Knowledge Core, which accounts run Vera/ACL, which account can read/write the artifact store, and how Authority/Effect Executor remain inaccessible to AI-controlled processes even before any VM or second machine is introduced.
