@@ -5,6 +5,8 @@
 **Starting RI-2 checkpoint:** `3e675f0ffb584d6b270e0a7c52428c74a5496be3`  
 **RI-3 pilot implementation:** `de77c2707b283b9765ebde1a369a8da78a5a847c`  
 **Implementation CI:** GitHub Actions run `34417659798` — **success**  
+**Final validated RI-3 code/config/docs checkpoint:** `9a167e67200c6bee2b7f4ed7b1dc91224d553390`  
+**Final checkpoint CI:** GitHub Actions run `34418080815` — **success**  
 **Manifest:** `docs/architecture/knowledge-core/RI3_PERSISTENT_PILOT_MANIFEST.json`  
 **Status:** **RI-3 complete as a bounded persistence/replay qualification. No production Knowledge Core Python changed and no broad or production corpus was imported.**
 
@@ -87,6 +89,8 @@ Workflow: success
 ```
 
 The additional PostgreSQL test over RI-2 is the RI-3 two-process persistence/replay qualification. The existing historical RF-2 fixture skips remain intentional and unrelated to RI-3.
+
+Final checkpoint run `34418080815` then checked out exact checkpoint `9a167e67200c6bee2b7f4ed7b1dc91224d553390` with full Git history (`fetch-depth: 0`) and repeated the same successful migration and test counts. This validates the durable historical-source checkout configuration as well as the RI-3 pilot itself.
 
 ## CI history requirement
 

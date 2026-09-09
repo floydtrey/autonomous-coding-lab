@@ -10,6 +10,7 @@
 **RI-1 design:** `f7f12c04163ecbe3b6143191008cf393726b8def`  
 **RI-2 validated implementation:** `c2aa14ca5429ccaf5149e0a8a4321ae7a440d8ad` — CI `34416061086`  
 **RI-3 pilot implementation:** `de77c2707b283b9765ebde1a369a8da78a5a847c` — CI `34417659798`  
+**RI-3 final validated code/config/docs checkpoint:** `9a167e67200c6bee2b7f4ed7b1dc91224d553390` — CI `34418080815`  
 **RI-3 completion:** `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI3.md`  
 **Status:** **Kernel V1 remains frozen. RF-2 retrieval, RI-2 governed repository import, and RI-3 application-process persistence/replay qualification are complete. No broad or production corpus has been imported.**
 
@@ -45,7 +46,7 @@ Current-only retrieval excluded RI-1. Explicit `include_superseded=true` retriev
 
 ## Exact RI-3 validation
 
-Checkpoint `de77c2707b283b9765ebde1a369a8da78a5a847c`, GitHub Actions run `34417659798`:
+Implementation checkpoint `de77c2707b283b9765ebde1a369a8da78a5a847c`, GitHub Actions run `34417659798`:
 
 ```text
 PostgreSQL 18
@@ -55,7 +56,9 @@ PostgreSQL: 16 passed, 2 expected historical-fixture skips, 49 deselected
 Workflow: success
 ```
 
-The extra PostgreSQL test is the RI-3 two-process persistence/replay qualification. Existing pinned RF-2 historical-fixture skips are intentional and unrelated.
+Final code/config/docs checkpoint `9a167e67200c6bee2b7f4ed7b1dc91224d553390`, run `34418080815`, repeated the same passing migration/test counts and verified the workflow with `fetch-depth: 0` so the pinned historical source remains available as the branch advances.
+
+The extra PostgreSQL test over RI-2 is the RI-3 two-process persistence/replay qualification. Existing pinned RF-2 historical-fixture skips are intentional and unrelated.
 
 Because RI-3 pins an immutable historical source commit, Knowledge Core CI retains full local Git history (`fetch-depth: 0`) so that exact source remains available as the branch advances. The importer itself remains restricted to exact manifest-listed paths and does not recursively scan or auto-import the repository.
 
@@ -64,7 +67,7 @@ Because RI-3 pins an immutable historical source commit, Knowledge Core CI retai
 Knowledge Core does not yet claim:
 
 - PostgreSQL server/container restart or host reboot persistence qualification;
-- production service/process supervision, filesystem paths/permissions, secrets, TLS/firewalling, or repository credential deployment;
+- production service/process supervision, filesystem paths/permissions, production environment configuration, or repository access deployment;
 - backup/restore or disaster-recovery qualification;
 - broad or production-scale persistent repository import;
 - automatic repository discovery/classification/document-key assignment/rename heuristics;
