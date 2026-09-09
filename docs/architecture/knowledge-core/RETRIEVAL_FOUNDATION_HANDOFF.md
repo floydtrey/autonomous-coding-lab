@@ -2,108 +2,126 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **RI-3 tiny persistent operational pilot is complete. Awaiting separate authorization for RI-4 local-host persistence/recovery qualification.**
+**Status:** **RI-4 restart qualification harness is implemented and CI-rehearsed successfully. RI-4 remains open pending one intended-host qualification run.**
 
 ## Accepted checkpoints
 
 - Frozen Kernel V1: `9e904f49480055615bb0cf32360dbdc8400e117c`
 - PostgreSQL qualification: `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`
 - RF-2 retrieval: `479a918762e919851e19fee3b36cc1d95e78f3e8` — CI `34371352821`
-- First curated real-corpus retrieval pilot: `40849bd4de261089a030e09677568c3b4cf1a862` — CI `34373589343`
-- RI-1 repository-import design: `f7f12c04163ecbe3b6143191008cf393726b8def`
+- First curated real-corpus pilot: `40849bd4de261089a030e09677568c3b4cf1a862` — CI `34373589343`
+- RI-1 design: `f7f12c04163ecbe3b6143191008cf393726b8def`
 - RI-2 governed importer: `c2aa14ca5429ccaf5149e0a8a4321ae7a440d8ad` — CI `34416061086`
-- RI-3 persistent operational pilot: `de77c2707b283b9765ebde1a369a8da78a5a847c` — CI `34417659798`
-- RI-3 completion record: `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI3.md`
-- RI-3 fixed allowlist: `docs/architecture/knowledge-core/RI3_PERSISTENT_PILOT_MANIFEST.json`
+- RI-3 final validated code/config/docs checkpoint: `9a167e67200c6bee2b7f4ed7b1dc91224d553390` — CI `34418080815`
+- RI-3 final evidence checkpoint: `3d12f205d15c310bce0718c56c0866befccd90ec`
+- RI-4 harness checkpoint: `934850d5830d4a5d89ec32b04630435a027e816f` — CI rehearsal `34418809968`
 
 ## Accepted foundation
 
-Kernel V1 remains frozen. RF-2 exact whole-ResourceVersion lexical retrieval and RI-2 governed repository import remain the accepted production-code foundation.
+Kernel V1 remains frozen. RF-2 and RI-2 semantics are unchanged.
 
-Stable document identity remains:
+Stable repository document identity remains:
 
 ```text
 (source_repository_key, source_document_key) -> Knowledge Core Resource
 ```
 
-RI-2 retains exact SHA-1 Git source verification, explicit Manifest V2 allowlists, manifest chaining, omission safety, explicit lifecycle/authority/classification, stable edit/rename identity, explicit retirements, exact replay, stale-state/source rejection, failed-publication isolation, and generation fencing. Ordinary retrieval clients still receive no repository/database/artifact credentials.
+RI-2 still requires exact manifest-listed SHA-1 Git source objects, explicit lifecycle/authority/classification, manifest chaining, omission safety, exact replay, stale-state rejection, and publication fencing. Repository access remains host-injected and ordinary retrieval clients receive no storage/repository credentials.
 
-## RI-3 accepted result
+RI-3 remains the accepted proof that PostgreSQL/artifact/import/generation state survives reconstruction of the Knowledge Core application in another Python process while the database service itself remains up.
 
-RI-3 adds no production Knowledge Core module. It qualifies persistence/replay using the existing RI-2 importer and RF-2 retrieval.
+## RI-4 current state
 
-The fixed source commit is `3e675f0ffb584d6b270e0a7c52428c74a5496be3`. The pilot manifest contains only:
+RI-4 is deliberately a qualification harness, not production deployment.
 
-1. `CURRENT_STATE.md` as current;
-2. `REPOSITORY_IMPORT_RI2.md` as current;
-3. `REPOSITORY_IMPORT_RI1.md` as superseded historical.
+Files added at `934850d5830d4a5d89ec32b04630435a027e816f`:
 
-Process 1 constructs a service against PostgreSQL plus a persistent `LocalArtifactStore`, plans/applies the manifest, verifies retrieval, and verifies exact artifacts/provenance. Process 1 exits.
+- `components/knowledge-core/tools/ri4_host_qualification.py`
+- `components/knowledge-core/tools/ri4_host_phase.py`
+- `docs/architecture/knowledge-core/RI4_HOST_QUALIFICATION_MANIFEST.json`
 
-Process 2 starts with fresh engine/session/store/reader/app/client objects against the same stores. It proves the accepted receipt and same text generation are already serving before replay, reproduces current and historical retrieval, then reapplies the exact manifest. Replay returns the same receipt and creates no additional persistent state.
+The Knowledge Core workflow also runs the host harness as a CI rehearsal.
 
-Accepted snapshot across that process boundary:
+The fixed manifest pins exactly three existing Knowledge Core Markdown documents to `3d12f205d15c310bce0718c56c0866befccd90ec`, with RI-2 explicitly historical/superseded.
 
-```text
-3 document bindings
-1 settled import receipt
-3 source observations
-3 Resources
-3 ResourceVersions
-3 RF-2 search rows
-3 persisted SHA-256 artifact files
-```
+The harness creates a loopback-only PostgreSQL 18 container backed by a unique persistent Docker named volume, uses a separate host artifact directory, applies the manifest, restarts PostgreSQL, starts a fresh application process, verifies serving/retrieval/artifacts/provenance, exact-replays, and proves the durable snapshot is unchanged.
 
-Default retrieval excludes RI-1. Explicit superseded retrieval returns RI-1 with its exact pinned source version/path.
+No production Knowledge Core Python was modified.
 
-Knowledge Core CI now uses full Git history (`fetch-depth: 0`) because the RI-3 regression pins an immutable historical source commit. This is CI source availability only; repository import remains bounded to manifest-listed exact paths.
+## Exact CI evidence
 
-## Exact RI-3 validation
-
-Run `34417659798` checked out exact implementation `de77c2707b283b9765ebde1a369a8da78a5a847c` and passed:
+Run `34418809968` checked out exact harness checkpoint `934850d5830d4a5d89ec32b04630435a027e816f` and passed:
 
 ```text
-PostgreSQL 18
 Alembic through 0010_ri2
 Fast: 48 passed, 1 expected historical-fixture skip, 18 deselected
 PostgreSQL: 16 passed, 2 expected historical-fixture skips, 49 deselected
+RI-4 Docker/PostgreSQL restart harness: passed
 Workflow: success
+```
+
+The RI-4 step reported all of these true:
+
+```text
+postgres_restart_verified
+application_reconstruction_verified
+exact_replay_verified
+current_historical_retrieval_verified
+artifact_integrity_verified
+provenance_verified
+```
+
+`backup_restore_performed` remained false.
+
+Snapshot across restart/replay:
+
+```text
+3 bindings
+1 settled receipt
+3 observations
+3 Resources
+3 ResourceVersions
+3 search rows
+1 text generation
+3 verified artifacts
 ```
 
 ## Critical boundary
 
-RI-3 proves persistence across **application-process reconstruction while the same PostgreSQL service/database and artifact directory persist**.
+The successful CI rehearsal is not the intended-host qualification.
 
-It does not prove PostgreSQL server/container restart, machine reboot, store recreation, production filesystem/credential/service configuration, backup/restore, or disaster recovery. CI storage remains temporary at workflow scope.
+RI-4 is still open until the same script succeeds on the intended host and its generated `RI4_HOST_QUALIFICATION_EVIDENCE.json` is reviewed.
 
-Do not convert the RI-3 pilot classifications into broad corpus policy without explicit review.
+Do not mark RI-4 complete based only on GitHub Actions.
 
-## Startup instructions
+## Intended-host command
 
-Before the next repository-import task:
+From `components/knowledge-core`, after installing `.[test]` and with Docker Desktop/Engine running:
+
+```powershell
+python tools\ri4_host_qualification.py `
+  --repository-root ..\.. `
+  --state-root "$env:LOCALAPPDATA\KnowledgeCore\ri4-host-qualification-01"
+```
+
+Use a brand-new empty state path outside the Git repository. Do **not** pass `--cleanup` on the intended host; preserve the stopped qualification container/volume and evidence until review.
+
+## Startup instructions for continuation
 
 1. Work from `architecture/knowledge-core`.
-2. Read root `AGENTS.md`, `docs/START_HERE.md`, `docs/CURRENT_STATE.md`, and `docs/DEVELOPMENT.md`.
+2. Verify branch/HEAD before writing.
 3. Read:
    - `docs/architecture/knowledge-core/CURRENT_STATE.md`
-   - `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI2.md`
-   - `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI3.md`
-   - `docs/architecture/knowledge-core/RI3_PERSISTENT_PILOT_MANIFEST.json`
-   - `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_HANDOFF.md`
+   - `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI4.md`
+   - `docs/architecture/knowledge-core/RI4_HOST_QUALIFICATION_MANIFEST.json`
    - `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
-   - `components/knowledge-core/README.md`
-4. Verify branch/HEAD before writing.
-5. Preserve frozen Kernel V1, RF-2 semantics, and RI-2 stable import identity/provenance.
-6. Perform only the separately authorized bounded task.
+4. Do not redesign RI-2/RF-2 or broaden the corpus.
+5. The only authorized continuation is intended-host RI-4 execution/evidence review.
 
-## Next separately authorized task
+## Explicit non-goals
 
-### RI-4 — local-host persistence/recovery qualification
-
-Candidate scope: another tiny explicitly reviewed allowlist using deliberately persistent PostgreSQL and artifact locations on the intended host; prove service/application reconstruction and PostgreSQL/service restart against the same stores, exact replay, current/historical retrieval, artifact integrity, and exact provenance. Backup/restore belongs here only with separate authorization.
-
-Do not broaden into production-scale corpus import, automatic discovery/classification, ACL/Vera/RiskCardOCR import, chunking, embeddings/RAG, Authority, or execution.
+No backup/restore, host-reboot qualification, production deployment/security hardening, production corpus, automatic discovery/classification, SHA-256 Git support, chunking/extraction/OCR, embeddings/RAG, Authority, or autonomous execution is authorized by RI-4.
 
 ## Stop boundary
 
-**RI-3 is complete. Do not begin RI-4 without explicit user authorization.**
+**Stop after preparing/reviewing the intended-host RI-4 evidence. Do not begin another phase without separate user authorization.**
