@@ -16,6 +16,8 @@ class RefKind(StrEnum):
     ENTITY = "entity"
     ASSERTION = "assertion"
     OCCURRENCE = "occurrence"
+    RESOURCE = "resource"
+    RESOURCE_VERSION = "resource_version"
     SEMANTIC_PROFILE = "semantic_profile"
     SEMANTIC_PROFILE_REVISION = "semantic_profile_revision"
     SEMANTIC_KIND = "semantic_kind"
