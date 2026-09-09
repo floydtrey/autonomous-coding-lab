@@ -296,24 +296,70 @@ PostgreSQL temporal constraints may be used where they enforce a real semantic i
 
 ---
 
+## KC-D010 — Provenance is a typed, traversable lineage model separate from semantic relationships and lifecycle state
+
+**Status:** Accepted
+
+Knowledge Core will store provenance/evidence as explicit typed directed links among addressable records, anchored to exact source/version and occurrence identity where applicable.
+
+A provenance link has physical equivalents of:
+
+- stable link identity;
+- source reference;
+- target reference;
+- governed provenance relation type and semantic-profile revision;
+- record/revision identity;
+- optional occurrence/activity reference that explains the derivation or attribution event;
+- bounded qualifiers required by the governed relation.
+
+Representative governed provenance relations include concepts such as:
+
+- `wasDerivedFrom`;
+- `supportedBy`;
+- `wasAttributedTo`;
+- `usedSource`;
+- `wasGeneratedBy`.
+
+Free-text relation names are not sufficient canonical provenance semantics.
+
+Where a source is mutable, provenance must point to the **exact resource version/representation consumed**, not only to a mutable URL, file path, branch name, `latest` alias, or logical resource identity.
+
+Transformation/derivation OCCURRENCE records should be used when the system needs to explain that a process used particular inputs under a particular profile/model/configuration and produced particular outputs. This avoids pretending that a direct source-to-output edge captures the full activity context.
+
+Provenance links are indexed/traversable in both directions so Knowledge Core can answer:
+
+- backward explanation: "What evidence/source/activity produced this?"
+- forward impact: "What assertions, summaries, extractions, embeddings, or other derivatives depend on this source/version?"
+
+Forward impact is required for correction, invalidation, deletion/restriction reconciliation, and rebuilding stale derived data.
+
+Provenance is **not** used as the canonical mechanism for ordinary domain relationships such as `works_for` or `located_in`; those remain governed ASSERTION semantics. It is also not the lifecycle mechanism for `supersedes`, `corrects`, `invalidates`, or `restores` when those transitions determine assertion currentness. Those lifecycle transitions remain explicitly distinguishable even when they themselves have provenance.
+
+Likewise, provenance never grants truth, confidence, sensitivity clearance, permission, or execution authority merely because one record points to another.
+
+Derived/rebuildable records must retain sufficient lineage metadata to identify their canonical source revision(s), derivation/generation identity, and profile/model/configuration revision even when the derived payload itself is stored outside the canonical tables.
+
+**Reason:** a single untyped "edges" table would blur evidence, domain relationships, correction state, and authority. Typed lineage plus occurrence anchoring preserves explanation and impact analysis while keeping those semantics separate.
+
+---
+
 # Open physical-design decisions
 
 These remain deliberately unresolved and should be decided before freezing the deep Knowledge Core folder/package layout:
 
-1. Detailed PostgreSQL table split for entities, assertions, occurrences, resources, resource versions, semantic profiles, assertion values/participants, and reference-registry subtype constraints.
-2. Provenance-link physical representation and traversal strategy.
-3. Artifact/file-store mechanism and content/version layout.
-4. Semantic-profile/vocabulary physical representation and migration rules.
-5. Knowledge Core service API and operation classes.
-6. Retrieval pipeline: structured, relationship, full-text, semantic, composite, and context-construction boundary.
-7. Derived-data generation, invalidation, rebuild, and versioning.
-8. Identity-resolution workflow, ambiguity, merge/split, replacement, and reversal mechanics.
-9. Deletion/retention/reconciliation workflow across canonical and derived planes.
-10. Concurrency, revision/precondition, and stale-write protection.
-11. Backup, recovery, restore, and deletion-ledger reconciliation.
-12. Initial OS process/service identities and permission boundaries.
-13. Secret/credential storage and access boundaries.
-14. The first implementation vertical slice and its validation gates.
+1. Detailed PostgreSQL table split for entities, assertions, occurrences, resources, resource versions, semantic profiles, assertion values/participants, reference-registry subtype constraints, provenance links, and lifecycle transitions.
+2. Artifact/file-store mechanism and content/version layout.
+3. Semantic-profile/vocabulary physical representation and migration rules.
+4. Knowledge Core service API and operation classes.
+5. Retrieval pipeline: structured, relationship, full-text, semantic, composite, and context-construction boundary.
+6. Derived-data generation, invalidation, rebuild, and versioning.
+7. Identity-resolution workflow, ambiguity, merge/split, replacement, and reversal mechanics.
+8. Deletion/retention/reconciliation workflow across canonical and derived planes.
+9. Concurrency, revision/precondition, and stale-write protection.
+10. Backup, recovery, restore, and deletion-ledger reconciliation.
+11. Initial OS process/service identities and permission boundaries.
+12. Secret/credential storage and access boundaries.
+13. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -339,4 +385,4 @@ During physical architecture design:
 
 # Current next decision
 
-The next design discussion should define the physical provenance/evidence-link model: how Knowledge Core can explain where a claim came from and also find everything that depends on a corrected, deleted, or superseded source without turning provenance into an untyped arbitrary graph.
+The next design discussion should choose the initial artifact/file-store mechanism and exact-version layout for large resources. The goal is to preserve immutable content identity and reproducible provenance without introducing a separate object-storage service unless it earns its complexity.
