@@ -28,6 +28,7 @@ from knowledge_core.api.schemas import (
     IdentityMemberResponse,
     IdentityMergeRequest,
     IdentityReplaceRequest,
+    IdentityResolutionResponse,
     IdentityReverseRequest,
     IdentityTransitionResponse,
     StatusResponse,
@@ -40,7 +41,10 @@ from knowledge_core.application.service import ServiceKnowledgeKernel
 from knowledge_core.artifacts.store import LocalArtifactStore
 from knowledge_core.domain.assertions import AssertionSnapshot, KnowledgeInvariantError
 from knowledge_core.domain.deletion import KnowledgeRestrictedError
-from knowledge_core.domain.identity import IdentityTransitionSnapshot
+from knowledge_core.domain.identity import (
+    IdentityResolutionSnapshot,
+    IdentityTransitionSnapshot,
+)
 from knowledge_core.domain.operations import (
     OperationFailedError,
     OperationInProgressError,
@@ -104,6 +108,19 @@ def _identity_transition_response(
             for member in item.members
         ],
         created_revision_id=item.created_revision_id,
+    )
+
+
+def _identity_resolution_response(
+    item: IdentityResolutionSnapshot,
+) -> IdentityResolutionResponse:
+    return IdentityResolutionResponse(
+        entity_ref=item.entity_ref,
+        resolution_group_id=item.resolution_group_id,
+        representative_ref=item.representative_ref,
+        member_refs=list(item.member_refs),
+        source_transition_ref=item.source_transition_ref,
+        source_revision_id=item.source_revision_id,
     )
 
 
@@ -384,6 +401,17 @@ def create_app(
             )
         ]
 
+    @app.get(
+        "/v1/identity/entities/{entity_ref}",
+        response_model=IdentityResolutionResponse,
+    )
+    def read_identity_resolution(
+        entity_ref: UUID,
+        kernel: ServiceKnowledgeKernel = Depends(get_kernel),
+        _caller: str = Depends(caller_context),
+    ) -> IdentityResolutionResponse:
+        return _identity_resolution_response(kernel.read_identity_serving(entity_ref))
+
     @app.post(
         "/v1/identity/merge",
         response_model=IdentityTransitionResponse,
@@ -456,9 +484,6 @@ def create_app(
             caller_principal_ref=caller,
             expected_revision=body.expected_revision,
         )
-        # Apply current serving eligibility after operation replay. A settled operation
-        # remains idempotent internally, but later privacy fencing still controls what
-        # the HTTP boundary may disclose now.
         item = kernel.read_resource_serving(item.resource_ref)
         return ResourceResponse(
             resource_ref=item.resource_ref,
