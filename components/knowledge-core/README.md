@@ -5,10 +5,11 @@ This component is the bounded Knowledge Core Kernel implementation.
 ## Current implementation state
 
 **Branch:** `architecture/knowledge-core`  
-**Completed task:** Knowledge Core Kernel Task 3 — operation/idempotency + stale-writer protection  
-**Starting Task 3 checkpoint:** `d37589c344272240b83e608f7abe2aef40eab358`  
-**Task 3 implementation commits:** `992078ed592a3029708a3cc1e664fd961643c641`, `b0b0158758afb0d1824ebc6cc23fa40aa1f9e0e7`  
-**Status:** Tasks 1–3 implemented; Task 4 not started
+**Completed task:** Knowledge Core Kernel Task 4 — resource/artifact ingest + exact-version provenance  
+**Starting Task 4 checkpoint:** `0ca7951ac114890b6a755e0fc2d40992829d97d9`  
+**Task 4 implementation commit:** `8cfd8199e0497dca401de1515b459f68abf15976`  
+**Task 4 hardening/cleanup commits:** `0ed0710a822e8f38ec8aa78acb553c0fc241c69d`, `664e287e74086472b6d278f1e2909d4615473f9d`, `d9fcd2042bb1c27ec0f57c4589541fb833992e57`, `24e0a709e678a80b0fcea5d89e83a0df69e4059c`  
+**Status:** Tasks 1–4 implemented; Task 5 not started
 
 This file is the durable implementation-progress checkpoint for the component. The architecture documents under `docs/architecture/knowledge-core/` remain the design baseline; later work must still be separately bounded by the user and `EXECUTION_GOVERNANCE.md`.
 
@@ -45,53 +46,81 @@ Implemented:
 - `kc_control.operation` control ledger;
 - stable UUID operation identities and deterministic request digests;
 - canonical revision binding through `kc.revision.operation_id`;
-- settled replay for an identical operation ID/request without a second canonical mutation;
-- rejection when an operation ID is reused for a materially different request or caller;
-- optimistic `expected_revision` preconditions for state-dependent correction;
-- durable `conflict` control state for stale writes without appending a canonical revision or transition;
-- repeatable stale-conflict response on retry;
-- one PostgreSQL transaction-scoped advisory lock for every Task 3 managed canonical write, so a global revision precondition cannot be invalidated by another managed write between check and commit;
-- focused managed write paths for assertion append and assertion correction.
+- settled replay for identical operation retries;
+- rejection of materially different operation-ID reuse;
+- optimistic revision preconditions for state-dependent correction;
+- durable stale-write conflict state without unintended canonical mutation;
+- one PostgreSQL transaction-scoped advisory lock across Task 3 managed canonical writes.
 
-Task 3 does **not** implement resources/artifacts/provenance, identity resolution, deletion/restriction, FastAPI routes, Authority, embeddings, Vera, ACL integration, or later Kernel features.
+### Task 4 — resource/artifact ingest + exact-version provenance
 
-The pre-existing lower-level Task 1/2 mutation methods remain available as internal kernel/test infrastructure. Task 3 proves the managed operation boundary for the Gate 10/11 assertion cases; the later service/API task must route external semantic mutation requests through the managed operation path rather than exposing unguarded database writes.
+Implemented:
 
-## Task 3 validation checkpoint
+- canonical `kc.resource`, `kc.resource_version`, `kc.resource_locator`, and `kc.provenance_link` records;
+- universal `resource` and `resource_version` reference kinds;
+- a separate minimal `resource-test` semantic profile so Task 4 does not silently mutate the earlier `core-test` profile revision;
+- local immutable SHA-256 content-addressed artifact storage outside PostgreSQL;
+- digest/size/backend/key metadata in PostgreSQL while exact artifact bytes remain in the artifact backend;
+- resource-version uniqueness scoped to `(logical resource, digest algorithm, digest)` rather than global semantic merging;
+- physical artifact deduplication without merging distinct logical resource identities;
+- ingestion occurrences and historical locator observations pinned to exact resource versions;
+- stable re-ingest of an already-known exact version without inventing a second version;
+- recording of a newly observed locator for an existing exact version without inventing a new version;
+- typed provenance links using the governed `supports_claim` relation revision;
+- assertion evidence links that target an exact `RESOURCE VERSION`, never a mutable path/URL locator;
+- backward assertion explanation to the exact consumed evidence version;
+- forward impact traversal from an exact resource version to dependent assertion refs;
+- rejection of an ordinary domain reference predicate attempting to masquerade as provenance.
+
+Task 4 deliberately does **not** implement identity transitions, deletion/restriction, FastAPI routes, Authority, embeddings, Vera integration, ACL integration, or later Kernel features.
+
+## Task 4 semantic conventions
+
+For the bounded Gate 7/8 slice, provenance uses this direction:
+
+```text
+dependent assertion --supports_claim--> exact resource version
+```
+
+The mutable locator is historical observation metadata on the logical resource/version. It is never substituted for the exact version in provenance. This lets the same indexed provenance links support both:
+
+- backward explanation: assertion -> exact evidence version;
+- forward impact: exact evidence version -> dependent assertion(s).
+
+Identical bytes may share one physical SHA-256 artifact key across logical resources, but each logical resource retains its own semantic `resource_version` ref. Physical deduplication therefore does not collapse provenance, ownership, or resource identity.
+
+## Task 4 validation checkpoint
 
 Validation performed before this durable checkpoint:
 
-- isolated Task 3 operation-control semantic harness: **4/4 passed**;
-- PostgreSQL `kc_control.operation` DDL compilation: passed;
-- committed focused Task 3 tests cover stale-writer rejection, identical append retry, operation-ID payload mismatch, and idempotent correction replay;
-- GitHub Actions for commit `b0b0158`: no workflow run existed.
+- Task 4 Python source syntax pre-check: passed;
+- local SHA-256 artifact-store commit/read/verify harness: passed;
+- Task 4 SQLAlchemy resource/provenance models created successfully under isolated SQLite schema translation;
+- the same Task 4 SQLAlchemy tables/indexes compiled successfully to PostgreSQL DDL;
+- isolated SQLite Task 4 semantic harness: passed for distinct mutable-path versions, exact-byte retrieval, backward explanation, forward impact, and locator history;
+- isolated negative/re-ingest harness: passed for stable exact re-ingest and rejection of a non-provenance domain relation;
+- committed focused Task 4 tests contain six cases covering the Gate 7/8 behaviors and the two review edge cases;
+- GitHub Actions for the final Task 4 implementation head before checkpoint: no workflow run existed.
 
-The four isolated Task 3 cases prove:
+The bounded validation proves the intended Task 4 semantics, but it is not a claim of a complete repository-side CI run.
 
-1. an identical operation retry returns the original settled result and does not append another canonical revision;
-2. reusing an operation ID with a different payload is rejected without changing canonical state;
-3. a stale expected revision settles only a `kc_control.operation` conflict record and appends no canonical revision;
-4. retrying that identical stale operation reproduces the same settled conflict instead of attempting a mutation again.
+### Validation and implementation limitations
 
-### Concurrency review correction
+The execution environment still did not provide a live PostgreSQL service, so this checkpoint does **not** claim that migrations `0001_task1` through `0004_task4` were applied to a running PostgreSQL database. It also does not claim a live artifact-filesystem/PostgreSQL crash-recovery test.
 
-The first Task 3 implementation serialized only writes that carried an explicit stale precondition. Review identified that this was insufficient for a global revision precondition because another managed write could advance the revision between check and commit. Commit `b0b0158` corrected the design: **all managed Task 3 canonical writes acquire the same PostgreSQL transaction advisory lock**, and state-dependent writes compare `expected_revision` while holding that lock.
+Artifact bytes are committed to the immutable content-addressed backend before the corresponding canonical database mutation settles. If a database transaction fails after the artifact commit, an unreachable immutable artifact blob can remain. That cannot make canonical provenance point to incorrect bytes, but explicit orphan/reconciliation tooling is not implemented in Task 4 and must not be assumed to exist.
 
-### Validation limitation
-
-The execution environment still did not provide a live PostgreSQL server or a repository-side CI run. Therefore this checkpoint does **not** claim that migrations `0001_task1` through `0003_task3` were applied against a running PostgreSQL instance, and it does not claim live multi-session PostgreSQL concurrency proof.
-
-A live PostgreSQL migration/integration/concurrency gate should be performed before later work relies on PostgreSQL-specific runtime locking behavior.
+A live PostgreSQL migration/integration gate remains required before relying on PostgreSQL-specific runtime behavior in later deployment work.
 
 ## Stop point
 
-Task 3 is complete at this checkpoint. **Task 4 has not been started.**
+Task 4 is complete at this checkpoint. **Task 5 has not been started.**
 
 The next separately authorized task from the Kernel build order is:
 
-> **Knowledge Core Kernel Task 4: resource/artifact ingest + exact-version provenance.**
+> **Knowledge Core Kernel Task 5: identity transitions — reversible identity merge/split semantics + replacement-not-equivalence.**
 
-That task should cover only the resource/artifact/provenance boundary needed for Kernel gates 7 and 8. Do not begin identity transitions, deletion/restriction, FastAPI service routes, Authority, embeddings, Vera, ACL integration, or later Kernel areas implicitly.
+That task should cover only the identity boundary needed for Kernel Gates 12 and 13. Do not begin deletion/restriction, FastAPI service routes, Authority, embeddings, Vera, ACL integration, or later Kernel areas implicitly.
 
 ## Development
 
