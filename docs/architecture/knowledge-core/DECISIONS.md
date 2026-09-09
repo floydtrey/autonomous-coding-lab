@@ -103,97 +103,91 @@ State-dependent writes carry expected revision/preconditions and fail stale rath
 
 ## KC-D019 — Backup/restore uses coordinated checkpoints and a higher-durability deletion/restriction restore fence
 **Status:** Accepted
-Backups coordinate PostgreSQL and required immutable artifacts through a checkpoint manifest. Derived indexes may rebuild. Minimal deletion/restriction control state has stronger anti-resurrection durability and is reapplied before any restored service is activated. Restore remains non-serving until integrity, restriction, profile, and projection checks pass.
+Backups coordinate PostgreSQL and immutable artifacts through a checkpoint manifest. Minimal deletion/restriction control state has stronger anti-resurrection durability and is reapplied before any restored service is activated. Restore remains non-serving until integrity, restriction, profile, and projection checks pass.
+
+## KC-D020 — Initial same-machine isolation uses separate least-privilege service identities and OS ACL boundaries
+**Status:** Accepted
+The first Windows deployment uses distinct least-privilege security principals/service identities for Vera/ACL, Knowledge Core, PostgreSQL, Authority, and Effect Executor. NTFS/service ACLs separate trusted install/config, artifact, runtime, policy, and credential access. AI processes do not run as Administrator/LocalSystem in normal operation and cannot rewrite trusted services or policy. Stronger VM/machine isolation may be added later without redesign.
 
 ---
 
-## KC-D020 — Initial same-machine isolation uses separate least-privilege service identities and OS ACL boundaries
+## KC-D021 — Secrets and credentials live outside Knowledge Core and are scoped to the consuming trusted service
 
 **Status:** Accepted
 
-The first Windows deployment may run Vera, ACL, Knowledge Core, PostgreSQL, Authority, and Effect Executor on one physical computer, but they will not run as one shared fully privileged identity.
+Passwords, API tokens, OAuth refresh/access tokens, database administrative credentials, private cryptographic keys, device/home/car service credentials, remote-service cookies/tokens, and similar secret material are **not Knowledge Core knowledge**.
 
-The architecture requires distinct security principals/service identities for trust boundaries, mapped initially through Windows service identities/local service accounts/service SIDs and NTFS ACLs as appropriate to the implementation.
+They must not be stored in:
 
-### Human administrator
+- canonical ASSERTION/RESOURCE payloads merely because Vera knows a service exists;
+- embeddings, summaries, chunks, vector/full-text indexes, or context packages;
+- model prompts or conversational context;
+- source control or committed configuration files;
+- ordinary logs, traces, error messages, crash reports, or provenance payloads;
+- the hardware read-only Authority Root unless a specific secret is deliberately designed to reside there and can be used without exposing it to AI/client processes.
 
-A human-controlled administrator identity owns installation, trusted binary/configuration updates, service registration, OS permission changes, and emergency recovery.
+Knowledge Core may store **non-secret references/metadata** such as `credential_ref=toyota_primary`, credential type, owning service, rotation timestamp/version, or capability identifier when needed for orchestration/audit, but the secret value itself remains in the trusted secret provider.
 
-AI-controlled processes do not receive this administrative token as part of normal operation.
+### Service-scoped secret ownership
 
-### Vera / ACL / worker identities
+Secrets are divided by the service that actually needs them:
 
-Vera reasoning and ACL worker processes run without Administrator/LocalSystem authority and have no direct credentials or file permissions for:
+- **Knowledge Core** — only its runtime PostgreSQL application credential and any narrowly required storage/service credentials;
+- **Authority** — only secrets needed for Authority authentication/verification/operational state; static public verification roots may live on read-only media because they are not secret;
+- **Effect Executor** — downstream action credentials for the adapters it executes, scoped as narrowly as the external service permits;
+- **Vera / ACL** — no raw downstream Authority/Executor secrets merely because they request actions;
+- **migration/admin tooling** — separate schema/administrative credentials unavailable to normal runtime services.
 
-- PostgreSQL canonical database administration;
-- Knowledge Core database credentials;
-- Authority Root policy files beyond any explicitly exposed read result;
-- Authority service executable/configuration write access;
-- Effect Executor executable/configuration write access;
-- downstream action credentials/secrets;
-- trusted service installation directories.
+No shared master secret is introduced merely for convenience.
 
-ACL workers that execute arbitrary/generated code are treated as the least-trusted ordinary runtime tier. Their project/workspace permissions do not imply permission to modify trusted service binaries, policy, secrets, or OS configuration.
+### Initial Windows secret provider
 
-A later VM/container/second-machine boundary may strengthen this isolation without changing the service/API architecture.
+The implementation will use a **secret-provider abstraction**. The initial Windows backend uses OS-protected secret storage or an equivalently ACL/DPAPI-protected service-specific secret file/store bound to the trusted service identity.
 
-### Knowledge Core service identity
+The exact Windows API/library may be selected during implementation, but plaintext `.env` files, repository files, or broadly readable configuration directories are not the normal production secret store.
 
-Knowledge Core runs under its own service identity. It may:
+Environment variables may be used for ephemeral development bootstrap only when the risk is understood; they are not the long-term design for high-value credentials because child processes, diagnostics, or misconfiguration can expose them.
 
-- connect to PostgreSQL using its scoped application database role;
-- read/write the Knowledge Core artifact root;
-- write its designated logs/runtime directories;
-- call Authority for protected Knowledge Core operations as designed.
+### Retrieval by reference, not model text
 
-It does not receive Authority Root write permission, Effect Executor downstream credentials, PostgreSQL superuser credentials, or arbitrary write access to Vera/ACL workspaces.
+When Vera requests an action, it refers to an opaque target/capability/credential reference. The Effect Executor resolves the actual secret internally after Authority approves the exact operation.
 
-The Knowledge Core service binary/configuration install directory should be writable only by the human/admin deployment path, not by the running Knowledge Core service itself unless a narrowly justified update mechanism is designed later.
+Example:
 
-### PostgreSQL service/database identities
+```text
+Vera:       request start_vehicle(vehicle=V1)
+Authority:  approve exact operation O123
+Executor:   resolve credential_ref internally
+            call vehicle service
 
-The PostgreSQL server runs under its own service identity and owns its database data directory according to the PostgreSQL/Windows installation model.
+Vera never receives the password/token.
+```
 
-Database roles remain separated from OS identity:
+### Rotation and migration
 
-- Knowledge Core application role: only runtime SQL privileges required by the service;
-- migration/owner role: schema-change privileges, unavailable to ordinary runtime clients and preferably unavailable to the normal Knowledge Core runtime process;
-- PostgreSQL administrative role: retained for human/admin maintenance and recovery, never given to Vera/ACL.
+Secret rotation creates a new secret-provider version/reference and updates the consuming service configuration atomically. Knowledge Core/audit may record non-secret rotation metadata but never the prior/new secret values.
 
-Vera and ACL never connect directly to PostgreSQL.
+The secret-provider interface must allow later migration when Authority/Executor move to another VM/machine. Migration/export of secrets is a privileged human/admin workflow and is not performed by autonomous AI workers.
 
-### Authority service identity
+### Backup and recovery
 
-Authority runs under a separate least-privilege trusted service identity. It receives read access to the physically read-only Authority Root and only the writable operational state required for authorization decisions/audit.
+Secrets are backed up separately from normal Knowledge Core backups using encryption and human-controlled recovery appropriate to their sensitivity. Restore of Knowledge Core data does not automatically restore or expose service credentials.
 
-Vera/ACL cannot write Authority binaries, configuration, policy, or operational database merely because they can submit authorization requests.
+If a secret cannot be safely backed up, the recovery plan uses credential reissuance/rotation rather than storing an unsafe duplicate.
 
-### Effect Executor identity
+### Whole-disk encryption is supplementary
 
-Effect Executor is separate from Authority and Vera. It receives only the downstream credentials/capabilities needed for the action adapters it is responsible for. Vera/ACL do not receive those secrets. Authority decides; Executor performs the specifically authorized operation.
+Device/volume encryption such as BitLocker is desirable for the host and backup media but does not replace service-level secret separation or ACLs; a running compromised process must still be prevented from reading another service's credentials.
 
-Executor does not receive permission to rewrite root Authority policy.
-
-### File-system ACL model
-
-NTFS ACLs/service SIDs are used so each service sees only the directories/files it requires. Broad write permissions such as granting all AI processes access to a shared application root are rejected.
-
-Writable runtime/log/cache directories are separate from trusted executable/configuration directories.
-
-### No unnecessary LocalSystem
-
-Trusted services should not run as `LocalSystem` merely for convenience. If a specific component later proves it requires a privilege unavailable under a lower-privilege identity, that privilege is added narrowly and documented rather than elevating the whole stack by default.
-
-**Reason:** one physical machine can still have meaningful trust boundaries if the AI cannot modify the policy engine, executor, service binaries, credentials, or database directly. This provides a practical starting boundary while preserving a straightforward upgrade path to stronger VM or physical isolation.
+**Reason:** an AI that can retrieve or rewrite the secret behind an authorized adapter can often bypass the intended Authority boundary. Keeping credentials out of knowledge/model context and scoped to the trusted executor/service preserves the distinction between knowing an action exists and possessing the power to perform it.
 
 ---
 
 # Open physical-design decisions
 
 1. Detailed PostgreSQL table split for canonical and derived structures.
-2. Secret/credential storage and access boundaries.
-3. Exact API transport/framework.
-4. The first implementation vertical slice and its validation gates.
+2. Exact API transport/framework.
+3. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -205,4 +199,4 @@ Record accepted decisions here as they are made; supersede rather than silently 
 
 # Current next decision
 
-The next design discussion should define secrets/credential handling: secrets must remain outside Knowledge Core knowledge/context, outside source control, inaccessible to Vera/ACL, and scoped to the service that needs them, while still being practical to rotate, back up, and migrate if Authority/Executor later move to another machine.
+The next design discussion should select the initial service transport/framework. The goal is a typed, easy-to-debug local interface that naturally becomes network-capable later without exposing PostgreSQL or tying Vera/ACL directly to the Knowledge Core implementation.
