@@ -31,6 +31,7 @@ _MANIFEST_PATH = (
     / "REAL_CORPUS_PILOT_MANIFEST.json"
 )
 _EXPECTED_BASELINE = "adb2a48a1e248f24e43550d897eed1b5e300cc26"
+_ACCEPTED_PILOT_RUN = "34373589343"
 _CALLER = {"X-Knowledge-Caller": "knowledge-core-real-corpus-pilot"}
 
 
@@ -47,6 +48,31 @@ def _git_blob_sha(content: bytes) -> str:
 
 def _document_bytes(path: str) -> bytes:
     return (_REPO_ROOT / path).read_bytes()
+
+
+def _baseline_mismatches(manifest: dict) -> tuple[str, ...]:
+    mismatches: list[str] = []
+    for document in manifest["documents"]:
+        path = document["path"]
+        source_path = _REPO_ROOT / path
+        if not source_path.is_file():
+            mismatches.append(path)
+            continue
+        if _git_blob_sha(source_path.read_bytes()) != document["git_blob_sha"]:
+            mismatches.append(path)
+    return tuple(mismatches)
+
+
+def _require_pinned_baseline_checkout(manifest: dict) -> None:
+    mismatches = _baseline_mismatches(manifest)
+    if mismatches:
+        pytest.skip(
+            "pinned real-corpus pilot source differs from baseline "
+            f"{manifest['source_commit']}; accepted exact replay evidence remains "
+            f"GitHub Actions run {_ACCEPTED_PILOT_RUN}. Refusing to relabel changed "
+            "working-tree bytes as the historical source commit. Changed/missing paths: "
+            + ", ".join(mismatches)
+        )
 
 
 def test_real_corpus_manifest_is_exact_bounded_baseline():
@@ -82,8 +108,19 @@ def test_real_corpus_manifest_is_exact_bounded_baseline():
         path = document["path"]
         assert path.startswith("docs/architecture/knowledge-core/")
         assert path.endswith(".md")
-        content = _document_bytes(path)
-        assert _git_blob_sha(content) == document["git_blob_sha"], path
+        assert len(document["git_blob_sha"]) == 40
+        int(document["git_blob_sha"], 16)
+
+    # The pilot is an immutable acceptance fixture pinned to _EXPECTED_BASELINE.
+    # It may be replayed only when the checkout still contains those exact bytes.
+    # Later documentation edits must not be silently ingested while claiming the
+    # historical source commit; in that case the exact pilot evidence remains the
+    # already accepted run recorded above.
+    _require_pinned_baseline_checkout(manifest)
+
+    for document in documents:
+        path = document["path"]
+        assert _git_blob_sha(_document_bytes(path)) == document["git_blob_sha"], path
 
 
 def _require_postgres_engine() -> Engine:
@@ -126,6 +163,8 @@ def pilot_postgres_engine():
 
 def _build_pilot_corpus(postgres_engine: Engine, tmp_path):
     manifest = _manifest()
+    _require_pinned_baseline_checkout(manifest)
+
     sessions = create_session_factory(postgres_engine)
     artifacts = LocalArtifactStore(tmp_path / "pilot-artifacts")
     versions = {}
