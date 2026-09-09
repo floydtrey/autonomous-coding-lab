@@ -28,3 +28,6 @@ exclude = ["migrations*", "tests*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+  "postgresql: tests that require a migrated real PostgreSQL database",
+]
