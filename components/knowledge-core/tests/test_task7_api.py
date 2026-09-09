@@ -185,6 +185,26 @@ def test_correction_uses_stale_revision_conflict_and_serving_fence(tmp_path):
             f"/v1/assertions/{replacement_ref}", headers=CALLER
         )
         assert restricted.status_code == 404
+
+        replay_after_fence = client.post(
+            f"/v1/assertions/{assertion['assertion_ref']}/correct",
+            json=correction_request,
+            headers=CALLER,
+        )
+        assert replay_after_fence.status_code == 200
+        assert replay_after_fence.json() == correction.json()
+
+        blocked_new_write = client.post(
+            f"/v1/assertions/{replacement_ref}/correct",
+            json={
+                "operation_id": str(uuid4()),
+                "expected_revision": _status(client),
+                "replacement_value": {"kind": "text", "value": "Still blocked"},
+                "correction_kind_revision_ref": str(core.correction_kind_revision_ref),
+            },
+            headers=CALLER,
+        )
+        assert blocked_new_write.status_code == 404
     finally:
         client.close()
         engine.dispose()
