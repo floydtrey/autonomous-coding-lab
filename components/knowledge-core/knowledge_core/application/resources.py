@@ -70,9 +70,7 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
             return self._load_resource_foundation_refs(existing.ref_id)
 
         revision = self._new_revision()
-        profile_ref = self._new_ref(
-            RefKind.SEMANTIC_PROFILE, revision.revision_id
-        )
+        profile_ref = self._new_ref(RefKind.SEMANTIC_PROFILE, revision.revision_id)
         profile_revision_ref = self._new_ref(
             RefKind.SEMANTIC_PROFILE_REVISION, revision.revision_id
         )
@@ -97,9 +95,7 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
 
         kind_refs: dict[str, UUID] = {}
         for stable_name in ("artifact", "resource_ingestion"):
-            kind_ref = self._new_ref(
-                RefKind.SEMANTIC_KIND, revision.revision_id
-            )
+            kind_ref = self._new_ref(RefKind.SEMANTIC_KIND, revision.revision_id)
             kind_revision_ref = self._new_ref(
                 RefKind.SEMANTIC_KIND_REVISION, revision.revision_id
             )
@@ -146,7 +142,6 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
                 created_revision_id=revision.revision_id,
             )
         )
-
         self._commit()
         return ResourceFoundationRefs(
             profile_ref=profile_ref,
@@ -167,19 +162,17 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
         ).scalar_one()
 
         kinds: dict[str, UUID] = {}
-        for kind in self.session.execute(
-            select(SemanticKind).where(
-                SemanticKind.profile_ref_id == profile_ref
-            )
-        ).scalars():
-            revision = self.session.execute(
+        for kind in self.session.scalars(
+            select(SemanticKind).where(SemanticKind.profile_ref_id == profile_ref)
+        ):
+            kind_revision = self.session.execute(
                 select(SemanticKindRevision).where(
                     SemanticKindRevision.kind_ref_id == kind.ref_id,
                     SemanticKindRevision.profile_revision_ref_id
                     == profile_revision.ref_id,
                 )
             ).scalar_one()
-            kinds[kind.stable_name] = revision.ref_id
+            kinds[kind.stable_name] = kind_revision.ref_id
 
         predicate = self.session.execute(
             select(SemanticPredicate).where(
@@ -187,20 +180,19 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
                 SemanticPredicate.stable_name == "supports_claim",
             )
         ).scalar_one()
-        predicate_revision = self.session.execute(
+        relation = self.session.execute(
             select(SemanticPredicateRevision).where(
                 SemanticPredicateRevision.predicate_ref_id == predicate.ref_id,
                 SemanticPredicateRevision.profile_revision_ref_id
                 == profile_revision.ref_id,
             )
         ).scalar_one()
-
         return ResourceFoundationRefs(
             profile_ref=profile_ref,
             profile_revision_ref=profile_revision.ref_id,
             artifact_kind_revision_ref=kinds["artifact"],
             resource_ingestion_kind_revision_ref=kinds["resource_ingestion"],
-            supports_claim_relation_revision_ref=predicate_revision.ref_id,
+            supports_claim_relation_revision_ref=relation.ref_id,
         )
 
     def create_resource(self, *, kind_revision_ref: UUID) -> ResourceSnapshot:
@@ -221,6 +213,39 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
             created_revision_id=revision.revision_id,
         )
 
+    def _record_locator(
+        self,
+        *,
+        resource_ref: UUID,
+        resource_version_ref: UUID,
+        ingestion_kind_revision_ref: UUID,
+        locator_kind: ResourceLocatorKind,
+        locator_text: str,
+    ) -> None:
+        revision = self._new_revision()
+        occurrence_ref = self._new_ref(RefKind.OCCURRENCE, revision.revision_id)
+        self.session.add(
+            Occurrence(
+                ref_id=occurrence_ref,
+                kind_revision_ref=ingestion_kind_revision_ref,
+                happened_at=revision.recorded_at,
+                created_revision_id=revision.revision_id,
+            )
+        )
+        self.session.flush()
+        self.session.add(
+            ResourceLocator(
+                locator_id=uuid4(),
+                resource_ref_id=resource_ref,
+                resource_version_ref=resource_version_ref,
+                locator_kind=locator_kind.value,
+                locator_text=locator_text,
+                observed_occurrence_ref=occurrence_ref,
+                created_revision_id=revision.revision_id,
+            )
+        )
+        self._commit()
+
     def ingest_resource_version(
         self,
         *,
@@ -231,8 +256,7 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
         locator_kind: ResourceLocatorKind | None = None,
         locator_text: str | None = None,
     ) -> ResourceVersionSnapshot:
-        resource = self.session.get(Resource, resource_ref)
-        if resource is None:
+        if self.session.get(Resource, resource_ref) is None:
             raise KnowledgeInvariantError(f"unknown resource: {resource_ref}")
         self._require_kind_revision(ingestion_kind_revision_ref)
         if (locator_kind is None) != (locator_text is None):
@@ -243,7 +267,6 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
             raise KnowledgeInvariantError("locator_text must not be empty")
 
         artifact = self.artifact_store.commit_bytes(content)
-
         existing = self.session.execute(
             select(ResourceVersion).where(
                 ResourceVersion.resource_ref_id == resource_ref,
@@ -252,16 +275,28 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
             )
         ).scalar_one_or_none()
         if existing is not None:
+            if locator_kind is not None and locator_text is not None:
+                locator_exists = self.session.execute(
+                    select(ResourceLocator).where(
+                        ResourceLocator.resource_ref_id == resource_ref,
+                        ResourceLocator.resource_version_ref == existing.ref_id,
+                        ResourceLocator.locator_kind == locator_kind.value,
+                        ResourceLocator.locator_text == locator_text,
+                    )
+                ).scalar_one_or_none()
+                if locator_exists is None:
+                    self._record_locator(
+                        resource_ref=resource_ref,
+                        resource_version_ref=existing.ref_id,
+                        ingestion_kind_revision_ref=ingestion_kind_revision_ref,
+                        locator_kind=locator_kind,
+                        locator_text=locator_text,
+                    )
             return self.read_resource_version(existing.ref_id)
 
         revision = self._new_revision()
-        occurrence_ref = self._new_ref(
-            RefKind.OCCURRENCE, revision.revision_id
-        )
-        resource_version_ref = self._new_ref(
-            RefKind.RESOURCE_VERSION, revision.revision_id
-        )
-
+        occurrence_ref = self._new_ref(RefKind.OCCURRENCE, revision.revision_id)
+        version_ref = self._new_ref(RefKind.RESOURCE_VERSION, revision.revision_id)
         self.session.add(
             Occurrence(
                 ref_id=occurrence_ref,
@@ -273,7 +308,7 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
         self.session.flush()
         self.session.add(
             ResourceVersion(
-                ref_id=resource_version_ref,
+                ref_id=version_ref,
                 resource_ref_id=resource_ref,
                 content_digest_algo=artifact.digest_algo,
                 content_digest=artifact.digest,
@@ -286,22 +321,20 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
             )
         )
         self.session.flush()
-
         if locator_kind is not None and locator_text is not None:
             self.session.add(
                 ResourceLocator(
                     locator_id=uuid4(),
                     resource_ref_id=resource_ref,
-                    resource_version_ref=resource_version_ref,
+                    resource_version_ref=version_ref,
                     locator_kind=locator_kind.value,
                     locator_text=locator_text,
                     observed_occurrence_ref=occurrence_ref,
                     created_revision_id=revision.revision_id,
                 )
             )
-
         self._commit()
-        return self.read_resource_version(resource_version_ref)
+        return self.read_resource_version(version_ref)
 
     def read_resource_version(
         self, resource_version_ref: UUID
@@ -355,8 +388,7 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
         resource_version_ref: UUID,
         relation_revision_ref: UUID,
     ) -> EvidenceTrace:
-        assertion = self.session.get(Assertion, assertion_ref)
-        if assertion is None:
+        if self.session.get(Assertion, assertion_ref) is None:
             raise KnowledgeInvariantError(f"unknown assertion: {assertion_ref}")
         version = self.session.get(ResourceVersion, resource_version_ref)
         if version is None:
@@ -366,9 +398,19 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
         relation = self.session.get(
             SemanticPredicateRevision, relation_revision_ref
         )
-        if relation is None or relation.value_shape != "reference":
+        relation_predicate = (
+            self.session.get(SemanticPredicate, relation.predicate_ref_id)
+            if relation is not None
+            else None
+        )
+        if (
+            relation is None
+            or relation.value_shape != "reference"
+            or relation_predicate is None
+            or relation_predicate.stable_name != "supports_claim"
+        ):
             raise KnowledgeInvariantError(
-                "provenance relation must be a governed reference relation revision"
+                "provenance relation must be the governed supports_claim relation revision"
             )
 
         revision = self._new_revision()
@@ -405,7 +447,9 @@ class ResourceKnowledgeKernel(OperationKnowledgeKernel):
         for row in rows:
             version = self.session.get(ResourceVersion, row.target_ref_id)
             if version is None:
-                continue
+                raise KnowledgeInvariantError(
+                    f"assertion evidence does not target an exact resource version: {row.target_ref_id}"
+                )
             traces.append(
                 EvidenceTrace(
                     link_id=row.link_id,
