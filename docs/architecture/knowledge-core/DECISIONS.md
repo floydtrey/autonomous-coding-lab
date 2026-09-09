@@ -31,132 +31,163 @@ Decisions are not silently rewritten when they change.
 
 ## KC-D001 — Knowledge Core is a standalone service
 **Status:** Accepted
-
 Knowledge Core is its own local/network-capable service. Vera, ACL, and future clients use a defined interface and never directly own/manipulate the canonical database. Initial co-location on one PC must not prevent later process/VM/machine separation.
 
 ## KC-D002 — PostgreSQL is the initial canonical knowledge store
 **Status:** Accepted
-
-PostgreSQL is the initial source of canonical semantic state. Search indexes, embeddings, summaries, caches, graph projections, and current-state projections are derived/rebuildable where practical. The six conceptual families need not map one-to-one to six tables.
+PostgreSQL is the initial source of canonical semantic state. Search indexes, embeddings, summaries, caches, graph projections, and current-state projections are derived/rebuildable where practical.
 
 ## KC-D003 — Large artifact bytes live outside PostgreSQL
 **Status:** Accepted
-
-PostgreSQL stores RESOURCE identity, metadata, exact version/digest, lineage, locators, ownership/sensitivity references, and semantics; large raw bytes live in a separately managed artifact store.
+PostgreSQL stores RESOURCE identity/metadata/version/lineage; large bytes live in a separately managed artifact store.
 
 ## KC-D004 — Authority is a separate deterministic service boundary
 **Status:** Accepted
-
-AI reasoning requests operations but does not grant authority. Authority evaluates the exact operation for authenticated principal, purpose, context, policy revision, freshness, and obligations. Retrieval never itself grants execution permission.
+AI reasoning requests operations but does not grant authority. Authority evaluates exact operations; retrieval does not itself grant execution permission.
 
 ## KC-D005 — Architecture supports a physically read-only Authority Root
 **Status:** Accepted
-
-Static/slow-changing root authority policy and verification material can live on controller-enforced write-protected media. Writable operational authority/effect history remains elsewhere. Physical protection supplements, not replaces, process/OS/credential isolation.
+Root authority policy/verification material can live on controller-enforced write-protected media. Writable operational state remains elsewhere. Hardware protection supplements process/OS/credential isolation.
 
 ## KC-D006 — Canonical knowledge history is non-destructive and supports explicit undo/reversal
 **Status:** Accepted
-
-Ordinary learning/correction appends new assertion/version/transition records rather than destroying prior canonical state. Undo/reversal is another explicit transition that can restore an earlier state as current without erasing mistaken intermediate history. Privacy erasure is separate.
+Ordinary learning/correction appends new records instead of destroying prior canonical state. Undo/reversal is explicit and preserves mistaken intermediate history. Privacy erasure is separate.
 
 ## KC-D007 — Assertion semantics use typed relational fields with bounded JSON extensibility
 **Status:** Accepted
-
-Canonical ASSERTION semantics that matter for query, history, provenance, constraints, or authority use explicit typed relational fields/children. `JSONB` is only a bounded, profile-governed extension area and may not replace core semantics or hide authority-critical meaning.
+Core assertion semantics use typed relational fields/children. `JSONB` is a bounded profile-governed extension and may not replace core or authority-critical semantics.
 
 ## KC-D008 — Canonical records use a universal internal reference registry for cross-family links
 **Status:** Accepted
-
-A small physical reference registry provides stable internal addressing across canonical Entity, Assertion, Occurrence, Resource/version, and Semantic Profile/revision records. Specialized tables retain their own semantics/constraints; the registry is not a seventh conceptual primitive or untyped graph.
+A physical reference registry supplies stable internal addressing across canonical families while specialized tables retain semantics/constraints. It is not a seventh conceptual primitive or generic graph.
 
 ## KC-D009 — Temporal model uses independent world-valid time and immutable knowledge-record time
 **Status:** Accepted
-
-Knowledge Core separately records when a claim applies in the world and when Knowledge Core learned/recorded it. Late corrections append at the real record time with their supported world-valid interval. Current state is derived/rebuildable; historical belief remains reconstructable.
+World-valid time and knowledge-record time are separate. Late correction appends at real record time. Current state is derived/rebuildable; historical belief remains reconstructable.
 
 ## KC-D010 — Provenance is a typed, traversable lineage model separate from semantic relationships and lifecycle state
 **Status:** Accepted
-
-Evidence/provenance uses governed typed directed links, exact source versions, and occurrence/activity context. It supports backward explanation and forward impact. It never substitutes for domain relationships, correction/currentness state, truth/confidence, sensitivity clearance, permission, or authority.
+Typed provenance links exact sources/versions/activities and supports backward explanation and forward impact without becoming domain relationship, truth, lifecycle, or authority.
 
 ## KC-D011 — Initial artifact store is a local immutable content-addressed filesystem
 **Status:** Accepted
-
-Initial artifact bytes live in a configurable local filesystem store keyed by SHA-256. Blobs are immutable; changed bytes create new versions. Identical bytes may deduplicate physically but do not merge logical identity/provenance/ownership/history. Backend may later move to another drive, NAS, or object store.
+Artifact bytes initially live in a configurable SHA-256-addressed immutable local store. Physical deduplication does not merge logical identity/provenance/ownership/history; backend remains replaceable.
 
 ## KC-D012 — Semantic profiles and vocabulary are immutable, explicitly versioned, and pinned by assertions
 **Status:** Accepted
-
-Logical profiles have immutable exact revisions. Assertions pin the governing revision. Material meaning changes create new semantic identity or explicit migration/mapping rather than silently redefining old semantics. Old records never change meaning because a new profile becomes active.
+Assertions pin immutable profile revisions. Material meaning changes create new semantic identity or explicit migration, never silent reinterpretation.
 
 ## KC-D013 — Knowledge Core API exposes semantic operation classes, not generic CRUD or database access
 **Status:** Accepted
-
-Clients use meaningful operation families: read/search/explain, append assertion/occurrence/resource/evidence, correction/reversal, identity transition, and privileged restriction/erasure/profile administration. Clients receive no DB credentials, cannot set trusted record-time identity, and cannot issue arbitrary field updates. Responses remain structured and provenance/temporal/conflict-aware.
+Clients use read/search/explain, append, correction/reversal, identity transition, resource/evidence, and privileged governance operations. No raw DB credentials or arbitrary field updates.
 
 ## KC-D014 — Retrieval is an authorization-first composite pipeline; context construction is a final derived step
 **Status:** Accepted
-
-Retrieval carries authenticated principal, purpose/use, and explicit query mode. Hard authority/sensitivity eligibility precedes protected model-facing exposure. Structured/temporal filtering, relationship traversal, full-text/semantic candidate generation, provenance/conflict/currentness evaluation, reranking, and final context construction remain distinguishable. Rank is relevance, not truth/permission/currentness.
+Hard eligibility precedes protected model-facing content. Structured/temporal/relationship/full-text/semantic retrieval and provenance/conflict/currentness evaluation remain distinguishable; rank is not truth or permission.
 
 ## KC-D015 — Derived data is generation-versioned, lineage-bound, explicitly staleable, and rebuildable
 **Status:** Accepted
+Derived projections/indexes/summaries/embeddings/caches retain source/generation/profile/model/config lineage and lifecycle state. They can become stale/restricted and rebuild under generation fencing; they never outrank canonical sources.
 
-Current-state projections, extracted text, chunks, summaries, FTS materializations, embeddings/vector indexes, relationship closures, aggregates, caches, and context-supporting projections remain derived. Each retains source revision(s), generation identity, relevant profile/model/configuration revision, lifecycle/staleness state, and enough lineage for rebuild/restriction/deletion propagation. New generations build separately and replace settled generations only after validation.
+## KC-D016 — Identity resolution is non-destructive, transition-based, and reversible
+**Status:** Accepted
+Entity IDs stay stable. Aliases/identifiers are evidence, not identity. Merge/split/replacement/reassignment are explicit provenance-bearing transitions. Merges do not rewrite all assertion foreign keys or delete original entities; a derived current resolution view composes them and can be reversed.
 
 ---
 
-## KC-D016 — Identity resolution is non-destructive, transition-based, and reversible
+## KC-D017 — Privacy deletion/restriction is a privileged staged reconciliation lifecycle, not ordinary supersession
 
 **Status:** Accepted
 
-ENTITY records have stable internal identities independent of names, usernames, email addresses, device registry IDs, paths, IPs, room assignments, or other external identifiers.
+Privacy restriction/erasure is separate from ordinary correction, undo, supersession, or invalidation. It may intentionally remove or render inaccessible canonical payloads that ordinary non-destructive history would otherwise preserve.
 
-External identifiers, aliases, labels, and same-identity clues are evidence/assertions with source namespace and provenance; they are not automatically universal identity.
+A deletion/restriction operation creates a privileged lifecycle case/occurrence with explicit authorized scope and a state machine that can distinguish at least:
 
-Knowledge Core must explicitly represent at least these identity-resolution states:
+- requested;
+- immediately fenced/restricted from ordinary retrieval/use;
+- canonical reconciliation pending;
+- canonical payload erased or retained under an explicit bounded exception;
+- descendant/derived reconciliation pending;
+- artifact reconciliation pending;
+- backup/restore fence active;
+- external/exported recipient reconciliation pending/unknown where applicable;
+- settled in declared scope;
+- failed/blocked and requiring intervention.
 
-- unresolved/ambiguous candidate;
-- resolved different;
-- resolved same/equivalent for a stated scope/time;
-- merge/equivalence transition;
-- split/reversal of a mistaken merge;
-- replacement/succession where old and new remain distinct entities;
-- reassignment of an external identifier or alias.
+### Access fence first
 
-A merge/resolved-same operation **does not** rewrite every assertion foreign key from one entity to another and does not delete the losing entity record. Instead it appends a canonical identity-resolution transition with:
+Once a valid restriction/erasure request is accepted, affected knowledge must be fenced from ordinary reads, semantic retrieval, summaries, embeddings, caches, context construction, and automation **before** all physical cleanup necessarily finishes.
 
-- the involved entity references;
-- transition type;
-- record time/revision;
-- world-valid/applicability scope where relevant;
-- provenance/evidence;
-- authenticated/authorized operation context reference where required.
+The system must prefer "temporarily unavailable while deletion reconciles" over continuing to expose data because a background cleanup job has not completed.
 
-A derived current identity-resolution projection may choose a representative/current equivalence set for fast lookup. Queries over a currently merged identity can union or otherwise compose knowledge attached to the underlying entity records according to the active resolution state.
+### Canonical handling
 
-Because original entities and their assertions remain intact, reversing a mistaken merge does not require reconstructing which rows were physically moved. A split/reversal appends a new transition invalidating or superseding the prior resolution. Current identity projections then rebuild/recompute.
+Depending on the authorized deletion/retention policy, canonical records may have payload fields erased, rows physically removed, references severed, or retained only under a narrowly defined exempt purpose. Ordinary append-only preservation does not override a valid erasure requirement.
 
-Assertions are not automatically reattributed simply because an identity resolution changes. If evidence shows a particular assertion belonged to the wrong underlying entity, that reattribution/correction is explicit and provenance-bearing.
+Any minimal tombstone/settlement metadata retained after erasure must be limited to what is necessary to prevent resurrection, prove/reconcile lifecycle state, and satisfy an authorized retention purpose. It must not retain the erased substantive payload merely to preserve an audit trail.
 
-Replacement is not treated as equivalence. For example, replacing a physical thermostat, vehicle, account, or worker process creates/uses a distinct ENTITY plus a governed `replaced_by`/successor relationship or identity transition; the history of the old thing remains attached to the old entity.
+### Descendants and derived data
 
-Identity candidate scores, fuzzy name matches, embedding similarity, or shared identifiers are **candidate evidence**, not final identity truth. Automated resolution may only create a canonical resolution transition when the applicable policy/rules permit it; ambiguity remains representable otherwise.
+Forward provenance/lineage is used to identify dependent summaries, extracted text, chunks, embeddings, vector/full-text projections, relationship closures, caches, context packages, and other derivatives.
 
-**Reason:** destructive identity merge is one of the hardest errors to undo in a knowledge system. Transition-based resolution preserves provenance, reversibility, historical belief, and downstream repair while allowing a fast current identity view.
+Affected descendants are immediately fenced or marked deletion/restriction-pending and are then erased, rebuilt without the deleted source, or otherwise reconciled according to their storage plane.
+
+A vector index, cache, or summary may not remain searchable simply because it is "only derived."
+
+### Artifact blobs and physical deduplication
+
+Deletion of one logical resource/version does not automatically delete a shared content-addressed blob if that exact blob is still legitimately referenced by another independently authorized logical resource/version.
+
+Conversely, physical deduplication is never used as a reason to keep a logical deleted record reachable. Logical references, permissions, provenance, and lifecycle are reconciled independently from whether bytes are physically shared.
+
+When no legitimate retained reference requires a blob, the artifact-store reconciliation process may remove it after the applicable retention/settlement rules permit.
+
+### Backup and restore fence
+
+Backups may be immutable or impractical to surgically rewrite. Therefore Knowledge Core maintains enough deletion/restriction control state, separate from erased payload, to fence forgotten data during any restore.
+
+Restore follows this order:
+
+```text
+restore old canonical/artifact snapshot
+        |
+        v
+DO NOT SERVE IT YET
+        |
+        v
+apply every newer deletion/restriction control record
+        |
+        v
+reconcile canonical + derived + artifact state
+        |
+        v
+validate fences/settlement
+        |
+        v
+only then activate restored service
+```
+
+An old backup can never become authoritative merely because it predates a deletion request.
+
+Backup retention and eventual physical expiry are handled separately from live-data accessibility. If external exports/recipients cannot be controlled, their state is represented honestly as pending/unknown rather than falsely claiming global erasure.
+
+### Settlement proof without payload retention
+
+The final system should be able to prove that a scoped erasure/restriction workflow settled using opaque record/case identities, timestamps/revisions, policy/scope identifiers, reconciliation statuses, and non-content operational evidence where needed, without requiring retention of the erased personal/substantive content itself.
+
+**Reason:** deletion is a multi-plane systems problem. Treating it as a Boolean flag or an ordinary supersession would permit data to survive in embeddings, summaries, caches, artifacts, or restored backups and later reappear.
 
 ---
 
 # Open physical-design decisions
 
 1. Detailed PostgreSQL table split for canonical and derived structures.
-2. Deletion/retention/reconciliation workflow.
-3. Concurrency, revision/precondition, retry/idempotency, and stale-write protection.
-4. Backup, recovery, restore, and deletion-ledger reconciliation.
-5. Initial OS process/service identities and permission boundaries.
-6. Secret/credential storage and access boundaries.
-7. Exact API transport/framework.
-8. The first implementation vertical slice and its validation gates.
+2. Concurrency, revision/precondition, retry/idempotency, and stale-write protection.
+3. Backup/recovery implementation details and coordinated checkpoint manifests.
+4. Initial OS process/service identities and permission boundaries.
+5. Secret/credential storage and access boundaries.
+6. Exact API transport/framework.
+7. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -168,4 +199,4 @@ Record accepted decisions here as they are made; supersede rather than silently 
 
 # Current next decision
 
-The next design discussion should define privacy deletion/restriction/retention as a multi-stage reconciliation workflow: immediate retrieval fencing, canonical handling, descendant/derived cleanup, artifact handling, backup/restore behavior, settlement proof, and the limited metadata that may remain after erasure without retaining the erased content itself.
+The next design discussion should define concurrency/retry safety: optimistic revision preconditions, stable operation/idempotency identities, current-projection transactional updates, generation fencing, and what happens when two clients attempt conflicting corrections or the same request is retried after an uncertain network/tool result.
