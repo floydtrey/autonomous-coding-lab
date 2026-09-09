@@ -16,6 +16,23 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: knowledge_core_test
+          POSTGRES_PASSWORD: knowledge_core_test
+          POSTGRES_DB: knowledge_core_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U knowledge_core_test -d knowledge_core_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      KNOWLEDGE_CORE_DATABASE_URL: postgresql+psycopg://knowledge_core_test:knowledge_core_test@127.0.0.1:5432/knowledge_core_test
+      KNOWLEDGE_CORE_POSTGRES_TEST_URL: postgresql+psycopg://knowledge_core_test:knowledge_core_test@127.0.0.1:5432/knowledge_core_test
     defaults:
       run:
         working-directory: components/knowledge-core
@@ -33,5 +50,11 @@ jobs:
       - name: Install Knowledge Core
         run: python -m pip install -e ".[test]"
 
-      - name: Run Knowledge Core suite
-        run: python -m pytest -q
+      - name: Apply PostgreSQL migrations
+        run: python -m alembic upgrade head
+
+      - name: Run fast semantic suite
+        run: python -m pytest -q -m "not postgresql"
+
+      - name: Run PostgreSQL qualification suite
+        run: python -m pytest -q -m postgresql
