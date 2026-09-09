@@ -6,89 +6,47 @@
 **Task 10 checkpoint:** `ea8ff441133329dfc19b631ed0172cdf12561704`  
 **Gate 19 validated implementation head:** `2bdbc2a161bd2756fa7139ecefd4ca8b160f148e`  
 **Frozen Kernel V1 checkpoint:** `9e904f49480055615bb0cf32360dbdc8400e117c`  
-**Exact freeze validation:** GitHub Actions run `34350709966` — **47 passed, 2 upstream deprecation warnings**  
-**PostgreSQL qualification implementation checkpoint:** `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`  
-**PostgreSQL qualification validation:** GitHub Actions run `34364589918` — **47 fast semantic tests passed + 5 PostgreSQL qualification tests passed**  
-**Retrieval Foundation RF-1 design:** `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md`  
-**Status:** **Knowledge Core Kernel V1 remains frozen and accepted; Post-Kernel Slice 1 — PostgreSQL Qualification is complete; Retrieval Foundation RF-1 design/acceptance is complete. Awaiting separate authorization for RF-2 implementation.**
+**Exact Kernel freeze validation:** GitHub Actions run `34350709966` — **47 passed, 2 upstream warnings**  
+**PostgreSQL qualification checkpoint:** `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`  
+**PostgreSQL qualification validation:** GitHub Actions run `34364589918` — **47 fast semantic tests + 5 PostgreSQL qualification tests passed**  
+**Retrieval Foundation RF-1 design checkpoint:** `bf31baddb8efdc90ce7a1f1f4c6420d7b9f2cd3b`  
+**Retrieval Foundation RF-2 validated implementation checkpoint:** `479a918762e919851e19fee3b36cc1d95e78f3e8`  
+**RF-2 validation:** GitHub Actions run `34371352821` — **47 fast semantic tests + 9 PostgreSQL tests passed**  
+**Status:** **Knowledge Core Kernel V1 remains frozen and accepted; PostgreSQL Qualification, RF-1 retrieval design, and RF-2 synthetic PostgreSQL lexical retrieval are complete. Awaiting separate authorization for any real-corpus/import slice.**
 
-This file is the branch-specific controlling acceptance record for Knowledge Core. It does not replace the repository-wide `docs/CURRENT_STATE.md`, which records the accepted state of `main` and other ACL work. The frozen Kernel implementation boundary remains `9e904f49480055615bb0cf32360dbdc8400e117c`; post-Kernel test/CI/documentation work does not reopen or alter its 19-gate semantic acceptance.
+This is the branch-specific controlling acceptance record for Knowledge Core. It does not replace repository-wide `docs/CURRENT_STATE.md`. The frozen Kernel boundary remains `9e904f49480055615bb0cf32360dbdc8400e117c`; post-Kernel integration/retrieval work does not reopen its 19 accepted semantic gates.
 
 ## Accepted Kernel boundary
 
-The V1 Kernel includes:
+Kernel V1 includes:
 
 - canonical revisions and universal knowledge refs;
 - immutable/versioned semantic profiles, kinds, and predicates;
 - atomic typed assertions and reference-valued relationships;
 - append-only correction/reversal history;
 - independent world-valid and knowledge-record time;
-- rebuildable current assertion projection with conflict preservation;
+- conflict-preserving, rebuildable current assertion projection;
 - operation IDs, deterministic request digests, idempotent replay, stale-writer protection, and serialized PostgreSQL managed writes;
 - exact logical-resource/resource-version identity, immutable SHA-256 artifact storage, locator history, and traversable provenance;
 - reversible identity merge/split semantics and replacement-not-equivalence;
 - deletion/restriction serving fences, bounded assertion tombstoning, and anti-resurrection reconciliation;
 - append-only semantic-profile activation and exact assertion semantic pinning;
 - derived-generation lineage plus monotonic out-of-order settlement fencing;
-- FastAPI/Pydantic semantic service routes for normal client operations;
-- managed exact-resource ingest including explicit successful no-canonical-mutation replay;
-- a serving-safe current-identity query required for client-side identity semantics;
+- FastAPI/Pydantic semantic service routes;
+- managed exact-resource ingest and serving-safe resource/provenance reads;
 - a service-only Gate 19 simulated Vera/ACL client with no database or artifact-store credentials.
 
-## Gate 19 acceptance
-
-Gate 19 uses `tests/test_task11_gate19_service_only.py` and the existing Task 1–10 suites.
-
-The simulated client has only:
-
-- an HTTP/TestClient transport;
-- `X-Knowledge-Caller` identification context.
-
-It does not possess or import:
-
-- SQLAlchemy sessions;
-- PostgreSQL/database URLs;
-- `KNOWLEDGE_CORE_DATABASE_URL`;
-- artifact-store objects or artifact paths;
-- direct SQL/storage repositories.
-
-The normal client HTTP replay covers the externally observable portions of typed assertions, relationships, correction/reversal, bitemporal reads, conflict preservation, stale writes, idempotent retries, exact resource provenance, identity merge/split/replacement, privacy serving fences, and semantic-profile pinning. Privileged privacy reconciliation, profile administration, and generation settlement remain server/control-plane concerns and are deliberately absent from the Vera/ACL client API.
-
-## Exact Kernel validation
-
-A branch-local GitHub Actions workflow installs the exact checked-in component on a clean Ubuntu runner using Python 3.12.
-
-Workflow run `34350296337` validated the Gate 19 implementation head `2bdbc2a161bd2756fa7139ecefd4ca8b160f148e`. After the freeze documentation was committed, workflow run `34350709966` validated the exact frozen Kernel checkpoint `9e904f49480055615bb0cf32360dbdc8400e117c`:
-
-```text
-47 passed, 2 warnings
-```
-
-The two warnings are upstream TestClient/Starlette deprecation warnings and are not semantic failures.
-
-## Gate disposition
-
-- Gates 1–11: covered by the original foundation/temporal/operation/resource acceptance suites and included in the final exact 47-test replay.
-- Gates 12–16: accepted and replayed through final checked-in component tests; service-observable identity/privacy behavior is also exercised by Gate 19.
-- Gate 17: semantic profile immutability accepted and included in the final suite; Gate 19 verifies old/new assertion revision pinning through the HTTP client while profile activation remains server-side administration.
-- Gate 18: derived generation fencing accepted and included in the final suite; Gate 19 verifies that generation administration remains absent from the normal client surface while the server-side fence still rejects an obsolete late finisher.
-- Gate 19: **accepted** through FastAPI/TestClient service-only replay and exact repository CI.
+Kernel V1 acceptance remains anchored at the exact frozen checkpoint and CI above. Do not redesign these semantics as part of later retrieval/import work unless a concrete regression or design defect is demonstrated.
 
 ## Post-Kernel Slice 1 — PostgreSQL Qualification
 
-This slice is recorded in `docs/architecture/knowledge-core/POSTGRES_QUALIFICATION.md`.
+Durable record:
 
-Local laptop validation used Windows Python 3.12.10 with PostgreSQL 18.6 running under Ubuntu/WSL2. A fresh dedicated database accepted the complete Alembic chain from no revision through `0008_task9 (head)`, and an application-layer smoke operation succeeded through `engine_from_environment()`.
+`docs/architecture/knowledge-core/POSTGRES_QUALIFICATION.md`
 
-The checked-in qualification suite `tests/test_postgres_qualification.py` then exercised a real PostgreSQL 18 service in GitHub Actions using separate database sessions/connections. It proves:
+PostgreSQL Qualification proved the actual Alembic chain through `0008_task9`, application-layer PostgreSQL use, independent-session stale-writer races, same-operation-ID contention/replay, advisory transaction locking, generation late-finisher fencing, and rollback of partially flushed canonical work.
 
-- one-winner/one-stale behavior for competing writers sharing one expected revision;
-- same-operation-ID primary-key contention with replay of one canonical result;
-- observed blocking on the canonical PostgreSQL advisory transaction lock;
-- newer-generation settlement fencing an older independent-session late finisher;
-- complete transaction rollback after partially flushed canonical work is forced to fail.
-
-Exact CI evidence at `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`, workflow run `34364589918`:
+Exact validation at `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`, run `34364589918`:
 
 ```text
 Alembic 0001_task1 -> 0008_task9: passed
@@ -97,64 +55,118 @@ PostgreSQL qualification suite: 5 passed, 47 deselected, 2 upstream warnings
 Workflow conclusion: success
 ```
 
-The workflow now provisions ephemeral PostgreSQL 18, applies the real migration chain, runs the fast SQLite-backed semantic suite separately, and then runs the PostgreSQL-only qualification suite.
-
 ## Post-Kernel Slice 2 — Retrieval Foundation
 
-RF-1 — **Retrieval design and falsifiable acceptance plan** — is complete as documentation only.
+### RF-1 — design and falsifiable acceptance plan
 
-The durable design is:
+Durable design:
 
 `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md`
 
-RF-1 inspected the existing exact resource/version/provenance model, artifact-store boundary, deletion serving fences, derived-generation lifecycle, application service layer, and HTTP resource API. The accepted direction is a synthetic-first PostgreSQL native lexical/full-text projection keyed to exact `resource_version_ref` values and backed by existing derived-generation lineage.
+RF-1 established the synthetic-first PostgreSQL lexical design without changing code. Core decisions include exact `resource_version_ref` provenance, immutable artifact bytes outside PostgreSQL, PostgreSQL native full-text search, explicit lifecycle/authority metadata, deterministic ranking, derived-generation lineage, mandatory serving-fence enforcement, and a service-only API contract. RF2-G1 through RF2-G14 defined the falsifiable acceptance gates before implementation.
 
-Key RF-1 decisions:
+### RF-2 — synthetic PostgreSQL lexical retrieval
 
-- retrieval indexes exact supported text resource versions, not mutable paths or logical-resource identity alone;
-- raw artifact bytes remain outside PostgreSQL;
-- PostgreSQL `tsvector`/GIN plus native full-text query/ranking is the intended lexical mechanism;
-- the derived retrieval projection reuses `kc_derived.generation` / `generation_source` and remains rebuildable rather than canonical truth;
-- current/superseded lifecycle and source-authority ranking metadata are explicit; retrieval must not infer them from recency or keyword score;
-- default retrieval excludes superseded material while preserving explicit historical access;
-- every result retains exact logical-resource/version/digest/generation provenance;
-- existing resource-version serving eligibility remains mandatory so stale search rows cannot bypass restriction/deletion fences;
-- normal clients query through a service-only HTTP contract with no database or artifact-store credentials;
-- the synthetic acceptance corpus and RF2-G1 through RF2-G14 define falsifiable expected behavior before any real repository import.
+Durable completion record:
 
-RF-1 changed no retrieval code, migrations, component tests, canonical schema, or real knowledge data.
+`docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md`
 
-### Next separately authorized task
+Validated implementation checkpoint:
 
-**RF-2 — Implement the synthetic-first PostgreSQL lexical retrieval foundation exactly against `RETRIEVAL_FOUNDATION_RF1.md`.**
+`479a918762e919851e19fee3b36cc1d95e78f3e8`
 
-RF-2 should be separately authorized. It must remain bounded to the derived lexical table/index, generation builder/query, service contract, deletion-fence integration, and synthetic PostgreSQL acceptance gates. It must stop before curated real-corpus ingestion, bulk documentation import, embeddings, RAG/summarization, ACL/Vera semantic expansion, or production deployment work.
+RF-2 implements:
+
+- migration `0009_rf2` and `kc_derived.resource_text_search`;
+- PostgreSQL `TSVECTOR`, GIN indexing, `websearch_to_tsquery`, `@@`, and `ts_rank_cd`;
+- strict UTF-8 `text/plain` and `text/markdown` indexing from exact immutable artifacts;
+- no raw decoded document body stored in PostgreSQL;
+- exact resource-version plus generation-source lineage;
+- explicit lifecycle (`current`, `unknown`, `superseded`) and authority metadata supplied by classification, not inferred from recency/keywords;
+- default superseded exclusion with explicit historical inclusion;
+- deterministic ranking by lexical score, lifecycle, authority, canonical revision, and exact ref;
+- current text-generation-only serving;
+- deletion/restriction purge integration plus mandatory service-time resource-version serving eligibility;
+- `POST /v1/retrieval/search` behind the existing `X-Knowledge-Caller` boundary;
+- exact result provenance without database/artifact-store secrets or internal storage locations.
+
+Exact RF-2 CI run `34371352821` checked out `479a918762e919851e19fee3b36cc1d95e78f3e8` and reported:
+
+```text
+Alembic 0001_task1 -> 0009_rf2: passed
+Fast semantic suite: 47 passed, 9 deselected, 2 upstream warnings
+PostgreSQL suite: 9 passed, 47 deselected, 2 upstream warnings
+Workflow conclusion: success
+```
+
+The nine PostgreSQL tests are the five previously accepted PostgreSQL qualification tests plus four RF-2 test functions covering RF2-G1 through RF2-G14. The RF-2 corpus proves unsupported-media exclusion, current-vs-superseded conflict handling, explicit historical retrieval, multi-source authority tie-breaking, deterministic total ordering, exact provenance, stale-index serving-fence defense, service-only client access, hidden storage internals, bounded blank/irrelevant behavior, explicit lifecycle classification, and current-generation-only retrieval.
+
+The existing duplicate-operation-key log entry remains an intentional part of the same-operation-ID PostgreSQL race qualification and did not fail the workflow.
+
+## Current retrieval boundary
+
+RF-2 is a retrieval foundation, not a complete knowledge-import/RAG system.
+
+Current accepted limitations:
+
+- retrieval is PostgreSQL-only;
+- only strict UTF-8 `text/plain` and `text/markdown` are indexable;
+- search is whole-resource-version lexical retrieval, not chunk retrieval;
+- lifecycle/currentness and source authority must be supplied by an approved classification/import process;
+- lexical rank is not truth, authorization, or execution authority;
+- only a synthetic corpus has been qualified;
+- no real repository documentation has been imported as part of RF-2.
 
 ## Explicitly unclaimed / remaining integration debt
 
-Kernel acceptance, PostgreSQL qualification, and RF-1 design do **not** claim:
+The accepted Kernel, PostgreSQL qualification, and RF-2 retrieval foundation do **not** claim:
 
-- an implemented retrieval endpoint/index/migration;
-- production authentication, TLS, firewall/network policy, or the real Authority service;
-- production backup/restore orchestration or multi-service privacy reconciliation;
-- physical erasure of resource artifact bytes beyond the bounded assertion-erasure behavior;
-- generation IDs attached to every historical derived-family row;
-- separate-OS-process deployment orchestration (the PostgreSQL concurrency qualification uses independent sessions/connections inside one pytest process);
 - curated or bulk real-document import;
-- Vera domain features, ACL domain profiles, embeddings/vector search, autonomous workers, or action execution.
+- repository-wide ACL/Vera/RiskCardOCR documentation classification;
+- PDF/DOCX/HTML extraction, OCR, or arbitrary binary parsing;
+- chunking;
+- embeddings/vector retrieval;
+- LLM summarization/RAG;
+- ACL-specific semantic profiles;
+- Vera-specific semantic profiles;
+- production authentication, TLS, firewall/network policy, or real Authority-service implementation;
+- production backup/restore orchestration or multi-service privacy reconciliation;
+- physical erasure of resource artifact bytes beyond the bounded accepted erasure semantics;
+- autonomous workers or action execution;
+- production process-boundary deployment qualification.
 
-The former gaps around live PostgreSQL migration application, advisory-lock behavior, independent-session stale-write races, operation-ID contention/replay, generation late-finisher fencing, and transactional rollback are closed at the database-integration level. Retrieval remains design-only until RF-2 is separately authorized and implemented.
+## Next separately authorized retrieval/import slice
 
-## Recommended next bounded slices
+Do not start automatically.
 
-Do not combine these into one task. Select one separately:
+The next sensible retrieval step is a **small curated real-corpus pilot** following the Knowledge Import Campaign shape already recorded in the retrieval handoff:
 
-1. **RF-2 synthetic lexical retrieval implementation** — implement and validate the accepted RF-1 PostgreSQL retrieval design without real repository import.
-2. **First real ACL semantic profile** — only after the retrieval/storage boundary is satisfactory, define a small versioned ACL vocabulary for projects, tasks, evidence, decisions, dependencies, and outcomes. Do not import Worker Lab execution authority into Knowledge Core.
-3. **Authority-service boundary** — implement/validate the external Authority service contract separately if authorization becomes the higher priority. Knowledge Core should consume decisions, not become Authority.
-4. **Production deployment qualification** — only when deployment becomes relevant, add process-boundary orchestration, authentication/TLS/network policy, backup/restore, and operational recovery validation.
-5. **Later Vera profile/integration** — defer until the generic infrastructure and ACL path have proven the Kernel under real use.
+1. select one bounded repository/document area;
+2. inventory and classify a small candidate set;
+3. identify authoritative/current/supporting/historical/superseded/research/temporary/duplicate/excluded material;
+4. record exact repository/path/commit or source-version provenance;
+5. map supersession explicitly;
+6. approve only a small text/Markdown ingest batch;
+7. define known questions and expected sources before testing;
+8. validate RF-2 retrieval against that real corpus;
+9. stop before broader expansion.
+
+A real-corpus defect should be repaired as a bounded retrieval task rather than hidden by importing more data.
+
+## Durable restart point
+
+For the next Knowledge Core retrieval/import chat, read:
+
+- `CURRENT_STATE.md`
+- `POSTGRES_QUALIFICATION.md`
+- `RETRIEVAL_FOUNDATION_RF1.md`
+- `RETRIEVAL_FOUNDATION_RF2.md`
+- `RETRIEVAL_FOUNDATION_HANDOFF.md`
+- `EXECUTION_GOVERNANCE.md`
+- `components/knowledge-core/README.md`
+
+Then verify branch/HEAD and perform only the separately authorized bounded task.
 
 ## Stop boundary
 
-**Stop after RF-1 documentation/acceptance design. Do not begin RF-2 implementation, real-document ingestion, embeddings, ACL/Vera semantic expansion, Authority implementation, or production deployment work without separate authorization.**
+**RF-2 is complete. Do not begin real-corpus import, embeddings, RAG, ACL/Vera semantic expansion, Authority implementation, production deployment, or execution work without separate authorization.**
