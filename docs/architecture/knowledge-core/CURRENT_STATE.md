@@ -9,7 +9,8 @@
 **Exact freeze validation:** GitHub Actions run `34350709966` — **47 passed, 2 upstream deprecation warnings**  
 **PostgreSQL qualification implementation checkpoint:** `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`  
 **PostgreSQL qualification validation:** GitHub Actions run `34364589918` — **47 fast semantic tests passed + 5 PostgreSQL qualification tests passed**  
-**Status:** **Knowledge Core Kernel V1 remains frozen and accepted; Post-Kernel Slice 1 — PostgreSQL Qualification is complete. Awaiting a separately authorized next slice.**
+**Retrieval Foundation RF-1 design:** `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md`  
+**Status:** **Knowledge Core Kernel V1 remains frozen and accepted; Post-Kernel Slice 1 — PostgreSQL Qualification is complete; Retrieval Foundation RF-1 design/acceptance is complete. Awaiting separate authorization for RF-2 implementation.**
 
 This file is the branch-specific controlling acceptance record for Knowledge Core. It does not replace the repository-wide `docs/CURRENT_STATE.md`, which records the accepted state of `main` and other ACL work. The frozen Kernel implementation boundary remains `9e904f49480055615bb0cf32360dbdc8400e117c`; post-Kernel test/CI/documentation work does not reopen or alter its 19-gate semantic acceptance.
 
@@ -98,24 +99,57 @@ Workflow conclusion: success
 
 The workflow now provisions ephemeral PostgreSQL 18, applies the real migration chain, runs the fast SQLite-backed semantic suite separately, and then runs the PostgreSQL-only qualification suite.
 
+## Post-Kernel Slice 2 — Retrieval Foundation
+
+RF-1 — **Retrieval design and falsifiable acceptance plan** — is complete as documentation only.
+
+The durable design is:
+
+`docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md`
+
+RF-1 inspected the existing exact resource/version/provenance model, artifact-store boundary, deletion serving fences, derived-generation lifecycle, application service layer, and HTTP resource API. The accepted direction is a synthetic-first PostgreSQL native lexical/full-text projection keyed to exact `resource_version_ref` values and backed by existing derived-generation lineage.
+
+Key RF-1 decisions:
+
+- retrieval indexes exact supported text resource versions, not mutable paths or logical-resource identity alone;
+- raw artifact bytes remain outside PostgreSQL;
+- PostgreSQL `tsvector`/GIN plus native full-text query/ranking is the intended lexical mechanism;
+- the derived retrieval projection reuses `kc_derived.generation` / `generation_source` and remains rebuildable rather than canonical truth;
+- current/superseded lifecycle and source-authority ranking metadata are explicit; retrieval must not infer them from recency or keyword score;
+- default retrieval excludes superseded material while preserving explicit historical access;
+- every result retains exact logical-resource/version/digest/generation provenance;
+- existing resource-version serving eligibility remains mandatory so stale search rows cannot bypass restriction/deletion fences;
+- normal clients query through a service-only HTTP contract with no database or artifact-store credentials;
+- the synthetic acceptance corpus and RF2-G1 through RF2-G14 define falsifiable expected behavior before any real repository import.
+
+RF-1 changed no retrieval code, migrations, component tests, canonical schema, or real knowledge data.
+
+### Next separately authorized task
+
+**RF-2 — Implement the synthetic-first PostgreSQL lexical retrieval foundation exactly against `RETRIEVAL_FOUNDATION_RF1.md`.**
+
+RF-2 should be separately authorized. It must remain bounded to the derived lexical table/index, generation builder/query, service contract, deletion-fence integration, and synthetic PostgreSQL acceptance gates. It must stop before curated real-corpus ingestion, bulk documentation import, embeddings, RAG/summarization, ACL/Vera semantic expansion, or production deployment work.
+
 ## Explicitly unclaimed / remaining integration debt
 
-Kernel acceptance plus PostgreSQL qualification do **not** claim:
+Kernel acceptance, PostgreSQL qualification, and RF-1 design do **not** claim:
 
+- an implemented retrieval endpoint/index/migration;
 - production authentication, TLS, firewall/network policy, or the real Authority service;
 - production backup/restore orchestration or multi-service privacy reconciliation;
 - physical erasure of resource artifact bytes beyond the bounded assertion-erasure behavior;
 - generation IDs attached to every historical derived-family row;
 - separate-OS-process deployment orchestration (the PostgreSQL concurrency qualification uses independent sessions/connections inside one pytest process);
+- curated or bulk real-document import;
 - Vera domain features, ACL domain profiles, embeddings/vector search, autonomous workers, or action execution.
 
-The former gaps around live PostgreSQL migration application, advisory-lock behavior, independent-session stale-write races, operation-ID contention/replay, generation late-finisher fencing, and transactional rollback are now closed at the database-integration level.
+The former gaps around live PostgreSQL migration application, advisory-lock behavior, independent-session stale-write races, operation-ID contention/replay, generation late-finisher fencing, and transactional rollback are closed at the database-integration level. Retrieval remains design-only until RF-2 is separately authorized and implemented.
 
 ## Recommended next bounded slices
 
 Do not combine these into one task. Select one separately:
 
-1. **Retrieval/full-text foundation** — design and validate deterministic lexical retrieval over Knowledge Core before embeddings/vector search. Keep it generic and service-only.
+1. **RF-2 synthetic lexical retrieval implementation** — implement and validate the accepted RF-1 PostgreSQL retrieval design without real repository import.
 2. **First real ACL semantic profile** — only after the retrieval/storage boundary is satisfactory, define a small versioned ACL vocabulary for projects, tasks, evidence, decisions, dependencies, and outcomes. Do not import Worker Lab execution authority into Knowledge Core.
 3. **Authority-service boundary** — implement/validate the external Authority service contract separately if authorization becomes the higher priority. Knowledge Core should consume decisions, not become Authority.
 4. **Production deployment qualification** — only when deployment becomes relevant, add process-boundary orchestration, authentication/TLS/network policy, backup/restore, and operational recovery validation.
@@ -123,4 +157,4 @@ Do not combine these into one task. Select one separately:
 
 ## Stop boundary
 
-**Stop after PostgreSQL qualification.** Do not begin retrieval, ACL domain semantics, embeddings, Authority implementation, production deployment expansion, or Vera integration without separate authorization.
+**Stop after RF-1 documentation/acceptance design. Do not begin RF-2 implementation, real-document ingestion, embeddings, ACL/Vera semantic expansion, Authority implementation, or production deployment work without separate authorization.**
