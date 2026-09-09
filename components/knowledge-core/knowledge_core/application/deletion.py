@@ -27,6 +27,7 @@ from knowledge_core.storage.models import (
     Revision,
 )
 from knowledge_core.storage.resource_models import ResourceVersion
+from knowledge_core.storage.retrieval_models import ResourceTextSearch
 
 
 _ACTIVE_FENCE_STATUSES = {
@@ -118,6 +119,20 @@ class DeletionKnowledgeKernel(IdentityKnowledgeKernel):
                 or_(
                     CurrentIdentityMember.entity_ref_id == target_ref,
                     CurrentIdentityMember.representative_ref_id == target_ref,
+                )
+            )
+        )
+
+        resource_versions_for_logical = select(ResourceVersion.ref_id).where(
+            ResourceVersion.resource_ref_id == target_ref
+        )
+        self.session.execute(
+            delete(ResourceTextSearch).where(
+                or_(
+                    ResourceTextSearch.resource_version_ref == target_ref,
+                    ResourceTextSearch.resource_version_ref.in_(
+                        resource_versions_for_logical
+                    ),
                 )
             )
         )

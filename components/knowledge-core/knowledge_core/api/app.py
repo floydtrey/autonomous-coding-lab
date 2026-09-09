@@ -17,6 +17,11 @@ from knowledge_core.api.resource_schemas import (
     ResourceResponse,
     ResourceVersionResponse,
 )
+from knowledge_core.api.retrieval_schemas import (
+    RetrievalHitResponse,
+    RetrievalSearchRequest,
+    RetrievalSearchResponse,
+)
 from knowledge_core.api.schemas import (
     AssertionCorrectRequest,
     AssertionCreateRequest,
@@ -37,6 +42,7 @@ from knowledge_core.api.schemas import (
     ValueResponse,
 )
 from knowledge_core.application.resource_service import ResourceServiceKnowledgeKernel
+from knowledge_core.application.retrieval import RetrievalServiceKnowledgeKernel
 from knowledge_core.application.service import ServiceKnowledgeKernel
 from knowledge_core.artifacts.store import LocalArtifactStore
 from knowledge_core.domain.assertions import AssertionSnapshot, KnowledgeInvariantError
@@ -52,6 +58,7 @@ from knowledge_core.domain.operations import (
     StaleWriteError,
 )
 from knowledge_core.domain.resources import EvidenceTrace, ImpactTrace, ResourceVersionSnapshot
+from knowledge_core.domain.retrieval import RetrievalSearchSnapshot
 from knowledge_core.domain.temporal import BitemporalAssertion
 
 
@@ -157,6 +164,34 @@ def _impact_response(item: ImpactTrace) -> ImpactTraceResponse:
     )
 
 
+def _retrieval_response(item: RetrievalSearchSnapshot) -> RetrievalSearchResponse:
+    return RetrievalSearchResponse(
+        query=item.query,
+        generation_id=item.generation_id,
+        source_revision_highwater=item.source_revision_highwater,
+        results=[
+            RetrievalHitResponse(
+                rank=rank,
+                resource_ref=hit.resource_ref,
+                resource_version_ref=hit.resource_version_ref,
+                content_digest_algo=hit.content_digest_algo,
+                content_digest=hit.content_digest,
+                media_type=hit.media_type,
+                observed_occurrence_ref=hit.observed_occurrence_ref,
+                created_revision_id=hit.created_revision_id,
+                lifecycle_state=hit.lifecycle_state,
+                authority_rank=hit.authority_rank,
+                repository=hit.repository,
+                source_path=hit.source_path,
+                source_version=hit.source_version,
+                observed_at=hit.observed_at,
+                lexical_score=hit.lexical_score,
+            )
+            for rank, hit in enumerate(item.results, start=1)
+        ],
+    )
+
+
 def create_app(
     *,
     session_factory: SessionFactory,
@@ -172,7 +207,10 @@ def create_app(
     def get_kernel():
         session = session_factory()
         try:
-            yield ResourceServiceKnowledgeKernel(session, artifact_store=artifact_store)
+            yield RetrievalServiceKnowledgeKernel(
+                session,
+                artifact_store=artifact_store,
+            )
         finally:
             session.close()
 
@@ -574,5 +612,22 @@ def create_app(
                 resource_version_ref=resource_version_ref
             )
         ]
+
+    @app.post(
+        "/v1/retrieval/search",
+        response_model=RetrievalSearchResponse,
+    )
+    def retrieval_search(
+        body: RetrievalSearchRequest,
+        kernel: RetrievalServiceKnowledgeKernel = Depends(get_kernel),
+        _caller: str = Depends(caller_context),
+    ) -> RetrievalSearchResponse:
+        return _retrieval_response(
+            kernel.search_text(
+                query=body.query,
+                limit=body.limit,
+                include_superseded=body.include_superseded,
+            )
+        )
 
     return app
