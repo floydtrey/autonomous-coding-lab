@@ -1,150 +1,113 @@
 # Knowledge Core
 
-This component is the bounded Knowledge Core Kernel implementation.
+This component is the bounded Knowledge Core Kernel V1 implementation.
 
-## Current implementation state
+## Current state
 
 **Branch:** `architecture/knowledge-core`  
-**Task 10 starting checkpoint:** `9a338a024dc1cd5fcf01366fe3dad8311d58311c`  
-**Task 10 implementation commits:** `61ac18619b1c40b9b258362312762dc1c5a8f385`, `8db4394e6e05fb7ed012e0dc33001f7f43fe88f6`, `b673cfdf7d6e82303fafc97f0c80341ec2688b6e`  
-**Status:** Tasks 1–10 are implemented. Gates 12–18 remain accepted. The resource-ingest operation-model blocker required for Gate 19 is resolved and the resource/provenance HTTP path is now implemented. Gate 19 and the final 19-gate replay remain unresolved.
+**Task 10 checkpoint:** `ea8ff441133329dfc19b631ed0172cdf12561704`  
+**Gate 19 validated implementation head:** `2bdbc2a161bd2756fa7139ecefd4ca8b160f148e`  
+**Status:** **Kernel V1 gates 1–19 accepted. The Kernel boundary is frozen pending a separately authorized next slice.**
 
-## Task 10 — managed resource no-op + resource/provenance HTTP boundary
+The controlling acceptance record is `docs/architecture/knowledge-core/CURRENT_STATE.md`. The original plan in `docs/architecture/knowledge-core/IMPLEMENTATION_PLAN_V1.md` is now marked complete.
 
-Task 7 correctly deferred resource ingestion because exact duplicate re-ingest can be a valid semantic no-op with no new canonical revision, while the generic Task 3 managed-operation helper previously treated every successful operation without a new `kc.revision` as an invariant failure.
+## Accepted Kernel capabilities
 
-Task 10 resolves that mismatch without weakening ordinary write guarantees.
+The bounded V1 Kernel includes:
 
-### Explicit no-op capability
+- canonical revisions and universal knowledge refs;
+- immutable/versioned semantic profiles, kinds, and predicates;
+- typed scalar/reference assertions;
+- append-only correction and explicit reversal;
+- independent world-valid and knowledge-record time;
+- conflict-preserving historical/current retrieval;
+- rebuildable current projections;
+- operation IDs, deterministic request digests, idempotent replay, stale-write protection, and serialized PostgreSQL managed writes;
+- exact resource versions, immutable SHA-256 artifact storage, mutable locator history, and traversable provenance;
+- reversible identity merge/split plus replacement-not-equivalence;
+- deletion/restriction serving fences, bounded assertion erasure, and anti-resurrection reconciliation;
+- append-only semantic-profile activation with assertions pinned to exact semantic revisions;
+- derived-generation lineage and monotonic out-of-order settlement fencing;
+- a FastAPI/Pydantic semantic service boundary;
+- managed resource/provenance HTTP operations, including explicit successful no-canonical-mutation exact re-ingest;
+- a serving-safe current-identity read for normal service clients.
 
-`OperationKnowledgeKernel._execute_operation()` now accepts an explicit `allow_no_canonical_revision` flag that defaults to `False`.
+## Gate 19 — service-only client acceptance
 
-- ordinary managed writes remain strict and still fail if they unexpectedly create no canonical revision;
-- only a semantic operation whose contract explicitly permits a canonical no-op may opt in;
-- exact duplicate resource-version re-ingest is the first such operation.
-
-A successful exact duplicate ingest with no new locator therefore settles:
-
-```text
-kc_control.operation.status = committed
-kc_control.operation.result_revision_id = NULL
-canonical kc.revision high-water = unchanged
-```
-
-The operation still records stable request digest and replay metadata, so retry remains deterministic.
-
-If the same exact resource version gains a new locator observation, that is not a no-op. The locator occurrence creates a canonical revision and the operation receives a non-null `result_revision_id`.
-
-The physical schema already allowed this outcome because `kc_control.operation.result_revision_id` is nullable. Task 10 therefore requires no new migration; the blocker was application settlement logic rather than table shape.
-
-### Resource service application boundary
-
-`ResourceServiceKnowledgeKernel` adds service-safe wrappers around the existing Task 4 resource/provenance semantics:
-
-- managed logical-resource creation;
-- managed exact-version ingest;
-- managed assertion-evidence linking;
-- serving-safe logical resource/version reads;
-- serving-safe assertion explanation;
-- serving-safe exact-version forward impact.
-
-New mutations check Task 6 serving fences inside the managed operation action. Settled operation replay remains an execution-ledger fact; current serving eligibility is evaluated separately before an HTTP result is returned.
-
-### Resource/provenance HTTP routes
-
-The bounded v1 service now includes:
+`tests/test_task11_gate19_service_only.py` defines a simulated Vera/ACL client whose entire capability is:
 
 ```text
-POST /v1/resources
-POST /v1/resources/ingest
-GET  /v1/resource-versions/{resource_version_ref}
-POST /v1/assertions/{assertion_ref}/evidence
-GET  /v1/assertions/{assertion_ref}/explain
-GET  /v1/resources/{resource_version_ref}/impact
+HTTP/TestClient transport
+X-Knowledge-Caller identification context
 ```
 
-Resource version responses expose semantic/version metadata only. Internal artifact backend names and artifact keys are deliberately absent from response schemas/OpenAPI.
+The client possesses no SQLAlchemy session, database URL, PostgreSQL connection string, `KNOWLEDGE_CORE_DATABASE_URL`, artifact-store object, artifact path, or direct storage repository.
 
-### Replay and privacy fence ordering
+Normal client semantics are exercised through FastAPI/TestClient for typed assertions, reference relationships, correction/reversal, bitemporal belief, conflict preservation, stale writes, idempotent retries, exact resource provenance, identity merge/split/replacement, privacy-serving behavior, and semantic-profile pinning.
 
-A previously settled ingest operation may be retried after its resource/version is later restricted. The ledger must not execute the mutation again, but it also must not become a route around current privacy policy.
+Privileged privacy reconciliation, profile administration, and derived-generation settlement remain server/control-plane concerns. They are deliberately not normal Vera/ACL endpoints.
 
-Task 10 preserves this ordering:
+### Identity service gap fixed during Gate 19
 
-1. operation ledger validates/replays the settled operation;
-2. no new resource mutation occurs;
-3. HTTP response construction applies current Task 6 serving eligibility;
-4. restricted resource/version content remains unavailable.
+Gate 19 found that identity transitions were writable over HTTP but current identity resolution was not readable through the service. That would have forced a client acceptance test to reach behind the API to verify merge/split/replacement behavior.
 
-Likewise, assertion explanation filters out evidence versions that are now restricted, while forward impact for a restricted resource version fails closed.
+The bounded fix added:
 
-## Task 10 validation
+```text
+GET /v1/identity/entities/{entity_ref}
+```
 
-A bounded local SQLAlchemy semantic harness passed the operation-model sequence:
+and made managed merge/replace/reversal rebuild the derived current-identity projection before the operation settles. A normal client can therefore observe identity semantics without SQL/storage access.
 
-1. first exact ingest creates a resource version and canonical revision;
-2. exact duplicate ingest under a new operation ID settles `committed` with `result_revision_id = NULL`;
-3. the canonical revision high-water remains unchanged for that no-op;
-4. retry of the same no-op operation returns the same resource version without another mutation;
-5. reuse of that operation ID with different bytes is rejected;
-6. the same exact version plus a previously unseen locator creates a canonical revision and non-null operation result revision;
-7. replay followed by current serving-fence evaluation prevents a later-restricted result from being disclosed.
+## Exact repository validation
 
-**Task 10 blocker result: PASS.**
+A component workflow now runs on the branch with Python 3.12:
 
-Focused repository coverage in `tests/test_task10_resource_api.py` additionally exercises the actual intended HTTP contract for:
+```text
+python -m pip install -e ".[test]"
+python -m pytest -q
+```
 
-- service-only logical resource creation and exact-version ingest;
-- no-op operation settlement/replay;
-- exact evidence linking, backward explanation, and forward impact;
-- absence of artifact backend/key disclosure;
-- restriction after settlement followed by ingest replay;
-- explanation filtering and impact fail-closed behavior.
+The integration gate found and fixed two pre-existing defects before acceptance:
 
-Review also found one expected cross-task regression: the old Task 7 test asserted that `/v1/resources/ingest` was absent. That assertion was intentionally valid before Task 10 made resource writes safe. Commit `b673cfdf7d6e82303fafc97f0c80341ec2688b6e` updates the test to preserve the actual invariant—no deletion/admin/raw privileged routes—while recognizing the now-managed resource route.
+1. **Editable-package discovery:** setuptools attempted to package both `knowledge_core` and top-level `migrations`. Package discovery is now explicitly limited to `knowledge_core*`.
+2. **Deletion replay timezone normalization:** SQLite persisted timezone-aware deletion-control timestamps but returned naïve values, so an idempotent replay snapshot differed only by `tzinfo`. Deletion snapshots now normalize persisted timestamps to UTC.
 
-GitHub exposes no Actions workflow run for the Task 10 implementation head.
+GitHub Actions run `34350296337` at `2bdbc2a161bd2756fa7139ecefd4ca8b160f148e` passed the exact checked-in component suite:
 
-### Validation not claimed
+```text
+47 passed, 2 warnings
+```
 
-This checkpoint does **not** claim:
+The two warnings are upstream TestClient/Starlette deprecation warnings and are not semantic failures.
 
-- execution of the exact checked-in `tests/test_task10_resource_api.py` from a materialized full repository checkout;
-- execution of the complete checked-in Task 1–10 pytest suite;
-- live PostgreSQL application of migrations `0001_task1` through `0008_task9`;
-- live PostgreSQL operation/no-op integration;
-- Gate 19 acceptance;
-- final 19-gate Kernel acceptance.
+## Gate disposition
 
-The local execution runtime still has neither working DNS nor outbound connectivity to GitHub, so the branch cannot be cloned there. GitHub connector access is used for durable repository reads/writes.
+- Gates 1–11: accepted and included in the final exact component replay.
+- Gates 12–16: accepted; identity/privacy behavior is also exercised through the Gate 19 service-only replay where externally observable.
+- Gate 17: accepted; old/new assertion semantic revision pinning is verified while profile activation remains server-side administration.
+- Gate 18: accepted; generation administration remains absent from the normal client API and the late-finisher fence remains enforced server-side.
+- Gate 19: **accepted through FastAPI/TestClient service-only replay.**
 
-## Existing accepted gates
+## Explicit limitations / integration debt
 
-- Gates 12–16: accepted at checkpoint `e018e86f92d5f504637807bdee78c28852498841`.
-- Gate 17: accepted at checkpoint `6bd4872531c899298754a4409e88ac90f0edec80`.
-- Gate 18: accepted at checkpoint `9a338a024dc1cd5fcf01366fe3dad8311d58311c`.
+Kernel V1 acceptance does **not** claim:
 
-## Remaining Kernel work
+- live PostgreSQL application of migrations `0001_task1` through `0008_task9` in this execution environment;
+- a real multi-process PostgreSQL write/generation race;
+- production authentication, TLS, firewall policy, or the real Authority service;
+- production backup/restore orchestration or multi-service privacy reconciliation;
+- physical erasure of resource artifact bytes (bounded physical erasure currently covers standalone assertions);
+- generation IDs attached to every historical derived-family row;
+- Vera domain features, ACL domain profiles, embeddings/vector search, autonomous workers, or action execution.
 
-The next separately authorized bounded slice is now:
+Those items require separately bounded future work. They are not reasons to reopen the accepted V1 semantic Kernel gates.
 
-1. **Gate 19 — service-only client acceptance replay** through FastAPI/TestClient or real loopback HTTP;
-2. if Gate 19 passes, perform the final 19-gate Kernel replay/checkpoint and freeze the Kernel boundary;
-3. retain live PostgreSQL migration/integration validation as an explicit environment-dependent deployment/integration item if it still cannot be executed here.
+## Stop boundary
 
-Earlier bounded limitations also remain:
+**Stop here.** Do not immediately add Vera/ACL semantics, embeddings, Authority implementation, or production deployment features to this checkpoint.
 
-- Task 6 physically erases only the bounded standalone assertion case, not resource artifact bytes;
-- production backup/restore and multi-service privacy reconciliation remain unproven;
-- real authentication/TLS/firewall behavior and the real Authority service are not implemented;
-- generation IDs are not yet attached to every historical derived projection family;
-- raw lower-level Kernel methods remain internal/debug infrastructure and must not be exposed as client APIs.
-
-## Stop point
-
-Task 10 is implemented and the resource operation-model blocker is resolved. **Gate 19 has not started.**
-
-Do not add Vera/ACL domain features, embeddings, Authority implementation, or production deployment expansion before the Kernel acceptance boundary is closed.
+The next project slice must be selected separately. Candidate directions in the architecture plan include retrieval/full-text plus a first real ACL knowledge profile, or Authority-service implementation, depending project priority.
 
 ## Development
 
