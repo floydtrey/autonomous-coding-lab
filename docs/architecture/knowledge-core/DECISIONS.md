@@ -97,83 +97,66 @@ Clients use meaningful operation families: read/search/explain, append assertion
 ## KC-D014 — Retrieval is an authorization-first composite pipeline; context construction is a final derived step
 **Status:** Accepted
 
-Retrieval carries authenticated principal, purpose/use, and explicit query mode. Hard authority/sensitivity eligibility precedes protected model-facing exposure. Structured and temporal filtering, relationship traversal, full-text/semantic candidate generation, provenance/conflict/currentness evaluation, reranking, and final context construction remain distinguishable. Semantic/full-text rank is relevance, not truth/permission/currentness. Context packages retain source/revision and conflict/staleness metadata.
+Retrieval carries authenticated principal, purpose/use, and explicit query mode. Hard authority/sensitivity eligibility precedes protected model-facing exposure. Structured/temporal filtering, relationship traversal, full-text/semantic candidate generation, provenance/conflict/currentness evaluation, reranking, and final context construction remain distinguishable. Rank is relevance, not truth/permission/currentness.
+
+## KC-D015 — Derived data is generation-versioned, lineage-bound, explicitly staleable, and rebuildable
+**Status:** Accepted
+
+Current-state projections, extracted text, chunks, summaries, FTS materializations, embeddings/vector indexes, relationship closures, aggregates, caches, and context-supporting projections remain derived. Each retains source revision(s), generation identity, relevant profile/model/configuration revision, lifecycle/staleness state, and enough lineage for rebuild/restriction/deletion propagation. New generations build separately and replace settled generations only after validation.
 
 ---
 
-## KC-D015 — Derived data is generation-versioned, lineage-bound, explicitly staleable, and rebuildable
+## KC-D016 — Identity resolution is non-destructive, transition-based, and reversible
 
 **Status:** Accepted
 
-Current-state projections, normalized/extracted text, chunks, summaries, full-text materializations, embeddings, vector indexes, relationship closures, aggregates, caches, and context-supporting projections are **derived data**, not independent canonical truth.
+ENTITY records have stable internal identities independent of names, usernames, email addresses, device registry IDs, paths, IPs, room assignments, or other external identifiers.
 
-Every derived artifact or derived generation that can affect retrieval must retain enough metadata to identify:
+External identifiers, aliases, labels, and same-identity clues are evidence/assertions with source namespace and provenance; they are not automatically universal identity.
 
-- a stable derived/generation identity;
-- exact canonical source reference(s) and source revision/version(s) or a reproducible source-revision cutoff;
-- derivation OCCURRENCE/activity identity where applicable;
-- semantic-profile revision;
-- algorithm/model identity and version/build when applicable;
-- prompt/configuration/extraction/chunking/index profile revision when applicable;
-- generation timestamp/revision;
-- lifecycle state such as building, current, stale, failed, superseded, restricted, or deletion-pending.
+Knowledge Core must explicitly represent at least these identity-resolution states:
 
-A derived item may never become epistemically stronger merely because it is convenient to retrieve. A summary does not outrank its sources; an embedding similarity does not establish truth; an inferred relationship closure does not become a direct assertion.
+- unresolved/ambiguous candidate;
+- resolved different;
+- resolved same/equivalent for a stated scope/time;
+- merge/equivalence transition;
+- split/reversal of a mistaken merge;
+- replacement/succession where old and new remain distinct entities;
+- reassignment of an external identifier or alias.
 
-Source changes can mark dependent derived records stale through forward lineage. Staleness triggers include, as applicable:
+A merge/resolved-same operation **does not** rewrite every assertion foreign key from one entity to another and does not delete the losing entity record. Instead it appends a canonical identity-resolution transition with:
 
-- source correction/supersession/invalidation;
-- exact RESOURCE-version change;
-- identity merge/split/reassignment that changes applicability;
-- semantic-profile meaning/version change;
-- extraction/chunking/model/configuration revision change;
-- sensitivity/restriction change;
-- privacy deletion/erasure request.
+- the involved entity references;
+- transition type;
+- record time/revision;
+- world-valid/applicability scope where relevant;
+- provenance/evidence;
+- authenticated/authorized operation context reference where required.
 
-Derived generations should rebuild under a **generation-fenced** pattern where practical:
+A derived current identity-resolution projection may choose a representative/current equivalence set for fast lookup. Queries over a currently merged identity can union or otherwise compose knowledge attached to the underlying entity records according to the active resolution state.
 
-```text
-old settled generation
-        |
-        +---- remains serving if allowed
-        |
-        v
-new generation builds separately
-        |
-     validates
-        |
-        v
-atomic current-generation switch
-        |
-        v
-old generation becomes superseded / later garbage-collected
-```
+Because original entities and their assertions remain intact, reversing a mistaken merge does not require reconstructing which rows were physically moved. A split/reversal appends a new transition invalidating or superseding the prior resolution. Current identity projections then rebuild/recompute.
 
-A partial or failed rebuild must not silently replace a known-settled generation.
+Assertions are not automatically reattributed simply because an identity resolution changes. If evidence shows a particular assertion belonged to the wrong underlying entity, that reattribution/correction is explicit and provenance-bearing.
 
-Some projections, especially current-state lookup tables, may be updated synchronously in the same transaction as canonical appends for fast reads. That does not make them canonical; they must still be independently reconstructable from canonical history.
+Replacement is not treated as equivalence. For example, replacing a physical thermostat, vehicle, account, or worker process creates/uses a distinct ENTITY plus a governed `replaced_by`/successor relationship or identity transition; the history of the old thing remains attached to the old entity.
 
-Stale derived data may be used only when the retrieval/use policy permits it and the stale condition is surfaced. Consequential/authority-sensitive decisions may not rely on stale derived state as if it were current merely because a fresher rebuild has not completed.
+Identity candidate scores, fuzzy name matches, embedding similarity, or shared identifiers are **candidate evidence**, not final identity truth. Automated resolution may only create a canonical resolution transition when the applicable policy/rules permit it; ambiguity remains representable otherwise.
 
-Restriction/deletion fences apply immediately to derived exposure even before physical cleanup/rebuild finishes. A derived cache or vector index may never keep restricted content retrievable just because reconciliation is still pending.
-
-Indexes whose internal engine state cannot reasonably carry per-row lineage still require generation-level metadata that proves which canonical revision set/profile/configuration they index and supports safe rebuild/replace.
-
-**Reason:** Knowledge Core depends heavily on derived retrieval helpers. Without explicit generation identity, lineage, staleness, and rebuild semantics, those helpers would eventually become hidden competing truth stores and would undermine correction, deletion, replay, and provenance requirements.
+**Reason:** destructive identity merge is one of the hardest errors to undo in a knowledge system. Transition-based resolution preserves provenance, reversibility, historical belief, and downstream repair while allowing a fast current identity view.
 
 ---
 
 # Open physical-design decisions
 
 1. Detailed PostgreSQL table split for canonical and derived structures.
-2. Identity-resolution workflow and transition mechanics.
-3. Deletion/retention/reconciliation workflow.
-4. Concurrency, revision/precondition, retry/idempotency, and stale-write protection.
-5. Backup, recovery, restore, and deletion-ledger reconciliation.
-6. Initial OS process/service identities and permission boundaries.
-7. Secret/credential storage and access boundaries.
-8. Exact API transport/framework.
-9. The first implementation vertical slice and its validation gates.
+2. Deletion/retention/reconciliation workflow.
+3. Concurrency, revision/precondition, retry/idempotency, and stale-write protection.
+4. Backup, recovery, restore, and deletion-ledger reconciliation.
+5. Initial OS process/service identities and permission boundaries.
+6. Secret/credential storage and access boundaries.
+7. Exact API transport/framework.
+8. The first implementation vertical slice and its validation gates.
 
 ---
 
@@ -185,4 +168,4 @@ Record accepted decisions here as they are made; supersede rather than silently 
 
 # Current next decision
 
-The next design discussion should define operational identity resolution: how aliases/candidates remain ambiguous, how merges/splits/replacements are performed without destructive identity collapse, and how those transitions can be reversed while preserving provenance and dependent knowledge.
+The next design discussion should define privacy deletion/restriction/retention as a multi-stage reconciliation workflow: immediate retrieval fencing, canonical handling, descendant/derived cleanup, artifact handling, backup/restore behavior, settlement proof, and the limited metadata that may remain after erasure without retaining the erased content itself.
