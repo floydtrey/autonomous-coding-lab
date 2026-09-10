@@ -2,7 +2,7 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **SR-2 Slices 1–6 accepted; G1–G21 acceptance closure next**
+**Status:** **SR-2 Slices 1–6 accepted; Slice 7 G1–G21 audit complete; closure package not yet published or qualified**
 
 **Clean reset runtime checkpoint:** `267fc28bd862ddd4ca22e61792d073853a1e51a8` — Actions `34443719080` success  
 **SR-2 Slice 1:** `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336` — Actions `34444560064` success  
@@ -10,7 +10,9 @@
 **SR-2 Slice 3:** `70dde361cd62f507f54b5e42e3ef12cea27ce11f` — Actions `34446983351` success  
 **SR-2 Slice 4:** `33c83e99728de9cab9a4eede8030fa733a4a5beb` — Actions `34448019988` success  
 **SR-2 Slice 5:** `ee285a5301bd81c9bd011799c7150ce3d081e11a` — Actions `34450118281` success  
-**SR-2 Slice 6:** `1534dba10757612485821bf566c6fdccffde06c2` — Actions `34452778382` success
+**SR-2 Slice 6:** `1534dba10757612485821bf566c6fdccffde06c2` — Actions `34452778382` success  
+**Slice 6 state checkpoint:** `d540f206bb2c7a94eeb14f642b3a87d7ff81486e`  
+**Slice 7 pause handoff introduced:** `8fafb1603649a2af64f2122c9b66e7fbae9f4ada`
 
 This file is the controlling restart entry point for Knowledge Core. Git history is the archive; active implementation guidance belongs here and in the controlling contracts.
 
@@ -119,39 +121,64 @@ Qualification `34452778382`:
 
 The guarded exact-corpus skips refuse to relabel later-edited documentation as earlier pinned evidence; they are not SR-2 failures.
 
+## Slice 7 audit status at pause
+
+The bounded G1–G21 coverage audit has been completed against the fresh Slices 1–6 implementation.
+
+Current conclusion:
+
+- no broad SR-2 redesign is indicated;
+- most remaining gaps are missing cross-boundary qualification evidence rather than known production defects;
+- the closure package has been designed but has **not** been committed as accepted Slice 7 runtime/test/workflow state and has **not** passed CI;
+- any unreferenced Git blobs created while drafting Slice 7 are not branch state, not restart evidence, and must not be treated as authoritative;
+- G22 remains intentionally unexecuted.
+
+The planned closure package adds explicit proofs for canonical immutability/rebuild reproducibility, complete-generation reproducibility, path-only identity, failed oversized-build serving continuity, the required G12 publication cases, current-to-superseded reprojection with stable structural keys, historical supersession versus privacy reconciliation, deterministic reachable ranking discriminators/repeatability, bounded service/no-leak behavior, and absence of model/vector-service dependencies.
+
+G16 qualification must not fabricate invalid duplicate canonical segment identities merely to force the final `segment_key` tie-break. The behavior tests should exercise every reachable ranking discriminator and repeated stable ordering; the exact retrieval profile/configuration must separately prove that `segment_key` remains the final deterministic safeguard.
+
+A dedicated pause handoff now exists at:
+
+`docs/architecture/knowledge-core/SR2_SLICE7_PAUSE_HANDOFF.md`
+
 ## Restart order
 
 Read, in order:
 
 1. `docs/architecture/knowledge-core/CURRENT_STATE.md`
-2. `docs/architecture/knowledge-core/DECISIONS.md` — especially KC-D025
-3. `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`
-4. `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
-5. accepted generation, RF-2, RI-2, deletion, and SR-2 Slice 1–6 interfaces needed for the bounded next slice
+2. `docs/architecture/knowledge-core/SR2_SLICE7_PAUSE_HANDOFF.md`
+3. `docs/architecture/knowledge-core/DECISIONS.md` — especially KC-D025
+4. `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`
+5. `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
+6. accepted generation, RF-2, RI-2, deletion, and SR-2 Slice 1–6 interfaces needed for the bounded next slice
 
 Do not search Git history for SR-2 implementation guidance unless explicitly investigating the rejected prototype.
 
-## Next bounded task — SR-2 Slice 7: G1–G21 acceptance closure
+## Next bounded task — resume SR-2 Slice 7: G1–G21 acceptance closure
 
-Audit the fresh Slices 1–6 tests against every amended SR2-G1 through SR2-G21 requirement. Do not infer a gate is covered merely because adjacent behavior passed.
+Resume from the audit rather than repeating it from scratch.
 
-Slice 7 should:
+First verify the live branch HEAD, then inspect the active tree and publish a bounded closure package that:
 
-- create an explicit G1–G21 coverage matrix mapping each contractual assertion to one or more concrete synthetic/PostgreSQL tests;
-- add only missing qualification fixtures/assertions required by the amended contract;
-- prove structural profile changes and projection-only changes remain distinct and never mutate canonical evidence or mix serving generations;
-- prove repository supersession/retirement-retain remains distinct from privacy restriction/erasure reconciliation;
-- prove complete generation/profile/governed-snapshot provenance through the service boundary without exposing internal storage/artifact controls;
-- mechanically separate G22 from G1–G21 in pytest/CI so the real-document pilot cannot execute until every synthetic/PostgreSQL acceptance gate has passed;
-- leave G22 itself unexecuted until the G1–G21 closure commit is independently green.
+- creates an explicit G1–G21 coverage matrix mapping each contractual assertion to one or more concrete synthetic/PostgreSQL tests;
+- adds only the missing qualification fixtures/assertions required by the amended contract;
+- proves structural profile changes and projection-only changes remain distinct and never mutate canonical evidence or mix serving generations;
+- proves repository supersession/retirement-retain remains distinct from privacy restriction/erasure reconciliation;
+- proves complete generation/profile/governed-snapshot provenance through the service boundary without exposing internal storage/artifact controls;
+- registers a dedicated `sr2_real_pilot` pytest marker and mechanically excludes it from both normal G1–G21 CI suites;
+- leaves G22 itself unexecuted until the G1–G21 closure commit is independently green.
 
-Do not broaden the implementation unless an uncovered G1–G21 requirement exposes an actual defect.
+Do not broaden the implementation unless an uncovered G1–G21 requirement exposes an actual defect. If a genuine architectural ambiguity appears, stop and return to the decision process rather than silently selecting a new architecture.
 
 ## Intended-host boundary
 
-No new user-PC execution is required through Slice 7. CI is the acceptance environment for deterministic synthetic/PostgreSQL G1–G21 closure.
+**No new user-PC execution is required yet.** CI remains the acceptance environment for deterministic synthetic/PostgreSQL G1–G21 closure.
 
-After G1–G21 are independently green, G22 may run against the tiny pinned real-document pilot. Intended-host SR-2 restart/recovery qualification on the user's PC should occur only after the complete G1–G22 SR-2 acceptance suite is green and before SR-2 is declared operationally accepted for that host.
+The required sequence is:
+
+`G1–G21 green in CI -> separate G22 tiny pinned real-document pilot -> G1–G22 green -> intended-host SR-2 restart/recovery qualification on the user's PC`
+
+Only after the complete G1–G22 acceptance suite is green should a concrete intended-host command set be handed to the user.
 
 ## Out of scope
 
