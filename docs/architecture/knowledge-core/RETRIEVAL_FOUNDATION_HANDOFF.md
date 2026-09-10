@@ -2,7 +2,7 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **RI-4 restart qualification harness is implemented and CI-rehearsed successfully. RI-4 remains open pending one intended-host qualification run.**
+**Status:** **RI-4 intended-host qualification is complete and accepted. No next Knowledge Core implementation phase has yet been selected.**
 
 ## Accepted checkpoints
 
@@ -15,6 +15,7 @@
 - RI-3 final validated code/config/docs checkpoint: `9a167e67200c6bee2b7f4ed7b1dc91224d553390` — CI `34418080815`
 - RI-3 final evidence checkpoint: `3d12f205d15c310bce0718c56c0866befccd90ec`
 - RI-4 harness checkpoint: `934850d5830d4a5d89ec32b04630435a027e816f` — CI rehearsal `34418809968`
+- RI-4 intended-host evidence: `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md` — success
 
 ## Accepted foundation
 
@@ -30,25 +31,15 @@ RI-2 still requires exact manifest-listed SHA-1 Git source objects, explicit lif
 
 RI-3 remains the accepted proof that PostgreSQL/artifact/import/generation state survives reconstruction of the Knowledge Core application in another Python process while the database service itself remains up.
 
-## RI-4 current state
+RI-4 now extends that evidence through a PostgreSQL container restart with a retained named volume and the same persistent artifact directory on both CI and the intended Windows host.
 
-RI-4 is deliberately a qualification harness, not production deployment.
+## RI-4 completion evidence
 
-Files added at `934850d5830d4a5d89ec32b04630435a027e816f`:
-
-- `components/knowledge-core/tools/ri4_host_qualification.py`
-- `components/knowledge-core/tools/ri4_host_phase.py`
-- `docs/architecture/knowledge-core/RI4_HOST_QUALIFICATION_MANIFEST.json`
-
-The Knowledge Core workflow also runs the host harness as a CI rehearsal.
-
-The fixed manifest pins exactly three existing Knowledge Core Markdown documents to `3d12f205d15c310bce0718c56c0866befccd90ec`, with RI-2 explicitly historical/superseded.
+The fixed RI-4 manifest pins exactly three existing Knowledge Core Markdown documents to source commit `3d12f205d15c310bce0718c56c0866befccd90ec`, with RI-2 explicitly historical/superseded.
 
 The harness creates a loopback-only PostgreSQL 18 container backed by a unique persistent Docker named volume, uses a separate host artifact directory, applies the manifest, restarts PostgreSQL, starts a fresh application process, verifies serving/retrieval/artifacts/provenance, exact-replays, and proves the durable snapshot is unchanged.
 
-No production Knowledge Core Python was modified.
-
-## Exact CI evidence
+### CI rehearsal
 
 Run `34418809968` checked out exact harness checkpoint `934850d5830d4a5d89ec32b04630435a027e816f` and passed:
 
@@ -60,20 +51,26 @@ RI-4 Docker/PostgreSQL restart harness: passed
 Workflow: success
 ```
 
-The RI-4 step reported all of these true:
+### Intended Windows host
+
+The same harness later completed successfully on the intended host with Docker Desktop server `29.7.2`, PostgreSQL `18`, loopback port `55432`, and preserved state under:
+
+`C:\Users\floyd\AppData\Local\KnowledgeCore\ri4-host-qualification-01`
+
+The generated evidence reported:
 
 ```text
-postgres_restart_verified
-application_reconstruction_verified
-exact_replay_verified
-current_historical_retrieval_verified
-artifact_integrity_verified
-provenance_verified
+status: success
+postgres_restart_verified: true
+application_reconstruction_verified: true
+exact_replay_verified: true
+current_historical_retrieval_verified: true
+artifact_integrity_verified: true
+provenance_verified: true
+backup_restore_performed: false
 ```
 
-`backup_restore_performed` remained false.
-
-Snapshot across restart/replay:
+Snapshot across restart/replay remained exactly:
 
 ```text
 3 bindings
@@ -86,25 +83,23 @@ Snapshot across restart/replay:
 3 verified artifacts
 ```
 
+The serving generation remained `da8ab02c-8819-43d0-9d39-e3098398c8e1`, and exact replay created no additional durable state.
+
+The durable evidence summary is `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md`.
+
 ## Critical boundary
 
-The successful CI rehearsal is not the intended-host qualification.
+RI-4 is complete only for the restart/recovery scope above. It does not qualify:
 
-RI-4 is still open until the same script succeeds on the intended host and its generated `RI4_HOST_QUALIFICATION_EVIDENCE.json` is reviewed.
-
-Do not mark RI-4 complete based only on GitHub Actions.
-
-## Intended-host command
-
-From `components/knowledge-core`, after installing `.[test]` and with Docker Desktop/Engine running:
-
-```powershell
-python tools\ri4_host_qualification.py `
-  --repository-root ..\.. `
-  --state-root "$env:LOCALAPPDATA\KnowledgeCore\ri4-host-qualification-01"
-```
-
-Use a brand-new empty state path outside the Git repository. Do **not** pass `--cleanup` on the intended host; preserve the stopped qualification container/volume and evidence until review.
+- machine reboot or Docker Desktop restart across host reboot;
+- backup/restore or disaster recovery;
+- production credentials/TLS/firewalling/service supervision/filesystem ACLs;
+- broad or production corpus import;
+- automatic discovery/classification/document-key assignment;
+- SHA-256-format Git repositories;
+- chunking/extraction/OCR;
+- embeddings/vector retrieval or RAG;
+- Authority or autonomous execution.
 
 ## Startup instructions for continuation
 
@@ -113,15 +108,16 @@ Use a brand-new empty state path outside the Git repository. Do **not** pass `--
 3. Read:
    - `docs/architecture/knowledge-core/CURRENT_STATE.md`
    - `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI4.md`
-   - `docs/architecture/knowledge-core/RI4_HOST_QUALIFICATION_MANIFEST.json`
+   - `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md`
    - `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
-4. Do not redesign RI-2/RF-2 or broaden the corpus.
-5. The only authorized continuation is intended-host RI-4 execution/evidence review.
+   - `components/knowledge-core/README.md`
+4. Preserve frozen Kernel/RF-2/RI-2 semantics unless concrete evidence demonstrates a defect.
+5. Before starting implementation, define one smallest bounded next objective and falsifiable acceptance criteria.
 
-## Explicit non-goals
+## Next-task boundary
 
-No backup/restore, host-reboot qualification, production deployment/security hardening, production corpus, automatic discovery/classification, SHA-256 Git support, chunking/extraction/OCR, embeddings/RAG, Authority, or autonomous execution is authorized by RI-4.
+No next implementation task is implied by RI-4 completion. Select the next task deliberately from the remaining integration debt rather than allowing the project to drift into production deployment, broad corpus ingestion, chunking/RAG, Authority, or execution all at once.
 
 ## Stop boundary
 
-**Stop after preparing/reviewing the intended-host RI-4 evidence. Do not begin another phase without separate user authorization.**
+**RI-4 is complete. Stop here until the next bounded Knowledge Core objective is explicitly selected.**
