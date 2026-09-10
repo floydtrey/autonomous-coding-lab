@@ -56,10 +56,10 @@ jobs:
         run: python -m alembic upgrade head
 
       - name: Run fast semantic suite
-        run: python -m pytest -q -m "not postgresql"
+        run: python -m pytest -q -m "not postgresql and not sr2_real_pilot"
 
-      - name: Run PostgreSQL qualification suite
-        run: python -m pytest -q -m postgresql
+      - name: Run PostgreSQL G1-G21 qualification suite
+        run: python -m pytest -q -m "postgresql and not sr2_real_pilot"
 
       - name: Rehearse RI-4 local-host restart qualification
         run: >-

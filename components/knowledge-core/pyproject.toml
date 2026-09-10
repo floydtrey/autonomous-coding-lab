@@ -30,4 +30,5 @@ testpaths = ["tests"]
 addopts = "-ra"
 markers = [
   "postgresql: tests that require a migrated real PostgreSQL database",
+  "sr2_real_pilot: SR-2 G22 tiny pinned real-document pilot; excluded from G1-G21 qualification",
 ]
