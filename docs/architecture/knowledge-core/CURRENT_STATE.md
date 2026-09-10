@@ -2,7 +2,7 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **SR-2 Slices 1–6 accepted; Slice 7 G1–G21 audit complete; closure package not yet published or qualified**
+**Status:** **SR-2 Slices 1–6 accepted; Slice 7 G1–G21 qualification closure independently green and checkpointed; G22 not executed**
 
 **Clean reset runtime checkpoint:** `267fc28bd862ddd4ca22e61792d073853a1e51a8` — Actions `34443719080` success  
 **SR-2 Slice 1:** `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336` — Actions `34444560064` success  
@@ -12,7 +12,8 @@
 **SR-2 Slice 5:** `ee285a5301bd81c9bd011799c7150ce3d081e11a` — Actions `34450118281` success  
 **SR-2 Slice 6:** `1534dba10757612485821bf566c6fdccffde06c2` — Actions `34452778382` success  
 **Slice 6 state checkpoint:** `d540f206bb2c7a94eeb14f642b3a87d7ff81486e`  
-**Slice 7 pause handoff introduced:** `8fafb1603649a2af64f2122c9b66e7fbae9f4ada`
+**Slice 7 pause handoff introduced:** `8fafb1603649a2af64f2122c9b66e7fbae9f4ada`  
+**Slice 7 G1–G21 qualified runtime/test checkpoint:** `7570425231c0f1804c800ad4c6809f6261d82416` — Actions `34457756458` success
 
 This file is the controlling restart entry point for Knowledge Core. Git history is the archive; active implementation guidance belongs here and in the controlling contracts.
 
@@ -28,6 +29,7 @@ The following remain accepted and are not being rebuilt:
 - RI-4 intended-host persistence/recovery qualification and evidence.
 - Audit-amended SR-1 contract: `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`.
 - Architecture correction KC-D025 in `docs/architecture/knowledge-core/DECISIONS.md`.
+- Active G1–G21 qualification map: `docs/architecture/knowledge-core/SR2_G1_G21_COVERAGE_MATRIX.md`.
 
 Exact whole `ResourceVersion` artifacts remain canonical evidence. Repository source observations and governing import receipts/manifests remain governed source/classification evidence. SR-2 structures, lineage, profiles, and search projections remain derived and rebuildable.
 
@@ -63,7 +65,7 @@ Slice 5 added explicit generation-level structural/projection profile identity r
 - Privacy `RESTRICT`/`ERASE` fences serving access first; derivative cleanup is deterministic/idempotent reconciliation.
 - A serving SR-2 generation must make the exact governed snapshot set and behavior-bearing profile identity recoverable; `resource_version_ref` alone is insufficient.
 
-`SR2-G1` through `SR2-G22` in the amended SR-1 contract remain the final acceptance requirements.
+`SR2-G1` through `SR2-G22` in the amended SR-1 contract remain the final acceptance requirements. G1–G21 are now independently qualified; G22 remains outstanding.
 
 ## Accepted SR-2 slices
 
@@ -121,64 +123,73 @@ Qualification `34452778382`:
 
 The guarded exact-corpus skips refuse to relabel later-edited documentation as earlier pinned evidence; they are not SR-2 failures.
 
-## Slice 7 audit status at pause
+### Slice 7 — G1–G21 qualification closure
 
-The bounded G1–G21 coverage audit has been completed against the fresh Slices 1–6 implementation.
+Qualified runtime/test/workflow checkpoint `7570425231c0f1804c800ad4c6809f6261d82416`.
 
-Current conclusion:
+Slice 7 published the explicit cross-boundary acceptance closure without changing production architecture or implementation code:
 
-- no broad SR-2 redesign is indicated;
-- most remaining gaps are missing cross-boundary qualification evidence rather than known production defects;
-- the closure package has been designed but has **not** been committed as accepted Slice 7 runtime/test/workflow state and has **not** passed CI;
-- any unreferenced Git blobs created while drafting Slice 7 are not branch state, not restart evidence, and must not be treated as authoritative;
-- G22 remains intentionally unexecuted.
+- `tests/test_sr2_acceptance_closure.py` adds the missing G1–G21 qualification fixtures identified by the completed audit;
+- `SR2_G1_G21_COVERAGE_MATRIX.md` maps every amended gate G1–G21 to committed proof;
+- `sr2_real_pilot` is registered as the dedicated future G22 marker;
+- both G1–G21 CI selectors explicitly include `not sr2_real_pilot`, mechanically excluding G22;
+- G16 exercises reachable ranking discriminators and repeated stable ordering while separately locking the complete configured total order through final `segment_key`, without fabricating impossible duplicate canonical segment identities;
+- G1/G7 rebuild qualification proves complete derived regeneration is reproducible while canonical versions, artifact bytes, and governed observations remain unchanged;
+- G8 covers path-only re-observation plus repeated identical slices at distinct coordinates;
+- G12 covers the required restrictive lifecycle cases through publication and verifies current-to-superseded re-projection reuses structural keys;
+- G13/G17/G18 distinguish historical retirement retention from privacy fencing, prove stale derived rows cannot consume a result limit, and prove repeated derivative cleanup is idempotent;
+- G21 proves structural-profile versus projection-only replacement generations remain distinct and canonical evidence is not mutated.
 
-The planned closure package adds explicit proofs for canonical immutability/rebuild reproducibility, complete-generation reproducibility, path-only identity, failed oversized-build serving continuity, the required G12 publication cases, current-to-superseded reprojection with stable structural keys, historical supersession versus privacy reconciliation, deterministic reachable ranking discriminators/repeatability, bounded service/no-leak behavior, and absence of model/vector-service dependencies.
+GitHub Actions `34457756458` qualified that exact checkpoint:
 
-G16 qualification must not fabricate invalid duplicate canonical segment identities merely to force the final `segment_key` tie-break. The behavior tests should exercise every reachable ranking discriminator and repeated stable ordering; the exact retrieval profile/configuration must separately prove that `segment_key` remains the final deterministic safeguard.
+- migrations through `0012_sr2_segments`: passed;
+- fast G1–G21 suite: **75 passed**, 1 guarded older RF-2 exact-corpus skip, 38 deselected;
+- PostgreSQL G1–G21 suite: **36 passed**, 2 guarded older RF-2 exact-corpus skips, 76 deselected;
+- RI-4 restart/replay rehearsal: **passed** with application reconstruction, artifact integrity, current/historical retrieval, exact replay, PostgreSQL restart, and provenance verification all true.
 
-A dedicated pause handoff now exists at:
+No G1–G21 failure exposed a production defect or an architecture ambiguity, so no production repair or design change was made during Slice 7 closure.
 
-`docs/architecture/knowledge-core/SR2_SLICE7_PAUSE_HANDOFF.md`
+The guarded `test_real_corpus_pilot.py` skips remain the older RF-2 immutable pilot refusing to relabel changed documentation as its historical evidence. They are not SR2-G22 and do not count as G22 execution.
 
 ## Restart order
 
 Read, in order:
 
 1. `docs/architecture/knowledge-core/CURRENT_STATE.md`
-2. `docs/architecture/knowledge-core/SR2_SLICE7_PAUSE_HANDOFF.md`
-3. `docs/architecture/knowledge-core/DECISIONS.md` — especially KC-D025
-4. `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`
+2. `docs/architecture/knowledge-core/DECISIONS.md` — especially KC-D025
+3. `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`
+4. `docs/architecture/knowledge-core/SR2_G1_G21_COVERAGE_MATRIX.md`
 5. `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
-6. accepted generation, RF-2, RI-2, deletion, and SR-2 Slice 1–6 interfaces needed for the bounded next slice
+6. accepted generation, RF-2, RI-2, deletion, and SR-2 Slice 1–7 interfaces needed for the bounded next slice
 
-Do not search Git history for SR-2 implementation guidance unless explicitly investigating the rejected prototype.
+`SR2_SLICE7_PAUSE_HANDOFF.md` is retained as historical restart evidence for the pre-closure pause; it is no longer the active next-task authority.
 
-## Next bounded task — resume SR-2 Slice 7: G1–G21 acceptance closure
+Do not search Git history or orphaned draft objects for SR-2 implementation guidance unless explicitly investigating the rejected prototype.
 
-Resume from the audit rather than repeating it from scratch.
+## Next bounded task — SR2-G22 tiny pinned real-document pilot
 
-First verify the live branch HEAD, then inspect the active tree and publish a bounded closure package that:
+The G1–G21 prerequisite has now been satisfied and checkpointed. The next SR-2 task, if separately authorized, is only SR2-G22:
 
-- creates an explicit G1–G21 coverage matrix mapping each contractual assertion to one or more concrete synthetic/PostgreSQL tests;
-- adds only the missing qualification fixtures/assertions required by the amended contract;
-- proves structural profile changes and projection-only changes remain distinct and never mutate canonical evidence or mix serving generations;
-- proves repository supersession/retirement-retain remains distinct from privacy restriction/erasure reconciliation;
-- proves complete generation/profile/governed-snapshot provenance through the service boundary without exposing internal storage/artifact controls;
-- registers a dedicated `sr2_real_pilot` pytest marker and mechanically excludes it from both normal G1–G21 CI suites;
-- leaves G22 itself unexecuted until the G1–G21 closure commit is independently green.
+- select a small immutable set of real repository documents appropriate to the SR-1 contract;
+- pin every input to exact accepted source commit/object identity rather than current working-tree bytes;
+- mark the pilot tests `@pytest.mark.sr2_real_pilot`;
+- execute them separately from the mechanically isolated G1–G21 suites;
+- verify deterministic boundaries/keys and retrieval quality are operationally sensible without changing the structural/lifecycle contract merely to improve sample output;
+- checkpoint the exact G22 evidence only if it passes.
 
-Do not broaden the implementation unless an uncovered G1–G21 requirement exposes an actual defect. If a genuine architectural ambiguity appears, stop and return to the decision process rather than silently selecting a new architecture.
+Do not treat the older RF-2 `test_real_corpus_pilot.py`, orphaned blobs, unpinned working-tree files, or the successful G1–G21 run as G22 evidence.
+
+If G22 reveals a genuine architecture ambiguity, stop and return to the decision process rather than silently choosing a new design.
 
 ## Intended-host boundary
 
-**No new user-PC execution is required yet.** CI remains the acceptance environment for deterministic synthetic/PostgreSQL G1–G21 closure.
+**No new user-PC execution is required yet.** G1–G21 are green and checkpointed, but SR2-G22 has not been executed.
 
-The required sequence is:
+The remaining sequence is:
 
-`G1–G21 green in CI -> separate G22 tiny pinned real-document pilot -> G1–G22 green -> intended-host SR-2 restart/recovery qualification on the user's PC`
+`separate G22 tiny pinned real-document pilot -> G1–G22 green/checkpointed -> intended-host SR-2 restart/recovery qualification on the user's PC`
 
-Only after the complete G1–G22 acceptance suite is green should a concrete intended-host command set be handed to the user.
+Only after G22 is independently green and checkpointed should a concrete intended-host Windows/PostgreSQL command set be handed to the user. At that point, explicitly tell the user that intended-host testing on their PC is required.
 
 ## Out of scope
 

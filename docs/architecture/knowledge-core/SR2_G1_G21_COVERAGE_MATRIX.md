@@ -6,8 +6,21 @@
 **Controlling contract:** `SECTION_RETRIEVAL_SR1.md`, gates SR2-G1 through SR2-G21  
 **Architecture decision:** `DECISIONS.md` / KC-D025  
 **Starting documentation checkpoint:** `3bd753a895bdd7b72bd9cb8e02ef82ed583aacd7`  
-**Status:** active qualification matrix; G1–G21 closure candidate pending CI at publication time  
-**G22 status:** mechanically excluded and not authorized by this matrix
+**Qualified runtime/test/workflow checkpoint:** `7570425231c0f1804c800ad4c6809f6261d82416`  
+**Qualification run:** GitHub Actions `34457756458` — success  
+**Status:** **G1–G21 independently qualified and checkpointed**  
+**G22 status:** **not executed; mechanically excluded from this qualification**
+
+## Qualification result
+
+The published Slice 7 closure commit passed without any production-code repair or architecture change:
+
+- migrations through `0012_sr2_segments`: passed;
+- fast suite, selected by `not postgresql and not sr2_real_pilot`: **75 passed**, 1 guarded older RF-2 exact-corpus skip, 38 deselected;
+- PostgreSQL suite, selected by `postgresql and not sr2_real_pilot`: **36 passed**, 2 guarded older RF-2 exact-corpus skips, 76 deselected;
+- RI-4 restart/replay rehearsal: passed, including application reconstruction, artifact integrity, current/historical retrieval, exact replay, PostgreSQL restart, and provenance verification.
+
+The guarded `test_real_corpus_pilot.py` skips are the older RF-2 immutable pilot refusing to relabel changed documentation as historical source evidence. They are not SR2-G22 and are not accepted as G22 execution.
 
 ## Purpose
 
@@ -66,16 +79,15 @@ That is qualification of the contract without weakening canonical identity const
 
 ## G22 barrier
 
-SR2-G22 is not part of this qualification run. The next step after this matrix and all G1–G21 tests are green is to record an exact G1–G21 checkpoint, then separately construct and execute the tiny pinned real-document pilot under `@pytest.mark.sr2_real_pilot`.
+SR2-G22 was not part of Actions `34457756458` and remains unexecuted. The G1–G21 checkpoint prerequisite is now satisfied. A later, separately authorized task may construct and execute the tiny pinned real-document pilot under `@pytest.mark.sr2_real_pilot`.
 
-No G22 evidence may be backfilled from orphaned blobs, the older RF-2 real-corpus fixture, or unpinned working-tree documents.
+No G22 evidence may be backfilled from orphaned blobs, the older RF-2 real-corpus fixture, unpinned working-tree documents, or the successful G1–G21 qualification run.
 
 ## Intended-host boundary
 
-No user-PC test is required for Slice 7 G1–G21 CI closure. Intended-host testing becomes required only after:
+No user-PC test is required for Slice 7 G1–G21 closure. Intended-host testing becomes required only after:
 
-1. G1–G21 are independently green and checkpointed;
-2. the separately authorized G22 tiny pinned real-document pilot is green and checkpointed; and
-3. SR-2 moves to intended-host restart/recovery qualification.
+1. the separately authorized G22 tiny pinned real-document pilot is green and checkpointed; and
+2. SR-2 moves to intended-host restart/recovery qualification.
 
-At that later point, the user will be told explicitly that testing must move to the intended Windows/PostgreSQL host.
+At that later point, explicitly tell the user that testing must move to the intended Windows/PostgreSQL host.
