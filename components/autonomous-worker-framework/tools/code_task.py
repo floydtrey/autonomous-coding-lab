@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable, Sequence
 
 try:
-    from tools.codex_runtime import CodexExecution, CodexRequest, execute_codex
+    from tools.codex_runtime import execute_codex
     from tools.consumer_profile import (
         ConsumerProfile,
         MINE_TRACKER_PROFILE,
@@ -26,8 +26,9 @@ try:
         WorkerStatus,
         validate_worker_result,
     )
+    from tools.worker_runtime import WorkerExecution, WorkerRequest
 except ModuleNotFoundError:  # direct execution support
-    from codex_runtime import CodexExecution, CodexRequest, execute_codex  # type: ignore
+    from codex_runtime import execute_codex  # type: ignore
     from consumer_profile import (  # type: ignore
         ConsumerProfile, MINE_TRACKER_PROFILE, ValidationCommand, WorkerContextPacket,
         verify_context_packet,
@@ -38,6 +39,7 @@ except ModuleNotFoundError:  # direct execution support
         BoundaryResult, ValidationResult, ValidationStage, WorkerResult, WorkerStatus,
         validate_worker_result,
     )
+    from worker_runtime import WorkerExecution, WorkerRequest  # type: ignore
 
 
 CODE_TASK_VERSION = "code-task:v1"
@@ -109,7 +111,7 @@ class CodeTaskHandoff:
     repository_handoff: RepositoryHandoff
 
 
-Executor = Callable[[CodexRequest], CodexExecution]
+Executor = Callable[[WorkerRequest], WorkerExecution]
 
 
 def build_code_task(
@@ -157,7 +159,7 @@ def run_code_task(
     _verify_contract(contract, packet)
     verify_context_packet(packet, repo_root, profile=profile)
     execution = executor(
-        CodexRequest(
+        WorkerRequest(
             prompt=_implementation_prompt(contract, packet),
             target_repo=repo_root,
             framework_repo=framework_repo,
