@@ -107,16 +107,22 @@ class _Line:
 
 
 @dataclass(frozen=True)
-class _FenceSpan:
+class MarkdownFenceSpan:
     start: int
     end: int
 
 
 @dataclass(frozen=True)
-class _Heading:
+class MarkdownHeading:
     start: int
     end: int
     path: tuple[HeadingPathElement, ...]
+
+
+@dataclass(frozen=True)
+class MarkdownStructureScan:
+    headings: tuple[MarkdownHeading, ...]
+    fence_spans: tuple[MarkdownFenceSpan, ...]
 
 
 @dataclass(frozen=True)
@@ -125,6 +131,19 @@ class _BaseBlock:
     end: int
     kind: str
     heading_path: tuple[HeadingPathElement, ...]
+
+
+def scan_markdown_structure(content: bytes) -> MarkdownStructureScan:
+    """Return the deterministic ATX-heading/fence scan used by SR-2 stages."""
+
+    try:
+        content.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise KnowledgeInvariantError(
+            "Markdown structural scan requires strict UTF-8 source bytes"
+        ) from exc
+    headings, fence_spans = _scan_markdown(_scan_lines(content), len(content))
+    return MarkdownStructureScan(headings=headings, fence_spans=fence_spans)
 
 
 def segment_structural_content(
@@ -180,7 +199,9 @@ def segment_structural_content(
         )
 
     if media_type == "text/markdown":
-        headings, fence_spans = _scan_markdown(lines, len(content))
+        markdown = scan_markdown_structure(content)
+        headings = markdown.headings
+        fence_spans = markdown.fence_spans
         base_blocks = _markdown_base_blocks(headings, len(content))
     else:
         fence_spans = ()
@@ -287,9 +308,9 @@ def _scan_lines(content: bytes) -> tuple[_Line, ...]:
 def _scan_markdown(
     lines: tuple[_Line, ...],
     content_size: int,
-) -> tuple[tuple[_Heading, ...], tuple[_FenceSpan, ...]]:
-    headings: list[_Heading] = []
-    fences: list[_FenceSpan] = []
+) -> tuple[tuple[MarkdownHeading, ...], tuple[MarkdownFenceSpan, ...]]:
+    headings: list[MarkdownHeading] = []
+    fences: list[MarkdownFenceSpan] = []
     heading_stack: list[HeadingPathElement] = []
     active_fence: tuple[int, int] | None = None
     active_fence_start: int | None = None
@@ -300,7 +321,7 @@ def _scan_markdown(
             if _is_fence_closer(line.content, fence_char, opener_length):
                 if active_fence_start is None:
                     raise KnowledgeInvariantError("fence scanner lost opener position")
-                fences.append(_FenceSpan(start=active_fence_start, end=line.end))
+                fences.append(MarkdownFenceSpan(start=active_fence_start, end=line.end))
                 active_fence = None
                 active_fence_start = None
             continue
@@ -319,7 +340,7 @@ def _scan_markdown(
             heading_stack.pop()
         heading_stack.append(heading)
         headings.append(
-            _Heading(
+            MarkdownHeading(
                 start=line.start,
                 end=line.end,
                 path=tuple(heading_stack),
@@ -329,7 +350,7 @@ def _scan_markdown(
     if active_fence is not None:
         if active_fence_start is None:
             raise KnowledgeInvariantError("fence scanner lost opener position")
-        fences.append(_FenceSpan(start=active_fence_start, end=content_size))
+        fences.append(MarkdownFenceSpan(start=active_fence_start, end=content_size))
 
     return tuple(headings), tuple(fences)
 
@@ -409,7 +430,7 @@ def _heading_display_text(body: bytes) -> str:
 
 
 def _markdown_base_blocks(
-    headings: tuple[_Heading, ...],
+    headings: tuple[MarkdownHeading, ...],
     content_size: int,
 ) -> tuple[_BaseBlock, ...]:
     if not headings:
@@ -450,7 +471,7 @@ def _split_block(
     *,
     block: _BaseBlock,
     lines: tuple[_Line, ...],
-    fence_spans: tuple[_FenceSpan, ...],
+    fence_spans: tuple[MarkdownFenceSpan, ...],
     profile: SectionSegmentationProfile,
 ) -> tuple[tuple[int, int], ...]:
     if block.end - block.start <= profile.hard_max_bytes:
@@ -504,7 +525,7 @@ def _split_block(
 
 def _boundary_inside_fence(
     boundary: int,
-    fence_spans: tuple[_FenceSpan, ...],
+    fence_spans: tuple[MarkdownFenceSpan, ...],
 ) -> bool:
     return any(span.start < boundary < span.end for span in fence_spans)
 
