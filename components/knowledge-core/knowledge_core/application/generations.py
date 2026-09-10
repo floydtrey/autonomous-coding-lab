@@ -39,6 +39,11 @@ class GenerationKnowledgeKernel(ProfileKnowledgeKernel):
                 {"lock_key": _POSTGRES_DERIVED_GENERATION_LOCK},
             )
 
+    def acquire_generation_publication_lock(self) -> None:
+        """Hold the accepted generation publication fence in the caller transaction."""
+
+        self._acquire_generation_lock()
+
     def _next_generation_sequence(self) -> int:
         return int(self.session.scalar(select(func.max(DerivedGeneration.generation_sequence))) or 0) + 1
 
@@ -174,21 +179,37 @@ class GenerationKnowledgeKernel(ProfileKnowledgeKernel):
         self._commit()
         return self.read_generation(generation_id)
 
-    def settle_generation(self, *, generation_id: UUID) -> GenerationSnapshot:
+    def settle_generation(
+        self,
+        *,
+        generation_id: UUID,
+        commit_transaction: bool = True,
+        publication_lock_held: bool = False,
+    ) -> GenerationSnapshot:
+        """Promote one building generation under the accepted one-current fence.
+
+        ``commit_transaction=False`` is reserved for a caller that must compose
+        generation promotion with another publication record in the same database
+        transaction. Existing callers retain the original commit-on-settle behavior.
+        """
+
         row = self.session.get(DerivedGeneration, generation_id)
         if row is None:
             raise KnowledgeInvariantError(f"unknown derived generation: {generation_id}")
         if GenerationStatus(row.status) is GenerationStatus.CURRENT:
             return self.read_generation(generation_id)
 
-        self._acquire_generation_lock()
+        if not publication_lock_held:
+            self._acquire_generation_lock()
         self.session.refresh(row)
         status = GenerationStatus(row.status)
         if status is GenerationStatus.CURRENT:
-            self.session.commit()
+            if commit_transaction:
+                self.session.commit()
             return self.read_generation(generation_id)
         if status is not GenerationStatus.BUILDING:
-            self.session.rollback()
+            if commit_transaction:
+                self.session.rollback()
             raise GenerationFenceError(f"generation {generation_id} cannot settle from {status.value}")
 
         current = self.session.scalars(
@@ -203,7 +224,10 @@ class GenerationKnowledgeKernel(ProfileKnowledgeKernel):
         if current is not None and int(current.generation_sequence) > int(row.generation_sequence):
             row.status = GenerationStatus.STALE.value
             row.settled_at = self._now()
-            self._commit()
+            if commit_transaction:
+                self._commit()
+            else:
+                self.session.flush()
             raise GenerationFenceError("an older finishing generation cannot replace a newer current generation")
 
         if current is not None and current.generation_id != row.generation_id:
@@ -215,5 +239,8 @@ class GenerationKnowledgeKernel(ProfileKnowledgeKernel):
 
         row.status = GenerationStatus.CURRENT.value
         row.settled_at = self._now()
-        self._commit()
+        if commit_transaction:
+            self._commit()
+        else:
+            self.session.flush()
         return self.read_generation(generation_id)

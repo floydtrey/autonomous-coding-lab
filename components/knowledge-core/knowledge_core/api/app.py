@@ -18,9 +18,9 @@ from knowledge_core.api.resource_schemas import (
     ResourceVersionResponse,
 )
 from knowledge_core.api.retrieval_schemas import (
-    RetrievalHitResponse,
     RetrievalSearchRequest,
     RetrievalSearchResponse,
+    retrieval_response_from_domain,
 )
 from knowledge_core.api.schemas import (
     AssertionCorrectRequest,
@@ -165,31 +165,7 @@ def _impact_response(item: ImpactTrace) -> ImpactTraceResponse:
 
 
 def _retrieval_response(item: RetrievalSearchSnapshot) -> RetrievalSearchResponse:
-    return RetrievalSearchResponse(
-        query=item.query,
-        generation_id=item.generation_id,
-        source_revision_highwater=item.source_revision_highwater,
-        results=[
-            RetrievalHitResponse(
-                rank=rank,
-                resource_ref=hit.resource_ref,
-                resource_version_ref=hit.resource_version_ref,
-                content_digest_algo=hit.content_digest_algo,
-                content_digest=hit.content_digest,
-                media_type=hit.media_type,
-                observed_occurrence_ref=hit.observed_occurrence_ref,
-                created_revision_id=hit.created_revision_id,
-                lifecycle_state=hit.lifecycle_state,
-                authority_rank=hit.authority_rank,
-                repository=hit.repository,
-                source_path=hit.source_path,
-                source_version=hit.source_version,
-                observed_at=hit.observed_at,
-                lexical_score=hit.lexical_score,
-            )
-            for rank, hit in enumerate(item.results, start=1)
-        ],
-    )
+    return retrieval_response_from_domain(item)
 
 
 def create_app(
