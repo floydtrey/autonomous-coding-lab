@@ -6,13 +6,14 @@
 **RI-4 harness checkpoint:** `934850d5830d4a5d89ec32b04630435a027e816f`  
 **CI rehearsal:** GitHub Actions run `34418809968` — **success**  
 **Manifest:** `docs/architecture/knowledge-core/RI4_HOST_QUALIFICATION_MANIFEST.json`  
-**Status:** **RI-4 harness implemented and restart behavior reproduced in CI. Intended-host qualification is still pending and RI-4 is not yet accepted as complete.**
+**Intended-host evidence:** `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md` — **success**  
+**Status:** **RI-4 accepted complete. The intended Windows host reproduced the CI-proven restart/recovery behavior with persistent PostgreSQL and artifact state.**
 
 ## Purpose
 
 RI-4 closes the remaining persistence gap left by RI-3: PostgreSQL itself must restart while canonical/import/generation state remains on a persistent database volume, the Knowledge Core application must be reconstructed afterward, and the same persistent artifact directory must continue to verify.
 
-This task remains a qualification exercise, not production deployment.
+This remains a qualification exercise, not production deployment.
 
 ## Fixed RI-4 allowlist
 
@@ -62,11 +63,39 @@ PostgreSQL 18
 Alembic 0001_task1 -> 0010_ri2: passed
 Fast: 48 passed, 1 expected pinned historical-fixture skip, 18 deselected
 PostgreSQL: 16 passed, 2 expected pinned historical-fixture skips, 49 deselected
+RI-4 restart qualification harness: passed
+Workflow: success
 ```
 
-The additional RI-4 harness step then succeeded using Docker server `28.0.4`.
+The RI-4 harness step used Docker server `28.0.4` and reported all required restart/recovery assertions passing.
 
-Observed RI-4 qualification state before and after PostgreSQL restart/replay:
+## Intended-host result
+
+The same harness was then run successfully on the intended Windows host without `--cleanup`.
+
+Observed environment:
+
+```text
+Docker Desktop server: 29.7.2
+PostgreSQL image: postgres:18
+loopback port: 55432
+state root: C:\Users\floyd\AppData\Local\KnowledgeCore\ri4-host-qualification-01
+```
+
+Generated evidence:
+
+```text
+status: success
+postgres_restart_verified: true
+application_reconstruction_verified: true
+exact_replay_verified: true
+current_historical_retrieval_verified: true
+artifact_integrity_verified: true
+provenance_verified: true
+backup_restore_performed: false
+```
+
+Persistent state before restart and after recovery/replay remained exactly:
 
 ```text
 document bindings: 3
@@ -76,57 +105,32 @@ Resources: 3
 ResourceVersions: 3
 RF-2 search rows: 3
 text generations: 1
-artifact integrity checks: 3 passed
-manifest digest: 160b4ba2966305108a1a381a5996c93d8c22cced36fe2fa4baa99d9e6a554927
+verified SHA-256 artifacts: 3
 ```
 
-The serving generation before restart and after restart was the same within the qualification run. Default retrieval excluded the RI-2 historical document. Explicit superseded retrieval returned only `REPOSITORY_IMPORT_RI2.md` with source version `3d12f205d15c310bce0718c56c0866befccd90ec`. Exact replay returned the original settled receipt and the complete durable snapshot was unchanged.
+The serving generation remained `da8ab02c-8819-43d0-9d39-e3098398c8e1`. Exact replay reused the original settled receipt and created no additional durable state.
 
-CI therefore proves the harness and RI-2/RF-2 behavior can survive a PostgreSQL container restart with a retained volume in a Linux runner.
+Default retrieval still excluded the RI-2 historical document. Explicit superseded retrieval returned `REPOSITORY_IMPORT_RI2.md` with source version `3d12f205d15c310bce0718c56c0866befccd90ec`. All three provenance records independently verified their SHA-256 artifacts after restart.
 
-## Intended-host run
+The complete durable summary is recorded in `RI4_INTENDED_HOST_EVIDENCE.md`; the generated qualification state remains preserved outside the repository for inspection.
 
-RI-4 is not complete until the same harness succeeds on the intended local host.
+## RI-4 acceptance
 
-Prerequisites:
+RI-4 is accepted complete for the bounded capability it tested:
 
-- Python 3.12;
-- Docker Desktop/Engine running Linux containers;
-- Git checkout containing full repository history;
-- Knowledge Core installed with test extras: `python -m pip install -e ".[test]"`.
+- PostgreSQL 18 container restart with a retained Docker named volume;
+- application reconstruction in a separate Python process;
+- reuse of the persistent artifact directory;
+- current/historical retrieval continuity;
+- exact manifest replay without duplicate durable state;
+- exact repository/import provenance continuity;
+- SHA-256 artifact integrity across restart.
 
-From `components/knowledge-core`, choose a **new empty directory outside the repository** and run:
-
-```powershell
-python tools\ri4_host_qualification.py `
-  --repository-root ..\.. `
-  --state-root "$env:LOCALAPPDATA\KnowledgeCore\ri4-host-qualification-01"
-```
-
-Do not add `--cleanup` to the intended-host qualification. On success, preserve the generated `RI4_HOST_QUALIFICATION_EVIDENCE.json`, the artifact directory, and the stopped Docker container/volume until the evidence has been reviewed.
-
-If loopback port `55432` is already in use, select another unused port with `--port`.
-
-## Acceptance remaining
-
-The intended-host evidence must show:
-
-- `status = success`;
-- `postgres_restart_verified = true`;
-- `application_reconstruction_verified = true`;
-- `exact_replay_verified = true`;
-- `current_historical_retrieval_verified = true`;
-- `artifact_integrity_verified = true`;
-- `provenance_verified = true`;
-- `backup_restore_performed = false`;
-- one settled receipt and exactly three bindings/observations/Resources/ResourceVersions/search rows before and after replay;
-- exact source commit `3d12f205d15c310bce0718c56c0866befccd90ec`.
-
-Only after that host evidence is reviewed should RI-4 be marked complete.
+The intended-host evidence closes the only item that remained after CI rehearsal.
 
 ## Explicit non-claims
 
-RI-4 currently does not qualify or authorize:
+RI-4 does not qualify or authorize:
 
 - machine reboot persistence;
 - Docker Desktop restart across a Windows reboot;
@@ -141,4 +145,4 @@ RI-4 currently does not qualify or authorize:
 
 ## Stop boundary
 
-**RI-4 host harness and CI rehearsal are complete. Stop here until the intended host can run the recorded qualification command. Do not start production deployment, backup/restore, or broader corpus import.**
+**RI-4 is complete. Do not infer authorization for production deployment, backup/restore, broader corpus import, chunking, embeddings/RAG, Authority, or execution work from this qualification.**
