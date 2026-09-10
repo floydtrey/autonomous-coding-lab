@@ -2,17 +2,16 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **SR-2 Slices 1–2 accepted; physical lineage/storage decision next**  
-**Clean reset runtime checkpoint:** `267fc28bd862ddd4ca22e61792d073853a1e51a8`  
-**Clean reset qualification:** GitHub Actions `34443719080` — **success**  
-**SR-2 Slice 1 checkpoint:** `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336`  
-**SR-2 Slice 1 qualification:** GitHub Actions `34444560064` — **success**  
-**SR-2 Slice 2 checkpoint:** `b9248ac6c0471743d218bb6df9720d92deb320c5`  
-**SR-2 Slice 2 qualification:** GitHub Actions `34445248423` — **success**
+**Status:** **SR-2 Slices 1–3 accepted; governed source-selection integration next**
 
-This file is the controlling restart entry point for Knowledge Core.
+**Clean reset runtime checkpoint:** `267fc28bd862ddd4ca22e61792d073853a1e51a8` — Actions `34443719080` success  
+**SR-2 Slice 1:** `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336` — Actions `34444560064` success  
+**SR-2 Slice 2:** `b9248ac6c0471743d218bb6df9720d92deb320c5` — Actions `34445248423` success  
+**SR-2 Slice 3:** `70dde361cd62f507f54b5e42e3ef12cea27ce11f` — Actions `34446983351` success
 
-## Active accepted foundation
+This file is the controlling restart entry point for Knowledge Core. Git history is the archive; active implementation guidance belongs here and in the controlling contracts.
+
+## Accepted foundation
 
 The following remain accepted and are not being rebuilt:
 
@@ -25,97 +24,98 @@ The following remain accepted and are not being rebuilt:
 - Audit-amended SR-1 contract: `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`.
 - Architecture correction KC-D025 in `docs/architecture/knowledge-core/DECISIONS.md`.
 
-Exact whole `ResourceVersion` artifacts remain canonical evidence. Repository source observations remain governed source/classification evidence. Derived retrieval state remains rebuildable and subordinate to those inputs.
+Exact whole `ResourceVersion` artifacts remain canonical evidence. Repository source observations and governing import receipts/manifests remain governed source/classification evidence. SR-2 structures and search projections remain derived and rebuildable.
 
-## Abandoned prototype boundary
+## Rejected prototype boundary
 
-The pre-audit SR-2 implementation commit `2c48a0e73c560fad62028776f375c94162e138be` is **ABANDONED — DO NOT USE FOR IMPLEMENTATION, TEST DESIGN, MIGRATION DESIGN, OR DECISION-MAKING**.
+Commit `2c48a0e73c560fad62028776f375c94162e138be` is **ABANDONED — DO NOT USE FOR IMPLEMENTATION, TEST DESIGN, MIGRATION DESIGN, OR DECISION-MAKING**.
 
-Its code, tests, migration, API extensions, importer adapter, and real-pilot manifest were removed from the active tree. Git history is only an archive for that rejected prototype. Do not restore or copy it.
+Do not restore files or implementation patterns from that commit. The current SR-2 implementation was rebuilt from the amended contract.
 
-## Active SR-1 rules
-
-The controlling contract is `SECTION_RETRIEVAL_SR1.md` as amended on 2026-09-10. In particular:
+## Active SR-1 / KC-D025 rules
 
 - Structural segmentation depends only on exact canonical `ResourceVersion` bytes/media plus the exact structural profile.
 - Governed lifecycle/source-ranking projection additionally depends on the exact governed observation/classification snapshot plus the retrieval-projection profile.
 - Declared section lifecycle remains source-derived evidence.
 - Effective lifecycle is the most restrictive of governed document lifecycle, applicable ancestor declarations, and the section's own declaration.
-- Less-restrictive child declarations cannot promote effective lifecycle and are not rejected merely for being less restrictive.
-- Prose, inline code, block quotes/quoted explanations, and fenced code mentioning `kc:retrieval-lifecycle` remain ordinary content.
-- Standalone non-fenced attempted controls that are malformed, misplaced, or duplicated fail lifecycle projection.
-- Indivisible oversized fenced regions or UTF-8 source lines fail structural segmentation when no legal boundary exists; a fitting final suffix is emitted whole.
-- Exact `ResourceVersion` identity is content-addressed within a logical Resource; A -> B -> A reuses A and its structural keys under the same structural profile.
+- Less-restrictive declarations never promote effective lifecycle and are not structural errors.
+- Ordinary prose, inline code, block quotes, and fenced examples mentioning `kc:retrieval-lifecycle` remain content; malformed/misplaced/duplicate standalone attempted controls fail lifecycle projection.
+- A -> B -> A reuses A's exact content-addressed `ResourceVersion` and structural segment identities under the same structural profile.
 - Repository supersession/retirement-retain is historical retrieval classification, not privacy deletion.
 - Privacy `RESTRICT`/`ERASE` fences serving access first; derivative cleanup is deterministic/idempotent reconciliation.
+- A serving SR-2 generation must make the exact governed snapshot set recoverable; `resource_version_ref` alone is insufficient.
 
-`SR2-G1` through `SR2-G22` remain the final acceptance requirements.
+`SR2-G1` through `SR2-G22` in the amended SR-1 contract remain the final acceptance requirements.
 
 ## SR-2 Slice 1 — deterministic structural segmentation
 
 Accepted checkpoint: `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336`.
 
-Files introduced:
+Implemented in:
 
 - `components/knowledge-core/knowledge_core/application/segmentation.py`
 - `components/knowledge-core/tests/test_sr2_structural_segmentation.py`
 
-The structural stage is lifecycle-blind and implements strict UTF-8, exact byte/line preservation, ATX headings, fence awareness, preamble/section/document blocks, deterministic continuation splitting, exact reconstruction/slice SHA-256, deterministic segment keys, and empty-document handling.
+The stage is lifecycle-blind. It provides strict UTF-8 handling, exact LF/CRLF coordinates, ATX/fence-aware structure, deterministic preamble/section/document blocks, deterministic continuation splitting, gap-free reconstruction, slice SHA-256, deterministic segment keys, and empty-document handling.
 
-Synthetic coverage exercises structural portions of SR2-G2, G3, G4, G5, G6, G7, G8, and G21.
-
-Qualification `34444560064`:
-
-- migrations through `0010_ri2`: passed;
-- fast suite: **54 passed**, 1 guarded exact-corpus skip;
-- PostgreSQL suite: **16 passed**, 2 guarded exact-corpus skips;
-- RI-4 restart/replay: passed.
+Slice 1 qualification: **54 fast passed**, **16 PostgreSQL passed**, RI-4 restart/replay passed.
 
 ## SR-2 Slice 2 — governed lifecycle/control projection
 
-Accepted runtime checkpoint: `b9248ac6c0471743d218bb6df9720d92deb320c5`.
+Accepted checkpoint: `b9248ac6c0471743d218bb6df9720d92deb320c5`.
 
-Slice 2 changes relative to the Slice 1 state checkpoint `6da47661ab883328a5b825456cfe1b99aeb41b91` are exactly:
+Implemented in:
 
-- modified `components/knowledge-core/knowledge_core/application/segmentation.py` to expose the same deterministic Markdown heading/fence scan for reuse by lifecycle projection;
-- added `components/knowledge-core/knowledge_core/application/lifecycle_projection.py`;
-- added `components/knowledge-core/tests/test_sr2_lifecycle_projection.py`.
+- shared structural Markdown scan in `application/segmentation.py`;
+- `application/lifecycle_projection.py`;
+- `tests/test_sr2_lifecycle_projection.py`.
 
-No database schema, migration, API, retrieval service, storage model, or repository-import publication behavior changed.
+The projection stage preserves source declarations and exact directive coordinates, computes monotone effective lifecycle, rejects only genuine standalone attempted-control errors, remains structurally identity-neutral, and carries an explicit governed observation identity.
 
-The pure projection stage:
+Slice 2 qualification: **66 fast passed**, **16 PostgreSQL passed**, RI-4 restart/replay passed.
 
-- accepts an explicit governed observation identity and the governed retrieval metadata required by SR-1;
-- validates that the observation and structural parent refer to the same exact `ResourceVersion`;
-- binds the retrieval projection profile to the exact structural profile digest;
-- recognizes only exact eligible standalone lifecycle controls;
-- treats prose, inline, quoted, fenced, and plain-text control-like strings as ordinary content;
-- fails malformed, misplaced, duplicate, or preamble standalone attempted controls;
-- preserves each section's own declared lifecycle and directive source coordinates;
-- computes effective lifecycle as the most restrictive document + ancestor + own value;
-- preserves less-restrictive child declarations while preventing them from promoting effective lifecycle;
-- records the source(s) controlling the effective restriction without inventing arbitrary tie precedence;
-- reprojects a later parent downgrade over unchanged structural segments without changing structural segment keys;
-- performs no heading-name lifecycle inference.
+## SR-2 Slice 3 — exact governed projection lineage storage
 
-Synthetic tests cover the lifecycle/control portions of SR2-G7, G11, and G12 and the structural/projection separation introduced by KC-D025.
+Accepted checkpoint: `70dde361cd62f507f54b5e42e3ef12cea27ce11f`.
 
-Qualification `34445248423`:
+The design is intentionally based on the provenance/resource-lineage requirements established by the Knowledge Architecture research campaign: exact source version, governed evidence, generation/profile identity, and derived-record identity remain distinct.
 
-- migrations through `0010_ri2`: passed;
-- fast suite: **66 passed**, 1 guarded exact-corpus skip;
-- PostgreSQL suite: **16 passed**, 2 guarded exact-corpus skips;
-- RI-4 restart/replay: passed.
+Added:
 
-The guarded exact-corpus skips intentionally refuse to relabel later-edited documentation as earlier exact-source evidence; they are not SR-2 failures.
+- `application/projection_lineage.py`
+- `storage/section_retrieval_models.py`
+- migration `0011_sr2_projection_lineage.py`
+- `tests/test_sr2_projection_lineage.py`
+- registration of the new storage model in `storage/database.py`.
 
-## Governed observation evidence already available
+The derived table is exactly:
 
-Accepted RI-2 stores immutable `RepositorySourceObservation.observation_id` plus manifest/document identity, source repository key, exact commit/path/blob, exact `resource_version_ref`, classification, document retrieval lifecycle, authority rank, and rationale.
+`kc_derived.text_generation_source`
 
-SR-1 requires the exact governed snapshot set used by a serving generation to be recoverable. For repository import, the physical reference may use immutable observation ID, manifest digest + document key, or another exact stable reference. `resource_version_ref` alone is insufficient.
+with:
 
-The existing generic `kc_derived.generation_source` records canonical `KnowledgeRef` sources and revisions; it cannot directly identify `kc_control.repository_source_observation.observation_id` because repository observations are control/governance records rather than canonical `KnowledgeRef` rows.
+- `generation_id`
+- `resource_version_ref`
+- `source_observation_id`
+- `governing_manifest_digest`
+- `projection_snapshot_digest`
+
+Primary identity is `(generation_id, resource_version_ref)`. Foreign keys independently bind the exact derived generation, exact canonical `ResourceVersion`, immutable RI-2 `RepositorySourceObservation`, and governing `RepositoryImportReceipt`/manifest.
+
+`projection_snapshot_digest` is `sha256:<hex>` over canonical JSON of the exact effective document-level inputs supplied to SR-2 projection. It includes both the source observation's own manifest identity and the later governing manifest identity, plus observation ID, exact version, repository/document/source metadata, classification, effective document lifecycle, authority rank, and rationale. This allows the same exact source observation/version to be projected differently under a later governing manifest without rewriting the original observation.
+
+The lineage table deliberately does **not** duplicate the observation or manifest payload. The referenced RI-2 evidence remains authoritative.
+
+Slice 3 does not yet populate lineage rows during repository import and does not change retrieval serving behavior.
+
+Qualification `34446983351`:
+
+- migrations through `0011_sr2_lineage`: passed;
+- fast suite: **70 passed**, 1 guarded exact-corpus skip;
+- PostgreSQL suite: **17 passed**, 2 guarded exact-corpus skips;
+- RI-4 local-host restart/replay qualification: passed.
+
+The guarded exact-corpus skips refuse to relabel later-edited documentation as earlier pinned evidence; they are not SR-2 failures.
 
 ## Restart order
 
@@ -129,22 +129,22 @@ Read, in order:
 
 Do not search Git history for SR-2 implementation guidance unless explicitly investigating the rejected prototype.
 
-## Next bounded task — physical lineage/storage decision before migration
+## Next bounded task — SR-2 Slice 4: governed source-selection integration
 
-Do not add migration `0011` until the physical lineage representation is chosen explicitly.
+Before adding the segment search table or cutting retrieval over, make RI-2 source selection produce the exact governed projection inputs required by Slices 2–3.
 
-The next design must satisfy all of these simultaneously:
+The Slice 4 acceptance boundary is:
 
-- keep generic `GenerationSource` semantics intact unless there is a compelling reason to broaden them;
-- make the exact governed observation/classification snapshot set recoverable independently of segment search ranking;
-- bind each derived parent/segment to its exact governed snapshot;
-- use accepted `RepositorySourceObservation.observation_id` for repository-imported sources rather than inventing a parallel authoritative observation store;
-- preserve a path for other governed text-source types without pretending an arbitrary UUID is durable evidence;
-- remain derived/rebuildable and subordinate to canonical/governed evidence;
-- survive deterministic derivative cleanup semantics without confusing historical supersession with privacy erasure.
+- resolve each selected exact `ResourceVersion` to the immutable source observation actually used;
+- keep the source observation's original `manifest_digest` distinct from the current `governing_manifest_digest`;
+- reproduce current entries, prior-version historical entries, and retirement-retain entries without rewriting source observations;
+- construct the exact `GovernedRetrievalObservation` used by lifecycle projection;
+- compute the deterministic `projection_snapshot_digest` from those effective inputs;
+- prove A -> B -> A reuses A's canonical version/structural identity while a new governing manifest/observation can produce new projection lineage;
+- fail closed if the requested governed source/manifest relationship cannot be reconstructed exactly.
 
-After that representation is accepted, the next implementation slice may add the minimum derived schema/model/migration and PostgreSQL tests needed to prove lineage and storage invariants before retrieval cutover.
+Do not yet add segment search rows, API changes, or switch serving retrieval from RF-2. Those belong after source-selection/lineage inputs are proven.
 
 ## Out of scope
 
-Do not expand this phase into embeddings, vector search, RAG/context assembly, model-based lifecycle inference, broad corpus import, automatic classification/document-key assignment, PDF/DOCX/HTML/OCR extraction, Authority, autonomous execution, or unrelated deployment/security work.
+Do not expand SR-2 into embeddings, vector search, RAG/context assembly, model-based lifecycle inference, broad corpus import, automatic classification/document-key assignment, PDF/DOCX/HTML/OCR extraction, Authority, autonomous execution, or unrelated deployment/security work.
