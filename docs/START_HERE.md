@@ -8,7 +8,7 @@ When information conflicts, use this order:
 
 1. The user's current request and explicit approvals.
 2. Root `AGENTS.md`.
-3. `docs/CURRENT_STATE.md` for project phase/status, except that portable host-installation identity is governed by `docs/PORTABLE_INSTALLATION_IDENTITY.md`.
+3. `docs/CURRENT_STATE.md` for project phase/status, except that portable host-installation identity is governed by `docs/PORTABLE_INSTALLATION_IDENTITY.md` and the active vertical-slice handoff is governed by `docs/CONTROLLER_TASK_PACKET_V1.md` plus current code/tests/Git evidence.
 4. The relevant current design or operating document.
 5. Current code, tests, configuration, and Git evidence.
 6. `migration/inventory/` as consolidation evidence.
@@ -30,6 +30,7 @@ For every task:
 | Task | Read next |
 |---|---|
 | Understand component responsibilities or data flow | `docs/ARCHITECTURE.md` |
+| Continue the current supervised vertical slice or inspect the Knowledge Core-to-worker handoff | `docs/CONTROLLER_TASK_PACKET_V1.md` |
 | Verify a clone, move ACL to another Windows host, or inspect portable component identity | `docs/PORTABLE_INSTALLATION_IDENTITY.md` |
 | Inspect or operate the legacy Worker Lab execution path, run a benchmark, back up, or recover | `docs/OPERATIONS.md` |
 | Change code, tests, paths, or integration behavior | `docs/DEVELOPMENT.md` |
