@@ -2,7 +2,7 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **SR-2 G1–G22 and the bounded intended-host SR-2 segment-serving qualification are green and checkpointed; select the next vertical-slice dependency rather than extending SR-2 by default**
+**Status:** **KC Consumer V1 is green and checkpointed; SR-2 segment retrieval now returns exact canonical segment content plus accepted provenance, and the next vertical-slice dependency is current-host ACL installation/runtime identity reconciliation**
 
 **Clean reset runtime checkpoint:** `267fc28bd862ddd4ca22e61792d073853a1e51a8` — Actions `34443719080` success  
 **SR-2 Slice 1:** `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336` — Actions `34444560064` success  
@@ -15,7 +15,8 @@
 **Slice 7 pause handoff introduced:** `8fafb1603649a2af64f2122c9b66e7fbae9f4ada`  
 **Slice 7 G1–G21 qualified runtime/test checkpoint:** `7570425231c0f1804c800ad4c6809f6261d82416` — Actions `34457756458` success  
 **SR2-G22 qualified runtime/test/workflow checkpoint:** `c75a6be2e832bdc29fda0e4a6eab7de28da90668` — Actions `34462565404` success  
-**SR-2 host-qualification executable checkpoint:** `c3bfac41eb3a1787d5b770274370b5e59f082eb4` — Actions `34475309465` success
+**SR-2 host-qualification executable checkpoint:** `c3bfac41eb3a1787d5b770274370b5e59f082eb4` — Actions `34475309465` success  
+**KC Consumer V1 runtime/test checkpoint:** `d338e16d8fcc32b37ae6085f7355a6053f8b6f4d` — Actions `34480449087` success
 
 This file is the controlling restart entry point for Knowledge Core. Git history is the archive; active implementation guidance belongs here and in the controlling contracts.
 
@@ -35,6 +36,7 @@ The following remain accepted and are not being rebuilt:
 - G22 real-document qualification: `docs/architecture/knowledge-core/SR2_G22_QUALIFICATION.md`.
 - Exact G22 corpus manifest: `docs/architecture/knowledge-core/SR2_G22_REAL_DOCUMENT_PILOT_MANIFEST.json`.
 - SR-2 intended-host qualification: `docs/architecture/knowledge-core/SR2_INTENDED_HOST_QUALIFICATION.md`.
+- KC Consumer V1 bounded segment-content serving checkpoint: `d338e16d8fcc32b37ae6085f7355a6053f8b6f4d`.
 
 Exact whole `ResourceVersion` artifacts remain canonical evidence. Repository source observations and governing import receipts/manifests remain governed source/classification evidence. SR-2 structures, lineage, profiles, and search projections remain derived and rebuildable.
 
@@ -188,6 +190,23 @@ The host used Docker server `29.7.2`, `postgres:18`, and loopback port `55433`. 
 
 Durable evidence: `docs/architecture/knowledge-core/SR2_INTENDED_HOST_QUALIFICATION.md`.
 
+### KC Consumer V1 — exact segment content for service consumers
+
+Runtime/test checkpoint `d338e16d8fcc32b37ae6085f7355a6053f8b6f4d`; Knowledge Core Actions run `34480449087` passed all workflow steps.
+
+KC Consumer V1 makes the already-qualified SR-2 retrieval result directly usable by an ACL/Vera consumer without creating a second source of truth:
+
+- `/v1/retrieval/search` adds an additive `content` field to each result;
+- for an SR-2 segment hit, content is reconstructed on demand from the exact immutable parent `ResourceVersion` artifact using the accepted segment byte coordinates;
+- serving-time parent eligibility is checked before artifact content is resolved;
+- the full canonical artifact byte size and SHA-256 are verified, then the exact segment slice SHA-256 is independently verified before strict UTF-8 decoding;
+- artifact bytes are cached only within the retrieval call to avoid rereading one parent artifact for multiple returned segments;
+- no segment body is copied into canonical or `kc_derived` tables, and no schema or migration changed;
+- RF-2 whole-resource retrieval remains metadata-only with `content = null`;
+- public results retain the accepted resource/version, lifecycle, source, generation/profile, governed-observation, segment identity, coordinate, and digest provenance and still expose no artifact-store path/key, database credential, or raw SQL detail.
+
+The focused PostgreSQL acceptance test proves that the public response content equals the exact canonical byte slice identified by the returned coordinates and source-slice digest, excludes adjacent sections, and fails closed if the derived slice digest is tampered. The same CI run also passed the fast semantic suite, PostgreSQL G1–G21 qualification suite, pinned G22 pilot, RI-4 restart rehearsal, and SR-2 restart rehearsal. No worker, model, Authority, execution, external repository, embedding, RAG, schema, migration, segmentation, lifecycle, ranking, or publication behavior changed.
+
 ## Restart order
 
 Read, in order:
@@ -206,24 +225,24 @@ Read, in order:
 
 Do not search Git history or orphaned draft objects for SR-2 implementation guidance unless explicitly investigating the rejected prototype.
 
-## Next bounded task — vertical-slice dependency selection
+## Next bounded task — current-host ACL identity reconciliation
 
-The bounded SR-2 work required for the current Knowledge Core retrieval foundation is green and checkpointed through intended-host restart/recovery qualification.
+Knowledge Core now supplies the smallest consumer-facing evidence contract needed for the vertical slice: a governed query can return exact eligible segment content together with the accepted provenance and lifecycle evidence needed to bind that content to its canonical source.
 
-Do **not** continue adding retrieval features merely because SR-2 is active. The next task is to reconcile the vertical-slice dependency path across the accepted ACL/Knowledge Core interfaces and identify the smallest remaining dependency that prevents an end-to-end vertical slice.
+The next blocker is outside Knowledge Core. Reconcile the ACL installation/runtime identity for the current Windows host before any real worker execution. The existing root ACL installation state still describes the earlier `MineTrackerWorker` host/path assumptions and must not be reused as current-machine authority.
 
-That planning step may point back into Knowledge Core if a real slice dependency is missing, or it may intentionally shift focus to another ACL component. Preserve the accepted SR-1 / KC-D025 contract unless the vertical-slice review exposes a genuine architecture ambiguity requiring an explicit new decision.
+Keep execution **DISABLED** throughout that reconciliation. Updating installation identity makes the current components addressable and verifiable; it does not authorize a worker, model, dispatch, target-repository mutation, publication, or merge. After the current-host identity contract is accepted, resume the minimal vertical-slice path from ACL/Worker Lab rather than extending Knowledge Core by default.
 
 ## Intended-host boundary
 
 The intended-host SR-2 qualification is complete for its bounded scope. The prior RI-4 host evidence remains RF-2-only; the new SR-2 host evidence independently qualifies the segment-serving path and must not be conflated with RI-4.
 
-The successful bounded sequence is now:
+The successful bounded Knowledge Core sequence is now:
 
-`G1–G22 green/checkpointed -> SR-2 host entrypoint CI-qualified -> intended Windows/PostgreSQL execution -> durable host evidence -> vertical-slice dependency selection`
+`G1–G22 green/checkpointed -> SR-2 host entrypoint CI-qualified -> intended Windows/PostgreSQL execution -> durable host evidence -> KC Consumer V1 -> current-host ACL identity reconciliation`
 
-Machine reboot persistence, backup/restore, production deployment, broad corpus import, embeddings/RAG, and autonomous execution were not part of this qualification.
+Machine reboot persistence, backup/restore, production deployment, broad corpus import, embeddings/RAG, and autonomous execution were not part of these qualifications.
 
 ## Out of scope
 
-Do not expand SR-2 into embeddings, vector search, RAG/context assembly, model-based lifecycle inference, broad corpus import, automatic classification/document-key assignment, PDF/DOCX/HTML/OCR extraction, Authority, autonomous execution, or unrelated deployment/security work.
+Do not expand Knowledge Core into embeddings, vector search, RAG/context assembly, model-based lifecycle inference, broad corpus import, automatic classification/document-key assignment, PDF/DOCX/HTML/OCR extraction, Authority, autonomous execution, or unrelated deployment/security work.
