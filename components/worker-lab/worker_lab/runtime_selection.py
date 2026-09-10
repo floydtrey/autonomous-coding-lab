@@ -76,6 +76,17 @@ def selected_runtime_requirement() -> RuntimeRequirement:
     return CODING_WORKER_V1
 
 
+def resolve_runtime_profile(profile_id: Any) -> RuntimeRequirement:
+    """Resolve a profile name only when it belongs to the protected requirement set."""
+    for requirement in PROTECTED_RUNTIME_REQUIREMENTS:
+        if profile_id == requirement.profile_id:
+            return requirement
+    raise LabValidationError(
+        "INTEGRATION_RUNTIME_INVALID",
+        "runtime profile does not identify a protected Worker Lab requirement",
+    )
+
+
 def resolve_runtime_requirement(
     profile_id: Any,
     model: Any,
