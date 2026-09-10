@@ -2,9 +2,11 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **clean SR-2 restart baseline**  
+**Status:** **SR-2 Slice 1 accepted; lifecycle projection next**  
 **Clean reset runtime checkpoint:** `267fc28bd862ddd4ca22e61792d073853a1e51a8`  
-**Qualification:** GitHub Actions `34443719080` — **success**
+**Clean reset qualification:** GitHub Actions `34443719080` — **success**  
+**SR-2 Slice 1 checkpoint:** `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336`  
+**SR-2 Slice 1 qualification:** GitHub Actions `34444560064` — **success**
 
 This file is the controlling restart entry point for Knowledge Core.
 
@@ -23,18 +25,7 @@ The following remain accepted and are not being rebuilt:
 
 Exact whole `ResourceVersion` artifacts remain canonical evidence. Repository source observations remain governed source/classification evidence. Derived retrieval state remains rebuildable and subordinate to those inputs.
 
-The clean reset runtime checkpoint has no active SR-2 runtime/schema/test implementation. Compared with original accepted SR-1 commit `1d1313844aa4d224bd42c0888970a11e959d9501`, its runtime, API, storage models, and migration head are restored to the accepted pre-SR-2 baseline. The only test change is a maintenance correction that pins an RI-2 exact-Git-object fixture to its accepted RI-1 source commit instead of moving `HEAD`.
-
-Qualification `34443719080` completed with:
-
-- migrations through `0010_ri2`: passed;
-- fast semantic suite: 48 passed, 1 guarded exact-corpus skip;
-- PostgreSQL suite: 16 passed, 2 guarded exact-corpus skips;
-- RI-4 local-host restart/replay qualification: passed.
-
-The guarded corpus skips intentionally refuse to relabel later-edited documentation as earlier exact-source evidence; they are not SR-2 failures.
-
-## SR-2 reset
+## Abandoned prototype boundary
 
 The pre-audit SR-2 implementation commit:
 
@@ -42,54 +33,93 @@ The pre-audit SR-2 implementation commit:
 
 is **ABANDONED — DO NOT USE FOR IMPLEMENTATION, TEST DESIGN, MIGRATION DESIGN, OR DECISION-MAKING**.
 
-It was built against SR-1 rules that were later corrected. Its code, tests, migration, API extensions, importer adapter, and real-pilot manifest have been removed from the active working tree. Git history is the only archive for that prototype.
+Its code, tests, migration, API extensions, importer adapter, and real-pilot manifest were removed from the active working tree. Git history is the only archive for that rejected prototype. Do not restore or copy it.
 
-Do not restore files from that commit, copy implementation patterns from it, or treat its tests as acceptance evidence. If a future investigation deliberately examines that commit, it is evidence of a rejected prototype only.
-
-Any older wording that says the pre-audit candidate should be "aligned", "repaired", or "continued" is superseded by this clean-reset decision. KC-D025's architecture semantics remain accepted; the abandoned prototype does not.
-
-## Active SR-1 rules for the new SR-2 build
+## Active SR-1 rules
 
 The controlling contract is `SECTION_RETRIEVAL_SR1.md` as amended on 2026-09-10. Material rules include:
 
-- Structural segmentation depends only on the exact canonical `ResourceVersion` artifact/media plus an exact structural segmentation profile.
+- Structural segmentation depends only on exact canonical `ResourceVersion` bytes/media plus an exact structural profile.
 - Governed lifecycle/source-ranking projection additionally depends on the exact governed observation/classification snapshot plus a retrieval-projection profile.
 - Declared section lifecycle remains source-derived evidence.
 - Effective lifecycle is the most restrictive of governed document lifecycle, applicable ancestor declarations, and the section's own declaration.
 - A less-restrictive child declaration cannot promote effective lifecycle and is not rejected merely for being less restrictive.
-- Ordinary prose, inline code, block quotes/quoted explanations, and fenced code that mention `kc:retrieval-lifecycle` remain ordinary content.
+- Ordinary prose, inline code, block quotes/quoted explanations, and fenced code mentioning `kc:retrieval-lifecycle` remain ordinary content.
 - A standalone non-fenced control-looking lifecycle comment that is malformed, misplaced, or duplicated fails lifecycle projection explicitly.
 - An indivisible oversized fenced region or UTF-8 source line fails structural segmentation when no legal boundary exists; a final suffix within `hard_max_bytes` is emitted whole.
-- Exact `ResourceVersion` identity is content-addressed within a logical Resource. A → B → A reuses the original A exact version and its structural segment identities under the same structural profile.
+- Exact `ResourceVersion` identity is content-addressed within a logical Resource; A -> B -> A reuses the original A exact version and structural keys under the same structural profile.
 - Repository supersession/retirement-retain is historical retrieval classification, not privacy deletion.
 - Privacy `RESTRICT`/`ERASE` fences serving access first; derivative cleanup is deterministic/idempotent reconciliation.
 
-`SR2-G1` through `SR2-G22` in the amended SR-1 contract are the acceptance requirements for the new implementation.
+`SR2-G1` through `SR2-G22` remain the final acceptance requirements.
+
+## SR-2 Slice 1 — deterministic structural segmentation
+
+Checkpoint `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336` adds only:
+
+- `components/knowledge-core/knowledge_core/application/segmentation.py`
+- `components/knowledge-core/tests/test_sr2_structural_segmentation.py`
+
+No existing runtime, API, storage model, migration, retrieval service, or repository-import file was changed.
+
+The new structural stage is intentionally lifecycle-blind. It consumes only exact bytes, media type, parent `resource_version_ref`, and the structural segmentation profile. It implements:
+
+- strict UTF-8 validation for supported `text/markdown` and `text/plain`;
+- exact LF/CRLF byte preservation and line coordinates;
+- deterministic ATX heading structure with heading paths;
+- deterministic fenced-code awareness;
+- preamble/section/document base blocks;
+- fixed soft/hard byte continuation rules;
+- no split inside a source line or fenced region;
+- deterministic failure when no legal boundary exists;
+- exact gap-free source reconstruction and per-slice SHA-256;
+- deterministic structural segment keys bound to parent exact version, coordinates, slice digest, ordinal, and structural profile digest;
+- deterministic empty-document handling.
+
+Synthetic tests cover the structural portions of SR2-G2, G3, G4, G5, G6, G7, G8, and G21. They also prove that literal lifecycle-control discussion does not affect structural segmentation.
+
+Qualification `34444560064` completed with:
+
+- migrations through `0010_ri2`: passed;
+- fast semantic suite: **54 passed**, 1 guarded exact-corpus skip;
+- PostgreSQL suite: **16 passed**, 2 guarded exact-corpus skips;
+- RI-4 local-host restart/replay qualification: passed.
+
+The guarded corpus skips intentionally refuse to relabel later-edited documentation as earlier exact-source evidence and are not SR-2 failures.
+
+## Governed observation input already available
+
+Accepted RI-2 already stores immutable `RepositorySourceObservation.observation_id` plus manifest/document identity, exact source commit/path/blob, exact `resource_version_ref`, classification, retrieval lifecycle, authority rank, and rationale. The next SR-2 slice should consume that accepted evidence rather than inventing a parallel observation store.
+
+Do not modify RF-2 `TextIndexSource`, PostgreSQL schema, or repository-import publication merely to start lifecycle parsing. First prove lifecycle/control semantics as a pure projection layer.
 
 ## Restart order
 
-A future SR-2 implementation chat must read, in this order:
+Read, in this order:
 
 1. `docs/architecture/knowledge-core/CURRENT_STATE.md`
 2. `docs/architecture/knowledge-core/DECISIONS.md` — especially KC-D025
 3. `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`
 4. `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
-5. accepted RF-2 and RI-2 runtime interfaces/tests needed for the bounded implementation
-6. RI-1/RI-2 contract records only when exact repository-import behavior is relevant
+5. accepted RF-2/RI-2 interfaces needed for the bounded slice
 
 Do not search Git history for SR-2 implementation guidance unless explicitly investigating the rejected prototype.
 
-## Documentation hygiene
-
-Obsolete handoff documents are not retained in the active tree merely for context. Git history is the archive.
-
-Accepted RF/RI qualification documents remain only because they describe still-accepted foundation behavior or concrete qualification evidence. They do not override `CURRENT_STATE.md`, KC-D025, or the amended SR-1 contract on section retrieval.
-
 ## Next bounded task
 
-Build SR-2 **from the amended contract**, using the accepted RF-2/RI-2 foundation as dependencies. Start with a fresh deterministic structural segmentation/projection design and synthetic acceptance tests. Do not copy the abandoned SR-2 implementation.
+**SR-2 Slice 2: pure governed lifecycle/control projection plus synthetic tests.**
 
-Before adding a migration or widening the runtime, define the smallest implementation slice needed to satisfy the amended gates and preserve accepted foundation invariants.
+Build a separate projection stage over the already-proven structural segmentation. It should:
+
+- recognize only exact eligible standalone lifecycle declarations;
+- treat prose/inline/quoted/fenced mentions as ordinary content;
+- fail malformed/misplaced/duplicate standalone attempted controls;
+- preserve own declarations and exact directive coordinates;
+- compute effective lifecycle as the most restrictive document + ancestor + own state;
+- prove parent downgrade and ancestor restriction without changing structural keys;
+- carry an explicit governed observation identity in the projection input/output.
+
+Do **not** add a migration, segment search table, API changes, repository-import publication changes, or retrieval cutover in Slice 2. Those belong to later slices after pure projection behavior is accepted.
 
 ## Out of scope
 
