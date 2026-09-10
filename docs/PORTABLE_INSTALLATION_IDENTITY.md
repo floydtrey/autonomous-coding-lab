@@ -2,7 +2,7 @@
 
 **Status:** accepted non-executing portability checkpoint
 
-**Accepted implementation checkpoint:** `17a81ebcfffcb43a92f1ab44d8a10b89e75e9517`
+**Accepted verified implementation checkpoint:** `64641aa978d4d4902b4a47439e256b0f50df136b`
 
 **Execution authority:** `DISABLED`
 
@@ -37,15 +37,19 @@ The verifier is `tools/verify_portable_installation.py`. It hashes installed byt
 
 ## Accepted component identities
 
-At the accepted checkpoint:
+At the accepted verified checkpoint `64641aa978d4d4902b4a47439e256b0f50df136b`:
 
-- Autonomous Worker Framework: `sha256:c256608be92ee21852e9ee407ac3446787fbe8f4122679475b69e8949909e7dd`;
+- Autonomous Worker Framework: `sha256:fc827a55050eab5429040a3622153b58d1cb2e1aab159c3c79612c79e41bedbd`;
 - Local Model Bench: `sha256:139331ea42c914575d1119125a702ac5de2129b9bedc235bfc189700e8265afc`;
-- Worker Lab: `sha256:15ee7b4e978e8d1facf79968c9e9d14f002b020d891cfca04aa9b391e896f12d`.
+- Worker Lab: `sha256:90c488ac52eeb4a413be15655cb4fb76a6a605bd9b411c25d4b091c409343455`.
+
+The accepted portable manifest SHA-256 observed on the current laptop is `sha256:a982ad520c9b15dc18a2202c97e4b58611313e919c9007563b969f8a4256c6d7`.
+
+Controller Task Packet V1 changed the framework runtime closure and Worker Lab production tree, so these identities supersede the earlier portability-checkpoint hashes. See `docs/CONTROLLER_TASK_PACKET_V1.md` for that handoff.
 
 ## Windows checkout normalization
 
-Component identity is byte-exact. Local Model Bench now carries `.gitattributes` rules matching the deterministic source/config/documentation checkout policy already used by the execution components. Python source is materialized as LF even when global Git configuration has `core.autocrlf=true`.
+Component identity is byte-exact. Local Model Bench carries `.gitattributes` rules matching the deterministic source/config/documentation checkout policy already used by the execution components. Python source is materialized as LF even when global Git configuration has `core.autocrlf=true`.
 
 An existing clone created before these attributes may retain old working-tree bytes even after pulling the attributes file. If portable verification reports a Local Model Bench digest mismatch, first inspect the working tree and line endings. For a known-clean clone, rematerialize only `components/local-model-bench/src/localbench` from `HEAD` under the current attributes and verify again. Do not change the portable manifest to bless host-specific legacy checkout bytes.
 
@@ -53,7 +57,7 @@ A fresh clone on the new tower should receive the current attributes during its 
 
 ## Accepted laptop qualification evidence
 
-The portable verifier was exercised on the current Windows development laptop after canonical Local Model Bench rematerialization.
+The portable verifier was exercised successfully on the current Windows development laptop at implementation checkpoint `64641aa978d4d4902b4a47439e256b0f50df136b`.
 
 Observed host:
 
@@ -66,12 +70,12 @@ Observed host:
 Accepted result:
 
 - all three portable component identities: `MATCH`;
-- manifest SHA-256: `sha256:cd26f5d74e9fc11bff296e98ea0760badc619659d9d559f754dd43e13970fdb8`;
-- `provider_runtime_qualified = false`;
+- provider runtime qualified: `false`;
 - `execution_authority = DISABLED`;
-- `execution_ready = false`.
+- `execution_ready = false`;
+- working tree after verification: clean.
 
-Focused verifier tests passed: **3 passed**. No worker, model, provider runtime, adapter execution mode, authorization, dispatch, target test, commit, push, or external/product-repository operation occurred.
+No worker, model, provider runtime, adapter execution mode, authorization, dispatch, target test, commit, push, or external/product-repository operation occurred during portable qualification.
 
 ## Legacy execution manifest
 
@@ -106,6 +110,6 @@ It does **not**:
 - migrate the legacy Codex execution manifest;
 - prove a real workspace-write worker run;
 - select a Qwen model;
-- implement controller planning or dispatch.
+- implement autonomous controller planning or dispatch.
 
-Provider/runtime qualification is deliberately deferred until the vertical slice selects its worker harness. The next implementation work should continue along the shortest vertical-slice dependency path while execution remains disabled.
+Provider/runtime qualification is deliberately deferred until the vertical slice selects its worker harness. Execution remains disabled until a later explicit activation decision.
