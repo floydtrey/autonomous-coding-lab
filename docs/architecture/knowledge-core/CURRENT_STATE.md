@@ -2,14 +2,15 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **SR-2 Slices 1–5 accepted; atomic serving cutover next**
+**Status:** **SR-2 Slices 1–6 accepted; G1–G21 acceptance closure next**
 
 **Clean reset runtime checkpoint:** `267fc28bd862ddd4ca22e61792d073853a1e51a8` — Actions `34443719080` success  
 **SR-2 Slice 1:** `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336` — Actions `34444560064` success  
 **SR-2 Slice 2:** `b9248ac6c0471743d218bb6df9720d92deb320c5` — Actions `34445248423` success  
 **SR-2 Slice 3:** `70dde361cd62f507f54b5e42e3ef12cea27ce11f` — Actions `34446983351` success  
 **SR-2 Slice 4:** `33c83e99728de9cab9a4eede8030fa733a4a5beb` — Actions `34448019988` success  
-**SR-2 Slice 5:** `ee285a5301bd81c9bd011799c7150ce3d081e11a` — Actions `34450118281` success
+**SR-2 Slice 5:** `ee285a5301bd81c9bd011799c7150ce3d081e11a` — Actions `34450118281` success  
+**SR-2 Slice 6:** `1534dba10757612485821bf566c6fdccffde06c2` — Actions `34452778382` success
 
 This file is the controlling restart entry point for Knowledge Core. Git history is the archive; active implementation guidance belongs here and in the controlling contracts.
 
@@ -34,7 +35,7 @@ Commit `2c48a0e73c560fad62028776f375c94162e138be` is **ABANDONED — DO NOT USE 
 
 Do not restore files or implementation patterns from that commit. The active SR-2 implementation was rebuilt from the amended contract.
 
-## Research-alignment checkpoint — Slices 1–4
+## Research-alignment checkpoint
 
 Before Slice 5, Slices 1–4 were re-audited against the completed Knowledge Architecture Evidence Campaign, especially:
 
@@ -43,9 +44,9 @@ Before Slice 5, Slices 1–4 were re-audited against the completed Knowledge Arc
 - `docs/research/knowledge-architecture/gaps/formal-provenance-evidence-lineage.md`;
 - `docs/research/knowledge-architecture/gaps/resource-artifact-identity-lineage.md`.
 
-No Slice 1–4 redesign was required. The implementation remains aligned with the research requirements that canonical source evidence and derived projections remain distinct; exact immutable source versions are bound to consequential derivations; logical source identity, exact observed version, derived-record identity, and presentation identity remain separate; provenance is explicit lineage rather than inferred metadata; current/historical lifecycle is explicit; replacement projections are built and validated before cutover; and derived indexes remain generation/profile-bound and rebuildable.
+No redesign was required. The implementation remains aligned with the research requirements that canonical source evidence and derived projections remain distinct; exact immutable source versions are bound to consequential derivations; logical source identity, exact observed version, derived-record identity, and presentation identity remain separate; provenance is explicit lineage rather than inferred metadata; current/historical lifecycle is explicit; replacement projections are built and validated before cutover; and derived indexes remain generation/profile-bound and rebuildable.
 
-The audit identified one Slice-5 persistence guardrail: an opaque aggregate generation `config_digest` alone is insufficient for direct recovery of non-default structural/projection profile identity. Slice 5 therefore persists an explicit generation-level SR-2 profile record while leaving the accepted Slice-3 five-field governed-source lineage unchanged.
+Slice 5 added explicit generation-level structural/projection profile identity rather than relying only on an opaque aggregate config digest. Slice 6 preserves staged replacement semantics: an SR-2 candidate is built and revalidated while non-serving, then the generation and its governing RI-2 receipt cross the publication boundary atomically.
 
 ## Active SR-1 / KC-D025 rules
 
@@ -68,72 +69,53 @@ The audit identified one Slice-5 persistence guardrail: an opaque aggregate gene
 
 Checkpoint `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336`.
 
-`application/segmentation.py` provides lifecycle-blind strict UTF-8 segmentation, exact byte/line coordinates, ATX/fence-aware structure, deterministic continuation splitting, gap-free reconstruction, exact slice SHA-256, deterministic structural segment keys, and empty-document behavior.
+Lifecycle-blind strict UTF-8 segmentation, exact byte/line coordinates, ATX/fence-aware structure, deterministic continuation splitting, gap-free reconstruction, exact slice SHA-256, deterministic structural keys, and empty-document behavior.
 
 ### Slice 2 — governed lifecycle/control projection
 
 Checkpoint `b9248ac6c0471743d218bb6df9720d92deb320c5`.
 
-`application/lifecycle_projection.py` preserves source declarations and coordinates, computes monotone effective lifecycle, rejects genuine standalone attempted-control errors, remains structurally identity-neutral, and binds an explicit governed observation identity plus retrieval-projection profile.
+Preserves source declarations and coordinates, computes monotone effective lifecycle, rejects genuine standalone attempted-control errors, remains structurally identity-neutral, and binds an explicit governed observation identity plus retrieval-projection profile.
 
 ### Slice 3 — exact governed projection lineage storage
 
 Checkpoint `70dde361cd62f507f54b5e42e3ef12cea27ce11f`.
 
-`kc_derived.text_generation_source` remains exactly the accepted five-field lineage table:
-
-- `generation_id`
-- `resource_version_ref`
-- `source_observation_id`
-- `governing_manifest_digest`
-- `projection_snapshot_digest`
-
-It binds the derived generation, exact canonical version, immutable RI-2 observation, governing manifest/receipt, and deterministic effective projection snapshot without copying the observation/manifest payload.
+`kc_derived.text_generation_source` binds each derived parent to its exact canonical version, immutable RI-2 observation, governing manifest/receipt, and deterministic effective projection snapshot without copying canonical/governed evidence.
 
 ### Slice 4 — governed source selection
 
 Checkpoint `33c83e99728de9cab9a4eede8030fa733a4a5beb`.
 
-`application/governed_source_selection.py` reconstructs exact current, prior-version, and retirement-retain source snapshots through the explicit RI-2 manifest chain, not timestamps or UUID ordering. It verifies every manifest/observation relationship, preserves immutable source observations, computes effective governed projection snapshots, proves A -> B -> A exact-version/structural-key reuse, and fails closed on unreconstructable evidence.
+Reconstructs current, prior-version, and retirement-retain source snapshots through the explicit RI-2 manifest chain; verifies exact evidence relationships; preserves immutable observations; and proves A -> B -> A version/structural-key reuse with new projection snapshot identity.
 
 ### Slice 5 — validated segment-generation persistence
 
 Checkpoint `ee285a5301bd81c9bd011799c7150ce3d081e11a`.
 
-Added:
+Adds explicit `text_generation_profile` identity plus `resource_segment_text_search` derived segment rows with structural coordinates/identity, declared/effective lifecycle provenance, inherited governed source metadata, and weighted PostgreSQL lexical vectors. Successful candidates remain `BUILDING` and non-serving until publication.
 
-- `application/section_generation.py`;
-- migration `0012_sr2_segment_projection.py`;
-- `tests/test_sr2_segment_generation.py`;
-- SR-2 segment/profile models in `storage/section_retrieval_models.py`.
+### Slice 6 — atomic publication and serving integration
 
-Slice 5 adds two derived persistence structures without changing RF-2 serving:
+Checkpoint `1534dba10757612485821bf566c6fdccffde06c2`.
 
-1. `kc_derived.text_generation_profile` — one row per SR-2 candidate generation carrying the exact structural-profile ID/digest, retrieval-projection profile ID/digest, and aggregate generation-config digest.
-2. `kc_derived.resource_segment_text_search` — segment coordinates, structural identity/digest, heading path, declared/effective lifecycle provenance, inherited governed source/ranking annotations, and weighted PostgreSQL `tsvector`, with no copied canonical segment body.
+Slice 6 adds:
 
-Each segment row has a composite foreign key to its exact `(generation_id, resource_version_ref)` `text_generation_source` lineage row. The candidate generation also uses generic `GenerationSource` for exact canonical `ResourceVersion`/revision lineage.
+- atomic publication of a revalidated SR-2 candidate and its exact `applying` RI-2 governing receipt in one PostgreSQL transaction;
+- preservation of the generic late-finisher generation fence, including failure/staling if a competing publication settles the receipt first;
+- serving dispatch by current text-generation implementation identity: RF-2 current generations read only whole-document rows, SR-2 current generations read only segment rows;
+- deterministic segment ranking by lexical score, effective lifecycle, authority rank, parent revision, parent version ref, segment ordinal, and segment key;
+- `include_superseded=false` filtering on effective lifecycle with result limit applied only after serving-time parent eligibility;
+- segment/generation/profile/governed-source provenance in the bounded retrieval domain/API response without copied bodies or artifact/internal credentials;
+- privacy derivative cleanup for exact/logical parent targets plus mandatory serving-time parent eligibility as defense in depth;
+- a section-aware repository-import kernel that composes accepted RI-2 canonical/observation writes with SR-2 candidate build and atomic publication without altering the accepted RI-2 kernel used by RI-4 qualification.
 
-`SectionGenerationKnowledgeKernel.build_segment_generation_candidate()`:
-
-- consumes the Slice-4 resolver;
-- verifies exact ResourceVersion bytes, byte size, SHA-256 and governed Git-blob identity before segmentation;
-- applies the accepted structural and lifecycle profiles;
-- creates a new `DerivedKind.TEXT` generation with explicit SR-2 model/version/config identity;
-- stores profile identity, exact governed source lineage, and segment lexical projections;
-- removes recognized lifecycle declaration text from local lexical weight A and adds heading-path context at weight B;
-- recomputes and validates the complete candidate from authoritative inputs;
-- marks any post-start invalid candidate stale;
-- deliberately leaves a successful candidate in `BUILDING` state and does not settle/cut it over.
-
-No legacy whole-document `ResourceTextSearch` compatibility rows are copied into an SR-2 candidate. RF-2 remains the sole current/serving text generation throughout Slice 5.
-
-Qualification `34450118281`:
+Qualification `34452778382`:
 
 - migrations through `0012_sr2_segments`: passed;
 - fast suite: **71 passed**, 1 guarded exact-corpus skip;
-- PostgreSQL suite: **25 passed**, 2 guarded exact-corpus skips;
-- RI-4 intended-host restart/replay: passed.
+- PostgreSQL suite: **29 passed**, 2 guarded exact-corpus skips;
+- RI-4 intended-host restart/replay qualification: passed.
 
 The guarded exact-corpus skips refuse to relabel later-edited documentation as earlier pinned evidence; they are not SR-2 failures.
 
@@ -145,27 +127,31 @@ Read, in order:
 2. `docs/architecture/knowledge-core/DECISIONS.md` — especially KC-D025
 3. `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`
 4. `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
-5. accepted generation, RF-2, RI-2, deletion, and SR-2 Slice 1–5 interfaces needed for the bounded next slice
+5. accepted generation, RF-2, RI-2, deletion, and SR-2 Slice 1–6 interfaces needed for the bounded next slice
 
 Do not search Git history for SR-2 implementation guidance unless explicitly investigating the rejected prototype.
 
-## Next bounded task — SR-2 Slice 6: atomic cutover and serving integration
+## Next bounded task — SR-2 Slice 7: G1–G21 acceptance closure
 
-Do not treat the existence of a validated `BUILDING` SR-2 candidate as serving authorization.
+Audit the fresh Slices 1–6 tests against every amended SR2-G1 through SR2-G21 requirement. Do not infer a gate is covered merely because adjacent behavior passed.
 
-Before SR-2 segment rows may serve, Slice 6 must:
+Slice 7 should:
 
-- preserve RF-2 serving until a complete SR-2 candidate is revalidated immediately before publication;
-- make repository-import receipt settlement and SR-2 generation promotion an atomic publication boundary so a crash cannot leave a `current` SR-2 generation governed by an `applying` receipt or a `settled` receipt pointing to a non-current/incomplete generation;
-- preserve the generic generation out-of-order/late-finisher fence;
-- extend privacy derivative reconciliation so restricted exact/logical parent resources remove or suppress their SR-2 segment derivatives before segment serving is enabled;
-- retain mandatory serving-time parent `ResourceVersion` eligibility checks as defense in depth;
-- make `search_text` dispatch by the current text-generation implementation identity: legacy RF-2 generations use whole-document rows; accepted SR-2 generations use only segment rows; never mix both in one response;
-- implement deterministic SR-1 segment ranking and current/unknown/superseded filtering with `limit` applied after parent eligibility;
-- expose the required segment and generation/profile provenance through the bounded retrieval response without exposing body copies, DB credentials, artifact paths, or internal control data;
-- prove RF-2 -> SR-2 cutover has no serving gap and a failed/late candidate cannot replace a newer current generation.
+- create an explicit G1–G21 coverage matrix mapping each contractual assertion to one or more concrete synthetic/PostgreSQL tests;
+- add only missing qualification fixtures/assertions required by the amended contract;
+- prove structural profile changes and projection-only changes remain distinct and never mutate canonical evidence or mix serving generations;
+- prove repository supersession/retirement-retain remains distinct from privacy restriction/erasure reconciliation;
+- prove complete generation/profile/governed-snapshot provenance through the service boundary without exposing internal storage/artifact controls;
+- mechanically separate G22 from G1–G21 in pytest/CI so the real-document pilot cannot execute until every synthetic/PostgreSQL acceptance gate has passed;
+- leave G22 itself unexecuted until the G1–G21 closure commit is independently green.
 
-Do not run the G22 real-document pilot until the synthetic/PostgreSQL G1–G21 acceptance work is complete and green.
+Do not broaden the implementation unless an uncovered G1–G21 requirement exposes an actual defect.
+
+## Intended-host boundary
+
+No new user-PC execution is required through Slice 7. CI is the acceptance environment for deterministic synthetic/PostgreSQL G1–G21 closure.
+
+After G1–G21 are independently green, G22 may run against the tiny pinned real-document pilot. Intended-host SR-2 restart/recovery qualification on the user's PC should occur only after the complete G1–G22 SR-2 acceptance suite is green and before SR-2 is declared operationally accepted for that host.
 
 ## Out of scope
 
