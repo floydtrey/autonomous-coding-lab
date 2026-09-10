@@ -13,7 +13,9 @@
 **RI-4 host harness:** `934850d5830d4a5d89ec32b04630435a027e816f` — CI rehearsal `34418809968`  
 **RI-4 intended-host evidence:** `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md` — **success**  
 **RI-4 record:** `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI4.md`  
-**Status:** **Kernel V1 remains frozen. RF-2, RI-2, RI-3, and RI-4 are accepted. The intended Windows host reproduced PostgreSQL restart, application reconstruction, exact replay, retrieval separation, artifact integrity, and provenance continuity. No broad or production corpus has been imported.**
+**Selected next phase:** `SR-1 — deterministic document segmentation and retrieval contract` — **design only**  
+**SR-1 handoff:** `docs/architecture/knowledge-core/SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md`  
+**Status:** **Kernel V1 remains frozen. RF-2, RI-2, RI-3, and RI-4 are accepted. The intended Windows host reproduced PostgreSQL restart, application reconstruction, exact replay, retrieval separation, artifact integrity, and provenance continuity. SR-1 is selected as the next bounded design phase. No broad or production corpus has been imported.**
 
 This is the controlling branch-specific state.
 
@@ -94,6 +96,18 @@ The raw host run remains preserved outside the repository for inspection. The du
 
 RI-4 is therefore accepted complete for the bounded restart/recovery scope defined in `REPOSITORY_IMPORT_RI4.md`.
 
+## Selected next phase — SR-1
+
+SR-1 is the next bounded phase and is **design only**.
+
+The goal is to define how exact whole canonical `ResourceVersion` documents are transformed by deterministic Python into smaller rebuildable retrieval units, and how PostgreSQL lexical retrieval returns those units with exact provenance back to the canonical parent document.
+
+The intended canonical path does **not** require an AI model. Models may be considered later only as optional semantic assistance; they are not required for canonical storage, deterministic segmentation, or baseline retrieval.
+
+The complete startup contract and stop boundary are recorded in:
+
+`docs/architecture/knowledge-core/SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md`
+
 ## Current limitations / unclaimed capability
 
 Knowledge Core still does not claim:
@@ -103,18 +117,21 @@ Knowledge Core still does not claim:
 - production credentials, TLS, firewalling, service supervision, startup policy, or filesystem ACL qualification;
 - broad/production corpus import or automatic discovery/classification/document-key assignment;
 - SHA-256-format Git repository support;
-- chunking/section retrieval, PDF/DOCX/HTML extraction/OCR, embeddings/vector search, or RAG;
+- implemented section/chunk retrieval, PDF/DOCX/HTML extraction/OCR, embeddings/vector search, or RAG;
 - Authority integration or autonomous execution.
 
 ## Durable restart point
 
-Read before starting another Knowledge Core phase:
+Read before starting SR-1:
 
+- `docs/architecture/knowledge-core/SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md`
 - `docs/architecture/knowledge-core/CURRENT_STATE.md`
-- `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI3.md`
-- `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI4.md`
-- `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md`
+- `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md`
+- `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF2.md`
 - `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_HANDOFF.md`
+- `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI1.md`
+- `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI2.md`
+- `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md`
 - `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
 - `components/knowledge-core/README.md`
 
@@ -122,10 +139,14 @@ Verify branch/HEAD before writing.
 
 ## Next-phase boundary
 
-RI-4 is complete. The next Knowledge Core phase has **not** been selected by this checkpoint. Before implementation, define the smallest bounded next objective and its acceptance criteria from the remaining integration debt.
+Perform only **SR-1 — deterministic document segmentation and retrieval contract**.
 
-Do not jump directly into production deployment, backup/restore, broad corpus import, automatic discovery/classification, chunking, embeddings/RAG, Authority, or execution without a separately bounded task.
+Define retrieval semantics first, then deterministic segmentation rules, then the derived persistence/index contract, failure/rebuild semantics, and falsifiable SR-2 implementation gates.
+
+Do not manually split documents. Preserve exact whole `ResourceVersion` documents as canonical evidence; derived retrieval units must remain rebuildable from canonical input plus an explicit deterministic segmentation profile/version.
+
+Do not implement Python, migrations, schema changes, embeddings, RAG, broad corpus import, Authority, or execution during SR-1.
 
 ## Stop boundary
 
-**RI-4 is complete. Stop here before beginning a new Knowledge Core phase.**
+**SR-1 is selected but not yet performed. Start a fresh bounded design pass from `SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md` and stop before implementation.**
