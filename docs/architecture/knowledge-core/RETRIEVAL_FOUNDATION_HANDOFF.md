@@ -2,7 +2,7 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **RI-4 intended-host qualification is complete and accepted. No next Knowledge Core implementation phase has yet been selected.**
+**Status:** **RI-4 intended-host qualification is complete and accepted. SR-1 — deterministic document segmentation and retrieval contract — is the selected next bounded phase and is design only.**
 
 ## Accepted checkpoints
 
@@ -16,6 +16,7 @@
 - RI-3 final evidence checkpoint: `3d12f205d15c310bce0718c56c0866befccd90ec`
 - RI-4 harness checkpoint: `934850d5830d4a5d89ec32b04630435a027e816f` — CI rehearsal `34418809968`
 - RI-4 intended-host evidence: `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md` — success
+- SR-1 handoff: `docs/architecture/knowledge-core/SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md`
 
 ## Accepted foundation
 
@@ -31,7 +32,7 @@ RI-2 still requires exact manifest-listed SHA-1 Git source objects, explicit lif
 
 RI-3 remains the accepted proof that PostgreSQL/artifact/import/generation state survives reconstruction of the Knowledge Core application in another Python process while the database service itself remains up.
 
-RI-4 now extends that evidence through a PostgreSQL container restart with a retained named volume and the same persistent artifact directory on both CI and the intended Windows host.
+RI-4 extends that evidence through a PostgreSQL container restart with a retained named volume and the same persistent artifact directory on both CI and the intended Windows host.
 
 ## RI-4 completion evidence
 
@@ -87,9 +88,25 @@ The serving generation remained `da8ab02c-8819-43d0-9d39-e3098398c8e1`, and exac
 
 The durable evidence summary is `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md`.
 
+## Selected next phase — SR-1
+
+The next task is now explicitly selected:
+
+**SR-1 — deterministic document segmentation and retrieval contract**
+
+The motivation is the known granularity limit in RF-2: whole-document retrieval is safe and exact but too coarse for documents containing both current and historical/stale material.
+
+Do **not** manually split documents. The intended design keeps the exact whole `ResourceVersion` canonical and has deterministic Python derive smaller rebuildable retrieval units from it. PostgreSQL remains the baseline lexical retrieval engine.
+
+No AI model is required for canonical storage, deterministic segmentation, or baseline retrieval. A model may only be considered later as optional semantic assistance, not as a source-of-truth dependency.
+
+SR-1 is **design only**. The complete scope, required readings, design questions, non-goals, and stop boundary are in:
+
+`docs/architecture/knowledge-core/SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md`
+
 ## Critical boundary
 
-RI-4 is complete only for the restart/recovery scope above. It does not qualify:
+RI-4 is complete only for its bounded restart/recovery scope. It does not qualify:
 
 - machine reboot or Docker Desktop restart across host reboot;
 - backup/restore or disaster recovery;
@@ -97,27 +114,28 @@ RI-4 is complete only for the restart/recovery scope above. It does not qualify:
 - broad or production corpus import;
 - automatic discovery/classification/document-key assignment;
 - SHA-256-format Git repositories;
-- chunking/extraction/OCR;
+- implemented section/chunk retrieval or extraction/OCR;
 - embeddings/vector retrieval or RAG;
 - Authority or autonomous execution.
+
+SR-1 does not authorize any of those items either.
 
 ## Startup instructions for continuation
 
 1. Work from `architecture/knowledge-core`.
 2. Verify branch/HEAD before writing.
-3. Read:
-   - `docs/architecture/knowledge-core/CURRENT_STATE.md`
-   - `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI4.md`
-   - `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md`
-   - `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
-   - `components/knowledge-core/README.md`
-4. Preserve frozen Kernel/RF-2/RI-2 semantics unless concrete evidence demonstrates a defect.
-5. Before starting implementation, define one smallest bounded next objective and falsifiable acceptance criteria.
+3. Read `docs/architecture/knowledge-core/SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md` first.
+4. Read every prerequisite named by that handoff.
+5. Preserve frozen Kernel/RF-2/RI-2 semantics unless concrete evidence demonstrates a defect.
+6. Perform only the SR-1 design task and produce falsifiable SR-2 implementation gates.
+7. Stop before implementation.
 
 ## Next-task boundary
 
-No next implementation task is implied by RI-4 completion. Select the next task deliberately from the remaining integration debt rather than allowing the project to drift into production deployment, broad corpus ingestion, chunking/RAG, Authority, or execution all at once.
+Define retrieval semantics first, then deterministic segmentation rules, then the derived persistence/index contract, failure/rebuild semantics, and SR-2 acceptance gates.
+
+Do not implement Python, migrations, schema changes, embeddings, RAG, broad corpus import, Authority, or execution during SR-1.
 
 ## Stop boundary
 
-**RI-4 is complete. Stop here until the next bounded Knowledge Core objective is explicitly selected.**
+**SR-1 is selected but not yet performed. Continue only from `SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md`, complete the design-only record, update durable state, commit, and stop before SR-2 implementation.**
