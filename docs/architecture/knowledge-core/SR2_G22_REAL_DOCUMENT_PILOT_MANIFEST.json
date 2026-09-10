@@ -1,0 +1,42 @@
+{
+  "schema_version": 2,
+  "manifest_id": "sr2-g22-real-document-pilot-v1",
+  "source_repository_key": "acl-knowledge-core-sr2-g22",
+  "repository_locator": "git://acl-sr2-g22-pinned",
+  "source_commit": "bb42835442c03478da2b61c3f79b1c41c26e4e92",
+  "previous_manifest_digest": null,
+  "history_policy": "retain_prior_versions_as_superseded",
+  "entries": [
+    {
+      "source_document_key": "sr2-g22-contract",
+      "path": "docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md",
+      "git_blob_sha": "d6029b8c81810736c71b49606057a5afb4ef8f65",
+      "media_type": "text/markdown",
+      "classification": "sr2-g22-pinned-real-document",
+      "retrieval_lifecycle": "current",
+      "authority_rank": 1,
+      "rationale": "Current amended SR-1 contract; exercises literal lifecycle-control discussion and exact Markdown structure."
+    },
+    {
+      "source_document_key": "sr2-g22-current-state",
+      "path": "docs/architecture/knowledge-core/CURRENT_STATE.md",
+      "git_blob_sha": "c92357c2334ac89b7f79b5ba5620f7f1c8305775",
+      "media_type": "text/markdown",
+      "classification": "sr2-g22-pinned-real-document",
+      "retrieval_lifecycle": "current",
+      "authority_rank": 2,
+      "rationale": "Current state contains substantial historical and temporal prose that must not infer lifecycle."
+    },
+    {
+      "source_document_key": "sr2-g22-pause-handoff",
+      "path": "docs/architecture/knowledge-core/SR2_SLICE7_PAUSE_HANDOFF.md",
+      "git_blob_sha": "d9ed9d01f2c3847632b8aeef58e7d907b02ca622",
+      "media_type": "text/markdown",
+      "classification": "sr2-g22-pinned-real-document",
+      "retrieval_lifecycle": "superseded",
+      "authority_rank": 20,
+      "rationale": "Historical pause/restart evidence retained as parent-superseded material for explicit historical retrieval."
+    }
+  ],
+  "retirements": []
+}

@@ -61,6 +61,9 @@ jobs:
       - name: Run PostgreSQL G1-G21 qualification suite
         run: python -m pytest -q -m "postgresql and not sr2_real_pilot"
 
+      - name: Run SR-2 G22 pinned real-document pilot
+        run: python -m pytest -q -m "sr2_real_pilot"
+
       - name: Rehearse RI-4 local-host restart qualification
         run: >-
           python tools/ri4_host_qualification.py
