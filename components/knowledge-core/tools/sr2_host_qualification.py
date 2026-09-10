@@ -166,7 +166,16 @@ def _run_phase(
         ],
         cwd=component_root,
         env=env,
+        check=False,
     )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"SR-2 host {phase} phase failed with exit code {completed.returncode}\n"
+            f"stdout:\n{completed.stdout}\n"
+            f"stderr:\n{completed.stderr}"
+        )
+    if not completed.stdout.strip():
+        raise RuntimeError(f"SR-2 host {phase} phase produced no JSON result")
     return json.loads(completed.stdout.strip().splitlines()[-1])
 
 
