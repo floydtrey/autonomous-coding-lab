@@ -8,7 +8,7 @@ When information conflicts, use this order:
 
 1. The user's current request and explicit approvals.
 2. Root `AGENTS.md`.
-3. `docs/CURRENT_STATE.md` for current repository status.
+3. `docs/CURRENT_STATE.md` for project phase/status, except that portable host-installation identity is governed by `docs/PORTABLE_INSTALLATION_IDENTITY.md`.
 4. The relevant current design or operating document.
 5. Current code, tests, configuration, and Git evidence.
 6. `migration/inventory/` as consolidation evidence.
@@ -30,7 +30,8 @@ For every task:
 | Task | Read next |
 |---|---|
 | Understand component responsibilities or data flow | `docs/ARCHITECTURE.md` |
-| Install, inspect, run a benchmark, back up, or recover | `docs/OPERATIONS.md` |
+| Verify a clone, move ACL to another Windows host, or inspect portable component identity | `docs/PORTABLE_INSTALLATION_IDENTITY.md` |
+| Inspect or operate the legacy Worker Lab execution path, run a benchmark, back up, or recover | `docs/OPERATIONS.md` |
 | Change code, tests, paths, or integration behavior | `docs/DEVELOPMENT.md` |
 | Decide authority, permissions, identity, acceptance, or publication | `docs/GOVERNANCE.md` |
 | Select or resume the implementation sequence toward workers and the GUI | `docs/WORKPLAN.md` |
@@ -41,6 +42,8 @@ For every task:
 The files directly under `docs/` are current. Files under `docs/legacy/` record earlier standalone repositories and the merger process. A legacy statement may explain a design decision, but it cannot override current code, current documentation, or current authority.
 
 The JSON files under `migration/inventory/` are deterministic evidence about source and integration trees. They are useful for identity and path investigations; they are not a work queue.
+
+Absolute `MineTrackerWorker` paths retained in historical Phase 1–4 records describe the accepted host used for those proofs. They are not portable installation requirements for the current laptop or the new tower. Use `docs/PORTABLE_INSTALLATION_IDENTITY.md` for the portable host boundary.
 
 ## Freshness rules
 
