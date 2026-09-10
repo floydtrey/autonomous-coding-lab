@@ -834,19 +834,14 @@ def test_ri2_g17_service_only_plan_apply_query_has_no_storage_credentials(
 
 def test_ri2_tiny_real_git_reader_uses_exact_git_object_not_working_tree():
     path = "docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI1.md"
+    source_commit = "f7f12c04163ecbe3b6143191008cf393726b8def"
     expected_blob = "457472f7928994ab40e1c8f4faea7e70e93b7449"
-    head = subprocess.run(
-        ["git", "-C", str(_REPO_ROOT), "rev-parse", "HEAD"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
     reader = GitRepositorySourceReader(
         repository_locator="git://acl-ci",
         repository_root=_REPO_ROOT,
     )
-    proof = reader.read_exact(source_commit=head, path=path)
-    assert proof.source_commit == head
+    proof = reader.read_exact(source_commit=source_commit, path=path)
+    assert proof.source_commit == source_commit
     assert proof.path == path
     assert proof.git_blob_sha == expected_blob
     assert proof.content.startswith(
