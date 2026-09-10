@@ -9,7 +9,7 @@
 **Qualified runtime/test/workflow checkpoint:** `7570425231c0f1804c800ad4c6809f6261d82416`  
 **Qualification run:** GitHub Actions `34457756458` — success  
 **Status:** **G1–G21 independently qualified and checkpointed**  
-**G22 status:** **not executed; mechanically excluded from this qualification**
+**G22 status:** **independently qualified afterward at `c75a6be2e832bdc29fda0e4a6eab7de28da90668` — Actions `34462565404` success**
 
 ## Qualification result
 
@@ -28,6 +28,8 @@ This matrix is the active, reviewable map from every amended SR-2 synthetic qual
 
 It does not redefine any gate. `SECTION_RETRIEVAL_SR1.md` remains authoritative. Existing accepted Slice 1–6 tests are reused where they already prove a gate; Slice 7 adds only cross-boundary or missing qualification evidence identified by the completed audit.
 
+G22 is intentionally documented separately in `SR2_G22_QUALIFICATION.md`; this matrix preserves the independent G1–G21 prerequisite evidence rather than folding the later real-document pilot backward into the synthetic closure.
+
 ## Qualification boundary
 
 The G1–G21 qualification suites are:
@@ -37,7 +39,11 @@ python -m pytest -q -m "not postgresql and not sr2_real_pilot"
 python -m pytest -q -m "postgresql and not sr2_real_pilot"
 ```
 
-`sr2_real_pilot` is reserved for the later SR2-G22 tiny pinned real-document pilot. G22 tests must carry that marker and are excluded from both G1–G21 CI commands.
+`sr2_real_pilot` is reserved for SR2-G22 and remains excluded from both G1–G21 commands. G22 is executed separately with:
+
+```text
+python -m pytest -q -m "sr2_real_pilot"
+```
 
 The pre-existing `tests/test_real_corpus_pilot.py` is an older RF-2-era immutable pilot fixture. It is not relabeled as SR2-G22 and is not accepted as SR2-G22 evidence.
 
@@ -77,17 +83,18 @@ The accepted audit explicitly rejected manufacturing invalid duplicate canonical
 
 That is qualification of the contract without weakening canonical identity constraints for a synthetic test.
 
-## G22 barrier
+## G22 closure
 
-SR2-G22 was not part of Actions `34457756458` and remains unexecuted. The G1–G21 checkpoint prerequisite is now satisfied. A later, separately authorized task may construct and execute the tiny pinned real-document pilot under `@pytest.mark.sr2_real_pilot`.
+The G1–G21 checkpoint prerequisite was satisfied before G22 execution. SR2-G22 was then independently qualified under `@pytest.mark.sr2_real_pilot` at runtime/test/workflow checkpoint `c75a6be2e832bdc29fda0e4a6eab7de28da90668`, Actions `34462565404` — success.
 
-No G22 evidence may be backfilled from orphaned blobs, the older RF-2 real-corpus fixture, unpinned working-tree documents, or the successful G1–G21 qualification run.
+The pilot uses `SR2_G22_REAL_DOCUMENT_PILOT_MANIFEST.json`, pins exactly three real documents to source commit `bb42835442c03478da2b61c3f79b1c41c26e4e92`, and imports no unlisted repository content. It proves exact governed lineage, structural reconstruction from exact Git bytes, harmless literal lifecycle-token discussion, no temporal-prose lifecycle inference, parent-superseded historical behavior, exact source provenance, and repeat-stable retrieval identities.
+
+The separate G22 selector passed **1 test with 114 deselected**. The G1–G21 selectors remained separately green in the same run: fast **75 passed**, PostgreSQL **36 passed**. The durable evidence is `SR2_G22_QUALIFICATION.md`.
+
+No G22 evidence was backfilled from orphaned blobs, the older RF-2 real-corpus fixture, unpinned working-tree documents, or the earlier G1–G21 qualification run.
 
 ## Intended-host boundary
 
-No user-PC test is required for Slice 7 G1–G21 closure. Intended-host testing becomes required only after:
+The G22 prerequisite is now satisfied. **User-PC testing is required for the next qualification**, but the existing RI-4 Windows evidence must not be relabeled as SR-2 proof: RI-4 qualified its bounded RF-2 whole-document serving path.
 
-1. the separately authorized G22 tiny pinned real-document pilot is green and checkpointed; and
-2. SR-2 moves to intended-host restart/recovery qualification.
-
-At that later point, explicitly tell the user that testing must move to the intended Windows/PostgreSQL host.
+The next bounded work must construct or identify an intended-host qualification entrypoint that actually exercises the accepted SR-2 segment-serving path, then execute that entrypoint on the intended Windows/PostgreSQL host and record durable host evidence.
