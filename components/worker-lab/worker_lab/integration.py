@@ -8,14 +8,20 @@ from typing import Any, Mapping
 
 from .canonical import canonical_digest
 from .errors import LabValidationError
+from .runtime_selection import (
+    selected_runtime_requirement,
+    resolve_runtime_profile,
+    resolve_runtime_requirement,
+)
 
 
 INVOCATION_SCHEMA = "worker-lab-framework-invocation:v2"
 RESULT_SCHEMA = "worker-lab-framework-result:v2"
-RUNTIME_PROFILE = "terra-medium:v1"
-RUNTIME_MODEL = "gpt-5.6-terra"
-RUNTIME_REASONING_EFFORT = "medium"
-RUNTIME_TIMEOUT_SECONDS = 900
+_SELECTED_RUNTIME = selected_runtime_requirement()
+RUNTIME_PROFILE = _SELECTED_RUNTIME.profile_id
+RUNTIME_MODEL = _SELECTED_RUNTIME.model_selector
+RUNTIME_REASONING_EFFORT = _SELECTED_RUNTIME.reasoning_selector
+RUNTIME_TIMEOUT_SECONDS = _SELECTED_RUNTIME.timeout_seconds
 WORKER_LAB_CONTRACT_VERSION = "worker-lab-framework-client:v2"
 # Version 2 remains the immutable read-only protocol.  Workspace writes use a
 # deliberately separate version so a v2 consumer cannot acquire write behavior.
@@ -159,7 +165,7 @@ class InvocationRecord:
             _framework_contract_version(data["framework_contract_version"], operation),
             _digest(data["workspace_receipt_digest"]), _digest(data["workspace_root_digest"]),
             _digest(data["workspace_path_digest"]), _sha(data["starting_commit"]), _text(data["sandbox_mode"]),
-            _exact(data["runtime_profile_id"], RUNTIME_PROFILE, "runtime_profile_id"), _text(data["model"]),
+            _text(data["runtime_profile_id"]), _text(data["model"]),
             _text(data["reasoning_effort"]), _positive(data["timeout_seconds"]), paths, writable,
             _digest(data["prompt_digest"]), _optional_text(data["authorized_by"]),
             _optional_timestamp(data["authorized_at"]), state, _optional_digest(data["result_digest"]),
@@ -250,7 +256,7 @@ class ResultRecord:
             _exact(data["schema_version"], RESULT_SCHEMA, "schema_version"), _digest(data["invocation_digest"]),
             _digest(data["request_digest"]), _id(data["invocation_id"]), _id(data["attempt_id"]), operation, _digest(data["framework_installation_digest"]),
             _framework_contract_version(data["framework_contract_version"], operation),
-            _exact(data["runtime_profile_id"], RUNTIME_PROFILE, "runtime_profile_id"), _digest(data["runtime_identity"]),
+            _text(data["runtime_profile_id"]), _digest(data["runtime_identity"]),
             _digest(data["prompt_digest"]), _text(data["test_catalog_version"]), _digest(data["test_catalog_digest"]),
             _digest(data["test_plan_digest"]), _texts(data["test_ids"]), _digest(data["workspace_receipt_digest"]),
             _digest(data["workspace_root_digest"]), _digest(data["workspace_path_digest"]), _sha(data["starting_commit"]), _sha(data["observed_head"]),
@@ -304,14 +310,12 @@ def _validate_invocation(record: InvocationRecord) -> None:
         raise LabValidationError("INTEGRATION_SCOPE_INVALID", "read-only proposal cannot name writable paths")
     if record.operation is InvocationOperation.WORKSPACE_WRITE_CODE_TASK and not record.writable_paths:
         raise LabValidationError("INTEGRATION_SCOPE_INVALID", "code task requires writable paths")
-    if (
-        record.model != RUNTIME_MODEL
-        or record.reasoning_effort != RUNTIME_REASONING_EFFORT
-        or record.timeout_seconds != RUNTIME_TIMEOUT_SECONDS
-    ):
-        raise LabValidationError(
-            "INTEGRATION_RUNTIME_INVALID", "runtime profile values differ from the protected profile"
-        )
+    resolve_runtime_requirement(
+        record.runtime_profile_id,
+        record.model,
+        record.reasoning_effort,
+        record.timeout_seconds,
+    )
     if record.state is InvocationState.PREPARED and (record.authorized_by is not None or record.authorized_at is not None):
         raise LabValidationError("INTEGRATION_AUTHORIZATION_INVALID", "prepared invocation cannot be authorized")
     if record.state is InvocationState.REJECTED and (record.authorized_by is not None or record.authorized_at is not None):
@@ -325,6 +329,7 @@ def _validate_invocation(record: InvocationRecord) -> None:
 
 
 def _validate_result(result: ResultRecord) -> None:
+    resolve_runtime_profile(result.runtime_profile_id)
     if result.retryable is not False:
         raise LabValidationError("INTEGRATION_RESULT_INVALID", "Phase 3 results cannot be retryable")
     failed = result.process_outcome in {"fail", "uncertain"}
