@@ -14,6 +14,7 @@ from knowledge_core.storage import identity_models as _identity_models  # noqa: 
 from knowledge_core.storage import repository_import_models as _repository_import_models  # noqa: F401
 from knowledge_core.storage import resource_models as _resource_models  # noqa: F401
 from knowledge_core.storage import retrieval_models as _retrieval_models  # noqa: F401
+from knowledge_core.storage import section_retrieval_models as _section_retrieval_models  # noqa: F401
 
 
 def create_database_engine(
