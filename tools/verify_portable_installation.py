@@ -25,6 +25,7 @@ _FRAMEWORK_FILES = (
     "tools/repository_handoff.py",
     "tools/worker_lab_adapter.py",
     "tools/worker_result.py",
+    "tools/worker_runtime.py",
     "tools/workspace_write_adapter.py",
 )
 
