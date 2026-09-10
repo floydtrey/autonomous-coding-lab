@@ -283,7 +283,7 @@ def _snapshot(
                     "source_commit": observation.source_commit,
                     "path": observation.source_path,
                     "git_blob_sha": observation.git_blob_sha,
-                    "resource_ref": str(observation.resource_ref),
+                    "resource_ref": str(version.resource_ref_id),
                     "resource_version_ref": str(observation.resource_version_ref),
                     "observation_id": str(observation.observation_id),
                     "content_digest_algo": version.content_digest_algo,
