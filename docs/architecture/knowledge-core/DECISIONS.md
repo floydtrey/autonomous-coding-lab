@@ -29,7 +29,7 @@ Conceptual primitive families remain semantic roles rather than mandatory tables
 
 - **Accepted** — current architecture decision; later changes require an explicit superseding decision.
 - **Open** — deliberately unresolved.
-- **Superseded** — retained for history but replaced by a later decision.
+- **Superseded** — retained for decision history but replaced by a later decision.
 
 Decisions are not silently rewritten when they change.
 
@@ -145,7 +145,7 @@ The Kernel V1 slice passed its accepted gates and is frozen. Later bounded work 
 
 **Status:** Accepted — 2026-09-10 bounded SR-1 audit amendment
 
-This decision supersedes contradictory section-retrieval wording in the original accepted SR-1 contract and clarifies older RI-1/RI-2 shorthand without invalidating their historical qualification evidence.
+This decision supersedes contradictory section-retrieval wording in the original accepted SR-1 contract and clarifies older RI-1/RI-2 shorthand without invalidating their accepted qualification evidence.
 
 ### Structural segmentation identity
 
@@ -210,7 +210,7 @@ Privacy `RESTRICT`/`ERASE` fences serving access first for the parent and all ch
 
 The original SR2-G11/G12 semantics are superseded. G12 now proves that declarations cannot promote **effective** lifecycle rather than expecting less-restrictive declarations to fail. G1/G7/G8/G9/G17/G21/G22 are also amended as defined in `SECTION_RETRIEVAL_SR1.md`.
 
-The pre-audit SR-2 candidate `2c48a0e73c560fad62028776f375c94162e138be` is not an accepted SR-2 checkpoint and must be aligned to the amended contract before qualification.
+The pre-audit SR-2 candidate `2c48a0e73c560fad62028776f375c94162e138be` is **ABANDONED — DO NOT USE FOR IMPLEMENTATION, TEST DESIGN, MIGRATION DESIGN, OR DECISION-MAKING**. Its implementation has been removed from the active tree. Git history is the archive for that rejected prototype.
 
 **Reason:** these rules keep canonical source structure stable, preserve governed temporal/classification history, allow safe retirement without source rewrites, make self-documenting technical files valid inputs, preserve content-addressed identity, and retain privacy anti-resurrection guarantees without conflating historical supersession with erasure.
 
@@ -226,12 +226,12 @@ No new broad physical-design decision is authorized by KC-D025. SR-2 may choose 
 
 All future bounded Knowledge Core tasks must follow `EXECUTION_GOVERNANCE.md`. Documentation/checkpoint capacity remains part of the task budget.
 
-For SR-2 specifically, `CURRENT_STATE.md`, KC-D025, and audit-amended `SECTION_RETRIEVAL_SR1.md` must be read before the pre-audit implementation or tests are treated as guidance.
+For SR-2 specifically, `CURRENT_STATE.md`, KC-D025, and audit-amended `SECTION_RETRIEVAL_SR1.md` must be read before implementation begins. Do not restore or reuse the abandoned pre-audit SR-2 prototype unless explicitly investigating it as rejected evidence.
 
 ---
 
 # Current next task
 
-**SR-2 contract-alignment implementation — paused until documentation correction is checkpointed.**
+**Fresh SR-2 implementation from the audit-amended SR-1 contract.**
 
-The existing pre-audit SR-2 candidate is intentionally not accepted. When implementation resumes, compare it against amended SR2-G1 through G22 and make only the bounded changes required to conform. Do not broaden into embeddings, RAG, Authority, execution, broad corpus import, or unrelated deployment work.
+Use the accepted RF-2/RI-2 foundation as dependencies, but do not copy or repair the abandoned `2c48a0e...` prototype. Implement only the bounded section-retrieval work required by amended SR2-G1 through G22. Do not broaden into embeddings, RAG, Authority, execution, broad corpus import, or unrelated deployment work.
