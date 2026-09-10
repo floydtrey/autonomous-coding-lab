@@ -2,7 +2,7 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **SR-2 Slices 1–6 accepted; Slice 7 G1–G21 qualification closure independently green and checkpointed; G22 not executed**
+**Status:** **SR-2 G1–G22 independently green and checkpointed; intended-host SR-2 restart/recovery qualification is next**
 
 **Clean reset runtime checkpoint:** `267fc28bd862ddd4ca22e61792d073853a1e51a8` — Actions `34443719080` success  
 **SR-2 Slice 1:** `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336` — Actions `34444560064` success  
@@ -13,7 +13,8 @@
 **SR-2 Slice 6:** `1534dba10757612485821bf566c6fdccffde06c2` — Actions `34452778382` success  
 **Slice 6 state checkpoint:** `d540f206bb2c7a94eeb14f642b3a87d7ff81486e`  
 **Slice 7 pause handoff introduced:** `8fafb1603649a2af64f2122c9b66e7fbae9f4ada`  
-**Slice 7 G1–G21 qualified runtime/test checkpoint:** `7570425231c0f1804c800ad4c6809f6261d82416` — Actions `34457756458` success
+**Slice 7 G1–G21 qualified runtime/test checkpoint:** `7570425231c0f1804c800ad4c6809f6261d82416` — Actions `34457756458` success  
+**SR2-G22 qualified runtime/test/workflow checkpoint:** `c75a6be2e832bdc29fda0e4a6eab7de28da90668` — Actions `34462565404` success
 
 This file is the controlling restart entry point for Knowledge Core. Git history is the archive; active implementation guidance belongs here and in the controlling contracts.
 
@@ -26,10 +27,12 @@ The following remain accepted and are not being rebuilt:
 - RF-2 whole-`ResourceVersion` PostgreSQL lexical retrieval: `479a918762e919851e19fee3b36cc1d95e78f3e8`.
 - Governed repository import RI-2: `c2aa14ca5429ccaf5149e0a8a4321ae7a440d8ad`.
 - RI-3 persistence qualification: `9a167e67200c6bee2b7f4ed7b1dc91224d553390`.
-- RI-4 intended-host persistence/recovery qualification and evidence.
+- RI-4 intended-host persistence/recovery qualification and evidence for the RF-2 path.
 - Audit-amended SR-1 contract: `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`.
 - Architecture correction KC-D025 in `docs/architecture/knowledge-core/DECISIONS.md`.
-- Active G1–G21 qualification map: `docs/architecture/knowledge-core/SR2_G1_G21_COVERAGE_MATRIX.md`.
+- G1–G21 qualification map: `docs/architecture/knowledge-core/SR2_G1_G21_COVERAGE_MATRIX.md`.
+- G22 real-document qualification: `docs/architecture/knowledge-core/SR2_G22_QUALIFICATION.md`.
+- Exact G22 corpus manifest: `docs/architecture/knowledge-core/SR2_G22_REAL_DOCUMENT_PILOT_MANIFEST.json`.
 
 Exact whole `ResourceVersion` artifacts remain canonical evidence. Repository source observations and governing import receipts/manifests remain governed source/classification evidence. SR-2 structures, lineage, profiles, and search projections remain derived and rebuildable.
 
@@ -65,7 +68,7 @@ Slice 5 added explicit generation-level structural/projection profile identity r
 - Privacy `RESTRICT`/`ERASE` fences serving access first; derivative cleanup is deterministic/idempotent reconciliation.
 - A serving SR-2 generation must make the exact governed snapshot set and behavior-bearing profile identity recoverable; `resource_version_ref` alone is insufficient.
 
-`SR2-G1` through `SR2-G22` in the amended SR-1 contract remain the final acceptance requirements. G1–G21 are now independently qualified; G22 remains outstanding.
+`SR2-G1` through `SR2-G22` in the amended SR-1 contract are now independently qualified in CI. Intended-host qualification of the SR-2 segment-serving path remains outstanding.
 
 ## Accepted SR-2 slices
 
@@ -131,7 +134,7 @@ Slice 7 published the explicit cross-boundary acceptance closure without changin
 
 - `tests/test_sr2_acceptance_closure.py` adds the missing G1–G21 qualification fixtures identified by the completed audit;
 - `SR2_G1_G21_COVERAGE_MATRIX.md` maps every amended gate G1–G21 to committed proof;
-- `sr2_real_pilot` is registered as the dedicated future G22 marker;
+- `sr2_real_pilot` is registered as the dedicated G22 marker;
 - both G1–G21 CI selectors explicitly include `not sr2_real_pilot`, mechanically excluding G22;
 - G16 exercises reachable ranking discriminators and repeated stable ordering while separately locking the complete configured total order through final `segment_key`, without fabricating impossible duplicate canonical segment identities;
 - G1/G7 rebuild qualification proves complete derived regeneration is reproducible while canonical versions, artifact bytes, and governed observations remain unchanged;
@@ -149,7 +152,27 @@ GitHub Actions `34457756458` qualified that exact checkpoint:
 
 No G1–G21 failure exposed a production defect or an architecture ambiguity, so no production repair or design change was made during Slice 7 closure.
 
-The guarded `test_real_corpus_pilot.py` skips remain the older RF-2 immutable pilot refusing to relabel changed documentation as its historical evidence. They are not SR2-G22 and do not count as G22 execution.
+The guarded `test_real_corpus_pilot.py` skips remain the older RF-2 immutable pilot refusing to relabel changed documentation as its historical evidence. They are not SR2-G22.
+
+### SR2-G22 — tiny pinned real-document pilot
+
+Qualified runtime/test/workflow checkpoint `c75a6be2e832bdc29fda0e4a6eab7de28da90668`.
+
+G22 pins exactly three real Knowledge Core Markdown documents from source commit `bb42835442c03478da2b61c3f79b1c41c26e4e92` in `SR2_G22_REAL_DOCUMENT_PILOT_MANIFEST.json` and exercises the accepted SR-2 import/segmentation/projection/publication/retrieval machinery under the dedicated `sr2_real_pilot` marker.
+
+The pilot proves exact governed observation lineage; exact structural reconstruction from the pinned Git objects; harmless literal discussion of `kc:retrieval-lifecycle`; no lifecycle inference from historical/temporal prose; parent-superseded historical behavior; import of only the three allowlisted files; exact source provenance; and repeated stable retrieval identities.
+
+Actions `34462565404` passed:
+
+- migrations through `0012_sr2_segments`;
+- fast G1–G21 selector: **75 passed**, 1 guarded RF-2 skip, 39 deselected;
+- PostgreSQL G1–G21 selector: **36 passed**, 2 guarded RF-2 skips, 77 deselected;
+- separate G22 selector: **1 passed**, 114 deselected;
+- RI-4 restart/replay rehearsal: **success**, with application reconstruction, artifact integrity, current/historical retrieval, exact replay, PostgreSQL restart, and provenance verification all true.
+
+The initial candidate `f263f72899e35afe48ec41c04092d2ee3e7a3375` failed only because a four-term pilot query incorrectly required terms spanning multiple segments to match within one segment. The test-only correction at `c75a6be2e832bdc29fda0e4a6eab7de28da90668` used a segment-local query. No production code, schema, migration, architecture rule, or KC-D025 decision changed, and no architecture ambiguity was exposed.
+
+The durable G22 evidence is `docs/architecture/knowledge-core/SR2_G22_QUALIFICATION.md`.
 
 ## Restart order
 
@@ -159,37 +182,34 @@ Read, in order:
 2. `docs/architecture/knowledge-core/DECISIONS.md` — especially KC-D025
 3. `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`
 4. `docs/architecture/knowledge-core/SR2_G1_G21_COVERAGE_MATRIX.md`
-5. `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
-6. accepted generation, RF-2, RI-2, deletion, and SR-2 Slice 1–7 interfaces needed for the bounded next slice
+5. `docs/architecture/knowledge-core/SR2_G22_QUALIFICATION.md`
+6. `docs/architecture/knowledge-core/SR2_G22_REAL_DOCUMENT_PILOT_MANIFEST.json`
+7. `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
+8. accepted RI-4 persistence/recovery interfaces and SR-2 Slice 1–7 interfaces needed for the bounded host qualification
 
-`SR2_SLICE7_PAUSE_HANDOFF.md` is retained as historical restart evidence for the pre-closure pause; it is no longer the active next-task authority.
+`SR2_SLICE7_PAUSE_HANDOFF.md` is retained as historical restart evidence for the pre-closure pause; it is not active task authority.
 
 Do not search Git history or orphaned draft objects for SR-2 implementation guidance unless explicitly investigating the rejected prototype.
 
-## Next bounded task — SR2-G22 tiny pinned real-document pilot
+## Next bounded task — intended-host SR-2 restart/recovery qualification
 
-The G1–G21 prerequisite has now been satisfied and checkpointed. The next SR-2 task, if separately authorized, is only SR2-G22:
+G1–G22 are now green and checkpointed. The next task is to qualify the accepted SR-2 **segment-serving** path on the intended Windows/PostgreSQL host.
 
-- select a small immutable set of real repository documents appropriate to the SR-1 contract;
-- pin every input to exact accepted source commit/object identity rather than current working-tree bytes;
-- mark the pilot tests `@pytest.mark.sr2_real_pilot`;
-- execute them separately from the mechanically isolated G1–G21 suites;
-- verify deterministic boundaries/keys and retrieval quality are operationally sensible without changing the structural/lifecycle contract merely to improve sample output;
-- checkpoint the exact G22 evidence only if it passes.
+Do not relabel the existing RI-4 intended-host run as SR-2 evidence. RI-4 successfully qualified persistence/recovery for its bounded RF-2 whole-`ResourceVersion` retrieval path; its own accepted documentation explicitly does not claim chunking/section retrieval.
 
-Do not treat the older RF-2 `test_real_corpus_pilot.py`, orphaned blobs, unpinned working-tree files, or the successful G1–G21 run as G22 evidence.
+A bounded SR-2 host qualification should reuse the accepted persistence/recovery discipline where applicable, while exercising the SR-2 section-aware import/generation/publication/serving path and exact G22-style provenance. Do not broaden it into machine-reboot persistence, backup/restore, production deployment, broad corpus import, embeddings/RAG, or autonomous execution.
 
-If G22 reveals a genuine architecture ambiguity, stop and return to the decision process rather than silently choosing a new design.
+If host qualification exposes a genuine architecture ambiguity, stop and return to the decision process rather than silently choosing a new design.
 
 ## Intended-host boundary
 
-**No new user-PC execution is required yet.** G1–G21 are green and checkpointed, but SR2-G22 has not been executed.
+**User-PC testing is now required for the next qualification.**
 
-The remaining sequence is:
+G22 has independently passed and is checkpointed. The prior RI-4 Windows command is useful as persistence/recovery precedent, but it is not sufficient by itself because it serves RF-2 whole-document rows. Before asking the user to execute a command, construct or identify a bounded SR-2 host qualification entrypoint that actually exercises segment serving.
 
-`separate G22 tiny pinned real-document pilot -> G1–G22 green/checkpointed -> intended-host SR-2 restart/recovery qualification on the user's PC`
+The next sequence is:
 
-Only after G22 is independently green and checkpointed should a concrete intended-host Windows/PostgreSQL command set be handed to the user. At that point, explicitly tell the user that intended-host testing on their PC is required.
+`G1–G22 green/checkpointed -> bounded SR-2 host qualification entrypoint -> intended Windows/PostgreSQL execution -> durable host evidence`
 
 ## Out of scope
 
