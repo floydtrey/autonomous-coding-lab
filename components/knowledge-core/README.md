@@ -1,6 +1,6 @@
 # Knowledge Core
 
-This component contains the frozen Knowledge Core Kernel plus accepted PostgreSQL lexical retrieval, governed repository import, bounded persistence/recovery qualification, and the completed SR-1 deterministic section-retrieval design.
+This component contains the frozen Knowledge Core Kernel plus accepted PostgreSQL lexical retrieval, governed repository import, bounded persistence/recovery qualification, and the audit-amended SR-1 deterministic section-retrieval contract.
 
 ## Current state
 
@@ -8,60 +8,112 @@ This component contains the frozen Knowledge Core Kernel plus accepted PostgreSQ
 **Frozen Kernel V1:** `9e904f49480055615bb0cf32360dbdc8400e117c`  
 **RF-2 lexical retrieval:** `479a918762e919851e19fee3b36cc1d95e78f3e8` — CI `34371352821`  
 **RI-2 governed repository import:** `c2aa14ca5429ccaf5149e0a8a4321ae7a440d8ad` — CI `34416061086`  
-**RI-3 application-process persistence:** accepted  
+**RI-3 persistence:** accepted  
 **RI-4 intended-host persistence/recovery:** accepted  
-**SR-1 section-retrieval design:** `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md` — complete, design only  
-**Status:** **Exact whole ResourceVersions remain canonical. SR-1 defines deterministic derived section retrieval and SR2-G1 through SR2-G22, but no section segmenter, migration, schema, or segment index has been implemented. No broad or production corpus is imported.**
+**Original SR-1 design commit:** `1d1313844aa4d224bd42c0888970a11e959d9501`  
+**Pre-audit SR-2 candidate:** `2c48a0e73c560fad62028776f375c94162e138be` — **not accepted**  
+**SR-1 contract:** `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md` — **audit-amended 2026-09-10**  
+**Current status:** **SR-2 is paused until the pre-audit implementation is aligned with the amended contract. No broad or production corpus is imported.**
 
-Controlling state is `docs/architecture/knowledge-core/CURRENT_STATE.md`. The SR-1 contract is `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`. RI-4 intended-host evidence is `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md`.
+Controlling state is `docs/architecture/knowledge-core/CURRENT_STATE.md`. The architecture decision that records the audit correction is `KC-D025` in `docs/architecture/knowledge-core/DECISIONS.md`.
+
+## Mandatory restart order
+
+Do not start SR-2 from this README alone. Read:
+
+1. `docs/architecture/knowledge-core/CURRENT_STATE.md`
+2. `docs/architecture/knowledge-core/DECISIONS.md` — `KC-D025`
+3. `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`
+4. `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_HANDOFF.md`
+5. RI-1/RI-2 records as needed
+6. accepted RF-2/RI-2 implementation interfaces relevant to the bounded change
+7. `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
+
+`SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md` is historical planning context only. RF-1/RF-2 and RI-3/RI-4 records remain historical qualification evidence and do not override the later SR-1 amendment.
 
 ## Accepted foundation
 
-Kernel V1 remains frozen. RF-2 provides PostgreSQL whole-`ResourceVersion` lexical retrieval with explicit lifecycle/authority metadata, deterministic ranking, current-generation-only serving, exact provenance, and serving-time restriction/deletion fences.
+Kernel V1 remains frozen. RF-2 provides whole-`ResourceVersion` PostgreSQL lexical retrieval with explicit lifecycle/authority metadata, deterministic ranking, current-generation-only serving, exact provenance, and mandatory serving-time restriction/deletion fences.
 
-RI-2 provides stable governed repository document identity:
+RI-2 provides stable governed repository identity:
 
 ```text
 (source_repository_key, source_document_key) -> Knowledge Core Resource
 ```
 
-Manifest V2 is an explicit fail-closed allowlist. The host-configured Git reader accepts only exact listed regular blobs and is qualified for SHA-1 Git repositories. RI-2 covers exact replay, edits, renames, explicit retirements, stale source/state rejection, publication fencing, and exact provenance.
+Exact `ResourceVersion` identity is content-addressed within that Resource. Previously unseen bytes create a new exact version; re-observing bytes matching a prior version reuses that version. A → B → A therefore reuses A's original `ResourceVersion` while a new source observation/receipt/generation records the later observation.
 
-RI-3 proved persistence across application-process reconstruction with the same PostgreSQL database and persistent artifact directory. RI-4 extended that bounded evidence through PostgreSQL restart on CI and the intended Windows host while retaining the persistent Docker volume/artifact directory, current/historical retrieval behavior, exact replay, artifact integrity, and provenance continuity.
+Manifest V2 remains an explicit fail-closed allowlist. Repository access is host-configured and ordinary clients receive no repository or storage credentials.
 
-## SR-1 deterministic section-retrieval design
+## Audit-amended SR-1 section retrieval
 
-SR-1 changes no runtime code. Its core boundary is:
+### Structural segmentation
+
+Structural segmentation is determined by:
 
 ```text
-exact immutable ResourceVersion artifact
-        ↓
-deterministic Python segmentation profile
-        ↓
-rebuildable exact source-aligned segment rows
-        ↓
-PostgreSQL lexical projection
-        ↓
-deterministic section retrieval with exact parent provenance
+exact immutable ResourceVersion artifact/media
++ structural segmentation profile
 ```
 
-The whole `ResourceVersion`/artifact remains canonical evidence. Derived segments are disposable/rebuildable and must reproduce from the exact parent plus an explicit deterministic profile.
+It determines segment boundaries, ordinals, structural kinds, heading paths, byte/line coordinates, source-slice SHA-256 values, and structural segment keys.
 
-The V1 design uses strict UTF-8 text, deterministic ATX-heading/fenced-code Markdown scanning, root/plain-text handling, exact source byte/line ranges, exact source-slice SHA-256 digests, deterministic large-block continuation, and deterministic segment keys. Exact ranges must cover the parent without gaps/overlap and reconstruct its original bytes.
+Lifecycle/classification changes alone do not alter those structural identities.
 
-Document lifecycle remains explicit governed input. Headings, paths, filenames, dates, recency, and lexical score do not infer currentness. An optional exact source-controlled Markdown `kc:retrieval-lifecycle` directive may only preserve or reduce lifecycle within a heading subtree; it cannot promote currentness. Authority/source ranking metadata remains inherited from the parent in V1.
+### Governed retrieval projection
 
-PostgreSQL remains the baseline lexical retrieval engine. No language model, tokenizer, embedding service, vector database, or RAG layer is required for canonical storage, segmentation, lifecycle provenance, or baseline retrieval.
+Complete lifecycle/source retrieval projection additionally depends on:
 
-`SECTION_RETRIEVAL_SR1.md` contains the full contract and falsifiable `SR2-G1` through `SR2-G22` implementation gates.
+```text
+exact governed observation/classification snapshot
++ retrieval-projection rules/profile
+```
+
+A serving generation must preserve exact governed observation lineage. `ResourceVersion + segmentation profile` alone is not sufficient to reproduce lifecycle, classification, authority, or source-observation metadata.
+
+### Declared and effective lifecycle
+
+Lifecycle restrictiveness is:
+
+```text
+current < unknown < superseded
+```
+
+A source section declaration is preserved exactly. Effective lifecycle is the most restrictive of the governed document lifecycle, all applicable ancestor declarations, and the section's own declaration.
+
+A child declaring `current` cannot undo an ancestor/document `unknown` or `superseded` state, but the declaration is not rejected merely for being less restrictive. A later parent downgrade therefore reprojects lifecycle without forcing unchanged canonical bytes to fail structural segmentation.
+
+### Lifecycle-control parsing
+
+Valid lifecycle declarations remain exact standalone HTML-comment controls in the required post-heading position.
+
+Ordinary prose, inline code, block quotes/quoted explanations, and fenced code containing `kc:retrieval-lifecycle` are ordinary source content.
+
+A standalone non-fenced control-looking comment beginning with the reserved prefix is treated as attempted control. Malformed, misplaced, or duplicate attempted controls fail lifecycle projection explicitly.
+
+### Large-block edge cases
+
+- fitting final suffix is emitted whole and terminates;
+- no split occurs inside a UTF-8 source line or fenced block;
+- an indivisible ordinary line or fenced region larger than hard max fails closed.
+
+### Privacy versus historical supersession
+
+Repository supersession/retirement-retain is historical retrieval lifecycle, not privacy deletion.
+
+Privacy `RESTRICT`/`ERASE` fences parent/children immediately. Derivative cleanup is deterministic/idempotent reconciliation and may occur eagerly. If a parent exact version is actually physically purged/erased, no segment derivative may remain. Serving-time parent eligibility stays mandatory defense in depth.
+
+## SR-2 acceptance state
+
+The pre-audit candidate `2c48a0e73c560fad62028776f375c94162e138be` implemented the earlier SR-1 rules and is not accepted under the amendment.
+
+Its first workflow, GitHub Actions `34439043763`, passed migrations and the fast suite, then produced 19 PostgreSQL passes plus one G22 real-pilot query failure. RI-4 rehearsal was skipped after that failure. No fix to that query or to the audited runtime rules has been applied yet.
+
+Before SR-2 can be accepted, implementation must be compared against amended `SR2-G1` through `SR2-G22` in `SECTION_RETRIEVAL_SR1.md` and requalified synthetic-first.
 
 ## Current boundary
 
-SR-1 is **design only**. Knowledge Core does not yet claim implemented section retrieval.
-
-The next separately authorized phase is SR-2. If authorized, it may implement only the minimum derived segment table/migration, deterministic segmenter, generation/retrieval/API changes, and synthetic/tiny-real tests required by `SR2-G1` through `SR2-G22`.
-
-The first SR-2 serving transition must preserve the accepted RF-2 whole-document generation until a complete segment generation is published. Failed/partial segment builds must remain non-serving.
+This documentation amendment changes contract/state only. It does **not** authorize or perform runtime/test/migration/API/pilot-manifest fixes.
 
 Still out of scope:
 
@@ -69,10 +121,10 @@ Still out of scope:
 - automatic discovery/classification/document-key assignment;
 - PDF/DOCX/HTML/image/OCR extraction;
 - embeddings/vector search, semantic reranking, or RAG/context assembly;
-- model-required segmentation/retrieval;
+- model-required structural segmentation/lifecycle retrieval;
 - cross-version semantic section identity;
 - Authority or autonomous execution;
-- production deployment/security/backup expansion;
+- unrelated production deployment/security/backup expansion;
 - machine-reboot persistence qualification.
 
 ## Development
@@ -83,8 +135,8 @@ python -m pytest -q
 alembic upgrade head
 ```
 
-Set `KNOWLEDGE_CORE_DATABASE_URL` before applying PostgreSQL migrations.
+Set `KNOWLEDGE_CORE_DATABASE_URL` before PostgreSQL migrations.
 
 ## Next boundary
 
-**Do not begin SR-2 from this README alone.** Read `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md` and `CURRENT_STATE.md`, verify branch/HEAD, and proceed only after separate SR-2 authorization. Stop after the accepted SR-2 gates; embeddings, RAG, broad import, Authority, and execution remain separate future work.
+**When implementation resumes, first align `2c48a0e...` to the audit-amended contract. Do not begin embeddings, RAG, broad import, Authority, execution, or unrelated expansion.**

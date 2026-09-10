@@ -3,18 +3,19 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
 **Component:** Knowledge Core  
-**Status:** implementation-ready architecture; Kernel implementation not yet started  
+**Status:** active decision log; Kernel V1/RF/RI foundations accepted; section retrieval governed by audit-amended SR-1 and KC-D025
 
 ---
 
 # Purpose
 
-This file records accepted physical-architecture decisions for Knowledge Core. Detailed design and execution-governance artifacts are:
+This file records accepted architecture decisions for Knowledge Core. Detailed design and execution-governance artifacts include:
 
 - `ARCHITECTURE_V1.md`
 - `PHYSICAL_SCHEMA_V1.md`
 - `IMPLEMENTATION_PLAN_V1.md`
 - `EXECUTION_GOVERNANCE.md`
+- `SECTION_RETRIEVAL_SR1.md`
 
 The completed Knowledge Architecture Evidence Campaign remains the requirements/evidence base. Physical choices must not weaken it.
 
@@ -126,67 +127,111 @@ Knowledge Core initially uses Python 3.12+, FastAPI, Pydantic, and versioned HTT
 
 ## KC-D023 — V1 physical database uses canonical, control, and derived PostgreSQL schemas with an atomic-proposition assertion model
 **Status:** Accepted
-`PHYSICAL_SCHEMA_V1.md` is the current physical-schema candidate. One PostgreSQL database uses `kc` for canonical semantic/history records, `kc_control` for safe operation/idempotency/deletion/backup control, and `kc_derived` for rebuildable current/search/semantic projections. Assertions are normally atomic typed propositions. UUID references identify records; monotonic BIGINT revisions order canonical commits. Exact table/column names remain subject to first-DDL validation, but the semantic split is accepted.
-
----
+`PHYSICAL_SCHEMA_V1.md` is the current physical-schema candidate. One PostgreSQL database uses `kc` for canonical semantic/history records, `kc_control` for safe operation/idempotency/deletion/backup control, and `kc_derived` for rebuildable current/search/semantic projections. Assertions are normally atomic typed propositions. UUID references identify records; monotonic BIGINT revisions order canonical commits. Exact table/column names remain subject to implementation validation, but the semantic split is accepted.
 
 ## KC-D024 — First implementation is a bounded Knowledge Core Kernel validation slice
 
 **Status:** Accepted
 
-The first build follows `IMPLEMENTATION_PLAN_V1.md`.
+The first build follows `IMPLEMENTATION_PLAN_V1.md` and is a kernel validation lab rather than a production Vera/ACL memory deployment.
 
-It is a kernel validation lab, not a production Vera/ACL memory deployment.
+It includes enough real PostgreSQL, FastAPI/Pydantic, local immutable artifact storage, semantic profile loading, canonical history, projections, identity transitions, provenance, deletion fencing, concurrency/idempotency, and tests to falsify the V1 architecture. It excludes Vera/ACL integration, real Authority/Effect Executor implementation, autonomous workers, embeddings/vector indexes, external graph/vector/search services, full domain profiles, production backup, and UI.
 
-The slice will implement just enough real PostgreSQL, FastAPI/Pydantic, local immutable artifact storage, semantic profile loading, canonical history, projections, identity transitions, provenance, deletion fencing, concurrency/idempotency, and test infrastructure to falsify the V1 architecture.
+The Kernel V1 slice passed its accepted gates and is frozen. Later bounded work must preserve those invariants unless explicitly superseded here.
 
-It explicitly excludes:
+---
 
-- Vera integration;
-- ACL integration;
-- real Authority service implementation;
-- Effect Executor;
-- autonomous workers;
-- embeddings/vector indexes;
-- external graph/vector/search services;
-- full Vera/ACL domain profiles;
-- production backup scheduler;
-- UI.
+## KC-D025 — Section structure is content-derived; retrieval lifecycle is governed-snapshot-derived
 
-The initial component layout is defined in `IMPLEMENTATION_PLAN_V1.md` under `components/knowledge-core/` with separate API, application, domain, storage, artifact, profile, projection, and Authority-interface boundaries.
+**Status:** Accepted — 2026-09-10 bounded SR-1 audit amendment
 
-The slice must pass its 19 kernel gates before domain expansion. Those gates include typed assertions, reference relationships, correction without overwrite, explicit reversal, bitemporal behavior, conflict preservation, exact resource-version provenance, backward/forward lineage, projection rebuild, stale-writer rejection, idempotent retry, reversible identity merge, replacement-not-equivalence, restriction fencing, minimal erasure tombstone, anti-resurrection restore simulation, semantic profile immutability, derived-generation fencing, and service-only client access.
+This decision supersedes contradictory section-retrieval wording in the original accepted SR-1 contract and clarifies older RI-1/RI-2 shorthand without invalidating their historical qualification evidence.
 
-Failure of a gate requires repairing the physical model before adding more features.
+### Structural segmentation identity
 
-**Reason:** this proves the hardest architecture properties while changes are still cheap and prevents Vera/ACL features from hiding storage/security flaws behind application complexity.
+Structural segmentation is a deterministic projection of exactly:
+
+```text
+exact canonical ResourceVersion artifact/media
++ exact structural segmentation profile
+```
+
+It determines source-aligned segment boundaries, ordinals, structural kinds, heading paths, byte/line coordinates, exact source-slice digests, and structural segment keys.
+
+Document lifecycle, classification, authority rank, path observation, or later retirement does **not** alter structural segment identity for unchanged canonical bytes under the same structural profile.
+
+### Governed retrieval projection identity
+
+Effective lifecycle, inherited source/ranking annotations, and complete retrieval-generation reproducibility additionally depend on an exact governed observation/classification snapshot and retrieval-projection configuration.
+
+A derived generation must preserve enough immutable lineage to identify the exact governed snapshot set that supplied parent lifecycle, classification, authority, repository/path/source-version annotations, and related governed retrieval metadata. `resource_version_ref` alone is not sufficient for that claim because the same exact canonical bytes may be observed later under different governed metadata.
+
+### Declared versus effective lifecycle
+
+Section declarations are source-derived evidence and remain unchanged with their source coordinates.
+
+Lifecycle restrictiveness is:
+
+```text
+current < unknown < superseded
+```
+
+Effective lifecycle is the most restrictive value across:
+
+1. governed parent-document lifecycle;
+2. all applicable ancestor-section declarations;
+3. the section's own declaration.
+
+A less-restrictive child declaration cannot promote the effective lifecycle, but it is not rejected solely for being less restrictive than inherited state. Consequently a later document downgrade, including retirement to `superseded`, can publish a new retrieval projection over the same structural segments without rewriting source evidence or failing structural segmentation.
+
+### Lifecycle-control recognition
+
+The reserved lifecycle control is recognized only through the exact eligible standalone HTML-comment grammar defined by `SECTION_RETRIEVAL_SR1.md`.
+
+Ordinary prose, inline code, Markdown block quotes/quoted explanations, and fenced code containing `kc:retrieval-lifecycle` remain ordinary content.
+
+A standalone non-fenced HTML-comment line beginning with the reserved control prefix is an attempted directive. If malformed, duplicated, or misplaced, lifecycle projection fails explicitly so likely control typos do not silently inherit a permissive lifecycle.
+
+### Exact-version re-observation
+
+`ResourceVersion` remains content-addressed within one logical `Resource`. A previously unseen exact representation creates a version; a later re-observation of bytes matching an existing version reuses that version. Therefore A → B → A reuses A's original exact `ResourceVersion` and, under the same structural profile, A's original structural segment identities. The later event is represented by a new governed observation/receipt/generation, not a duplicate exact version.
+
+### Deterministic size termination
+
+An indivisible ordinary UTF-8 source line, like an indivisible fenced block, cannot be split internally. If it exceeds `hard_max_bytes` with no legal external boundary, structural segmentation fails closed. If the final remaining suffix is at or below hard max, it is emitted whole and splitting terminates.
+
+### Privacy derivative reconciliation
+
+Repository/import supersession and retirement-retain are historical retrieval classification, not privacy deletion.
+
+Privacy `RESTRICT`/`ERASE` fences serving access first for the parent and all children. Derivative cleanup is deterministic/idempotent reconciliation and may occur eagerly. If an exact parent version is actually physically purged/erased, its segment derivatives must not remain. Serving-time parent eligibility remains mandatory defense in depth against stale derivatives.
+
+### Acceptance consequence
+
+The original SR2-G11/G12 semantics are superseded. G12 now proves that declarations cannot promote **effective** lifecycle rather than expecting less-restrictive declarations to fail. G1/G7/G8/G9/G17/G21/G22 are also amended as defined in `SECTION_RETRIEVAL_SR1.md`.
+
+The pre-audit SR-2 candidate `2c48a0e73c560fad62028776f375c94162e138be` is not an accepted SR-2 checkpoint and must be aligned to the amended contract before qualification.
+
+**Reason:** these rules keep canonical source structure stable, preserve governed temporal/classification history, allow safe retirement without source rewrites, make self-documenting technical files valid inputs, preserve content-addressed identity, and retain privacy anti-resurrection guarantees without conflating historical supersession with erasure.
 
 ---
 
 # Open physical-design decisions
 
-**None required before starting the Knowledge Core Kernel implementation.**
-
-Implementation may surface new bounded decisions. Those must be added here rather than silently changing the accepted architecture.
+No new broad physical-design decision is authorized by KC-D025. SR-2 may choose the smallest physical fields/lineage representation needed to satisfy the amended contract, but a material architecture departure must return here before implementation.
 
 ---
 
 # Documentation and execution workflow
 
-The architecture synthesis and implementation-ready checkpoint are complete.
+All future bounded Knowledge Core tasks must follow `EXECUTION_GOVERNANCE.md`. Documentation/checkpoint capacity remains part of the task budget.
 
-All future bounded tasks on Knowledge Core must follow `EXECUTION_GOVERNANCE.md`. In particular, documentation/checkpoint capacity is part of the task budget and must be reserved before optional implementation, investigation, or validation consumes the available tool allowance.
-
-A task should stop technical work early rather than risk losing its durable state. Partial implementation with a complete checkpoint is preferable to additional uncheckpointed work.
-
-Material new architecture decisions or failures discovered during implementation must be recorded here or in the controlling implementation state before the task is considered complete.
+For SR-2 specifically, `CURRENT_STATE.md`, KC-D025, and audit-amended `SECTION_RETRIEVAL_SR1.md` must be read before the pre-audit implementation or tests are treated as guidance.
 
 ---
 
 # Current next task
 
-**Knowledge Core Kernel implementation — first bounded implementation slice from `IMPLEMENTATION_PLAN_V1.md`.**
+**SR-2 contract-alignment implementation — paused until documentation correction is checkpointed.**
 
-Architecture is implementation-ready. No Knowledge Core production code or database migration has yet been started on this branch.
-
-The Kernel phase must obey `EXECUTION_GOVERNANCE.md` and stop after its documented acceptance gates pass or a design failure requires returning to architecture.
+The existing pre-audit SR-2 candidate is intentionally not accepted. When implementation resumes, compare it against amended SR2-G1 through G22 and make only the bounded changes required to conform. Do not broaden into embeddings, RAG, Authority, execution, broad corpus import, or unrelated deployment work.

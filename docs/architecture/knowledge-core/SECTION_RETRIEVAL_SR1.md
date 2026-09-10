@@ -3,30 +3,46 @@
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
 **Phase:** SR-1 deterministic document segmentation and section retrieval design  
-**Status:** **design complete; SR-2 implementation not started**  
-**Starting branch HEAD inspected:** `51b87be8037c360fc99913d9778e92276704d0ce`  
-**Prior accepted phase:** RI-4 intended-host qualification  
+**Status:** **design complete; audit-amended 2026-09-10; SR-2 implementation must be requalified against this amended contract**  
+**Original accepted SR-1 commit:** `1d1313844aa4d224bd42c0888970a11e959d9501`  
+**Pre-amendment SR-2 candidate:** `2c48a0e73c560fad62028776f375c94162e138be` — **not accepted under this amended contract**  
+**Prior accepted phase:** RI-4 intended-host qualification
+
+## 2026-09-10 bounded audit amendment
+
+A bounded independent audit found six inconsistencies or underspecified cases in the original SR-1 contract. The corrections below are accepted as part of SR-1 and supersede any contradictory wording in the original SR-1 text, SR-1 handoff, RI-1/RI-2 wording, or restart documentation.
+
+The corrected rules are:
+
+1. **Structural segmentation and retrieval lifecycle projection are separate deterministic stages.** Structural segmentation depends only on the exact canonical `ResourceVersion` artifact plus the structural segmentation profile. Lifecycle/source-ranking projection additionally depends on an exact governed classification/observation snapshot and the retrieval-projection profile. A complete derived generation is reproducible only when all of those inputs are identified.
+2. **Declared lifecycle is preserved; effective lifecycle is monotone.** A section declaration remains exactly what the canonical source declares. Effective lifecycle is the most restrictive of the governed parent-document lifecycle, every applicable ancestor-section declaration, and the section's own declaration. A later parent downgrade cannot make unchanged source bytes fail structural segmentation.
+3. **Reserved-control recognition is narrow.** Ordinary prose, inline-code examples, Markdown block quotes/quoted explanations, and fenced-code examples containing `kc:retrieval-lifecycle` are ordinary content. A standalone control-looking HTML-comment line beginning with the reserved control prefix is treated as an attempted control; if malformed, duplicated, or misplaced it fails lifecycle projection rather than silently inheriting a permissive state.
+4. **Large-block termination is explicit.** An indivisible UTF-8 source line exceeding `hard_max_bytes` fails deterministic segmentation when no legal external boundary exists. If the remaining suffix is at most `hard_max_bytes`, emit that suffix whole and terminate.
+5. **`ResourceVersion` identity is content-addressed within a logical Resource.** A previously unseen byte representation creates a new exact version. If document history is A → B → A, the final A reuses the original A `ResourceVersion`; a new governed observation/receipt/generation records the re-observation. Same version plus same structural profile therefore reproduces the original structural segment identities.
+6. **Privacy fencing and derivative deletion are distinct from ordinary supersession.** `RESTRICT`/`ERASE` fences serving access immediately. Derivative cleanup is deterministic/idempotent reconciliation and may occur eagerly. If a parent `ResourceVersion` is actually physically purged/erased, no segment derivative may remain. A retained repository-import superseded parent is historical evidence, not a privacy purge, and may retain non-serving-by-default segment derivatives for explicit historical retrieval.
+
+These corrections do **not** authorize models, embeddings, RAG, Authority, execution, broad corpus import, or any other expansion of SR-2.
 
 ## Purpose
 
-SR-1 defines the deterministic contract by which Knowledge Core may derive smaller lexical retrieval units from exact immutable textual `ResourceVersion` artifacts without changing canonical evidence, requiring a model, manually splitting source documents, or allowing a partial derived rebuild to become serving state.
+SR-1 defines how Knowledge Core derives smaller lexical retrieval units from exact immutable textual `ResourceVersion` artifacts without changing canonical evidence, requiring a model, manually splitting source documents, or allowing a partial derived rebuild to become serving state.
 
-The design answers one bounded question:
+The bounded question remains:
 
-> Given one exact immutable text `ResourceVersion`, how can deterministic Python derive reproducible source-aligned retrieval units, index and rank those units in PostgreSQL, and return enough provenance to resolve every hit to the exact parent document and exact source location?
-
-SR-1 is design only. It does not add Python, migrations, tables, routes, embeddings, RAG, extraction, corpus expansion, Authority, or execution.
+> Given one exact immutable text `ResourceVersion` and one exact governed retrieval observation, how can deterministic machinery derive reproducible source-aligned retrieval units, project lifecycle/source metadata, index and rank those units in PostgreSQL, and return enough provenance to resolve every hit to the exact parent document, exact governed observation, and exact source location?
 
 ## Accepted foundation preserved
 
-SR-1 does not reopen the frozen Kernel V1 or accepted RF-2 / RI-2 semantics.
+SR-1 does not reopen the frozen Kernel V1 or accepted RF-2 / RI-2 foundations.
 
 The following remain authoritative:
 
-- `(source_repository_key, source_document_key) -> Resource` is the governed logical repository-document identity.
-- `ResourceVersion` plus its immutable SHA-256 artifact is the exact canonical document evidence.
+- `(source_repository_key, source_document_key) -> Resource` is governed logical repository-document identity.
+- `ResourceVersion` plus its immutable SHA-256 artifact is exact canonical document evidence.
+- `ResourceVersion` identity is unique within a logical Resource by exact content digest; a re-observation of previously seen bytes reuses that exact version.
 - Repository import verifies exact manifest-listed Git objects before canonical writes.
-- Retrieval lifecycle and source authority are explicit metadata; they are not inferred from lexical score, path, filename, recency, headings, or generated text.
+- Repository source observations are governed source/classification facts and must remain distinguishable from canonical content identity.
+- Retrieval lifecycle and source authority are explicit metadata; they are not inferred from lexical score, path, filename, recency, headings, dates, or generated text.
 - `kc_derived.generation` / `generation_source` provide derived-generation lineage and one-current-generation publication fencing.
 - serving-time `resource_version_serving_eligible()` remains the final privacy/restriction/deletion fence.
 - ordinary clients remain service-only and receive no database, artifact-store, or repository credentials.
@@ -34,290 +50,303 @@ The following remain authoritative:
 ## Core SR-1 decisions
 
 1. **Canonical evidence stays whole.** A section/segment is never a new canonical `Resource`, `ResourceVersion`, or copied source document.
-2. **Derived units are a deterministic projection.** The same exact `ResourceVersion` plus the same segmentation profile must reproduce the same ordered segment identities, coordinates, digests, lifecycle projection, and lexical projection.
-3. **The source bytes are partitioned, not rewritten.** Segment source spans cover the exact artifact bytes in source order with no overlap and no gaps. Concatenating exact segment slices by ordinal reconstructs the exact parent artifact byte-for-byte.
-4. **Markdown structure is deliberately narrow.** V1 uses deterministic ATX-heading structure plus fenced-code awareness. It does not require a general semantic Markdown interpreter.
-5. **No model decides segmentation or currentness.** Parent lifecycle is explicit import input. Optional section lifecycle is accepted only from an exact source-controlled directive defined below; prose and heading semantics are never used as lifecycle evidence.
-6. **Section metadata cannot promote trust/currentness.** A section directive may keep or reduce serving currentness relative to the document/ancestor, never promote it.
-7. **PostgreSQL remains baseline retrieval.** Segment lexical search extends RF-2 native full-text search and deterministic ranking.
-8. **Publication remains atomic at generation level.** A candidate segment generation is non-serving until all eligible parent sources segment/index successfully and the generation settles current.
-9. **Parent serving fences dominate every child.** Restricting/erasing/fencing a parent `ResourceVersion` or logical `Resource` makes all of its derived segments non-serving even if stale derived rows remain.
-10. **SR-2 must preserve an RF-2 serving transition.** A previously current whole-document RF-2 generation may remain serving until a complete segment generation is published; no empty/partial cutover is allowed.
+2. **Structural segmentation is source-deterministic.** The same exact `ResourceVersion` plus the same structural segmentation profile reproduces the same ordered structural segment identities, coordinates, source-slice digests, heading paths, and structural kinds regardless of lifecycle classification.
+3. **Lifecycle/search projection is governed-snapshot-deterministic.** The same structural segments plus the same exact governed observation/classification snapshot and retrieval-projection profile reproduce the same effective lifecycle, inherited source/ranking metadata, and lexical projection.
+4. **The source bytes are partitioned, not rewritten.** Segment source spans cover the exact artifact bytes in source order with no overlap and no gaps. Concatenating exact segment slices by ordinal reconstructs the exact parent artifact byte-for-byte.
+5. **Markdown structure is deliberately narrow.** V1 uses deterministic ATX-heading structure plus fenced-code awareness. It does not require a general semantic Markdown interpreter.
+6. **No model decides segmentation or currentness.** Parent lifecycle comes from governed observation/classification input. Optional section lifecycle comes only from the exact source-controlled declaration grammar below.
+7. **Declarations cannot promote effective currentness.** A less-restrictive child declaration is preserved as source evidence but cannot override a more-restrictive document or ancestor state.
+8. **PostgreSQL remains baseline retrieval.** Segment lexical search extends RF-2 native full-text search and deterministic ranking.
+9. **Publication remains atomic at generation level.** A candidate segment generation is non-serving until all selected supported parent sources and governed projection inputs verify and the generation settles current.
+10. **Parent serving fences dominate every child.** Restricting/erasing/fencing a parent `ResourceVersion` or logical `Resource` makes all of its derived segments non-serving even if stale derived rows remain.
+11. **SR-2 preserves the RF-2 serving transition.** A previously current whole-document RF-2 generation remains serving until a complete segment generation is published; no empty/partial cutover is allowed.
 
-## Canonical versus derived boundary
+## Canonical, governed, and derived boundaries
 
-### Canonical / governed input
+### Canonical content identity
 
-SR-1 treats these as canonical or governed source facts already accepted elsewhere:
+Structural segmentation consumes:
 
-- logical `resource_ref`;
 - exact `resource_version_ref`;
 - exact immutable artifact bytes;
-- `content_digest_algo`, `content_digest`, byte size, media type, and canonical revision identity;
-- repository import observation: repository key/locator, document key, exact source commit, path, Git blob, classification, explicit document retrieval lifecycle, authority rank, and rationale;
-- resource/revision privacy/restriction/deletion state.
+- `content_digest_algo`, `content_digest`, byte size, media type, and canonical revision identity.
+
+Within one logical `Resource`, an exact previously seen content digest identifies the existing `ResourceVersion`. Re-observation does not manufacture a duplicate exact version.
+
+### Governed retrieval observation/classification
+
+Lifecycle/source-ranking projection consumes an exact governed snapshot containing, directly or by immutable reference, the facts that produced retrieval classification for that version. For repository import this includes at least:
+
+- manifest/observation identity;
+- source repository key/locator;
+- source document key;
+- exact source commit, path, and Git blob;
+- exact `resource_version_ref`;
+- classification;
+- explicit document retrieval lifecycle;
+- authority rank;
+- rationale and approved source metadata used by retrieval.
+
+The physical representation may use an immutable observation ID, manifest digest plus document key, or another exact stable reference, but a serving generation must make the exact governed snapshot set recoverable. `resource_version_ref` alone is insufficient because the same exact bytes may be re-observed later under a different lifecycle/classification.
 
 ### Derived / rebuildable state
 
-The following are disposable/rebuildable projection data:
+Disposable projection state includes:
 
-- segmentation profile identity/digest;
-- ordered segment rows;
+- structural profile identity/digest;
+- retrieval-projection profile identity/digest;
+- ordered structural segment rows;
 - heading path and structural kind;
-- segment byte/line coordinates;
+- byte/line coordinates;
 - exact source-slice digest;
 - deterministic segment key;
-- effective segment lifecycle and its derivation origin;
+- source-declared section lifecycle and directive coordinates;
+- effective lifecycle and effective-control provenance;
 - inherited retrieval annotations copied for ranking/filtering convenience;
 - weighted PostgreSQL `tsvector`;
 - lexical score;
-- the derived generation containing the rows.
+- derived generation identity and exact governed input lineage.
 
-No derived segment is evidence independent of its exact parent `ResourceVersion`.
+No derived segment is evidence independent of its exact parent `ResourceVersion` and governed retrieval observation.
 
-## Supported media in the first implementation
+## Supported media
 
-SR-2 preserves RF-2's deliberately bounded supported media:
+SR-2 preserves RF-2's bounded supported media:
 
 - `text/markdown`, strict UTF-8;
 - `text/plain`, strict UTF-8.
 
-Unsupported media remain intentionally non-indexable in this slice. SR-1 does not define PDF, DOCX, HTML, image, OCR, or other extraction pipelines.
+Unsupported media remain intentionally non-indexable. SR-1 does not define PDF, DOCX, HTML, image, OCR, or other extraction pipelines.
 
-The exact artifact is read through the accepted artifact store and its SHA-256 identity is verified before segmentation. Decoding is strict UTF-8. The parser does not normalize or rewrite the canonical bytes.
+The exact artifact is read through the accepted artifact store and its SHA-256 identity is verified before segmentation. Decoding is strict UTF-8. Canonical bytes are never normalized or rewritten.
 
-## Segmentation profile
+## Deterministic profiles and reproducibility
 
-All rules that can affect segment boundaries, identities, lifecycle interpretation, or search projection belong to one explicit deterministic profile. The initial contract name is:
+### Structural segmentation profile
+
+Rules that can change structural source partitioning or structural segment identity belong to an explicit structural profile. V1 retains the profile identity:
 
 `kc-section-segmentation-v1`
 
-Its canonical configuration must include at least:
+Its canonical configuration includes at least:
 
 - supported media set;
-- UTF-8 strict-decoding requirement;
-- Markdown heading/fence grammar version;
-- lifecycle-directive grammar version;
-- lifecycle monotonicity rules;
+- strict UTF-8 decoding rule;
+- Markdown ATX-heading/fence grammar version;
 - large-block split parameters;
-- exact segment-key serialization version;
+- exact segment-key serialization version.
+
+The profile is canonical UTF-8 JSON with sorted object keys, separators `,` and `:` and `ensure_ascii=false`; its identity is `sha256:<hex>` over those exact bytes.
+
+A structural rule change that can alter boundaries, coordinates, structural heading paths, source slices, or segment keys requires a different structural profile digest.
+
+### Retrieval-projection profile
+
+Rules that can change lifecycle/control interpretation, lexical projection, or ranking belong to the retrieval projection configuration. It must identify at least:
+
+- lifecycle-directive grammar version;
+- effective-lifecycle reduction rule;
 - lexical language/configuration;
 - lexical weighting/projection rules;
-- deterministic ranking fields/order.
+- deterministic ranking fields/order;
+- the structural profile digest used by the generation.
 
-The profile is serialized as canonical UTF-8 JSON using sorted object keys, no insignificant whitespace, and `ensure_ascii=false`. Its identity is `sha256:<hex>` over those exact canonical JSON bytes.
-
-A rule/configuration change that can alter any derived output requires a different profile digest and therefore a new derived generation. Existing canonical documents do not change.
+A complete generation's configuration/lineage must bind the structural profile, retrieval projection rules, and exact governed observation/classification snapshots. Operational timestamps and generation UUIDs are not reproducibility inputs.
 
 ### Initial size parameters
 
-For falsifiable SR-2 behavior, profile V1 fixes:
+The V1 structural profile fixes:
 
 - `soft_target_bytes = 16384`;
 - `hard_max_bytes = 32768`.
 
-These are byte limits, not token limits, so segmentation has no tokenizer/model dependency.
+These are byte limits, not token limits.
 
 ## Exact line and byte model
 
-The segmenter operates on the verified exact artifact bytes and a strict UTF-8 decoded view with a byte-offset map.
-
 Coordinates use:
 
-- `source_byte_start`: zero-based inclusive byte offset;
-- `source_byte_end`: zero-based exclusive byte offset;
-- `source_line_start`: one-based inclusive logical line number;
-- `source_line_end`: one-based inclusive logical line number containing the final byte of a non-empty segment.
+- `source_byte_start`: zero-based inclusive;
+- `source_byte_end`: zero-based exclusive;
+- `source_line_start`: one-based inclusive;
+- `source_line_end`: one-based inclusive logical line containing the final byte of a non-empty segment.
 
-`LF` and `CRLF` are both recognized as line endings while their exact original bytes remain unchanged. Split points occur only at exact line boundaries, never inside a UTF-8 code point or line-ending sequence.
+`LF` and `CRLF` are recognized while exact original bytes remain unchanged. Split points occur only at exact line boundaries, never inside a UTF-8 code point or line-ending sequence.
 
-An empty document is represented by one deterministic zero-length root segment with byte range `[0, 0)`, line range `1..1`, the SHA-256 digest of empty bytes, and an empty lexical vector. It will not match ordinary lexical queries.
+An empty document produces one deterministic zero-length root segment `[0,0)`, lines `1..1`, with SHA-256 of empty bytes and an empty lexical vector.
 
 ## Markdown structural scan
 
-For `text/markdown`, V1 performs one deterministic line-oriented scan.
-
 ### ATX headings
 
-A structural heading is recognized only outside a fenced code block when a line contains:
+Outside fenced code, a structural heading requires:
 
 - zero through three leading ASCII spaces;
 - one through six `#` characters;
 - then ASCII space/tab or end-of-line.
 
-The heading level is the count of leading `#` markers. Heading display text is deterministically derived from that exact line by removing the opening marker/required separator, trimming surrounding ASCII whitespace, and removing an optional closing run of `#` characters only when that run is separated from heading text by ASCII whitespace.
+Heading level is the marker count. Display text removes the opening marker/required separator, trims surrounding ASCII whitespace, and removes an optional closing run of `#` only when separated from heading text by ASCII whitespace.
 
-Setext-style headings are **not** structural in V1. They remain ordinary body text. YAML/front matter, HTML, block quotes, lists, and tables do not create structure by themselves.
+Setext headings are ordinary body text. Front matter, HTML, block quotes, lists, tables, and ordinary comments do not create structure by themselves. Skipped heading levels are allowed; no missing level is invented.
 
-Skipped heading levels are allowed. For example, a `#` followed by `###` creates a path containing those two observed headings; the parser does not invent a missing `##` node.
+### Fenced code
 
-### Fenced code blocks
+A fence opener outside a fence has zero through three leading ASCII spaces followed by at least three identical backticks or tildes. A closer uses the same character, at least the opener length, zero through three leading spaces, and only ASCII whitespace after the fence run.
 
-Fence awareness exists so heading-like text and reserved directives inside code are not interpreted as structure or metadata.
-
-A fence opener is recognized outside a fence with zero through three leading ASCII spaces followed by at least three identical backticks or tildes. A closer uses the same fence character, at least the opener length, zero through three leading ASCII spaces, and only ASCII whitespace after the fence run.
-
-An unclosed fence extends to end-of-file and remains source content. No heading or lifecycle directive is recognized inside it.
+An unclosed fence extends to EOF. Heading-like or control-like text inside a fence is ordinary code/content.
 
 ### Heading path
 
-The parser maintains the standard heading-level stack. When a level `L` heading is observed, prior headings at level `L` or deeper leave the active path; the new heading becomes the leaf.
-
-Each segment stores a derived `heading_path` containing, for every active heading:
+The parser maintains the normal heading-level stack. Each structural segment stores active heading elements with:
 
 - level;
-- derived display text;
-- exact heading source line;
-- exact heading byte start/end coordinates.
+- display text;
+- exact source line;
+- exact heading byte start/end.
 
-The heading path is navigation/context metadata derived from source text. It is **not** lifecycle, authority, truth, or execution metadata.
+Heading path is navigation/context metadata only. It does not imply lifecycle, authority, truth, or execution permission.
 
 ## Base structural blocks
 
-The exact document bytes are first partitioned into base structural blocks.
+- Bytes before the first recognized heading form one non-empty `preamble` block.
+- Every recognized ATX heading begins one `section` block ending immediately before the next recognized ATX heading of any level or EOF.
+- Child subsection bytes are separate blocks; hierarchy is carried by heading path, not duplicated content.
+- Non-empty Markdown with no recognized ATX heading becomes one root `document` block.
+- Non-empty `text/plain` becomes one root `document` block with empty heading path and no Markdown lifecycle declarations.
 
-### Preamble
-
-Bytes from artifact start through the byte immediately before the first recognized ATX heading form one `preamble` block. If the document starts with a heading, no non-empty preamble block is created.
-
-### Heading blocks
-
-Every recognized ATX heading starts one `section` block. That block ends immediately before the next recognized ATX heading of **any** level or at EOF.
-
-This means a section block contains its own heading line plus only the direct following bytes before the next heading. Child subsection bytes are separate blocks rather than duplicated inside the parent block. Hierarchy is preserved through `heading_path`.
-
-### No-heading Markdown
-
-A non-empty Markdown document with no recognized ATX headings becomes one root `document` block.
-
-### Plain text
-
-A non-empty `text/plain` document becomes one root `document` block. It has an empty heading path and no Markdown lifecycle directives.
-
-This base partition is exact: every source byte belongs to exactly one block, in order, without duplication.
-
-## Lists, tables, comments, and other body constructs
-
-V1 does not semantically reinterpret lists, tables, block quotes, front matter, HTML, or ordinary comments. They remain exact source bytes in the current base block.
-
-They do not create lifecycle/currentness, authority, source identity, or truth metadata.
-
-If a base block is small enough, lists/tables remain entirely inside that block. If a block requires size continuation, ordinary lists/tables may be divided only at exact line boundaries under the deterministic size rules below. Fenced code is the one V1 body construct that is never split internally.
+Every canonical byte belongs to exactly one base block.
 
 ## Deterministic large-block continuation
 
-A base structural block whose byte length is at most `hard_max_bytes` becomes one retrieval segment.
+A base block of at most `hard_max_bytes` is emitted whole.
 
-An oversized block is partitioned greedily from its current byte cursor using only boundaries outside fenced code:
+For an oversized block, repeat from the current cursor:
 
-1. Prefer the eligible blank-line boundary whose resulting segment length is closest to `soft_target_bytes`, considering only boundaries greater than the cursor and no farther than `hard_max_bytes`.
-2. If two blank-line candidates are equally distant from the target, choose the lower byte offset.
-3. If no eligible blank-line boundary exists within the hard maximum, choose the greatest eligible ordinary line boundary at or before `hard_max_bytes`.
-4. If no eligible line boundary exists because an indivisible fenced-code region crosses the hard maximum, deterministic segmentation fails for that parent `ResourceVersion`.
-5. Repeat until the base block is exhausted. The final continuation may be smaller than the soft target.
+1. If the entire remaining suffix is at most `hard_max_bytes`, emit it whole and terminate.
+2. Otherwise consider legal boundaries greater than the cursor and no farther than `hard_max_bytes`, excluding boundaries inside an indivisible fenced-code region.
+3. Prefer the eligible blank-line boundary whose resulting piece length is closest to `soft_target_bytes`; ties choose the lower byte offset.
+4. If no eligible blank-line boundary exists, choose the greatest eligible ordinary line boundary at or before `hard_max_bytes`.
+5. If no legal boundary exists, fail deterministic structural segmentation. This includes an indivisible fenced-code region crossing the hard maximum **and any indivisible UTF-8 source line whose byte length exceeds `hard_max_bytes` without a legal external boundary**.
+6. Continue until exhausted.
 
-A boundary is the byte position immediately after the complete original line-ending sequence. No source byte is dropped or duplicated.
+A boundary is immediately after the complete original line-ending sequence. No byte is dropped or duplicated. The first part retains its base kind; later parts are `continuation`. All parts retain the same heading path. `part_index` is one-based and `part_count` is deterministic.
 
-The first piece retains base kind `preamble`, `section`, or `document`; subsequent pieces have kind `continuation`. Every continuation retains the same heading path and effective lifecycle as its base block. `part_index` is one-based and `part_count` is the final deterministic number of pieces for that base block.
+No tokenizer, embedding model, language model, sentence model, or semantic-similarity algorithm participates.
 
-No token counter, embedding model, language model, sentence model, or semantic similarity algorithm participates in this split.
+## Section lifecycle declaration and projection
 
-## Exact section lifecycle contract
+### Document lifecycle is governed observation input
 
-### Document lifecycle remains primary
-
-Each parent `TextIndexSource` already supplies explicit document lifecycle:
+Each indexed parent has an explicit governed document lifecycle:
 
 - `current`;
 - `unknown`;
 - `superseded`.
 
-Every segment inherits that lifecycle unless an allowed source-controlled section directive makes the segment or subtree less current.
+Authority rank, repository/source labels, classification, rationale, and observation metadata remain document/observation scope in SR-2. There is no segment-scope authority override.
 
-Authority rank, repository label, source path, source version, observed time, classification, and import rationale remain parent/document metadata in V1. There is **no segment-scope authority override**.
+### No lifecycle inference
 
-### Why headings do not determine lifecycle
+Lifecycle is never inferred from headings such as `Historical`, `Old`, `Deprecated`, `Current`, or `Archive`, nor from dates, paths, filenames, commit recency, prose semantics, or lexical score.
 
-The parser must never infer lifecycle from strings such as:
+### Exact valid declaration grammar
 
-- `Historical`;
-- `Old`;
-- `Deprecated`;
-- `Current`;
-- `Archive`;
-- dates, paths, filenames, or commit recency.
-
-A heading with any of those words is still only a heading. This prevents unsupported source prose/structure from being transformed into lifecycle truth.
-
-### Optional exact source-controlled lifecycle directive
-
-For Markdown only, V1 reserves this exact semantic form outside fenced code:
+For Markdown only, the valid declaration forms are:
 
 `<!-- kc:retrieval-lifecycle=current -->`  
 `<!-- kc:retrieval-lifecycle=unknown -->`  
 `<!-- kc:retrieval-lifecycle=superseded -->`
 
-The directive is recognized only when it is the first non-blank body line immediately following a recognized ATX heading. Leading zero through three ASCII spaces are permitted; otherwise the semantic token and values are exact.
+A valid declaration is recognized only when:
 
-The directive applies to that heading block and its descendant heading subtree until a descendant valid directive overrides it with an equal or **more restrictive** lifecycle.
+- it is outside fenced code;
+- the whole source line, excluding its line ending, matches exactly one of those forms with zero through three permitted leading ASCII spaces and optional trailing ASCII whitespace;
+- it is the first non-blank body line immediately after a recognized ATX heading;
+- that heading has exactly one declaration.
+
+The declaration line remains in the canonical source slice and its SHA-256. It is omitted only from local lexical search text so control words do not win ordinary searches.
+
+### Ordinary mentions versus attempted controls
+
+The string `kc:retrieval-lifecycle` is **not reserved everywhere in prose**.
+
+The following remain ordinary content and do not trigger control semantics merely because they contain that string:
+
+- prose sentences or paragraphs;
+- inline code;
+- Markdown block quotes / quoted explanations;
+- fenced code;
+- examples whose line does not begin as a standalone control-looking HTML comment.
+
+A non-fenced line is a **control-looking attempted directive** when, after zero through three leading ASCII spaces, its first bytes are the reserved HTML-comment control prefix `<!-- kc:retrieval-lifecycle`.
+
+For such an attempted-control line:
+
+- exact valid grammar + exact required position + uniqueness => record the declaration;
+- malformed value/syntax => reject lifecycle projection for that parent;
+- valid or malformed control-looking line in an invalid position => reject lifecycle projection;
+- duplicate attempted declaration for the same heading => reject lifecycle projection.
+
+This narrow rule detects likely control typos without making documentation that merely discusses the token unsegmentable.
+
+### Declared versus effective lifecycle
+
+A source declaration is evidence about that exact source text. It is not rewritten when document classification changes.
 
 Lifecycle restrictiveness order is:
 
 `current < unknown < superseded`
 
-A directive attempting to make a segment more current than its inherited document/ancestor state is invalid. Examples:
+For each section, effective lifecycle is the maximum/more-restrictive value across:
 
-- parent `current` -> child `unknown`: allowed;
-- parent `current` -> child `superseded`: allowed;
-- parent `unknown` -> child `current`: invalid;
-- parent `superseded` -> child `current` or `unknown`: invalid;
-- ancestor directive `superseded` -> descendant `current`: invalid.
+1. governed parent-document lifecycle;
+2. every applicable ancestor-section declaration;
+3. the section's own declaration, if any.
 
-An invalid promotion fails deterministic segmentation for that parent version; it is not silently clamped or ignored.
+Therefore:
 
-A recognized directive line remains part of the canonical source slice and segment SHA-256 digest. It is omitted only from the derived lexical search text so metadata words do not win ordinary content searches.
+- parent `current`, child declares `unknown` => effective `unknown`;
+- parent `current`, ancestor declares `superseded`, descendant declares `current` => descendant declaration remains `current`, effective remains `superseded`;
+- parent `unknown`, child declares `current` => declaration remains `current`, effective remains `unknown`;
+- parent later changes from `current` to `superseded` while canonical bytes are unchanged => structural segment identities stay unchanged and every child's effective lifecycle becomes `superseded` in the new governed projection;
+- a retained retired/superseded document can always publish historical retrieval without rewriting its canonical section declarations.
 
-Any occurrence outside a fence containing the reserved token `kc:retrieval-lifecycle` but using invalid syntax, invalid placement, or multiple directives for the same heading fails segmentation. This prevents a likely intended control marker from being silently treated as ordinary prose.
+A less-restrictive declaration is **not** a structural segmentation error and is not rejected as a lifecycle “promotion attempt.” It simply cannot promote effective lifecycle.
 
-### Unlabeled mixed-status documents
+### Declaration/effective provenance
 
-SR-1 deliberately does not pretend deterministic syntax can discover unstated lifecycle intent.
+Derived state must preserve enough information to audit both layers:
 
-If a current document contains historical/stale prose but has no explicit accepted section directive, those sections inherit the document's explicit lifecycle. The system will **not** guess that they are historical based on headings or content.
+- governed parent lifecycle and exact governed observation/classification identity;
+- section's own declared lifecycle, if any, and exact directive source line/coordinates;
+- effective lifecycle;
+- whether the effective restriction is controlled by document state, the section's own declaration, or an ancestor declaration;
+- controlling directive coordinates when an ancestor/own declaration supplies the effective restriction.
 
-Therefore a known mixed-status document has only safe deterministic choices in this contract:
-
-1. add source-controlled section lifecycle directives and create a new exact canonical `ResourceVersion`; or
-2. classify the parent document conservatively (`unknown` or `superseded`) through the governed import process.
-
-This is metadata/classification, not manual file splitting, and requires no model.
+Unlabeled sections have no source declaration. Their effective state is computed from document and ancestor inputs.
 
 ## Segment source integrity and identity
 
-Every derived segment records:
+Every structural segment records:
 
 - exact parent `resource_version_ref`;
-- `segment_ordinal`, zero-based in source order;
+- zero-based `segment_ordinal`;
 - structural kind;
 - base-block ordinal;
 - one-based `part_index` / `part_count`;
-- exact byte start/end;
-- exact line start/end;
+- exact byte and line coordinates;
 - exact `heading_path`;
-- `source_slice_digest_algo = sha256`;
-- SHA-256 of the exact source slice bytes;
-- effective lifecycle;
-- lifecycle origin (`document`, `section-directive`, or `ancestor-directive`) plus directive source coordinates when applicable;
+- SHA-256 of the exact source slice;
 - deterministic `segment_key`.
 
 ### Deterministic segment key
 
-The segment key is SHA-256 over canonical UTF-8 JSON containing exactly:
+The structural segment key is SHA-256 over canonical UTF-8 JSON containing exactly:
 
 ```json
 {
   "key_version": 1,
-  "profile_digest": "sha256:...",
+  "profile_digest": "sha256:<structural-profile-digest>",
   "resource_version_ref": "canonical-lowercase-uuid",
   "segment_ordinal": 0,
   "source_byte_start": 0,
@@ -326,41 +355,40 @@ The segment key is SHA-256 over canonical UTF-8 JSON containing exactly:
 }
 ```
 
-Serialization uses sorted keys, separators `,` and `:` with no insignificant whitespace, and `ensure_ascii=false`. The stored form is `sha256:<hex>`.
+Serialization uses sorted keys, separators `,` and `:` and `ensure_ascii=false`; stored form is `sha256:<hex>`.
 
 Consequences:
 
-- rebuild of the same exact version/profile produces the same keys;
-- rename-only/source-locator change with the same exact `ResourceVersion` does not change segment keys;
-- any content edit creates a new `ResourceVersion`, therefore new segment keys even when some slices happen to be textually identical;
-- moving/renaming a heading within document content creates a new exact parent version and new keys;
-- identical slice text in two places remains distinct because ordinal/coordinates differ;
-- identical artifact bytes belonging to two different logical documents remain distinct because their `resource_version_ref` values differ;
-- a segmentation-profile change produces new keys without changing canonical source evidence.
+- rebuild of the same exact version + same structural profile produces the same structural keys;
+- path/rename metadata change with the same exact version does not change keys;
+- a previously unseen content representation creates a new `ResourceVersion` and therefore new keys;
+- A → B → A reuses A's original exact `ResourceVersion`, therefore A's original structural keys reappear under the same structural profile;
+- moving/renaming a heading within newly different document bytes creates or selects the corresponding exact content version and keys for that version;
+- identical slice bytes at different coordinates remain distinct by ordinal/coordinates;
+- identical artifact bytes in different logical Resources remain distinct because their `resource_version_ref` differs;
+- structural profile change produces a new structural key space without mutating canonical evidence.
 
-A segment key is a derived locator, not a permanent cross-version semantic section identity.
+A segment key is a derived locator, not a permanent cross-version semantic section identity and not an observation identity.
 
 ## Exact coverage invariant
 
 For every successfully segmented supported non-empty parent version:
 
 - first segment starts at byte `0`;
-- last segment ends at exact artifact byte size;
-- each segment's end equals the next segment's start;
+- last segment ends at exact artifact size;
+- adjacent ranges meet exactly;
 - ordinals are contiguous `0..N-1`;
-- each stored slice SHA-256 equals the canonical artifact bytes at that exact range;
-- concatenating those ranges reconstructs the exact parent bytes and parent SHA-256 digest.
-
-This invariant is stronger than merely proving that searchable text exists. It proves the derived segmentation did not silently drop, overlap, reorder, or invent canonical source bytes.
+- each slice SHA-256 matches the exact canonical bytes at that range;
+- concatenating ranges reconstructs exact parent bytes and parent digest.
 
 ## Lexical projection
 
-Baseline retrieval remains PostgreSQL full-text search with fixed `english` configuration.
+PostgreSQL full-text search remains fixed to `english` for this baseline.
 
-For each segment, the deterministic search vector is built from two source-derived components:
+For each segment:
 
-1. **local source text** — strict UTF-8 text from that exact segment source slice, with only a recognized lifecycle directive line removed from the search projection; weight `A`;
-2. **heading context text** — display text from the segment's active heading path; weight `B`.
+1. exact local source text, excluding only a recognized lifecycle declaration line, receives weight `A`;
+2. active source-derived heading-path display text receives weight `B`.
 
 Conceptually:
 
@@ -370,428 +398,304 @@ setweight(to_tsvector('english', local_search_text), 'A')
 setweight(to_tsvector('english', heading_context_text), 'B')
 ```
 
-This lets a continuation chunk remain discoverable by its section heading while keeping local source text stronger than inherited navigation context.
+No copied decoded segment body is required in PostgreSQL. The parent artifact remains the exact text source.
 
-The heading path is source-derived context only. Its presence in a search vector does not convert the heading into lifecycle, authority, permission, or factual truth.
+## Derived PostgreSQL representation — contract level
 
-No copied decoded body is required in PostgreSQL. The immutable parent artifact remains the exact content source.
-
-## PostgreSQL derived representation — contract level
-
-SR-2 should add a separate derived segment-search representation rather than turning segments into canonical resources.
-
-Conceptual table:
+SR-2 may add a separate derived segment-search representation such as:
 
 `kc_derived.resource_segment_text_search`
 
-Required semantic fields:
+Required semantics include:
 
-| Field | Contract purpose |
-| --- | --- |
-| `generation_id` | FK to current/historical derived generation. |
-| `resource_version_ref` | Exact canonical parent version. |
-| `segment_ordinal` | Zero-based deterministic source order. |
-| `segment_key` | Deterministic profile/version/coordinate identity. |
-| `segment_kind` | `preamble`, `section`, `document`, or `continuation`. |
-| `base_block_ordinal` | Deterministic structural block identity within parent/profile. |
-| `part_index`, `part_count` | Large-block continuation coordinates. |
-| `source_byte_start`, `source_byte_end` | Exact half-open source byte span. |
-| `source_line_start`, `source_line_end` | Exact human-readable line span. |
-| `source_slice_sha256` | Integrity digest of exact canonical slice. |
-| `heading_path` | Derived structured heading context; JSON/JSONB is acceptable. |
-| `lifecycle_state` | Effective segment retrieval lifecycle. |
-| `parent_lifecycle_state` | Explicit parent/document lifecycle supplied by import/retrieval source. |
-| `lifecycle_origin` | Document vs exact section/ancestor directive provenance. |
-| `lifecycle_directive_line` | Nullable exact source line of directive origin. |
-| `authority_rank` | Inherited parent ranking annotation. |
-| `repository`, `source_path`, `source_version`, `observed_at` | Inherited approved source/provenance labels. |
-| `search_vector` | PostgreSQL weighted lexical projection. |
+- serving/historical `generation_id`;
+- exact parent `resource_version_ref`;
+- structural segment ordinal/key/kind/base block/part coordinates;
+- exact byte/line coordinates and source-slice SHA-256;
+- heading path;
+- own declared lifecycle and declaration coordinates when present;
+- governed parent lifecycle;
+- effective lifecycle and effective-control provenance;
+- exact governed observation/classification lineage sufficient to reproduce inherited lifecycle/source metadata;
+- inherited authority/source labels;
+- weighted `search_vector`.
 
-Contract constraints include:
+The exact physical columns may be adjusted in SR-2 to satisfy these semantics. Segment body text must not become copied canonical evidence.
 
-- primary identity unique within generation by `(generation_id, resource_version_ref, segment_ordinal)`;
-- `segment_key` unique within one generation;
-- non-negative ordered byte/line/part coordinates with `source_byte_start <= source_byte_end`;
-- lifecycle constrained to RF-2 values;
-- GIN index over `search_vector`;
-- generation/lifecycle/authority lookup indexes sufficient for accepted query semantics.
-
-Do not persist copied canonical segment body text merely to support search. Exact text remains recoverable internally from the parent artifact plus byte range.
-
-The existing `kc_derived.resource_text_search` may remain as the RF-2 legacy whole-document projection for historical/transition compatibility. SR-2 must not reinterpret legacy rows as canonical evidence.
+The existing `kc_derived.resource_text_search` remains the RF-2 legacy whole-document projection for historical/transition compatibility.
 
 ## Generation and rebuild contract
 
-Segment retrieval remains a `DerivedKind.TEXT` projection so the accepted one-current-text-generation fence continues to define serving state.
+Segment retrieval remains `DerivedKind.TEXT` so the accepted one-current-text-generation fence remains the publication boundary.
 
-`generation_source` remains one row per indexed exact parent `ResourceVersion`, not one row per segment. Segment rows provide child lineage beneath that canonical generation source.
-
-A segment generation records deterministic implementation identity/profile through generation configuration/model lineage fields and `config_digest`. The field name `model_identity` does not imply an AI model; SR-2 may identify the deterministic segmenter/PostgreSQL projection there or leave AI-specific identity null if the existing interface permits. No model credential/runtime is part of the contract.
+For each selected exact parent version, generation lineage must also identify the exact governed observation/classification snapshot used to project lifecycle, authority, source path/version, and related metadata. Merely listing the `ResourceVersion` is insufficient for complete SR-2 reproducibility.
 
 ### Complete-build rule
 
-For every RF-2-supported source selected for a candidate text generation:
+For every selected supported source:
 
-1. exact artifact integrity verifies;
-2. strict UTF-8 decode succeeds;
-3. deterministic segmentation succeeds;
-4. exact coverage/digest invariants succeed;
-5. all segment rows and lexical vectors are produced;
-6. only then may the candidate generation settle current.
+1. exact parent version and governed observation/classification snapshot resolve;
+2. artifact integrity verifies;
+3. strict UTF-8 decode succeeds;
+4. deterministic structural segmentation succeeds;
+5. exact coverage/digest invariants succeed;
+6. attempted lifecycle controls validate;
+7. effective lifecycle is computed by the monotone most-restrictive rule;
+8. inherited source/ranking metadata is projected from the exact governed snapshot;
+9. all segment rows and lexical vectors are produced;
+10. only then may the candidate generation settle current.
 
-If any supported source fails those steps, the candidate generation must not become current. The previous current generation remains serving. There is no model fallback, heuristic fallback, silent whole-document substitution, or partial-source publication.
+Any failure leaves the previous current generation serving. There is no model fallback, heuristic fallback, silent whole-document substitution, or partial-source publication.
 
-Unsupported media may continue to be intentionally absent exactly as RF-2 defines; that is not parser failure.
+### Rebuild reproducibility
 
-### Profile changes
+Two different reproducibility claims are intentionally distinguished:
 
-Changing any segmentation/search rule creates a new profile digest and requires a full new derived text generation for the selected source set. Old segment rows may remain historical/disposable. Canonical `ResourceVersion` and import observations are unchanged.
+- **Structural rebuild:** same exact parent `ResourceVersion` set + same structural profile => identical ordered structural keys, coordinates, slice digests, heading paths, and structural kinds.
+- **Complete retrieval-generation rebuild:** same structural inputs + same exact governed observation/classification snapshot set + same retrieval-projection profile => identical lifecycle/source-ranking/lexical payloads, aside from generation UUID and operational timestamps.
 
-A rebuild using the same exact parent source set and same profile must reproduce the same segment payloads/keys/digests/lifecycle projection independent of generation UUID and operational timestamps.
+A different governed snapshot may legitimately produce a different effective lifecycle or inherited ranking metadata for the same structural segments and keys.
 
 ## RF-2 transition compatibility
 
-SR-2 must not create a serving gap during the first segment-generation cutover.
-
-Before a complete SR-2 segment generation is current, the accepted RF-2 whole-document current generation remains the serving retrieval state. Implementation may dispatch by recognized generation configuration/projection version or use another equivalently deterministic transition mechanism, but it must prove:
-
-- old RF-2 current generation remains queryable before segment publication;
-- a failed candidate segment build does not change serving results;
-- after successful settlement, exactly the new segment generation serves;
-- old whole-document and new segment rows are never mixed into one result set.
-
-Production rollout mechanics beyond that semantic transition are deferred.
+Before a complete SR-2 generation is current, accepted RF-2 whole-document retrieval remains serving. A failed candidate cannot change serving results. After successful settlement exactly the new segment projection serves, and old whole-document and new segment rows never mix in one result set.
 
 ## Retrieval behavior
 
-### Candidate matching
+Use PostgreSQL `websearch_to_tsquery('english', query)`, `@@`, and `ts_rank_cd()` against only the applicable current text generation.
 
-Use PostgreSQL `websearch_to_tsquery('english', query)`, `@@`, and `ts_rank_cd()` against only the current text generation's applicable projection.
+`include_superseded=false` remains default. Filtering uses effective segment lifecycle:
 
-Whitespace-only input remains invalid. Stop-word-only or irrelevant input may return zero results; there is no arbitrary substring/semantic fallback.
+- `superseded` excluded by default;
+- `current` and `unknown` eligible;
+- `include_superseded=true` enables historical segment hits.
 
-### Default lifecycle behavior
-
-`include_superseded=false` remains default.
-
-Filtering now uses the **effective segment lifecycle**:
-
-- `superseded` segments are excluded by default;
-- `current` and `unknown` remain eligible;
-- `include_superseded=true` explicitly enables historical segment hits.
-
-A parent lifecycle of `superseded` makes every child segment superseded. Section directives cannot bypass it.
+A document or ancestor restriction always dominates a less-restrictive descendant declaration.
 
 ### Deterministic total order
 
-After lexical matching and default lifecycle filtering, segment hits use this total order:
-
-1. `ts_rank_cd(search_vector, query)` descending;
-2. effective lifecycle priority: `current`, then `unknown`, then `superseded`;
+1. lexical score descending;
+2. effective lifecycle `current`, `unknown`, `superseded`;
 3. inherited `authority_rank` ascending, NULL last;
-4. canonical parent `resource_version.created_revision_id` descending;
+4. parent `resource_version.created_revision_id` descending;
 5. parent `resource_version_ref` ascending;
-6. `segment_ordinal` ascending;
-7. `segment_key` ascending as final defensive tie-break.
+6. segment ordinal ascending;
+7. segment key ascending.
 
-Tests assert exact ordered identities, not exact floating-point rank values.
+Multiple relevant segments from one parent may appear. Grouping/diversification/semantic reranking/context assembly remain deferred.
 
-There is no implicit one-hit-per-document collapse in baseline SR-2. Multiple relevant segments from one parent may appear. Grouping, diversification, semantic reranking, and context assembly are separate future work.
+### Serving eligibility and response limit
 
-### Serving eligibility and limit
+Before emitting a hit, recheck `resource_version_serving_eligible(parent_resource_version_ref)`. A stale row from a fenced parent is suppressed regardless of index membership. Apply the bounded response limit after serving eligibility.
 
-As in RF-2, derived membership is insufficient for serving.
+## Privacy fencing, supersession, and derivative cleanup
 
-Before a hit is emitted, the application rechecks `resource_version_serving_eligible(parent_resource_version_ref)`. A failed parent check suppresses the hit regardless of stale segment-row presence.
+Three states must not be conflated:
 
-For the bounded implementation, apply the response `limit` after serving eligibility so restricted stale rows cannot consume result slots.
+1. **Repository/import supersession or retirement-retain:** historical lifecycle classification. Canonical parent evidence remains. Segment derivatives may remain/rebuild as historical and are excluded by default retrieval.
+2. **Privacy `RESTRICT` / `ERASE` fence:** serving access is denied immediately for parent and every child. Serving-time eligibility remains mandatory even if stale derivative rows exist.
+3. **Physical canonical purge/erasure:** derivative reconciliation is mandatory and idempotent. After the parent version is actually purged/erased, no segment derivative may remain for that parent.
 
-A purge path may remove all derived segment rows for a fenced parent version/resource, but serving-time eligibility remains mandatory defense in depth.
+Derivative cleanup may occur eagerly at restriction time, as the accepted Task 6/RF-2 implementation already does. The contract does not make derivative-row deletion the primary serving fence.
 
 ## Retrieval result/API contract
 
-SR-2 should preserve the existing semantic route shape:
+The route remains:
 
 `POST /v1/retrieval/search`
 
-and existing request fields:
+with existing request fields `query`, bounded `limit`, and `include_superseded`.
 
-```json
-{
-  "query": "Atlas emergency shutdown token",
-  "limit": 10,
-  "include_superseded": false
-}
-```
+A segment-mode response must preserve RF-2 parent provenance and add exact child/projection provenance sufficient to recover:
 
-A segment-mode result retains all RF-2 parent provenance and adds exact child coordinates. Conceptually each hit contains:
+- logical `resource_ref`;
+- exact parent `resource_version_ref` and content digest;
+- serving generation ID/high-water;
+- structural profile digest and retrieval projection identity;
+- exact governed observation/classification identity used by the generation;
+- segment key/ordinal/kind/base block/part coordinates;
+- source byte/line range and slice SHA-256;
+- heading path;
+- parent lifecycle;
+- own declared lifecycle/directive coordinates if present;
+- effective lifecycle and effective-control provenance;
+- inherited authority/repository/source metadata;
+- lexical score.
 
-```json
-{
-  "rank": 1,
-  "resource_ref": "...",
-  "resource_version_ref": "...",
-  "content_digest_algo": "sha256",
-  "content_digest": "...",
-  "media_type": "text/markdown",
-  "created_revision_id": 117,
-  "segment_key": "sha256:...",
-  "segment_ordinal": 4,
-  "segment_kind": "section",
-  "base_block_ordinal": 3,
-  "part_index": 1,
-  "part_count": 1,
-  "source_byte_start": 892,
-  "source_byte_end": 1310,
-  "source_line_start": 42,
-  "source_line_end": 57,
-  "source_slice_sha256": "...",
-  "heading_path": [
-    {"level": 1, "text": "Atlas", "line": 1},
-    {"level": 2, "text": "Emergency shutdown", "line": 42}
-  ],
-  "parent_lifecycle_state": "current",
-  "lifecycle_state": "current",
-  "lifecycle_origin": "document",
-  "authority_rank": 10,
-  "repository": "synthetic/ops",
-  "source_path": "docs/atlas.md",
-  "source_version": "exact-source-version",
-  "lexical_score": 0.0
-}
-```
-
-Top-level response continues to identify the serving `generation_id` and `source_revision_highwater` and should expose the active deterministic projection/profile identifier or digest so a result set's segmentation rules are observable.
-
-### Exact recovery semantics
-
-The tuple:
-
-- parent `resource_version_ref`;
-- parent content digest;
-- segment byte range;
-- segment slice SHA-256;
-- heading/source line range;
-- serving generation/profile identity
-
-is sufficient for Knowledge Core to resolve the exact parent artifact and exact evidence location without trusting path or copied segment text.
-
-SR-2 does **not** need to expose artifact-store keys/paths, database internals, repository credentials, or raw whole-artifact bytes. A future context/RAG/content-delivery layer may consume exact slices internally, but that is outside SR-1/SR-2 baseline retrieval.
+The API must not expose artifact-store keys/paths, DB credentials, repository credentials, raw SQL, or raw whole-artifact bytes.
 
 ## Failure behavior
 
-A candidate segment generation fails closed when any supported selected source encounters:
+A candidate fails closed on conditions including:
 
-- missing/unknown exact parent version;
+- missing exact parent version or governed observation snapshot;
 - serving-ineligible parent at build time;
 - artifact digest mismatch;
-- non-SHA-256 parent where the accepted retrieval path requires SHA-256;
-- strict UTF-8 decode failure;
-- reserved lifecycle directive with invalid syntax/placement/duplication;
-- lifecycle promotion attempt;
-- deterministic size partition impossible without splitting an indivisible fenced block;
-- coverage gap/overlap, invalid coordinates, or source-slice digest mismatch;
-- duplicate/non-deterministic segment key within a parent/generation;
-- database/index write failure before publication;
+- unsupported digest requirement;
+- strict UTF-8 failure;
+- malformed, misplaced, or duplicate **standalone control-looking lifecycle comment**;
+- deterministic structural partition impossible because an indivisible fence or ordinary source line crosses the hard maximum without a legal boundary;
+- coverage/coordinate/source-slice digest failure;
+- duplicate/non-deterministic structural segment key;
+- DB/index write failure;
 - generation fencing rejection / late finisher.
 
-On failure:
+A less-restrictive valid declaration under a more-restrictive document/ancestor is **not** a failure; effective lifecycle remains restricted.
 
-- the candidate does not become current;
-- prior current text generation remains serving;
-- no partial source/segment set is represented as accepted;
-- safely written derived residue is non-serving/disposable;
-- retry starts from the same exact canonical sources and profile and must reproduce deterministic segment payloads.
-
-No failure authorizes a model or heuristic parser fallback.
+On failure the candidate does not become current, prior current retrieval remains serving, and no partial source/segment set is accepted.
 
 ## Synthetic SR-2 fixture plan
 
-SR-2 should implement a small controlled fixture set with predeclared exact segment boundaries/identities.
+SR-2 fixtures must include at least:
 
 ### `mixed.md`
-
-Contains:
-
-- `# Atlas Runbook` current material;
-- `## Historical procedure` with an exact `superseded` directive and unique token `amberlegacy`;
-- `## Current procedure` with unique token `cedarcurrent`;
-- a nested `### Verification` child.
-
-Required behavior: default search finds `cedarcurrent` but not `amberlegacy`; historical mode finds the superseded section; the word `Historical` by itself is not the lifecycle cause.
+Current parent, explicit superseded section token `amberlegacy`, current section token `cedarcurrent`, and nested child. Default search excludes `amberlegacy`; historical mode returns it with exact declared/effective provenance.
 
 ### `heading-only-lifecycle-negative.md`
+A heading named `Historical` without a declaration remains governed solely by document/ancestor lifecycle.
 
-Contains a heading named `## Historical` but **no** directive under a current parent.
+### `lifecycle-parent-downgrade.md`
+Contains an own/descendant declaration of `current`. Build once under governed parent `current`, then project the **same exact `ResourceVersion`** under parent `superseded`. Structural keys/coordinates remain identical; effective lifecycle becomes superseded; publication succeeds.
 
-Required behavior: it remains current. This falsifies any heuristic lifecycle inference from heading text.
+### `lifecycle-ancestor-restriction.md`
+Ancestor declares `superseded`, descendant declares `current`. Both declarations remain source-derived; descendant effective lifecycle remains superseded.
+
+### `control-discussion.md`
+Contains the reserved token in ordinary prose, inline code, block quotes, and fenced code. All are ordinary content. Separate standalone malformed/misplaced/duplicate control-looking comments fail lifecycle projection.
 
 ### `structure.md`
-
-Contains preamble, nested ATX levels including a skipped level, Setext-looking text, lists, a Markdown table, block quote, front matter-like text, a fenced code block containing fake `# headings` and fake `kc:retrieval-lifecycle` text, plus normal headings after the fence.
-
-Required behavior: only allowed outside-fence ATX headings define blocks/directives; exact source coverage reconstructs the file.
+Preamble, nested/skipped ATX levels, Setext-looking text, lists, table, block quote, front-matter-like text, fenced fake headings/controls, and normal headings after the fence. Exact source coverage reconstructs the file.
 
 ### `large.md`
-
-Contains one section exceeding `hard_max_bytes` with deterministic blank-line and line-boundary candidates plus a continuation query token.
-
-Required behavior: continuation boundaries and keys are exactly reproducible; every emitted part is within hard maximum.
+Exercises deterministic blank-line/line-boundary continuation and an explicit final suffix that fits the hard maximum and must be emitted whole.
 
 ### `oversize-fence.md`
+Indivisible fence larger than hard max fails candidate construction and leaves previous generation serving.
 
-Contains one fenced code region larger than `hard_max_bytes` with no legal external boundary.
+### `oversize-line.txt`
+One indivisible UTF-8 source line larger than hard max fails deterministically without splitting the line.
 
-Required behavior: candidate generation fails and previous generation remains current.
+### `duplicate.md`
+Identical slices at separate coordinates and/or logical Resources prove digest equality does not collapse segment identity.
 
-### `plain.txt`
+### `aba-version-history`
+Governed import history A → B → A for the same document key proves the final A reuses A's original `ResourceVersion` and structural segment keys while recording a new observation/receipt/generation.
 
-Contains paragraph/line structure exceeding the soft target but no Markdown semantics.
+## Tiny real-document pilot
 
-Required behavior: deterministic root/continuation segmentation by byte/line rules only.
+Only after synthetic gates pass, use a tiny explicit manifest pinned to one exact repository commit. Candidate documents may include:
 
-### `duplicate.md` / duplicate logical source
+1. `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md` — now intentionally valid as a document that discusses the lifecycle token in prose/inline code;
+2. `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI2.md` — whole-document superseded source;
+3. `docs/architecture/knowledge-core/CURRENT_STATE.md` — mixed temporal prose negative control;
+4. `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md` — nested technical Markdown.
 
-Include identical bytes both at separate coordinates and in a different logical Resource.
+Before applying, predeclare source commit/blob proofs, governed observation/classification inputs, expected structural boundary assertions, query outcomes, and current/historical behavior. Do not hand-split source copies.
 
-Required behavior: source-slice digests may match, but segment keys remain distinct by coordinates/parent version.
-
-## Tiny real-document pilot plan
-
-Only after synthetic SR-2 gates pass, use a tiny explicit manifest/pilot pinned to one exact repository commit. Do not broadly import the repository.
-
-Candidate real documents:
-
-1. `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md` — current design, nested headings, lists, code blocks, tables, and enough structure to exercise normal segmentation.
-2. `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI2.md` — explicit whole-document superseded source to prove parent lifecycle fences every segment.
-3. `docs/architecture/knowledge-core/CURRENT_STATE.md` — deliberately useful negative control for mixed temporal prose: headings/content alone must not create section lifecycle. Unless the canonical source later gains explicit directives, segments inherit the parent lifecycle.
-4. `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md` — larger nested technical Markdown with code/table/list constructs and deterministic continuation pressure if size parameters require it.
-
-Before applying the tiny pilot, predeclare expected source commit/blob proofs, document lifecycle/authority, segment counts or exact selected boundary assertions, known query-to-segment outcomes, and current/historical behavior. The same deterministic segmenter is used; no hand-split copies are permitted.
+The existing pre-amendment SR-2 pilot manifest is not automatically accepted by this amendment; pilot selection/expected assertions must be revalidated during the later SR-2 correction pass.
 
 ## Falsifiable SR-2 acceptance gates
 
-SR-2 is not accepted until all applicable gates below pass, with PostgreSQL gates run on real PostgreSQL.
+SR-2 is not accepted until every applicable gate below passes on the amended contract. PostgreSQL gates run on real PostgreSQL. Passing pre-amendment tests is not acceptance evidence for a changed gate.
 
-### SR2-G1 — canonical evidence remains unchanged
-
-Building/rebuilding segment retrieval creates no new `Resource` or `ResourceVersion`, does not change parent artifact bytes/digest, does not rewrite repository observations/bindings, and stores no copied canonical section body as a new canonical resource.
+### SR2-G1 — canonical evidence and governed observation separation
+Building/rebuilding segment retrieval creates no new canonical section Resource/ResourceVersion and does not rewrite parent artifact bytes/digest or existing governed observations/bindings. The generation identifies the exact governed observation/classification inputs separately from canonical content identity.
 
 ### SR2-G2 — exact deterministic source partition
-
-For every successfully segmented supported fixture, segment ordinals are contiguous, ranges are ordered/non-overlapping/gap-free, each source-slice SHA-256 matches exact artifact bytes, and concatenating slices reconstructs exact parent bytes/digest.
+Structural ordinals/ranges are ordered, gap-free/non-overlapping, slice SHA-256 values match exact artifact bytes, and concatenation reconstructs exact parent bytes/digest.
 
 ### SR2-G3 — deterministic heading/preamble structure
+Predeclared preamble, ATX blocks, nested/skipped heading paths, source lines, and byte boundaries match exactly; Setext-looking text is not structure.
 
-Predeclared preamble, ATX heading blocks, nested/skipped-level heading paths, source lines, and byte boundaries for `structure.md` match exactly. Setext-looking text does not become structure.
+### SR2-G4 — fence/list/table/control-discussion handling
+Fenced heading/control-like text remains ordinary source. Lists, tables, block quotes, front matter, ordinary comments, prose discussion, inline-code control examples, and quoted control examples are not reclassified as lifecycle or authority metadata. Exact coverage still holds.
 
-### SR2-G4 — fence/list/table handling
+### SR2-G5 — deterministic large-block continuation and suffix termination
+`large.md` follows the fixed soft/hard byte algorithm, every part is within hard max, continuation heading context is preserved, repeated structural builds choose identical boundaries, and a remaining suffix at or below hard max is emitted whole and terminates the split.
 
-Heading/directive-like text inside fenced code remains ordinary source content. Lists, tables, block quotes, front matter-like text, and ordinary comments are not reclassified as lifecycle or authority metadata. Exact coverage still holds.
+### SR2-G6 — indivisible oversized regions fail closed
+Both an unbreakable oversized fenced region and an indivisible ordinary UTF-8 line exceeding hard max fail structural segmentation without splitting bytes/lines; previous current retrieval remains serving.
 
-### SR2-G5 — deterministic large-block continuation
+### SR2-G7 — structural identity versus complete-generation reproducibility
+Two structural rebuilds from the same exact parent versions and same structural profile produce identical ordered segment keys, coordinates, slice digests, heading paths, and kinds independent of governed lifecycle snapshot. Two complete retrieval-generation rebuilds are required to reproduce lifecycle/source-ranking/lexical payloads only when the exact governed observation/classification snapshot set and retrieval-projection profile also match.
 
-`large.md` partitions according to the fixed soft/hard byte algorithm, every part is at most `hard_max_bytes`, continuation heading context is preserved, and repeated builds choose identical boundaries.
+### SR2-G8 — edit/rename/duplicate/A→B→A identity behavior
+- path-only metadata change with the same exact `ResourceVersion` preserves structural keys;
+- a previously unseen content representation uses a different exact parent version and structural key space;
+- A → B → A for one logical Resource reuses A's original version and structural keys while creating a new governed observation/receipt/generation;
+- identical slice text at different coordinates has distinct keys;
+- identical bytes in different logical Resources remain distinct by parent version identity.
 
-### SR2-G6 — unbreakable oversized fence fails closed
+### SR2-G9 — exact parent and governed projection provenance
+Every hit resolves to exact logical Resource, exact ResourceVersion/digest/revision, exact governed observation/classification snapshot, approved repository/source metadata, serving generation/profiles, and exact byte/line location. No result is keyed only by path, heading, segment digest, or ResourceVersion without its governed projection provenance.
 
-`oversize-fence.md` cannot be legally partitioned without splitting a fence, so the candidate build fails, no candidate becomes current, and the previously current retrieval generation continues serving unchanged.
+### SR2-G10 — inherited metadata and no authority escalation
+Authority rank and approved source metadata come from the exact governed parent observation. There is no segment authority override. Generated headings/path strings cannot modify authority/currentness.
 
-### SR2-G7 — stable segment identities
+### SR2-G11 — lifecycle control grammar and no heuristic lifecycle
+Exact eligible standalone directives are recognized and source coordinates retained. Ordinary prose, inline code, block quotes/quoted explanations, and fenced examples containing the reserved token remain ordinary content. A standalone control-looking reserved-prefix comment that is malformed, misplaced, or duplicated fails lifecycle projection explicitly. Headings/content never infer lifecycle.
 
-Two rebuilds from the same exact parent versions and same profile produce identical ordered segment keys, coordinates, slice digests, heading paths, and lifecycle projection even though generation UUIDs differ.
-
-### SR2-G8 — edit/rename/duplicate identity behavior
-
-- rename/path-only change with the same exact `ResourceVersion` preserves segment keys;
-- content edit/heading rename/section move creates a new parent `ResourceVersion` and new segment keys;
-- identical text at different source coordinates has distinct segment keys;
-- identical bytes in different logical Resources/ResourceVersions have distinct segment keys.
-
-### SR2-G9 — exact parent provenance
-
-Every segment hit resolves to one exact logical `Resource`, exact `ResourceVersion`, parent SHA-256 digest, canonical revision, approved repository/source metadata, serving generation/profile, and exact byte/line location. No result is keyed only by path, heading text, or segment digest.
-
-### SR2-G10 — inherited metadata and no segment authority escalation
-
-Authority rank and approved source metadata are inherited from the parent source. There is no segment-scope authority override. Generated headings/path strings cannot modify authority/currentness.
-
-### SR2-G11 — explicit lifecycle directive, no heuristic lifecycle
-
-Under a current parent, exact allowed `unknown`/`superseded` directives reduce lifecycle as specified. A heading named `Historical` without a directive remains current. Reserved malformed/misplaced/duplicate directives fail segmentation.
-
-### SR2-G12 — lifecycle cannot be promoted
-
-Fixtures attempting `unknown -> current`, `superseded -> current`, or descendant promotion above an ancestor directive fail the candidate build. They are not silently clamped or accepted.
+### SR2-G12 — declarations cannot promote effective lifecycle
+Less-restrictive valid declarations are preserved rather than rejected. Effective lifecycle is always the most restrictive of governed document lifecycle + all applicable ancestor declarations + own declaration. Test `unknown` document + child `current`, `superseded` document + child `current`, and ancestor `superseded` + descendant `current`; all must publish with effective restriction preserved. Reproject the same exact parent after `current -> superseded`; structural keys remain unchanged and publication succeeds with effective children superseded.
 
 ### SR2-G13 — mixed-status current/historical retrieval
-
-Default query of `mixed.md` returns current eligible section tokens and excludes the explicitly superseded `amberlegacy` section. `include_superseded=true` recovers the exact historical segment with the same parent/version and exact section coordinates.
+Default query returns current/unknown eligible sections and excludes effectively superseded `amberlegacy`. Historical mode recovers the exact segment with unchanged parent/version/structural coordinates plus declared/effective lifecycle provenance.
 
 ### SR2-G14 — current-generation publication isolation
-
-A complete candidate segment generation settles as the sole current `DerivedKind.TEXT` generation. Old RF-2/older segment rows may remain historical but are not mixed with current hits. A failed/late candidate never replaces a newer current generation.
+A complete candidate settles as the sole current `DerivedKind.TEXT` generation. Older RF-2/segment rows may remain historical but are not mixed. Failed/late candidates never replace newer current state.
 
 ### SR2-G15 — RF-2 cutover has no serving gap
-
-Before first segment-generation settlement, accepted RF-2 whole-document retrieval remains usable. Failed SR-2 build leaves it unchanged. After successful settlement, serving switches to the segment projection atomically and uses exactly one current generation.
+RF-2 whole-document retrieval remains usable before first segment settlement and after failed candidate builds. Successful settlement switches atomically to exactly one segment generation.
 
 ### SR2-G16 — deterministic segment ranking
+Controlled equal/near-equal fixtures prove ordering by lexical score, effective lifecycle, inherited authority, parent canonical revision, parent version ref, segment ordinal, and segment key. Repeated queries against one generation return identical ordered identities.
 
-Controlled equal/near-equal fixtures prove ordering by lexical score, effective lifecycle, inherited authority, parent canonical revision, parent version ref, segment ordinal, and final segment key. At least ten repeated queries against the same generation return the identical ordered segment-key list.
-
-### SR2-G17 — parent serving fence dominates stale segment rows
-
-After indexing, restrict/fence a parent version/resource. Normal purge removes its segment rows where applicable. Reintroduce a stale matching derived row deliberately; service-time parent eligibility still suppresses every hit from that parent before response limiting.
+### SR2-G17 — parent serving fence and derivative reconciliation
+After indexing, `RESTRICT`/`ERASE` a parent version/resource and prove immediate parent serving ineligibility suppresses every child before response limiting even if a stale matching derived row is deliberately present. Prove derivative cleanup is idempotent/reconcilable. If the parent is actually physically purged/erased in an applicable fixture, prove no segment derivative remains. Separately prove repository-import supersession/retirement-retain does not invoke privacy purge and remains available only through explicit historical retrieval.
 
 ### SR2-G18 — bounded query/service contract
+Whitespace-only query is rejected; irrelevant/stop-word-only behavior is bounded; response limit is bounded and applied after eligibility; normal client requires no DB/artifact/repository credentials.
 
-Whitespace-only query is rejected; irrelevant/stop-word-only query has bounded empty behavior; `limit` remains bounded and is applied after serving eligibility. A service-only client can search with the existing caller boundary and no DB/artifact/repository credentials.
-
-### SR2-G19 — no storage/internal leakage and no copied body projection
-
-API/OpenAPI response does not expose database URL/credentials, artifact key/backend/path, repository credentials/root, raw SQL, or artifact-store internals. Derived PostgreSQL state contains coordinates/digests/metadata/`tsvector`, not copied canonical segment body text.
+### SR2-G19 — no internal leakage / no copied body
+API/OpenAPI does not expose database URLs/credentials, artifact keys/backends/paths, repository credentials/root, raw SQL, or artifact-store internals. Derived state stores structural/projection metadata and `tsvector`, not a copied canonical segment body as evidence.
 
 ### SR2-G20 — no model dependency
+Build and lexical retrieval pass with no LLM endpoint/key/process, tokenizer, embedding service, or vector database. Structural boundaries/keys and governed lifecycle projection do not vary with model availability.
 
-Synthetic build and lexical retrieval pass in an environment with no language-model endpoint, key, model process, tokenizer, embedding service, or vector database. Segment boundaries/keys/ranking remain identical regardless of model availability.
-
-### SR2-G21 — profile change forces rebuild without canonical mutation
-
-Changing one segmentation-profile parameter changes profile/config digest and produces a new derived generation/segment-key set while parent `ResourceVersion` refs/artifacts remain unchanged. Old and new profile rows never mix in one current result set.
+### SR2-G21 — profile/config change forces correct rebuild without canonical mutation
+Changing a structural rule changes structural profile digest and corresponding structural key space. Changing only lifecycle/lexical/ranking projection configuration changes retrieval generation/config lineage without falsely claiming canonical content mutation. Old/new current projections never mix.
 
 ### SR2-G22 — tiny real-document pilot
-
-After G1-G21 pass, the explicitly pinned tiny real-document set is segmented by the same machinery with predeclared provenance/query assertions. Parent-superseded material remains historical, structure/fence handling matches exact source, the mixed-temporal negative control does not acquire inferred lifecycle, and no unlisted/broad repository content is imported.
+Only after G1-G21 pass, the exact pinned tiny real-document set is segmented/projected by the same machinery. The pilot must prove exact governed observation lineage, literal discussion of `kc:retrieval-lifecycle` does not poison documents, parent-superseded material remains historical, structural handling matches exact source, temporal prose does not infer lifecycle, and no unlisted repository content is imported.
 
 ## Explicit deferred work
 
-SR-1/SR-2 do not authorize or decide beyond what the baseline contract needs:
+SR-1/SR-2 do not authorize:
 
 - embeddings/vector search;
-- semantic query expansion or LLM reranking;
+- semantic query expansion or model reranking;
 - RAG/context-window assembly or answer synthesis;
-- model-based section classification/currentness inference;
+- model-based lifecycle/currentness classification;
 - automatic document discovery/document-key assignment;
 - broad ACL/Vera/RiskCardOCR/research/legacy corpus import;
 - PDF/DOCX/HTML/image/OCR extraction;
 - cross-version semantic section identity/tracking;
 - semantic deduplication/diversification;
-- segment-scope authority rank or execution permission;
+- segment-scope authority or execution permission;
 - Authority integration or autonomous execution;
-- production rollout/security/TLS/credential/service-supervision/backup work;
+- production rollout/security/TLS/credential/service-supervision/backup expansion;
 - machine-reboot persistence qualification.
 
-A model may later assist optional semantic retrieval/reranking/synthesis only after deterministic baseline retrieval is accepted. It must not become required for canonical storage, source identity, segmentation, lifecycle provenance, or baseline lexical retrieval.
+A future model may assist semantic retrieval/reranking/synthesis only after deterministic baseline retrieval is accepted. It must not become required for canonical storage, source identity, structural segmentation, governed lifecycle provenance, or baseline lexical retrieval.
 
-## SR-2 implementation boundary
+## SR-2 implementation boundary after audit
 
-The next separately authorized task may implement only the smallest code/migration/test/API slice needed to satisfy SR2-G1 through SR2-G22.
+SR-2 is already authorized, but the pre-amendment candidate commit `2c48a0e73c560fad62028776f375c94162e138be` was built against the superseded original SR-1 rules and is **not accepted**.
 
-SR-2 may introduce the derived segment table/migration, deterministic segmenter, segment-generation builder, segment search/result schemas, RF-2-compatible cutover behavior, and bounded synthetic/tiny-real tests required by these gates.
+This documentation amendment intentionally does **not** repair Python, tests, migration state, API schemas, or the real-pilot manifest. The next SR-2 implementation step must first compare that candidate against the amended G1-G22 contract, then make only the minimum corrections required and requalify from synthetic gates through the tiny pilot.
 
-It must stop after those gates and durable completion evidence. Do not begin embeddings, RAG, broad import, Authority, or execution.
+Do not continue into embeddings, RAG, broad import, Authority, execution, or unrelated deployment work.
 
-## SR-1 stop boundary
+## Stop boundary for this amendment
 
-**SR-1 is complete when this design and the controlling state/handoff documentation are committed. Do not implement the segmenter, migration, schema, index, route changes, fixtures, or real pilot during SR-1.**
+**The audit amendment changes the controlling SR-1 contract only. No SR-2 runtime or test fix is authorized by this documentation step itself.**
