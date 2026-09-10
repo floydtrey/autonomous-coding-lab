@@ -71,3 +71,11 @@ jobs:
           --state-root "$RUNNER_TEMP/knowledge-core-ri4"
           --port 55432
           --cleanup
+
+      - name: Rehearse SR-2 local-host segment restart qualification
+        run: >-
+          python tools/sr2_host_qualification.py
+          --repository-root ../..
+          --state-root "$RUNNER_TEMP/knowledge-core-sr2-host"
+          --port 55433
+          --cleanup
