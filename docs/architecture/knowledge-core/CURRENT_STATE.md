@@ -2,7 +2,9 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **clean SR-2 restart baseline**
+**Status:** **clean SR-2 restart baseline**  
+**Clean reset runtime checkpoint:** `267fc28bd862ddd4ca22e61792d073853a1e51a8`  
+**Qualification:** GitHub Actions `34443719080` — **success**
 
 This file is the controlling restart entry point for Knowledge Core.
 
@@ -20,6 +22,17 @@ The following remain accepted and are not being rebuilt:
 - Architecture correction KC-D025 in `docs/architecture/knowledge-core/DECISIONS.md`.
 
 Exact whole `ResourceVersion` artifacts remain canonical evidence. Repository source observations remain governed source/classification evidence. Derived retrieval state remains rebuildable and subordinate to those inputs.
+
+The clean reset runtime checkpoint has no active SR-2 runtime/schema/test implementation. Compared with original accepted SR-1 commit `1d1313844aa4d224bd42c0888970a11e959d9501`, its runtime, API, storage models, and migration head are restored to the accepted pre-SR-2 baseline. The only test change is a maintenance correction that pins an RI-2 exact-Git-object fixture to its accepted RI-1 source commit instead of moving `HEAD`.
+
+Qualification `34443719080` completed with:
+
+- migrations through `0010_ri2`: passed;
+- fast semantic suite: 48 passed, 1 guarded exact-corpus skip;
+- PostgreSQL suite: 16 passed, 2 guarded exact-corpus skips;
+- RI-4 local-host restart/replay qualification: passed.
+
+The guarded corpus skips intentionally refuse to relabel later-edited documentation as earlier exact-source evidence; they are not SR-2 failures.
 
 ## SR-2 reset
 
