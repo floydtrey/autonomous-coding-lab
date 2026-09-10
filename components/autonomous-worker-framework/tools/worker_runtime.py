@@ -4,22 +4,24 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+PROVIDER_QUALIFIED = "provider-qualified"
+
+
 @dataclass(frozen=True)
 class WorkerRequest:
     """Provider-neutral execution request consumed by the code-task harness.
 
-    The model/reasoning defaults preserve the accepted Codex compatibility path.
-    They are compatibility defaults, not portable installation authority; a future
-    provider-qualified runtime may interpret or replace them behind the executor
-    boundary without changing code-task scope or validation authority.
+    Model and reasoning values describe a protected capability requirement, not
+    a provider executable or model name. A host-qualified provider adapter must
+    resolve them before execution without changing task scope or validation authority.
     """
 
     prompt: str
     target_repo: Path
     framework_repo: Path
     sandbox: str
-    model: str = "gpt-5.6-terra"
-    reasoning_effort: str = "medium"
+    model: str = PROVIDER_QUALIFIED
+    reasoning_effort: str = PROVIDER_QUALIFIED
     timeout_seconds: int = 900
     output_last_message: Path | None = None
 
