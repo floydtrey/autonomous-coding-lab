@@ -65,6 +65,7 @@ class RetrievalHitResponse(BaseModel):
     source_version: str | None
     observed_at: datetime | None
     lexical_score: float
+    content: str | None = None
     segment: SegmentRetrievalProvenanceResponse | None = None
 
 
@@ -82,7 +83,7 @@ class RetrievalSearchResponse(BaseModel):
 
 
 def retrieval_response_from_domain(item) -> RetrievalSearchResponse:
-    """Map bounded internal retrieval provenance into the public service schema."""
+    """Map bounded retrieval content and provenance into the public service schema."""
 
     results: list[RetrievalHitResponse] = []
     for rank, hit in enumerate(item.results, start=1):
@@ -137,6 +138,7 @@ def retrieval_response_from_domain(item) -> RetrievalSearchResponse:
                 source_version=hit.source_version,
                 observed_at=hit.observed_at,
                 lexical_score=hit.lexical_score,
+                content=hit.content,
                 segment=segment_response,
             )
         )

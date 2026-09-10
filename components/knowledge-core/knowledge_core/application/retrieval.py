@@ -124,6 +124,54 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
             ) from exc
         return version, body
 
+    def _load_verified_segment_content(
+        self,
+        *,
+        version: ResourceVersion,
+        search_row: ResourceSegmentTextSearch,
+        artifact_cache: dict[UUID, bytes],
+    ) -> str:
+        """Resolve one SR-2 hit back to its exact canonical artifact slice."""
+
+        content = artifact_cache.get(version.ref_id)
+        if content is None:
+            if version.content_digest_algo != "sha256":
+                raise KnowledgeInvariantError(
+                    "KC Consumer V1 supports only SHA-256 exact resource versions"
+                )
+            content = self.artifact_store.read_bytes(version.artifact_key)
+            if len(content) != int(version.byte_size):
+                raise KnowledgeInvariantError(
+                    f"resource version byte size does not match immutable artifact: "
+                    f"{version.ref_id}"
+                )
+            if sha256(content).hexdigest() != version.content_digest:
+                raise KnowledgeInvariantError(
+                    f"resource version digest does not match immutable artifact: "
+                    f"{version.ref_id}"
+                )
+            artifact_cache[version.ref_id] = content
+
+        start = int(search_row.source_byte_start)
+        end = int(search_row.source_byte_end)
+        if start < 0 or end < start or end > len(content):
+            raise KnowledgeInvariantError(
+                f"segment coordinates fall outside canonical artifact: "
+                f"{search_row.segment_key}"
+            )
+        segment_bytes = content[start:end]
+        if sha256(segment_bytes).hexdigest() != search_row.source_slice_sha256:
+            raise KnowledgeInvariantError(
+                f"segment slice digest does not match canonical artifact: "
+                f"{search_row.segment_key}"
+            )
+        try:
+            return segment_bytes.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as exc:
+            raise KnowledgeInvariantError(
+                f"segment slice is not strict UTF-8: {search_row.segment_key}"
+            ) from exc
+
     def build_text_generation(
         self,
         *,
@@ -397,6 +445,7 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
         )
 
         hits: list[RetrievalHit] = []
+        artifact_cache: dict[UUID, bytes] = {}
         for search_row, version, lineage, observation, score in self.session.execute(
             statement
         ):
@@ -404,6 +453,11 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
             # survive or are maliciously reintroduced after eager reconciliation.
             if not self.resource_version_serving_eligible(version.ref_id):
                 continue
+            content = self._load_verified_segment_content(
+                version=version,
+                search_row=search_row,
+                artifact_cache=artifact_cache,
+            )
             effective = RetrievalLifecycleState(
                 search_row.effective_lifecycle_state
             )
@@ -470,6 +524,7 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
                     source_version=search_row.source_version,
                     observed_at=None,
                     lexical_score=float(score),
+                    content=content,
                     segment=segment,
                 )
             )

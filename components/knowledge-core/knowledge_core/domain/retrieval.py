@@ -68,6 +68,7 @@ class RetrievalHit:
     source_version: str | None
     observed_at: datetime | None
     lexical_score: float
+    content: str | None = None
     segment: SegmentRetrievalProvenance | None = None
 
 
