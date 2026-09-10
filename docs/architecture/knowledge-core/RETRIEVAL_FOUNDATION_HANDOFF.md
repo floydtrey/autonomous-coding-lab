@@ -2,7 +2,7 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **RI-4 intended-host qualification is complete and accepted. SR-1 — deterministic document segmentation and retrieval contract — is the selected next bounded phase and is design only.**
+**Status:** **RI-4 is accepted complete. SR-1 deterministic document segmentation and section-retrieval design is complete. SR-2 implementation is not started and requires separate authorization.**
 
 ## Accepted checkpoints
 
@@ -16,11 +16,11 @@
 - RI-3 final evidence checkpoint: `3d12f205d15c310bce0718c56c0866befccd90ec`
 - RI-4 harness checkpoint: `934850d5830d4a5d89ec32b04630435a027e816f` — CI rehearsal `34418809968`
 - RI-4 intended-host evidence: `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md` — success
-- SR-1 handoff: `docs/architecture/knowledge-core/SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md`
+- SR-1 design: `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md` — complete, design only
 
 ## Accepted foundation
 
-Kernel V1 remains frozen. RF-2 and RI-2 semantics are unchanged.
+Kernel V1 remains frozen. RF-2 and RI-2 semantics remain accepted.
 
 Stable repository document identity remains:
 
@@ -30,112 +30,121 @@ Stable repository document identity remains:
 
 RI-2 still requires exact manifest-listed SHA-1 Git source objects, explicit lifecycle/authority/classification, manifest chaining, omission safety, exact replay, stale-state rejection, and publication fencing. Repository access remains host-injected and ordinary retrieval clients receive no storage/repository credentials.
 
-RI-3 remains the accepted proof that PostgreSQL/artifact/import/generation state survives reconstruction of the Knowledge Core application in another Python process while the database service itself remains up.
+RF-2 remains the implemented whole-`ResourceVersion` PostgreSQL lexical baseline with exact parent provenance, deterministic rank, current-generation-only serving, and mandatory serving-time privacy/restriction/deletion fencing.
 
-RI-4 extends that evidence through a PostgreSQL container restart with a retained named volume and the same persistent artifact directory on both CI and the intended Windows host.
+RI-3 and RI-4 remain the accepted bounded persistence/recovery evidence. RI-4 successfully reproduced PostgreSQL restart, application reconstruction, exact replay, current/historical retrieval separation, artifact integrity, and provenance continuity on the intended Windows host.
 
-## RI-4 completion evidence
+## SR-1 completion
 
-The fixed RI-4 manifest pins exactly three existing Knowledge Core Markdown documents to source commit `3d12f205d15c310bce0718c56c0866befccd90ec`, with RI-2 explicitly historical/superseded.
+The controlling SR-1 design is:
 
-The harness creates a loopback-only PostgreSQL 18 container backed by a unique persistent Docker named volume, uses a separate host artifact directory, applies the manifest, restarts PostgreSQL, starts a fresh application process, verifies serving/retrieval/artifacts/provenance, exact-replays, and proves the durable snapshot is unchanged.
+`docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md`
 
-### CI rehearsal
+SR-1 preserves the exact whole `ResourceVersion` and immutable artifact as canonical evidence and defines smaller retrieval units only as deterministic, disposable derived projection state.
 
-Run `34418809968` checked out exact harness checkpoint `934850d5830d4a5d89ec32b04630435a027e816f` and passed:
+### Core deterministic contract
 
-```text
-Alembic through 0010_ri2
-Fast: 48 passed, 1 expected historical-fixture skip, 18 deselected
-PostgreSQL: 16 passed, 2 expected historical-fixture skips, 49 deselected
-RI-4 Docker/PostgreSQL restart harness: passed
-Workflow: success
-```
+The initial profile is `kc-section-segmentation-v1` and is identified by a canonical configuration digest. The same exact parent `ResourceVersion` plus the same profile must reproduce the same ordered segment boundaries, coordinates, source-slice digests, lifecycle projection, heading paths, and deterministic segment keys.
 
-### Intended Windows host
+For strict UTF-8 Markdown, the V1 parser recognizes only bounded ATX headings outside fenced code. It partitions exact source bytes into preamble/direct-heading blocks and deterministic continuations. Plain text uses a root block plus the same deterministic continuation rules. Source ranges are exact, ordered, non-overlapping, and gap-free; concatenating them must reconstruct the exact canonical artifact.
 
-The same harness later completed successfully on the intended host with Docker Desktop server `29.7.2`, PostgreSQL `18`, loopback port `55432`, and preserved state under:
+Large blocks use fixed byte thresholds and deterministic blank-line/line-boundary splitting. Fenced code is indivisible. If an oversized fenced region cannot be partitioned legally, the candidate generation fails closed instead of silently splitting, omitting content, or invoking a model fallback.
 
-`C:\Users\floyd\AppData\Local\KnowledgeCore\ri4-host-qualification-01`
+### Lifecycle/currentness contract
 
-The generated evidence reported:
+Document lifecycle remains explicit governed input from the accepted import/retrieval source. Heading text, filenames, paths, dates, lexical scores, and recency never create lifecycle or authority.
 
-```text
-status: success
-postgres_restart_verified: true
-application_reconstruction_verified: true
-exact_replay_verified: true
-current_historical_retrieval_verified: true
-artifact_integrity_verified: true
-provenance_verified: true
-backup_restore_performed: false
-```
+Markdown may contain an exact reserved `kc:retrieval-lifecycle` directive immediately after a heading. It may only preserve or reduce currentness (`current < unknown < superseded`) for that heading subtree. It can never promote a segment above its parent document or ancestor section lifecycle. Malformed/misplaced reserved directives and promotion attempts fail segmentation.
 
-Snapshot across restart/replay remained exactly:
+Unlabeled sections inherit parent lifecycle. Therefore mixed-status intent that is not explicit is **not guessed**. A governed source can add exact section directives in a new canonical version, or the parent can be classified conservatively through the existing import process. No model is required.
 
-```text
-3 bindings
-1 settled receipt
-3 observations
-3 Resources
-3 ResourceVersions
-3 search rows
-1 text generation
-3 verified artifacts
-```
+Authority rank and approved repository/source annotations remain inherited from the parent in V1; SR-1 defines no segment-scope authority override.
 
-The serving generation remained `da8ab02c-8819-43d0-9d39-e3098398c8e1`, and exact replay created no additional durable state.
+### Derived identity/provenance
 
-The durable evidence summary is `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md`.
+Every segment must retain:
 
-## Selected next phase — SR-1
+- exact parent `resource_version_ref`;
+- deterministic source ordinal and structural kind;
+- exact byte and line range;
+- exact source-slice SHA-256;
+- derived heading path;
+- parent and effective lifecycle plus lifecycle-origin coordinates;
+- inherited retrieval/source metadata;
+- deterministic segment key bound to parent version, profile, coordinates, ordinal, and source-slice digest;
+- serving generation/profile identity.
 
-The next task is now explicitly selected:
+A segment key is a derived locator only. It is not a cross-version semantic section identity and never replaces canonical parent provenance.
 
-**SR-1 — deterministic document segmentation and retrieval contract**
+### Baseline retrieval
 
-The motivation is the known granularity limit in RF-2: whole-document retrieval is safe and exact but too coarse for documents containing both current and historical/stale material.
+PostgreSQL remains the baseline lexical engine. Segment search uses exact local segment text plus source-derived heading-path context in a deterministic weighted `tsvector`. It does not require copied canonical segment bodies in PostgreSQL.
 
-Do **not** manually split documents. The intended design keeps the exact whole `ResourceVersion` canonical and has deterministic Python derive smaller rebuildable retrieval units from it. PostgreSQL remains the baseline lexical retrieval engine.
+Ranking extends RF-2 deterministically: lexical score, effective lifecycle, inherited authority, parent canonical revision, parent exact version ref, segment ordinal, and final segment-key tie-break.
 
-No AI model is required for canonical storage, deterministic segmentation, or baseline retrieval. A model may only be considered later as optional semantic assistance, not as a source-of-truth dependency.
+Multiple hits from one parent are allowed. Grouping/diversification/RAG context assembly are deferred.
 
-SR-1 is **design only**. The complete scope, required readings, design questions, non-goals, and stop boundary are in:
+Before any segment hit is emitted, the application must recheck serving eligibility of the exact parent `ResourceVersion`. Response limiting remains after that check.
 
-`docs/architecture/knowledge-core/SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md`
+### Generation/cutover safety
+
+Segment retrieval remains under the accepted `DerivedKind.TEXT` one-current-generation fence. `generation_source` continues to identify exact parent versions; segment rows form derived child lineage.
+
+A candidate segment generation cannot settle current until every supported selected parent verifies, decodes, segments, satisfies exact-coverage invariants, and indexes completely. Failure leaves the previous current text generation serving.
+
+The first SR-2 cutover must specifically prove that accepted RF-2 whole-document retrieval remains usable until a complete segment generation is published, that a failed candidate causes no serving gap, and that old whole-document rows and new segment rows are never mixed in one result set.
+
+## Falsifiable SR-2 boundary
+
+`SECTION_RETRIEVAL_SR1.md` defines `SR2-G1` through `SR2-G22`. The gates cover:
+
+- no canonical mutation;
+- byte-for-byte partition/reconstruction;
+- ATX/fence/preamble semantics;
+- deterministic large-block splitting and oversized-fence failure;
+- stable segment identities and edit/rename/duplicate behavior;
+- exact parent/source provenance;
+- inherited metadata and no authority escalation;
+- explicit lifecycle directives without heuristic lifecycle inference or promotion;
+- mixed current/historical retrieval;
+- one-current-generation isolation and RF-2 no-gap cutover;
+- deterministic repeated ranking;
+- parent serving fences over stale segment rows;
+- bounded service-only API behavior and hidden storage internals;
+- no language-model/tokenizer/embedding/vector dependency;
+- profile-change rebuild behavior;
+- one tiny exact-Git-object real-document pilot only after synthetic gates pass.
+
+SR-2 may implement only what those gates require and only after separate authorization.
 
 ## Critical boundary
 
-RI-4 is complete only for its bounded restart/recovery scope. It does not qualify:
+Knowledge Core still does not claim:
 
-- machine reboot or Docker Desktop restart across host reboot;
-- backup/restore or disaster recovery;
-- production credentials/TLS/firewalling/service supervision/filesystem ACLs;
+- implemented section/segment retrieval;
+- section schema/migration/runtime/index generation;
+- automatic lifecycle/currentness inference;
 - broad or production corpus import;
 - automatic discovery/classification/document-key assignment;
 - SHA-256-format Git repositories;
-- implemented section/chunk retrieval or extraction/OCR;
-- embeddings/vector retrieval or RAG;
+- PDF/DOCX/HTML/image/OCR extraction;
+- embeddings/vector retrieval, semantic reranking, or RAG/context assembly;
+- machine-reboot persistence, Docker Desktop host-reboot recovery, backup/restore, or production deployment/security qualification;
 - Authority or autonomous execution.
 
-SR-1 does not authorize any of those items either.
+SR-1 authorizes none of those capabilities.
 
-## Startup instructions for continuation
+## Startup instructions for a separately authorized SR-2 continuation
 
-1. Work from `architecture/knowledge-core`.
-2. Verify branch/HEAD before writing.
-3. Read `docs/architecture/knowledge-core/SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md` first.
-4. Read every prerequisite named by that handoff.
-5. Preserve frozen Kernel/RF-2/RI-2 semantics unless concrete evidence demonstrates a defect.
-6. Perform only the SR-1 design task and produce falsifiable SR-2 implementation gates.
-7. Stop before implementation.
-
-## Next-task boundary
-
-Define retrieval semantics first, then deterministic segmentation rules, then the derived persistence/index contract, failure/rebuild semantics, and SR-2 acceptance gates.
-
-Do not implement Python, migrations, schema changes, embeddings, RAG, broad corpus import, Authority, or execution during SR-1.
+1. Work from `architecture/knowledge-core` and verify branch/HEAD before writing.
+2. Read `docs/architecture/knowledge-core/SECTION_RETRIEVAL_SR1.md` first.
+3. Read current controlling state and the accepted RF-2/RI-2 generation/import interfaces before implementation.
+4. Preserve exact whole `ResourceVersion`/artifact evidence and existing repository document identity.
+5. Implement only the minimum required for `SR2-G1` through `SR2-G22`.
+6. Run synthetic gates before the tiny real-document pilot.
+7. Do not manually split source documents or broaden the approved corpus.
+8. Stop after SR-2 gates/evidence if SR-2 is separately authorized; do not continue into embeddings, RAG, Authority, or execution.
 
 ## Stop boundary
 
-**SR-1 is selected but not yet performed. Continue only from `SR1_DETERMINISTIC_SEGMENTATION_HANDOFF.md`, complete the design-only record, update durable state, commit, and stop before SR-2 implementation.**
+**SR-1 is complete as a design and falsifiable acceptance contract. Stop here. Do not begin SR-2 implementation without separate authorization.**
