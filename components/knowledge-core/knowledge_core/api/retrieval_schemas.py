@@ -21,6 +21,14 @@ class RetrievalSearchRequest(BaseModel):
         return value
 
 
+class RetrievalHeadingPathItemResponse(BaseModel):
+    level: int
+    text: str
+    line: int
+    byte_start: int
+    byte_end: int
+
+
 class RetrievalHitResponse(BaseModel):
     rank: int
     resource_ref: UUID
@@ -37,10 +45,29 @@ class RetrievalHitResponse(BaseModel):
     source_version: str | None
     observed_at: datetime | None
     lexical_score: float
+    segment_key: str | None = None
+    segment_ordinal: int | None = None
+    segment_kind: str | None = None
+    base_block_ordinal: int | None = None
+    part_index: int | None = None
+    part_count: int | None = None
+    source_byte_start: int | None = None
+    source_byte_end: int | None = None
+    source_line_start: int | None = None
+    source_line_end: int | None = None
+    source_slice_sha256: str | None = None
+    heading_path: list[RetrievalHeadingPathItemResponse] = Field(
+        default_factory=list
+    )
+    parent_lifecycle_state: RetrievalLifecycleState | None = None
+    lifecycle_origin: str | None = None
+    lifecycle_directive_line: int | None = None
 
 
 class RetrievalSearchResponse(BaseModel):
     query: str
     generation_id: UUID | None
     source_revision_highwater: int | None
+    projection: str | None = None
+    profile_digest: str | None = None
     results: list[RetrievalHitResponse]

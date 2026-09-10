@@ -169,6 +169,8 @@ def _retrieval_response(item: RetrievalSearchSnapshot) -> RetrievalSearchRespons
         query=item.query,
         generation_id=item.generation_id,
         source_revision_highwater=item.source_revision_highwater,
+        projection=item.projection,
+        profile_digest=item.profile_digest,
         results=[
             RetrievalHitResponse(
                 rank=rank,
@@ -186,6 +188,21 @@ def _retrieval_response(item: RetrievalSearchSnapshot) -> RetrievalSearchRespons
                 source_version=hit.source_version,
                 observed_at=hit.observed_at,
                 lexical_score=hit.lexical_score,
+                segment_key=hit.segment_key,
+                segment_ordinal=hit.segment_ordinal,
+                segment_kind=hit.segment_kind,
+                base_block_ordinal=hit.base_block_ordinal,
+                part_index=hit.part_index,
+                part_count=hit.part_count,
+                source_byte_start=hit.source_byte_start,
+                source_byte_end=hit.source_byte_end,
+                source_line_start=hit.source_line_start,
+                source_line_end=hit.source_line_end,
+                source_slice_sha256=hit.source_slice_sha256,
+                heading_path=list(hit.heading_path),
+                parent_lifecycle_state=hit.parent_lifecycle_state,
+                lifecycle_origin=hit.lifecycle_origin,
+                lifecycle_directive_line=hit.lifecycle_directive_line,
             )
             for rank, hit in enumerate(item.results, start=1)
         ],

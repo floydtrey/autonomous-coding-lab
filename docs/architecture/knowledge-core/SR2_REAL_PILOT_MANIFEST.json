@@ -1,0 +1,42 @@
+{
+  "schema_version": 2,
+  "manifest_id": "sr2-real-pilot-v1",
+  "source_repository_key": "acl-sr2-real-pilot",
+  "repository_locator": "git://acl-sr2-real-pilot",
+  "source_commit": "1d1313844aa4d224bd42c0888970a11e959d9501",
+  "previous_manifest_digest": null,
+  "history_policy": "retain_prior_versions_as_superseded",
+  "entries": [
+    {
+      "source_document_key": "sr2-ri4-host-evidence",
+      "path": "docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md",
+      "git_blob_sha": "c45034da0d72a8ed3d8ac1cec0101a6bc4dc9eeb",
+      "media_type": "text/markdown",
+      "classification": "approved-sr2-real-pilot",
+      "retrieval_lifecycle": "current",
+      "authority_rank": 10,
+      "rationale": "SR-2 bounded current-source negative control for deterministic section lifecycle"
+    },
+    {
+      "source_document_key": "sr2-ri2-completion-history",
+      "path": "docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI2.md",
+      "git_blob_sha": "bc12a15dbac70e1ba538e313ce87dfed41b9e831",
+      "media_type": "text/markdown",
+      "classification": "approved-sr2-real-pilot",
+      "retrieval_lifecycle": "superseded",
+      "authority_rank": 10,
+      "rationale": "SR-2 bounded parent-superseded historical retrieval source"
+    },
+    {
+      "source_document_key": "sr2-rf1-structured-current",
+      "path": "docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_RF1.md",
+      "git_blob_sha": "07f878a0e860433fd55cfe7d2fd7fb861f5cb2a2",
+      "media_type": "text/markdown",
+      "classification": "approved-sr2-real-pilot",
+      "retrieval_lifecycle": "current",
+      "authority_rank": 20,
+      "rationale": "SR-2 bounded structured Markdown current-source retrieval fixture"
+    }
+  ],
+  "retirements": []
+}
