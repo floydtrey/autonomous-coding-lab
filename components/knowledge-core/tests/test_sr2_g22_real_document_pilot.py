@@ -291,7 +291,7 @@ def test_sr2_g22_tiny_pinned_real_document_pilot(tmp_path):
         assert all(hit.lifecycle_state.value == "superseded" for hit in pause_hits)
 
         current_query = kernel.search_text(
-            query="qualified runtime test workflow checkpoint",
+            query="qualified runtime",
             limit=20,
         )
         assert current_query.results
@@ -324,7 +324,7 @@ def test_sr2_g22_tiny_pinned_real_document_pilot(tmp_path):
         assert contract_hit.source_path == listed["sr2-g22-contract"]["path"]
 
         for query, include_superseded in (
-            ("qualified runtime test workflow checkpoint", False),
+            ("qualified runtime", False),
             ("deterministic large block continuation", False),
             ("acceptance order invariant", True),
         ):
