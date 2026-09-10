@@ -2,7 +2,7 @@
 
 **Repository:** `floydtrey/autonomous-coding-lab`  
 **Branch:** `architecture/knowledge-core`  
-**Status:** **SR-2 G1–G22 independently green and checkpointed; intended-host SR-2 restart/recovery qualification is next**
+**Status:** **SR-2 G1–G22 and the bounded intended-host SR-2 segment-serving qualification are green and checkpointed; select the next vertical-slice dependency rather than extending SR-2 by default**
 
 **Clean reset runtime checkpoint:** `267fc28bd862ddd4ca22e61792d073853a1e51a8` — Actions `34443719080` success  
 **SR-2 Slice 1:** `c0a4ad89347ff62bc2259b5c20b742eb6fc6c336` — Actions `34444560064` success  
@@ -14,7 +14,8 @@
 **Slice 6 state checkpoint:** `d540f206bb2c7a94eeb14f642b3a87d7ff81486e`  
 **Slice 7 pause handoff introduced:** `8fafb1603649a2af64f2122c9b66e7fbae9f4ada`  
 **Slice 7 G1–G21 qualified runtime/test checkpoint:** `7570425231c0f1804c800ad4c6809f6261d82416` — Actions `34457756458` success  
-**SR2-G22 qualified runtime/test/workflow checkpoint:** `c75a6be2e832bdc29fda0e4a6eab7de28da90668` — Actions `34462565404` success
+**SR2-G22 qualified runtime/test/workflow checkpoint:** `c75a6be2e832bdc29fda0e4a6eab7de28da90668` — Actions `34462565404` success  
+**SR-2 host-qualification executable checkpoint:** `c3bfac41eb3a1787d5b770274370b5e59f082eb4` — Actions `34475309465` success
 
 This file is the controlling restart entry point for Knowledge Core. Git history is the archive; active implementation guidance belongs here and in the controlling contracts.
 
@@ -33,6 +34,7 @@ The following remain accepted and are not being rebuilt:
 - G1–G21 qualification map: `docs/architecture/knowledge-core/SR2_G1_G21_COVERAGE_MATRIX.md`.
 - G22 real-document qualification: `docs/architecture/knowledge-core/SR2_G22_QUALIFICATION.md`.
 - Exact G22 corpus manifest: `docs/architecture/knowledge-core/SR2_G22_REAL_DOCUMENT_PILOT_MANIFEST.json`.
+- SR-2 intended-host qualification: `docs/architecture/knowledge-core/SR2_INTENDED_HOST_QUALIFICATION.md`.
 
 Exact whole `ResourceVersion` artifacts remain canonical evidence. Repository source observations and governing import receipts/manifests remain governed source/classification evidence. SR-2 structures, lineage, profiles, and search projections remain derived and rebuildable.
 
@@ -68,7 +70,7 @@ Slice 5 added explicit generation-level structural/projection profile identity r
 - Privacy `RESTRICT`/`ERASE` fences serving access first; derivative cleanup is deterministic/idempotent reconciliation.
 - A serving SR-2 generation must make the exact governed snapshot set and behavior-bearing profile identity recoverable; `resource_version_ref` alone is insufficient.
 
-`SR2-G1` through `SR2-G22` in the amended SR-1 contract are now independently qualified in CI. Intended-host qualification of the SR-2 segment-serving path remains outstanding.
+`SR2-G1` through `SR2-G22` in the amended SR-1 contract are independently qualified in CI. The bounded intended-host qualification of the SR-2 segment-serving path is also accepted.
 
 ## Accepted SR-2 slices
 
@@ -174,6 +176,18 @@ The initial candidate `f263f72899e35afe48ec41c04092d2ee3e7a3375` failed only bec
 
 The durable G22 evidence is `docs/architecture/knowledge-core/SR2_G22_QUALIFICATION.md`.
 
+### Intended-host SR-2 segment restart/recovery qualification
+
+Executable checkpoint `c3bfac41eb3a1787d5b770274370b5e59f082eb4`; Knowledge Core Actions run `34475309465` passed before the intended-host run.
+
+The bounded harness was then executed on the intended Windows/Docker Desktop/PostgreSQL host using the exact G22 manifest and source commit. The run completed with `status = success` and all acceptance booleans true: PostgreSQL restart, application reconstruction, segment serving, current/historical retrieval, artifact integrity, structural reconstruction, profile identity, governed provenance, and exact replay.
+
+The durable clean-state counts remained identical before restart, after reconstruction before replay, and after replay: 3 resources, 3 resource versions, 3 observations, 3 bindings, 1 receipt, 1 generation, 1 text-generation profile, 3 text-generation sources, 107 segment search rows, and 0 RF-2 whole-resource search rows. The serving generation remained `adc37173-6147-40c5-bb07-3d88d36e9f70`.
+
+The host used Docker server `29.7.2`, `postgres:18`, and loopback port `55433`. Machine reboot and backup/restore were intentionally not performed and remain outside this bounded qualification.
+
+Durable evidence: `docs/architecture/knowledge-core/SR2_INTENDED_HOST_QUALIFICATION.md`.
+
 ## Restart order
 
 Read, in order:
@@ -184,32 +198,31 @@ Read, in order:
 4. `docs/architecture/knowledge-core/SR2_G1_G21_COVERAGE_MATRIX.md`
 5. `docs/architecture/knowledge-core/SR2_G22_QUALIFICATION.md`
 6. `docs/architecture/knowledge-core/SR2_G22_REAL_DOCUMENT_PILOT_MANIFEST.json`
-7. `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
-8. accepted RI-4 persistence/recovery interfaces and SR-2 Slice 1–7 interfaces needed for the bounded host qualification
+7. `docs/architecture/knowledge-core/SR2_INTENDED_HOST_QUALIFICATION.md`
+8. `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
+9. accepted RI-4 persistence/recovery interfaces and SR-2 Slice 1–7 interfaces only as needed for implementation/history review
 
 `SR2_SLICE7_PAUSE_HANDOFF.md` is retained as historical restart evidence for the pre-closure pause; it is not active task authority.
 
 Do not search Git history or orphaned draft objects for SR-2 implementation guidance unless explicitly investigating the rejected prototype.
 
-## Next bounded task — intended-host SR-2 restart/recovery qualification
+## Next bounded task — vertical-slice dependency selection
 
-G1–G22 are now green and checkpointed. The next task is to qualify the accepted SR-2 **segment-serving** path on the intended Windows/PostgreSQL host.
+The bounded SR-2 work required for the current Knowledge Core retrieval foundation is green and checkpointed through intended-host restart/recovery qualification.
 
-Do not relabel the existing RI-4 intended-host run as SR-2 evidence. RI-4 successfully qualified persistence/recovery for its bounded RF-2 whole-`ResourceVersion` retrieval path; its own accepted documentation explicitly does not claim chunking/section retrieval.
+Do **not** continue adding retrieval features merely because SR-2 is active. The next task is to reconcile the vertical-slice dependency path across the accepted ACL/Knowledge Core interfaces and identify the smallest remaining dependency that prevents an end-to-end vertical slice.
 
-A bounded SR-2 host qualification should reuse the accepted persistence/recovery discipline where applicable, while exercising the SR-2 section-aware import/generation/publication/serving path and exact G22-style provenance. Do not broaden it into machine-reboot persistence, backup/restore, production deployment, broad corpus import, embeddings/RAG, or autonomous execution.
-
-If host qualification exposes a genuine architecture ambiguity, stop and return to the decision process rather than silently choosing a new design.
+That planning step may point back into Knowledge Core if a real slice dependency is missing, or it may intentionally shift focus to another ACL component. Preserve the accepted SR-1 / KC-D025 contract unless the vertical-slice review exposes a genuine architecture ambiguity requiring an explicit new decision.
 
 ## Intended-host boundary
 
-**User-PC testing is now required for the next qualification.**
+The intended-host SR-2 qualification is complete for its bounded scope. The prior RI-4 host evidence remains RF-2-only; the new SR-2 host evidence independently qualifies the segment-serving path and must not be conflated with RI-4.
 
-G22 has independently passed and is checkpointed. The prior RI-4 Windows command is useful as persistence/recovery precedent, but it is not sufficient by itself because it serves RF-2 whole-document rows. Before asking the user to execute a command, construct or identify a bounded SR-2 host qualification entrypoint that actually exercises segment serving.
+The successful bounded sequence is now:
 
-The next sequence is:
+`G1–G22 green/checkpointed -> SR-2 host entrypoint CI-qualified -> intended Windows/PostgreSQL execution -> durable host evidence -> vertical-slice dependency selection`
 
-`G1–G22 green/checkpointed -> bounded SR-2 host qualification entrypoint -> intended Windows/PostgreSQL execution -> durable host evidence`
+Machine reboot persistence, backup/restore, production deployment, broad corpus import, embeddings/RAG, and autonomous execution were not part of this qualification.
 
 ## Out of scope
 
