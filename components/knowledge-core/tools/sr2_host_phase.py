@@ -45,6 +45,9 @@ from knowledge_core.storage.section_retrieval_models import (
 )
 
 
+_CALLER_HEADERS = {"X-Knowledge-Caller": "sr2-host-qualification"}
+
+
 def _load_manifest(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -74,7 +77,7 @@ def _receipt_snapshot(receipt) -> dict:
 
 
 def _post(client: TestClient, route: str, payload: dict) -> dict:
-    response = client.post(route, json=payload)
+    response = client.post(route, json=payload, headers=_CALLER_HEADERS)
     if response.status_code != 200:
         raise AssertionError(f"{route} failed: {response.status_code} {response.text}")
     return response.json()
