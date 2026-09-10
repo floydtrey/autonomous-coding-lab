@@ -11,8 +11,9 @@
 **RI-3 application-process persistence:** final validated checkpoint `9a167e67200c6bee2b7f4ed7b1dc91224d553390` — CI `34418080815`  
 **RI-3 final evidence-only checkpoint:** `3d12f205d15c310bce0718c56c0866befccd90ec`  
 **RI-4 host harness:** `934850d5830d4a5d89ec32b04630435a027e816f` — CI rehearsal `34418809968`  
+**RI-4 intended-host evidence:** `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md` — **success**  
 **RI-4 record:** `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI4.md`  
-**Status:** **Kernel V1 remains frozen. RF-2, RI-2, and RI-3 are accepted. RI-4 restart qualification is implemented and reproduced in CI, but intended-host evidence is still required before RI-4 can be marked complete. No broad or production corpus has been imported.**
+**Status:** **Kernel V1 remains frozen. RF-2, RI-2, RI-3, and RI-4 are accepted. The intended Windows host reproduced PostgreSQL restart, application reconstruction, exact replay, retrieval separation, artifact integrity, and provenance continuity. No broad or production corpus has been imported.**
 
 This is the controlling branch-specific state.
 
@@ -30,9 +31,9 @@ RI-2 remains the accepted repository-import implementation: exact SHA-1 Git sour
 
 RI-3 proves that accepted import/generation/artifact state survives complete reconstruction of the Knowledge Core application in a separate Python process while the same PostgreSQL database and artifact directory remain intact.
 
-## RI-4 — local-host persistence/recovery qualification
+## RI-4 — local-host persistence/recovery qualification — accepted
 
-RI-4 adds no production Knowledge Core module. The new qualification harness is:
+RI-4 adds no production Knowledge Core module. The qualification harness is:
 
 - `components/knowledge-core/tools/ri4_host_qualification.py`
 - `components/knowledge-core/tools/ri4_host_phase.py`
@@ -55,9 +56,16 @@ RI-4 restart qualification harness: passed
 Workflow: success
 ```
 
-The RI-4 harness step used Docker server `28.0.4` and reported:
+## Intended-host acceptance
+
+The intended Windows host subsequently ran the same qualification successfully with Docker Desktop server `29.7.2`, PostgreSQL `18`, loopback port `55432`, and state root:
+
+`C:\Users\floyd\AppData\Local\KnowledgeCore\ri4-host-qualification-01`
+
+The generated evidence reported:
 
 ```text
+status: success
 postgres_restart_verified: true
 application_reconstruction_verified: true
 exact_replay_verified: true
@@ -67,7 +75,7 @@ provenance_verified: true
 backup_restore_performed: false
 ```
 
-Persistent snapshot before and after restart/replay remained:
+Persistent state before and after restart/replay remained exactly:
 
 ```text
 3 document bindings
@@ -80,20 +88,17 @@ Persistent snapshot before and after restart/replay remained:
 3 verified SHA-256 artifacts
 ```
 
-This validates the harness and restart semantics in CI. It does **not** substitute for the intended-host run.
+The same text generation `da8ab02c-8819-43d0-9d39-e3098398c8e1` remained current across recovery and replay. Exact-manifest replay created no additional durable state. Current retrieval continued to exclude the explicitly superseded RI-2 document, while historical retrieval recovered it with exact source commit/provenance.
 
-## Intended-host acceptance still required
+The raw host run remains preserved outside the repository for inspection. The durable acceptance summary is `RI4_INTENDED_HOST_EVIDENCE.md`.
 
-RI-4 remains open until `ri4_host_qualification.py` succeeds on the intended local host against a new explicit state directory outside the repository and the resulting `RI4_HOST_QUALIFICATION_EVIDENCE.json` is reviewed.
-
-The exact command and acceptance fields are recorded in `REPOSITORY_IMPORT_RI4.md`.
+RI-4 is therefore accepted complete for the bounded restart/recovery scope defined in `REPOSITORY_IMPORT_RI4.md`.
 
 ## Current limitations / unclaimed capability
 
 Knowledge Core still does not claim:
 
-- completed RI-4 intended-host qualification;
-- machine reboot or Docker Desktop restart across host reboot;
+- machine reboot persistence or Docker Desktop restart across a host reboot;
 - backup/restore or disaster recovery;
 - production credentials, TLS, firewalling, service supervision, startup policy, or filesystem ACL qualification;
 - broad/production corpus import or automatic discovery/classification/document-key assignment;
@@ -103,24 +108,24 @@ Knowledge Core still does not claim:
 
 ## Durable restart point
 
-Read before continuing RI-4:
+Read before starting another Knowledge Core phase:
 
 - `docs/architecture/knowledge-core/CURRENT_STATE.md`
 - `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI3.md`
 - `docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI4.md`
-- `docs/architecture/knowledge-core/RI4_HOST_QUALIFICATION_MANIFEST.json`
+- `docs/architecture/knowledge-core/RI4_INTENDED_HOST_EVIDENCE.md`
 - `docs/architecture/knowledge-core/RETRIEVAL_FOUNDATION_HANDOFF.md`
 - `docs/architecture/knowledge-core/EXECUTION_GOVERNANCE.md`
 - `components/knowledge-core/README.md`
 
 Verify branch/HEAD before writing.
 
-## Next permitted action
+## Next-phase boundary
 
-Run the recorded RI-4 host qualification once on the intended machine, preserve its evidence and persistent qualification stores, review the evidence, then mark RI-4 complete if every recorded acceptance field passes.
+RI-4 is complete. The next Knowledge Core phase has **not** been selected by this checkpoint. Before implementation, define the smallest bounded next objective and its acceptance criteria from the remaining integration debt.
 
-Do not begin backup/restore, production deployment, broad corpus import, automatic discovery/classification, chunking, embeddings/RAG, Authority, or execution.
+Do not jump directly into production deployment, backup/restore, broad corpus import, automatic discovery/classification, chunking, embeddings/RAG, Authority, or execution without a separately bounded task.
 
 ## Stop boundary
 
-**RI-4 is not yet complete. The harness and CI rehearsal are complete; intended-host evidence is the only authorized next step.**
+**RI-4 is complete. Stop here before beginning a new Knowledge Core phase.**
