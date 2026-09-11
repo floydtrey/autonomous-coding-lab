@@ -15,7 +15,7 @@
       "root": "components/autonomous-worker-framework",
       "production_root": "tools",
       "scope": "runtime-dependency-closure",
-      "digest": "sha256:6d4292651f369c05c56204a51a83f38f8cfe4bbe49ee4a8c44e9775d82aae73c",
+      "digest": "sha256:0ce8d8533073463b18bc29d72e0a5dfcf9ca0e28110505eb8f872c978427601c",
       "files": [
         "tools/code_task.py",
         "tools/codex_runtime.py",
@@ -38,7 +38,7 @@
       "root": "components/worker-lab",
       "production_root": "worker_lab",
       "scope": "python-production-tree",
-      "digest": "sha256:90c488ac52eeb4a413be15655cb4fb76a6a605bd9b411c25d4b091c409343455"
+      "digest": "sha256:1cdb7c5da5d81278f4f3b82de9c3082984c3d8b0b94e237c13be950e2c690b2a"
     }
   },
   "host_requirements": {
