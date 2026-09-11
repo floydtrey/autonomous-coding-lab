@@ -1,0 +1,105 @@
+name: Task 8 Final Exact-Byte Validation
+on:
+  push:
+    branches: [task8-final-validation-temp]
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: db0e66f76a721050dbfbe94c6ccf809667a7203f
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest
+      - name: Assert exact clean checkpoint
+        run: |
+          test "$(git rev-parse HEAD)" = "db0e66f76a721050dbfbe94c6ccf809667a7203f"
+          test "$(git rev-parse HEAD^)" = "2f07f80e07ac280f911b02e71199a482357cf669"
+          test -z "$(git ls-tree -r --name-only HEAD | grep -E '^\.task8/|^\.github/workflows/task8-' || true)"
+          test "$(git status --porcelain)" = ""
+      - name: Compile current production
+        run: python -m compileall -q components/autonomous-worker-framework/tools components/worker-lab/worker_lab tools/verify_portable_source.py
+      - name: Run complete AWF suite
+        working-directory: components/autonomous-worker-framework
+        run: python -m pytest -q
+      - name: Run complete Worker Lab suite
+        working-directory: components/worker-lab
+        run: python -m pytest -q
+      - name: Run root source and inventory tests
+        run: python -m pytest -q tests
+      - name: Verify exact portable source V2
+        run: |
+          python tools/verify_portable_source.py > /tmp/source.json
+          cat /tmp/source.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          v=json.load(open('/tmp/source.json'))
+          expected={
+            'autonomous-worker-framework': (8,'sha256:edac32b728348d6a2e2c7521d1c846e5021fe6e40f33db70e7df625d1ca584c5'),
+            'local-model-bench': (10,'sha256:139331ea42c914575d1119125a702ac5de2129b9bedc235bfc189700e8265afc'),
+            'worker-lab': (29,'sha256:08a13548f9e193c85ae1280a56386237e1c3903467eb6681602827340825ab96'),
+          }
+          assert v['schema_version']=='acl-portable-source-report:v2'
+          assert v['source_identity_id']=='acl-runtime-source:v2'
+          for name,item in v['components'].items():
+              assert (item['file_count'],item['digest'])==expected[name]
+              assert item['status']=='MATCH'
+          text=json.dumps(v,sort_keys=True).lower()
+          for forbidden in ('execution_authority','host_requirements','python_executable','execution_ready','provider_runtime'):
+              assert forbidden not in text, forbidden
+          manifest=json.loads(Path('config/portable-source-manifest.json').read_text())
+          assert manifest['separation_policy']=={
+            'host_qualification':'separate-evidence',
+            'provider_capability_qualification':'separate-evidence',
+            'local_activation':'local-operator-state',
+            'task_authorization':'worker-lab-invocation-v3',
+          }
+          assert 'activation_policy' not in manifest
+          assert 'host_requirements' not in manifest
+          PY
+      - name: Assert current runtime and documentation surface
+        run: |
+          python - <<'PY'
+          import inspect
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'components/worker-lab')
+          from worker_lab.provider_qualification import qualify_provider_capability
+          sig=inspect.signature(qualify_provider_capability)
+          assert sig.parameters['probe_runner'].default is inspect.Parameter.empty
+          assert not Path('config/portable-installation-manifest.json').exists()
+          assert not Path('tools/verify_portable_installation.py').exists()
+          assert not Path('docs/PORTABLE_INSTALLATION_IDENTITY.md').exists()
+          assert not Path('docs/legacy').exists()
+          assert not Path('migration/inventory').exists()
+          current=[Path('README.md'),Path('AGENTS.md')]+sorted(Path('docs').glob('*.md'))
+          obsolete=('codex','terra','minetrackerworker','autonomy_smoke','acl-installation-manifest:v2','portable-installation-manifest','runtime selection v1','coding-worker:v1')
+          hits=[]
+          for p in current:
+              text=p.read_text(errors='ignore').lower()
+              for term in obsolete:
+                  if term in text: hits.append(f'{p}: {term}')
+          assert not hits, '\n'.join(hits)
+          assert '**Execution authority:** `DISABLED`' in Path('docs/CURRENT_STATE.md').read_text()
+          print('CURRENT_DOCUMENT_SCAN EMPTY')
+          PY
+      - name: Assert obsolete production identity coupling is absent
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          roots=[Path('components/autonomous-worker-framework/tools'),Path('components/worker-lab/worker_lab'),Path('config')]
+          obsolete=('portable-installation-manifest','acl-portable-installation-manifest:v1','activation_policy','host_requirements','codex','terra','minetrackerworker','autonomy_smoke','acl-installation-manifest:v2')
+          hits=[]
+          for root in roots:
+              for p in sorted(x for x in root.rglob('*') if x.is_file() and x.suffix in {'.py','.json'}):
+                  for i,line in enumerate(p.read_text(errors='ignore').splitlines(),1):
+                      if any(term in line.lower() for term in obsolete): hits.append(f'{p}:{i}:{line}')
+          assert not hits, '\n'.join(hits)
+          print('CURRENT_PRODUCTION_SOURCE_SCAN EMPTY')
+          PY
+      - name: Assert clean working tree
+        run: test "$(git status --porcelain)" = ""
