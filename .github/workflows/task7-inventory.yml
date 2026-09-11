@@ -12,27 +12,61 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Current runtime obsolete-term scan
-        shell: bash
+      - name: Scan current runtime and current docs
         run: |
-          echo '=== ACTIVE CODE/CONFIG/CURRENT DOC MATCHES ==='
-          rg -n -i 'codex|terra|MineTrackerWorker|mine[_ -]?tracker|autonomy_smoke|acl-installation-manifest:v2|installation-manifest.json|monorepo-identity|framework_client|worker_lab_adapter|workspace_write_adapter|synthetic_read_only|local_worker_harness|context_probe|task_contract|worker_fixture_validator' \
-            components/autonomous-worker-framework/tools \
-            components/worker-lab/worker_lab \
-            components/worker-lab/curricula \
-            config \
-            docs/ARCHITECTURE.md docs/CONTROLLER_TASK_PACKET_V1.md docs/CURRENT_STATE.md docs/DEVELOPMENT.md docs/GOVERNANCE.md docs/OPERATIONS.md docs/PORTABLE_INSTALLATION_IDENTITY.md docs/REPOSITORY_COUPLING_INVENTORY.md docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md docs/START_HERE.md docs/VS_CODE_HANDOFF.md docs/WORKPLAN.md \
-            || true
-      - name: Candidate module import graph
-        shell: bash
-        run: |
-          echo '=== IMPORT/REFERENCE GRAPH ==='
-          rg -n 'codex_runtime|context_probe|local_worker_harness|monorepo_identity|task_contract|worker_fixture_validator|worker_lab_adapter|workspace_write_adapter|framework_client|installation_manifest|synthetic_read_only|integration\b|invocation_store\b|framework_adapter|read_only_evidence|CODING_WORKER_V1|MINE_TRACKER_PROFILE|HostProviderQualification' \
-            components/autonomous-worker-framework \
-            components/worker-lab \
-            --glob '!**/__pycache__/**' || true
+          python - <<'PY'
+          from pathlib import Path
+          roots = [
+              Path('components/autonomous-worker-framework/tools'),
+              Path('components/worker-lab/worker_lab'),
+              Path('components/worker-lab/curricula'),
+              Path('config'),
+          ]
+          docs = [Path('docs') / name for name in (
+              'ARCHITECTURE.md','CONTROLLER_TASK_PACKET_V1.md','CURRENT_STATE.md','DEVELOPMENT.md',
+              'GOVERNANCE.md','OPERATIONS.md','PORTABLE_INSTALLATION_IDENTITY.md',
+              'REPOSITORY_COUPLING_INVENTORY.md','RUNTIME_CORE_RECONSTRUCTION_PLAN.md','START_HERE.md',
+              'VS_CODE_HANDOFF.md','WORKPLAN.md')]
+          terms = (
+              'codex','terra','minetrackerworker','mine_tracker','mine tracker','autonomy_smoke',
+              'acl-installation-manifest:v2','installation-manifest.json','monorepo-identity',
+              'framework_client','worker_lab_adapter','workspace_write_adapter','synthetic_read_only',
+              'local_worker_harness','context_probe','task_contract','worker_fixture_validator',
+          )
+          paths = []
+          for root in roots:
+              paths.extend(p for p in root.rglob('*') if p.is_file())
+          paths.extend(p for p in docs if p.is_file())
+          print('=== ACTIVE CODE/CONFIG/CURRENT DOC MATCHES ===')
+          for path in sorted(set(paths)):
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except UnicodeDecodeError:
+                  continue
+              for number, line in enumerate(text.splitlines(), 1):
+                  lower = line.lower()
+                  if any(term in lower for term in terms):
+                      print(f'{path}:{number}:{line[:280]}')
+
+          graph_terms = (
+              'codex_runtime','context_probe','local_worker_harness','monorepo_identity','task_contract',
+              'worker_fixture_validator','worker_lab_adapter','workspace_write_adapter','framework_client',
+              'installation_manifest','synthetic_read_only','integration','invocation_store','framework_adapter',
+              'read_only_evidence','CODING_WORKER_V1','MINE_TRACKER_PROFILE','HostProviderQualification',
+          )
+          print('=== IMPORT/REFERENCE GRAPH ===')
+          graph_roots = [Path('components/autonomous-worker-framework'), Path('components/worker-lab')]
+          for root in graph_roots:
+              for path in sorted(p for p in root.rglob('*') if p.is_file() and p.suffix in {'.py','.json','.md'}):
+                  try:
+                      text = path.read_text(encoding='utf-8')
+                  except UnicodeDecodeError:
+                      continue
+                  for number, line in enumerate(text.splitlines(), 1):
+                      if any(term in line for term in graph_terms):
+                          print(f'{path}:{number}:{line[:280]}')
+          PY
       - name: List candidate files
-        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
