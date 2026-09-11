@@ -286,29 +286,79 @@ The old V2 `framework_client.py` / `worker_lab_adapter.py` shell remains reachab
 only through that not-yet-migrated service path until Task 5, and obsolete modules
 remain scheduled for deletion in Task 7.
 
+## Runtime reconstruction Task 5 — accepted checkpoint
+
+Task 5 migrates the active Worker Lab application-service invocation,
+dispatch, recovery, and workspace-write candidate-review path onto Invocation/Result
+V3 without enabling a real provider.
+
+Accepted changes:
+
+- current `prepare-invocation` is workspace-write/V3 only and requires an explicit
+  logical `target:` identity plus the exact durable Provider Binding ID/digest;
+  repository/workspace paths remain backend locators and Git evidence rather than
+  ACL target identity;
+- the exact canonical Controller Task Packet is the sealed prompt, and authorization
+  rechecks both the packet's controller identity and the exact current Provider
+  Binding before changing state;
+- public dispatch requires an explicitly injected V3 workspace dispatch runner; no
+  V2 read-only/Codex shell, provider fallback, provider registry, or implicit model
+  selection is reachable through the current service path;
+- generic Result V3 acceptance requires exact request/invocation/binding identity,
+  complete durable custody with verified workload absence, exact authorized changed
+  paths, exact framework test claims, and independently executed sealed tests;
+- `git_workspace_evidence.py` independently observes the Git-backed coding workspace
+  and supplies capability-specific base/head/path/content/change evidence to generic
+  acceptance rather than making repository facts universal ACL identity;
+- the full Context Manifest digest still binds all protected source context, while
+  Invocation V3 `readable_paths` excludes paths already granted by `writable_paths`;
+  writable targets therefore have one explicit authority surface instead of being
+  simultaneously classified as read-only context and write scope;
+- recovery remains custody-backend-specific and fails closed unless exact controller,
+  invocation, absence evidence, and unchanged workspace identity can be proven;
+- historical V2 records remain parseable/reviewable during reconstruction, and the
+  old private `_legacy_*` service helpers remain only for Task 7 deletion; new public
+  invocation/dispatch/recovery operations no longer route through V2;
+- the portable V1 Worker Lab production tree now contains 35 files and matches
+  `sha256:e4da4781e1afb9dfa068a5e239a7dcb3d478fe918db5fab8e19103ccb1017649`;
+- execution authority remains `DISABLED`; no provider/model request was sent.
+
+Validation on the Task 5 materialized tree:
+
+- Python compilation passed;
+- V3 foundations plus Task 5 service acceptance: 35 passed;
+- unaffected application-service regressions: 10 passed, with four legacy
+  installation-status/doctor-boundary tests intentionally excluded;
+- unaffected CLI regressions: 13 passed, with the legacy doctor test intentionally
+  excluded;
+- custody regressions and portable identity checks are part of the final committed-byte gate;
+- the excluded legacy checks were run separately and confirmed to fail only at the
+  already-known obsolete `acl-installation-manifest:v2` framework-runtime-closure
+  boundary (`framework runtime closure is incomplete`);
+- the Task 5 suite used injected fake runners/custody only and performed no provider
+  or model execution.
+
 ## Current stop condition
 
 Execution remains disabled.
 
 Do not:
 
-- authorize or dispatch any historical invocation;
+- execute a provider/model or treat benchmark results as execution authority;
+- bypass Provider Binding or substitute provider/model/runtime settings after V3 authorization;
+- re-enable the historical V2 read-only/Codex dispatch shell as a fallback;
 - install Codex to satisfy obsolete configuration;
-- preserve Codex/Terra as an automatic fallback path;
-- send Pydantic AI/Ollama chat or completion requests;
-- run a local coding model;
-- bypass Provider Binding when authorizing a V3 invocation;
-- choose or substitute provider/model/runtime settings after V3 authorization;
+- delete legacy runtime/configuration before Task 7;
 - mechanically delete legitimate Git workspace mechanics merely because ACL is moving away from repository-centered identity.
 
 ## Immediate next gate
 
-Begin only **Task 5 — migrate application service and current result acceptance**
-from `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
+Begin only **Task 6 — provider qualification refinement** from
+`docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
 
-Task 5 must migrate only the invocation/dispatch/recovery portion of
-`application_service.py` onto the accepted V3/current dispatch contracts while
-preserving lifecycle, storage, policy, test, custody, and independent result
-acceptance behavior. Keep Git workspace evidence behind the coding-workspace
-boundary. Provider qualification refinement, legacy deletion, and actual
-provider/model execution remain out of scope.
+Task 6 must separate installation observation from controlled capability
+qualification and adapt the Pydantic/Ollama provider adapter to consume the exact
+sealed Provider Binding/runtime settings. Use deterministic/mocked tests during the
+implementation. Actual model capability qualification or any model run remains a
+separate explicitly authorized action; benchmark evidence may inform later role
+assignment but must not bypass ACL qualification/binding contracts.
