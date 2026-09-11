@@ -339,27 +339,95 @@ Validation on the Task 5 materialized tree:
 - the Task 5 suite used injected fake runners/custody only and performed no provider
   or model execution.
 
+## Runtime reconstruction Task 6 — accepted checkpoint
+
+Task 6 separates provider installation observation from controlled capability
+qualification and makes the current Pydantic/Ollama execution seam consume the exact
+sealed runtime settings without enabling a model run.
+
+Accepted changes:
+
+- historical `HostProviderQualification` V1 remains parseable as reconstruction
+  history/legacy evidence, but its metadata-only observation is not accepted by the
+  current Provider Binding path and cannot authorize V3 execution;
+- current `ProviderInstallationObservation` records exact Python, harness, provider,
+  endpoint, executable, model, advertised capability, and advertised context metadata
+  while making no capability-qualified claim;
+- current `ProviderCapabilityQualification` requires a separately supplied controlled
+  probe runner and seals the exact installation-observation digest, V3 runtime
+  requirement, provider adapter/tool surface, model identities, runtime-settings
+  profile/digest, requested/effective context, and independently checked tool/context
+  evidence;
+- there is deliberately no default capability-probe runner. Metadata inspection and
+  Task 6 tests therefore cannot accidentally launch Ollama/a model; an actual
+  capability run remains a separately authorized future action;
+- advertised model `tools` capability and advertised context are preconditions only,
+  not proof. Controlled evidence must show the protected bounded file-tool fixture was
+  used/consumed and that the protected context canary survived at or above the sealed
+  context target;
+- Provider Binding V1 now accepts only the controlled capability-qualification
+  contract. Its retained field name `host_provider_qualification_digest` is a V1
+  schema-stability wart during reconstruction; the current value is the digest of the
+  controlled capability qualification, not metadata-only Host Provider Qualification;
+- behavior-bearing runtime settings now have one protected Worker Lab definition and
+  the framework dispatch seam passes the exact already-validated settings to the
+  bound provider executor;
+- the Pydantic/Ollama adapter validates the sealed settings profile/digest and the
+  capability-qualified effective context before execution, and consumes the sealed
+  request limit, tool-call limit, tool timeout, retries, and max concurrency instead
+  of hard-coded duplicate values;
+- Ollama's OpenAI-compatible interface used by Pydantic AI does not provide a truthful
+  per-request context-size control. ACL therefore does not invent one: the context
+  target is proved during controlled qualification and checked against the binding at
+  dispatch;
+- changing to another supported model is data-driven: observe that exact installation,
+  obtain controlled capability qualification for the exact model/configuration, and
+  create a new Provider Binding. No ACL source edit or implicit provider/model
+  selection is required;
+- portable V1 component identity was refreshed only for exact Task 6 production bytes:
+  Autonomous Worker Framework contains 12 files at
+  `sha256:ceec8a2e022d4ad253ea6848eb241b4646da2ee32ac90d0747ba87f66aa6d51a`,
+  and Worker Lab contains 36 files at
+  `sha256:2b14eff998eb282468edacecb8b68b69b184620e73ccf8dc688bb78cb9feb70a`;
+- execution authority remains `DISABLED`; no provider/model request or actual
+  capability qualification was performed.
+
+Validation on the Task 6 materialized tree:
+
+- Python compilation passed;
+- Task 6 Worker Lab qualification/binding/V3 contract gate: 43 passed;
+- framework dispatch/Pydantic settings gate: 18 passed;
+- custody regressions: 10 passed and 20 Windows-native cases skipped on Linux;
+- unaffected application-service regressions: 10 passed, 4 known legacy-boundary
+  cases deselected;
+- unaffected CLI regressions: 13 passed, 1 known legacy doctor case deselected;
+- portable identities: Autonomous Worker Framework `MATCH`, Worker Lab `MATCH`;
+- portable installation contract: 4 passed;
+- signature inspection confirmed an explicit capability probe runner is mandatory;
+- the excluded legacy checks were run separately and still fail only at the known
+  obsolete `acl-installation-manifest:v2` framework-runtime-closure boundary.
+
 ## Current stop condition
 
 Execution remains disabled.
 
 Do not:
 
-- execute a provider/model or treat benchmark results as execution authority;
+- execute a provider/model or perform actual capability qualification during reconstruction;
+- treat installation metadata, benchmark scores, or model-advertised capabilities as execution authority;
 - bypass Provider Binding or substitute provider/model/runtime settings after V3 authorization;
-- re-enable the historical V2 read-only/Codex dispatch shell as a fallback;
+- add an implicit/default capability probe runner or provider/model fallback;
 - install Codex to satisfy obsolete configuration;
-- delete legacy runtime/configuration before Task 7;
+- delete legacy runtime/configuration outside the bounded Task 7 cleanup;
 - mechanically delete legitimate Git workspace mechanics merely because ACL is moving away from repository-centered identity.
 
 ## Immediate next gate
 
-Begin only **Task 6 — provider qualification refinement** from
+Begin only **Task 7 — remove obsolete active-tree implementation** from
 `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
 
-Task 6 must separate installation observation from controlled capability
-qualification and adapt the Pydantic/Ollama provider adapter to consume the exact
-sealed Provider Binding/runtime settings. Use deterministic/mocked tests during the
-implementation. Actual model capability qualification or any model run remains a
-separate explicitly authorized action; benchmark evidence may inform later role
-assignment but must not bypass ACL qualification/binding contracts.
+Task 7 removes the obsolete Codex/Terra/Mine Tracker commissioning runtime,
+`acl-installation-manifest:v2`, synthetic historical execution paths, and stale
+repository-as-system assumptions only after verifying each is no longer needed by the
+current V3/provider-neutral path. Do not broaden Task 7 into portable identity V2 or
+actual provider/model qualification; those remain later gates.
