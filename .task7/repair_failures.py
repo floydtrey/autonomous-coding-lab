@@ -24,6 +24,7 @@ def remove_functions(path: Path, names: set[str]) -> None:
     path.write_text("".join(lines), encoding="utf-8")
 
 
+# Remove the final live reference to the deleted V2 InvocationRecord.
 app = WORKER / "worker_lab" / "application_service.py"
 text = app.read_text(encoding="utf-8")
 text = text.replace(
@@ -34,6 +35,7 @@ if "InvocationRecord," in text or "(InvocationRecord," in text:
     raise RuntimeError("residual V2 InvocationRecord reference remains in application_service.py")
 app.write_text(text, encoding="utf-8")
 
+# Remove tests dedicated to the obsolete Phase 4 MineTrackerWorker commissioning bundle.
 protected = TESTS / "test_protected_definitions.py"
 remove_functions(
     protected,
@@ -58,8 +60,21 @@ ptext = ptext.replace(
     "from worker_lab.validation import (\n    attempt_task_digest,\n    validate_attempt_authority_binding,\n    validate_relations,\n)\n",
     "",
 )
+
+# Task 7 migrates T016/T022 from the deleted V2 integration/store tests to the current V3
+# integration/store/application-service acceptance path. Keep their protected assertions exact.
+ptext = ptext.replace(
+    '    assert phase3_meanings["T016"] == "Evidence substitution and result identity"',
+    '    assert phase3_meanings["T016"] == "V3 integration identity and acceptance"',
+)
+ptext = ptext.replace(
+    '    assert phase3_meanings["T022"] == "Exact integration candidate verification"',
+    '    assert phase3_meanings["T022"] == "Exact V3 integration candidate verification"',
+)
 protected.write_text(ptext, encoding="utf-8")
 
+# Re-baseline the exact worker-lab-v3 digest after its T016/T022 protected commands and paths move
+# to the current V3 contracts.
 catalog_path = WORKER / "curricula" / "catalogs" / "worker-lab-v3.json"
 catalog_value = json.loads(catalog_path.read_text(encoding="utf-8"))
 canonical = json.dumps(catalog_value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
