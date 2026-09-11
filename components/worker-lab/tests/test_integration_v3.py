@@ -20,11 +20,6 @@ from worker_lab.integration_v3 import (
     validate_result_for_invocation,
 )
 from worker_lab.provider_binding import ProviderBindingStore, create_provider_binding
-from worker_lab.provider_qualification import (
-    QUALIFICATION_SCHEMA,
-    PYDANTIC_AI_OLLAMA_V1,
-    HostProviderQualification,
-)
 from worker_lab.runtime_selection import selected_runtime_requirement_v3
 
 

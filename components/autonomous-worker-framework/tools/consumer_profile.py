@@ -175,53 +175,6 @@ class WorkerContextPacket:
         return _digest(self.to_dict())
 
 
-MINE_TRACKER_PROFILE = ConsumerProfile(
-    version=PROFILE_VERSION,
-    consumer="mine-tracker",
-    authority_paths=(
-        "docs/00_START_HERE.md",
-        "docs/current_direction/MINE_TRACKER_CURRENT_DIRECTION.md",
-        "docs/governance/MINE_TRACKER_CURRENT_BASELINE.md",
-        "docs/governance/MINE_TRACKER_WORKSPACE_RULES.md",
-        "README_CURRENT_CHECKPOINT.md",
-    ),
-    protected_prefixes=(
-        ".git/",
-        ".github/",
-        ".amt_updates/",
-        "data/",
-        "docs/core_contract/",
-        "docs/current_direction/",
-        "docs/governance/",
-        "docs/patch_system/",
-        "docs/vera_baseline/",
-        "logs/",
-        "tests/test_autonomy_",
-        "tools/autonomy_",
-        "voice_models/",
-    ),
-    protected_exact=(
-        ".gitignore",
-        "PROJECT_BASELINE.json",
-        "README_CURRENT_CHECKPOINT.md",
-        "docs/00_START_HERE.md",
-        "tools/agent_patch_guard.py",
-    ),
-    product_invariants=(
-        "Mine Tracker manages physical assets, inspections, deficiencies, locations, history, forms, maps, and configuration.",
-        "Do not expand Mine Tracker into employee task, workload, productivity, or personnel-performance management.",
-        "Keep the current product local-first and single-site; multi-site Area Manager behavior is deferred.",
-        "Do not change authentication, permissions, schema, migrations, transaction or audit authority, durable identity, consequential Vera execution, dependencies, installers, or checkpoint versions without explicit Patch Controller review.",
-        "A worker candidate is a proposal and never establishes production authority.",
-    ),
-    full_validation=(
-        ValidationCommand("Compile Python source", ("python", "-m", "compileall", "-q", "app", "tests", "tools", "run_app.py"), 120),
-        ValidationCommand("Run Python test suite", ("python", "-m", "pytest", "-q"), 900),
-        ValidationCommand("Check main JavaScript", ("node", "--check", "web/app.js"), 60),
-        ValidationCommand("Check Lite JavaScript", ("node", "--check", "web/lite_ui.js"), 60),
-    ),
-)
-
 
 def build_context_packet(
     repo_root: Path,

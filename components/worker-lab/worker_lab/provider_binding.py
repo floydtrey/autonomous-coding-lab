@@ -19,7 +19,6 @@ from .runtime_settings import (
     validate_runtime_settings,
 )
 from .runtime_selection import (
-    CODING_WORKER_V1,
     resolve_runtime_identity,
     selected_runtime_requirement_v3,
 )

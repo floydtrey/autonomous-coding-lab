@@ -755,8 +755,9 @@
                                       "-m",
                                       "pytest",
                                       "-q",
-                                      "tests/test_integration.py",
-                                      "tests/test_invocation_store.py"
+                                      "tests/test_integration_v3.py",
+                                      "tests/test_invocation_store_v3.py",
+                                      "tests/test_application_service_v3.py"
                                   ],
                       "cost_class":  "second",
                       "environment_requirements":  [
@@ -769,12 +770,12 @@
                                               "test-summary"
                                           ],
                       "mode":  "conditional",
-                      "name":  "Evidence substitution and result identity",
+                      "name":  "V3 integration identity and acceptance",
                       "owner":  "worker-lab",
                       "path_prefixes":  [
-                                            "worker_lab/framework_adapter.py",
-                                            "worker_lab/integration.py",
-                                            "worker_lab/invocation_store.py"
+                                            "worker_lab/integration_v3.py",
+                                            "worker_lab/invocation_store_v3.py",
+                                            "worker_lab/service_runtime_v3.py"
                                         ],
                       "path_suffixes":  [
 
@@ -785,7 +786,7 @@
                                             "T006",
                                             "T011"
                                         ],
-                      "purpose":  "Reject substituted adapter responses, invocation identities, and strict result records.",
+                      "purpose":  "Verify current V3 invocation/result identity, storage, dispatch, and independent candidate acceptance.",
                       "replacement_test_id":  null,
                       "risk_flags":  [
                                          "integration",
@@ -1024,8 +1025,9 @@
                                       "-m",
                                       "pytest",
                                       "-q",
-                                      "tests/test_integration.py",
-                                      "tests/test_invocation_store.py"
+                                      "tests/test_integration_v3.py",
+                                      "tests/test_invocation_store_v3.py",
+                                      "tests/test_application_service_v3.py"
                                   ],
                       "cost_class":  "second",
                       "environment_requirements":  [
@@ -1038,12 +1040,12 @@
                                               "test-summary"
                                           ],
                       "mode":  "conditional",
-                      "name":  "Exact integration candidate verification",
+                      "name":  "Exact V3 integration candidate verification",
                       "owner":  "worker-lab",
                       "path_prefixes":  [
-                                            "worker_lab/framework_adapter.py",
-                                            "worker_lab/integration.py",
-                                            "worker_lab/invocation_store.py"
+                                            "worker_lab/integration_v3.py",
+                                            "worker_lab/invocation_store_v3.py",
+                                            "worker_lab/service_runtime_v3.py"
                                         ],
                       "path_suffixes":  [
 
@@ -1054,7 +1056,7 @@
                                             "T016",
                                             "T019"
                                         ],
-                      "purpose":  "Verify the exact adapter result binds the prepared Worker Lab invocation.",
+                      "purpose":  "Verify current V3 invocation/result identity, storage, dispatch, and independent candidate acceptance.",
                       "replacement_test_id":  null,
                       "risk_flags":  [
                                          "integration"

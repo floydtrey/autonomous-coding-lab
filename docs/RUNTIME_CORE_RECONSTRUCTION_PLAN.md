@@ -1,6 +1,6 @@
 # Runtime Core Reconstruction Plan
 
-**Status:** approved plan; Tasks 1-6 complete; Task 7 next
+**Status:** approved plan; Tasks 1-7 complete; Task 8 next
 
 **Purpose:** reconstruct the ACL execution/runtime shell around the accepted Worker Lab authority model so the active tree is provider-neutral, model-swappable, host-portable, target-system-centered, and no longer carries obsolete Codex/Terra/Mine Tracker commissioning paths.
 
@@ -402,6 +402,8 @@ actual model/provider capability run was performed and execution remains `DISABL
 
 ### Task 7 — remove obsolete active-tree implementation
 
+**Status:** complete in the Task 7 reconstruction checkpoint.
+
 After current replacements are accepted, delete the obsolete modules/configuration/tests listed above. Remove active-tree references to:
 
 - Codex
@@ -415,6 +417,8 @@ After current replacements are accepted, delete the obsolete modules/configurati
 Do not move these into `docs/legacy/` or a compatibility directory. Git history is sufficient.
 
 **Stop gate:** repository scan finds no obsolete runtime architecture in current production code/configuration and no stale documents capable of being mistaken for current architecture; any surviving repository-specific contract is explicitly justified as a Git-backed workspace/backend concern.
+
+**Accepted Task 7 boundary:** the obsolete Codex/Terra/MineTrackerWorker commissioning runtime, old V2 bridge/invocation/read-only execution path, synthetic execution path, old installation/monorepo manifests, production Mine Tracker profile, commissioning-only proof bundle, and superseded current handoff/workplan documents are removed from the active tree. Retained application-service/lifecycle/runtime-selection/provider-qualification paths are current V3-only; Windows Job Objects remain only as the current containment backend and Git facts remain bounded workspace/source-state evidence. The protected Worker Lab V3 integration tests T016/T022 now target the current V3 integration/store/application-service acceptance path. Portable V1 identity was mechanically refreshed for the reduced current tree only; true host-independent portable identity V2 remains Task 8. The surviving framework suite passed 76 tests, Worker Lab passed 319 tests with one environment-only symlink skip, portable installation passed 4 tests, and the production/configuration obsolete-reference scan was empty. Execution remained `DISABLED`; no provider/model request or actual capability qualification was performed.
 
 ### Task 8 — portable identity V2 and documentation cleanup
 

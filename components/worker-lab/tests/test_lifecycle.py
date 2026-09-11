@@ -3,8 +3,7 @@ from dataclasses import replace
 import pytest
 
 from worker_lab.errors import LabValidationError
-from worker_lab.integration import InvocationRecord, InvocationState, transition_invocation
-from worker_lab.lifecycle import bind_authorized_invocation, transition_attempt
+from worker_lab.lifecycle import transition_attempt
 from worker_lab.models import ATTEMPT_SCHEMA, AttemptRecord, AttemptState
 
 
@@ -104,33 +103,3 @@ def test_running_requires_one_exact_runtime_identity_binding() -> None:
     assert aborted.runtime_identity == DIGEST_A
 
 
-def test_running_binding_revalidates_exact_authorized_invocation() -> None:
-    ready = transition_attempt(attempt(), AttemptState.READY, occurred_at="2026-08-27T12:00:01Z")
-    from tests.test_integration import record
-    value = record().to_dict()
-    value.update({
-        "attempt_id": ready.attempt_id, "exercise_id": ready.exercise_id,
-        "exercise_version": ready.exercise_version, "policy_id": ready.policy_id,
-        "policy_version": ready.policy_version, "policy_digest": ready.policy_digest,
-        "role_id": ready.role_id, "role_version": ready.role_version,
-        "role_digest": ready.role_digest, "context_digest": ready.context_digest,
-        "task_digest": ready.task_digest, "test_catalog_version": ready.evaluator_catalog_version,
-        "test_catalog_digest": ready.evaluator_catalog_digest, "starting_commit": ready.starting_commit,
-        "sandbox_mode": ready.sandbox_mode, "operation": "workspace-write-code-task",
-        "framework_contract_version": "worker-lab-framework-adapter:v3",
-        "writable_paths": ["app.py"],
-    })
-    prepared = InvocationRecord.from_mapping(value)
-    authorized = transition_invocation(
-        prepared, InvocationState.AUTHORIZED, authorized_by="trusted-controller",
-        authorized_at="2026-08-27T12:00:01Z",
-    )
-    running = bind_authorized_invocation(ready, authorized, occurred_at="2026-08-27T12:00:02Z")
-    assert running.runtime_identity == authorized.identity_digest()
-    changed = authorized.to_dict()
-    changed["attempt_id"] = "ATTEMPT-9999"
-    with pytest.raises(LabValidationError) as error:
-        bind_authorized_invocation(
-            ready, InvocationRecord.from_mapping(changed), occurred_at="2026-08-27T12:00:02Z"
-        )
-    assert error.value.code == "INTEGRATION_IDENTITY_INVALID"

@@ -3,8 +3,9 @@ import subprocess
 from dataclasses import replace
 
 from tools.code_task import build_code_task, run_code_task
-from tools.consumer_profile import MINE_TRACKER_PROFILE, ValidationCommand, build_context_packet
+from tools.consumer_profile import ValidationCommand, build_context_packet
 from tools.worker_runtime import PROVIDER_QUALIFIED, WorkerExecution, WorkerRequest
+from current_test_fixtures import GENERIC_PROFILE
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -19,7 +20,7 @@ def _repo(tmp_path: Path) -> Path:
     _git(root, "init", "-q")
     _git(root, "config", "user.name", "Test")
     _git(root, "config", "user.email", "test@example.invalid")
-    for path in MINE_TRACKER_PROFILE.authority_paths:
+    for path in GENERIC_PROFILE.authority_paths:
         target = root / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("authority\n", encoding="utf-8")
@@ -35,7 +36,7 @@ def test_code_task_uses_provider_neutral_worker_request(tmp_path):
     packet = build_context_packet(
         root,
         allowed_paths=("tests/test_assets.py",),
-        profile=MINE_TRACKER_PROFILE,
+        profile=GENERIC_PROFILE,
     )
     validation = ValidationCommand("Check candidate", ("git", "diff", "--check"), 10)
     packet = replace(packet, full_validation=(validation,))
@@ -59,7 +60,7 @@ def test_code_task_uses_provider_neutral_worker_request(tmp_path):
         packet,
         repo_root=root,
         framework_repo=tmp_path / "framework",
-        profile=MINE_TRACKER_PROFILE,
+        profile=GENERIC_PROFILE,
         executor=executor,
     )
 

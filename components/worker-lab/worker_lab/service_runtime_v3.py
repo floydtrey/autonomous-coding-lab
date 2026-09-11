@@ -653,18 +653,12 @@ def review_candidate(
     )
 
 
-def load_invocation_record(value: Any):
-    if isinstance(value, Mapping) and value.get("schema_version") == INVOCATION_SCHEMA_V3:
-        return InvocationRecordV3.from_mapping(value)
-    from .integration import InvocationRecord
-    return InvocationRecord.from_mapping(value)
+def load_invocation_record(value: Any) -> InvocationRecordV3:
+    return InvocationRecordV3.from_mapping(value)
 
 
-def load_result_record(value: Any):
-    if isinstance(value, Mapping) and value.get("schema_version") == "worker-lab-framework-result:v3":
-        return ResultRecordV3.from_mapping(value)
-    from .integration import ResultRecord
-    return ResultRecord.from_mapping(value)
+def load_result_record(value: Any) -> ResultRecordV3:
+    return ResultRecordV3.from_mapping(value)
 
 
 def _require_no_invocation_for_attempt(state_root: Path, attempt_id: str) -> None:
