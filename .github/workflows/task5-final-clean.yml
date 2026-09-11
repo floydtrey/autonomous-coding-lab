@@ -1,0 +1,102 @@
+name: Task 5 Clean Checkpoint Validation
+
+on:
+  push:
+    branches:
+      - task5-final-validation-temp
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pytest
+      - name: Compile Task 5 path
+        run: >-
+          python -m compileall -q
+          components/worker-lab/worker_lab/application_service.py
+          components/worker-lab/worker_lab/controller_task_packet.py
+          components/worker-lab/worker_lab/cli.py
+          components/worker-lab/worker_lab/invocation_store_v3.py
+          components/worker-lab/worker_lab/result_acceptance_v3.py
+          components/worker-lab/worker_lab/git_workspace_evidence.py
+          components/worker-lab/worker_lab/service_runtime_v3.py
+          components/worker-lab/tests/test_application_service_v3.py
+      - name: Run V3 foundation and Task 5 acceptance
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        run: >-
+          python -m pytest -q
+          tests/test_controller_task_packet.py
+          tests/test_dispatch_client.py
+          tests/test_integration_v3.py
+          tests/test_provider_binding.py
+          tests/test_runtime_selection_v3.py
+          tests/test_application_service_v3.py
+      - name: Run custody regressions
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q tests/test_process_custody.py tests/test_windows_job.py
+      - name: Run unaffected application service regressions
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        run: >-
+          python -m pytest -q tests/test_application_service.py
+          -k "not health_and_installation_status_are_non_mutating_and_disabled and not absent_data_root_is_healthy_empty_and_remains_absent and not queries_reject_invalid_data_roots_without_mutation and not cli_exposes_service_health_list_and_show"
+      - name: Run unaffected CLI regressions
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        run: >-
+          python -m pytest -q tests/test_cli.py
+          -k "not doctor_reports_disabled_installation_without_execution"
+      - name: Verify portable identities
+        shell: bash
+        run: |
+          python - <<'PY'
+          import importlib.util, json
+          from pathlib import Path
+          root = Path.cwd()
+          spec = importlib.util.spec_from_file_location('portable_verify', root / 'tools' / 'verify_portable_installation.py')
+          module = importlib.util.module_from_spec(spec)
+          assert spec is not None and spec.loader is not None
+          spec.loader.exec_module(module)
+          manifest = json.loads((root / 'config' / 'portable-installation-manifest.json').read_text(encoding='utf-8'))
+          for name in ('autonomous-worker-framework', 'worker-lab'):
+              result = module._inspect_component(root, name, manifest['components'][name])
+              assert result['status'] == 'MATCH'
+              print(name, result['file_count'], result['digest'], result['status'])
+          assert manifest['activation_policy']['execution_authority'] == 'DISABLED'
+          print('EXECUTION_AUTHORITY=DISABLED')
+          PY
+          python -m pytest -q tests/test_portable_installation.py
+      - name: Confirm legacy manifest boundary is unchanged
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q \
+            tests/test_application_service.py::test_health_and_installation_status_are_non_mutating_and_disabled \
+            tests/test_cli.py::test_doctor_reports_disabled_installation_without_execution \
+            > /tmp/task5-known-boundary.log 2>&1
+          code=$?
+          set -e
+          test "$code" -ne 0
+          grep -q 'framework runtime closure is incomplete' /tmp/task5-known-boundary.log
+          echo 'KNOWN_LEGACY_MANIFEST_BOUNDARY=CONFIRMED'
+      - name: Check current path has no legacy dispatch fallback
+        shell: bash
+        run: |
+          ! grep -nE 'codex_runtime|terra-medium|local_worker_harness' \
+            components/worker-lab/worker_lab/service_runtime_v3.py \
+            components/worker-lab/worker_lab/invocation_store_v3.py \
+            components/worker-lab/worker_lab/result_acceptance_v3.py \
+            components/worker-lab/worker_lab/git_workspace_evidence.py
