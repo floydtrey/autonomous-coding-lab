@@ -38,7 +38,7 @@
       "root": "components/worker-lab",
       "production_root": "worker_lab",
       "scope": "python-production-tree",
-      "digest": "sha256:1cdb7c5da5d81278f4f3b82de9c3082984c3d8b0b94e237c13be950e2c690b2a"
+      "digest": "sha256:52086119d189f41aa6ab708f7e03ce57a1cc70c3b4eaaeffd661556917115b67"
     }
   },
   "host_requirements": {
