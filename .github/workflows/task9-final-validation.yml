@@ -9,14 +9,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: 9c91442299d4b143baefd6c583c9f034d00a7cbd
+          ref: c949e38237a4a3e83977edd6775e9d5198cf8446
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python -m pip install pytest
       - name: Assert exact clean Task 9 candidate
         run: |
-          test "$(git rev-parse HEAD)" = "9c91442299d4b143baefd6c583c9f034d00a7cbd"
+          test "$(git rev-parse HEAD)" = "c949e38237a4a3e83977edd6775e9d5198cf8446"
           test "$(git rev-parse HEAD^)" = "db0e66f76a721050dbfbe94c6ccf809667a7203f"
           test -z "$(git ls-tree -r --name-only HEAD | grep -E '^\.task9/|^\.github/workflows/task9-' || true)"
           test "$(git status --porcelain)" = ""
