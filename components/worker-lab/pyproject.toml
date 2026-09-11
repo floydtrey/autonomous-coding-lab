@@ -12,6 +12,11 @@ dependencies = []
 [project.scripts]
 worker-lab = "worker_lab.cli:main"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["worker_lab*"]
+namespaces = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
