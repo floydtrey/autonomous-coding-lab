@@ -1,0 +1,102 @@
+name: Task 8 Full Candidate
+on:
+  push:
+    branches: [task8-portable-identity-docs-temp]
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest
+      - name: Materialize Task 8 candidate
+        run: |
+          python .task8/apply_task8.py
+          python .task8/fix_source_v2.py
+          python .task8/apply_docs.py
+      - name: Refresh source component digests
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path.cwd(); path=root/'config/portable-source-manifest.json'; m=json.loads(path.read_text())
+          def canon(v): return json.dumps(v,ensure_ascii=False,allow_nan=False,sort_keys=True,separators=(',',':'))
+          def digest(v): return 'sha256:'+hashlib.sha256(canon(v).encode()).hexdigest()
+          def bd(p): return 'sha256:'+hashlib.sha256(p.read_bytes()).hexdigest()
+          for name,c in m['components'].items():
+              base=root/c['root']
+              if c['scope']=='runtime-dependency-closure': files=tuple(c['files'])
+              else:
+                  prod=base/c['production_root']
+                  files=tuple(sorted(p.relative_to(base).as_posix() for p in prod.rglob('*.py') if '__pycache__' not in p.parts))
+              entries=[{'path':f,'sha256':bd(base/f)} for f in files]
+              c['digest']=digest(entries)
+              print(name,len(files),c['digest'])
+          path.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+      - name: Compile production and verifier
+        run: python -m compileall -q components/autonomous-worker-framework/tools components/worker-lab/worker_lab tools/verify_portable_source.py
+      - name: Run complete AWF suite
+        working-directory: components/autonomous-worker-framework
+        run: python -m pytest -q
+      - name: Run complete Worker Lab suite
+        working-directory: components/worker-lab
+        run: python -m pytest -q
+      - name: Run root source and inventory tests
+        run: python -m pytest -q tests
+      - name: Verify portable source V2
+        run: |
+          python tools/verify_portable_source.py > /tmp/source.json
+          cat /tmp/source.json
+          python - <<'PY'
+          import json
+          v=json.load(open('/tmp/source.json'))
+          assert v['schema_version']=='acl-portable-source-report:v2'
+          assert all(x['status']=='MATCH' for x in v['components'].values())
+          text=json.dumps(v,sort_keys=True).lower()
+          for forbidden in ('execution_authority','host_requirements','python_executable','execution_ready'):
+              assert forbidden not in text, forbidden
+          PY
+      - name: Assert source activation and obsolete runtime separation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('config/portable-source-manifest.json').read_text())
+          assert set(m)=={'schema_version','source_identity_id','components','separation_policy','integrity'}
+          assert 'activation_policy' not in m and 'host_requirements' not in m
+          assert not Path('config/portable-installation-manifest.json').exists()
+          assert not Path('tools/verify_portable_installation.py').exists()
+          roots=[Path('components/autonomous-worker-framework/tools'),Path('components/worker-lab/worker_lab'),Path('config')]
+          obsolete=('portable-installation-manifest','acl-portable-installation-manifest:v1','activation_policy','host_requirements','codex','terra','minetrackerworker','autonomy_smoke','acl-installation-manifest:v2')
+          hits=[]
+          for root in roots:
+              for p in sorted(x for x in root.rglob('*') if x.is_file() and x.suffix in {'.py','.json'}):
+                  for i,line in enumerate(p.read_text(errors='ignore').splitlines(),1):
+                      if any(term in line.lower() for term in obsolete): hits.append(f'{p}:{i}:{line}')
+          assert not hits, '\n'.join(hits)
+          print('CURRENT_PRODUCTION_SOURCE_SCAN EMPTY')
+          PY
+      - name: Assert one current documentation architecture
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          assert not Path('docs/legacy').exists()
+          assert not Path('migration/inventory').exists()
+          assert not Path('docs/PORTABLE_INSTALLATION_IDENTITY.md').exists()
+          current=[Path('README.md'),Path('AGENTS.md')]+sorted(p for p in Path('docs').glob('*.md'))
+          obsolete=('codex','terra','minetrackerworker','autonomy_smoke','acl-installation-manifest:v2','portable-installation-manifest','runtime selection v1','coding-worker:v1')
+          hits=[]
+          for p in current:
+              text=p.read_text(errors='ignore').lower()
+              for term in obsolete:
+                  if term in text: hits.append(f'{p}: {term}')
+          assert not hits, '\n'.join(hits)
+          print('CURRENT_DOCUMENT_SCAN EMPTY')
+          PY
+      - name: Show candidate diff
+        run: git status --short
