@@ -17,6 +17,7 @@ jobs:
         run: |
           python .task7/apply_task7.py
           python .task7/fix_candidate.py
+          python .task7/fix_worker_tests.py
       - name: Refresh portable V1 byte identities
         run: |
           python - <<'PY'
