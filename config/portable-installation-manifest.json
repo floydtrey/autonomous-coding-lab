@@ -15,7 +15,7 @@
       "root": "components/autonomous-worker-framework",
       "production_root": "tools",
       "scope": "runtime-dependency-closure",
-      "digest": "sha256:0ce8d8533073463b18bc29d72e0a5dfcf9ca0e28110505eb8f872c978427601c",
+      "digest": "sha256:cb76f6ed59a5fb57b5b22faa31103fd285302b042b2bb3af7722b41e580d1414",
       "files": [
         "tools/code_task.py",
         "tools/codex_runtime.py",
