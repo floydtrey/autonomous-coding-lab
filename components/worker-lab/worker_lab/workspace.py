@@ -951,12 +951,8 @@ def _remove_tree(path: Path) -> None:
 
 
 def _remove_readonly(function: Callable[..., object], path: str, error: BaseException) -> None:
-    if isinstance(error, FileNotFoundError):
-        return
     try:
         os.chmod(path, stat.S_IWRITE)
         function(path)
-    except FileNotFoundError:
-        return
     except OSError:
         raise error
