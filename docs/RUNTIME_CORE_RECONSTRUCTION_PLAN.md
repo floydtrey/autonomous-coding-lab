@@ -1,6 +1,6 @@
 # Runtime Core Reconstruction Plan
 
-**Status:** approved plan; Tasks 1-3 complete; Task 4 next
+**Status:** approved plan; Tasks 1-4 complete; Task 5 next
 
 **Purpose:** reconstruct the ACL execution/runtime shell around the accepted Worker Lab authority model so the active tree is provider-neutral, model-swappable, host-portable, target-system-centered, and no longer carries obsolete Codex/Terra/Mine Tracker commissioning paths.
 
@@ -324,12 +324,27 @@ model request was sent and execution remains `DISABLED`.
 
 ### Task 4 — generic dispatch client + dispatch adapter
 
+**Status:** complete in the Task 4 reconstruction checkpoint.
+
 - replace `framework_client.py` and `worker_lab_adapter.py` responsibilities with minimal current modules;
 - migrate workspace-write task reconstruction/verification from the old bridge as needed;
 - explicit no-fallback behavior;
 - injected fake provider executors only.
 
 **Stop gate:** workspace-write dispatch has no Codex/Terra dependency and no implicit provider selection.
+
+**Accepted Task 4 boundary:** Worker Lab `dispatch_client.py` creates one bounded
+canonical V3 workspace-write dispatch envelope only after exact authorization,
+durable Provider Binding, runtime settings, Controller Task Packet, task, scope,
+and test-plan checks. Framework `dispatch_adapter.py` independently validates that
+envelope, reconstructs the provider-neutral code task, and requires one explicit
+`BoundProviderExecutor` whose adapter/tool-surface/binding/settings identities match
+the sealed request. No provider registry, default, Codex/Terra fallback, or implicit
+provider selection exists. Workspace/framework paths are backend locators supplied
+outside durable ACL target identity. Nonzero provider execution fails closed even if
+resulting files would validate. The live application service remains on V2 until
+Task 5; Provider Qualification refinement remains Task 6; legacy deletion remains
+Task 7. No provider/model request was sent and execution remains `DISABLED`.
 
 ### Task 5 — migrate application service and current result acceptance
 
@@ -418,7 +433,7 @@ Do not:
 - Stop at architectural ambiguity rather than silently choosing a more permissive design.
 - After every task, keep the tree clean and update this plan/current state only with accepted evidence.
 
-## New-chat startup / Task 4 boundary
+## New-chat startup / Task 5 boundary
 
 A fresh implementation chat should read, in this order:
 
@@ -426,6 +441,6 @@ A fresh implementation chat should read, in this order:
 2. `docs/START_HERE.md`
 3. `docs/CURRENT_STATE.md`
 4. `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`
-5. only the current source/tests directly relevant to **Task 4**
+5. only the current source/tests directly relevant to **Task 5**
 
-Then inspect the current branch/HEAD and working tree. Perform **Task 4 only**: replace the old framework-client/worker-adapter responsibilities with the minimal provider-neutral dispatch client and adapter required by the accepted V3/Provider Binding contracts. Preserve exact no-fallback behavior, use injected fake provider executors only, and do not migrate `application_service.py`, refine provider qualification, delete legacy modules, or execute a provider/model in the same task.
+Then inspect the current branch/HEAD and working tree. Perform **Task 5 only**: migrate the invocation/dispatch/recovery portion of `application_service.py` onto Invocation/Result V3 and the accepted provider-neutral dispatch seam while preserving stable lifecycle, storage, policy, test, custody, and independent result-acceptance behavior. Keep Git-specific workspace evidence behind the coding-workspace boundary. Do not refine provider qualification, adapt the real provider, delete legacy modules, redesign portable identity V2, or execute a provider/model in the same task.
