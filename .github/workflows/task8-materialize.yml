@@ -1,0 +1,52 @@
+name: Task 8 Materialize Candidate
+on:
+  push:
+    branches: [task8-portable-identity-docs-temp]
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Materialize validated Task 8 bytes
+        run: |
+          python .task8/apply_task8.py
+          python .task8/fix_source_v2.py
+          python .task8/apply_docs.py
+          python .task8/fix_docs.py
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path.cwd(); path=root/'config/portable-source-manifest.json'; m=json.loads(path.read_text())
+          def canon(v): return json.dumps(v,ensure_ascii=False,allow_nan=False,sort_keys=True,separators=(',',':'))
+          def digest(v): return 'sha256:'+hashlib.sha256(canon(v).encode()).hexdigest()
+          def bd(p): return 'sha256:'+hashlib.sha256(p.read_bytes()).hexdigest()
+          for name,c in m['components'].items():
+              base=root/c['root']
+              if c['scope']=='runtime-dependency-closure': files=tuple(c['files'])
+              else:
+                  prod=base/c['production_root']
+                  files=tuple(sorted(p.relative_to(base).as_posix() for p in prod.rglob('*.py') if '__pycache__' not in p.parts))
+              c['digest']=digest([{'path':f,'sha256':bd(base/f)} for f in files])
+          path.write_text(json.dumps(m,indent=2)+'\n')
+          PY
+          python .task8/finalize_docs.py
+      - name: Commit materialized candidate only
+        run: |
+          git config user.name "Task 8 Validation"
+          git config user.email "task8-validation@users.noreply.github.com"
+          git add -A
+          git status --short
+          if git diff --cached --quiet; then
+            echo "No materialized changes"
+            exit 0
+          fi
+          git commit -m "wip: materialize Task 8 candidate [skip ci]"
+          git push origin HEAD:task8-portable-identity-docs-temp
