@@ -38,7 +38,7 @@ jobs:
           tests/test_provider_binding.py
           tests/test_integration_v3.py
 
-      - name: Compute portable Worker Lab production-tree digest
+      - name: Verify portable Worker Lab production-tree identity
         run: |
           python - <<'PY'
           import hashlib
@@ -56,9 +56,18 @@ jobs:
               })
           encoded = json.dumps(entries, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
           digest = "sha256:" + hashlib.sha256(encoded).hexdigest()
+          manifest = json.loads(Path("../../config/portable-installation-manifest.json").read_text(encoding="utf-8"))
+          expected = manifest["components"]["worker-lab"]["digest"]
           print(f"WORKER_LAB_FILE_COUNT={len(entries)}")
           print(f"WORKER_LAB_PORTABLE_DIGEST={digest}")
+          if len(entries) != 30 or digest != expected:
+              raise SystemExit(f"portable Worker Lab identity mismatch: expected {expected}, observed {digest}")
           PY
+
+      - name: Run portable installation contract tests
+        run: |
+          cd ../..
+          python -m pytest -q tests/test_portable_installation.py
 
       - name: Confirm known obsolete installation-manifest boundary remains diagnostic only
         continue-on-error: true
