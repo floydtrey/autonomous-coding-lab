@@ -14,7 +14,9 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install pytest
       - name: Materialize Task 7 cleanup
-        run: python .task7/apply_task7.py
+        run: |
+          python .task7/apply_task7.py
+          python .task7/fix_candidate.py
       - name: Refresh portable V1 byte identities
         run: |
           python - <<'PY'
@@ -27,19 +29,16 @@ jobs:
           def bytes_digest(p): return 'sha256:'+hashlib.sha256(p.read_bytes()).hexdigest()
           for name,c in m['components'].items():
               base=root/c['root']
-              if c['scope']=='runtime-dependency-closure':
-                  files=tuple(c['files'])
+              if c['scope']=='runtime-dependency-closure': files=tuple(c['files'])
               else:
                   prod=base/c['production_root']
                   files=tuple(sorted(p.relative_to(base).as_posix() for p in prod.rglob('*.py') if '__pycache__' not in p.parts))
               entries=[{'path':f,'sha256':bytes_digest(base/f)} for f in files]
-              c['digest']=digest(entries)
-              print(name,len(files),c['digest'])
+              c['digest']=digest(entries); print(name,len(files),c['digest'])
           path.write_text(json.dumps(m,indent=2)+'\n')
           PY
       - name: Compile current production
-        run: |
-          python -m compileall -q components/autonomous-worker-framework/tools components/worker-lab/worker_lab
+        run: python -m compileall -q components/autonomous-worker-framework/tools components/worker-lab/worker_lab
       - name: Import current Worker Lab service
         env:
           PYTHONPATH: components/worker-lab
@@ -69,7 +68,7 @@ jobs:
           print('=== RESIDUAL PRODUCTION/CONFIG OBSOLETE REFERENCES ===')
           for root in roots:
               for p in sorted(x for x in root.rglob('*') if x.is_file() and x.suffix in {'.py','.json'}):
-                  text=p.read_text(errors='ignore').lower()
-                  for i,line in enumerate(text.splitlines(),1):
-                      if any(t in line for t in terms): print(f'{p}:{i}:{line[:220]}')
+                  for i,line in enumerate(p.read_text(errors='ignore').splitlines(),1):
+                      lower=line.lower()
+                      if any(t in lower for t in terms): print(f'{p}:{i}:{line[:220]}')
           PY
