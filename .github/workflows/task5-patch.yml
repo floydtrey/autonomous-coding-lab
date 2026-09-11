@@ -106,6 +106,155 @@ jobs:
           print(f"WORKER_LAB_FILE_COUNT={len(entries)}")
           print(f"WORKER_LAB_PORTABLE_DIGEST={digest}")
           PY
+      - name: Record Task 5 accepted boundary
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          current_path = Path('docs/CURRENT_STATE.md')
+          current = current_path.read_text(encoding='utf-8')
+          if '## Runtime reconstruction Task 5 — accepted checkpoint' not in current:
+              marker = '## Current stop condition\n'
+              if marker not in current:
+                  raise SystemExit('CURRENT_STATE Task 5 insertion marker missing')
+              task5 = '''## Runtime reconstruction Task 5 — accepted checkpoint
+
+Task 5 migrates the active Worker Lab application-service invocation,
+dispatch, recovery, and workspace-write candidate-review path onto Invocation/Result
+V3 without enabling a real provider.
+
+Accepted changes:
+
+- current `prepare-invocation` is workspace-write/V3 only and requires an explicit
+  logical `target:` identity plus the exact durable Provider Binding ID/digest;
+  repository/workspace paths remain backend locators and Git evidence rather than
+  ACL target identity;
+- the exact canonical Controller Task Packet is the sealed prompt, and authorization
+  rechecks both the packet's controller identity and the exact current Provider
+  Binding before changing state;
+- public dispatch requires an explicitly injected V3 workspace dispatch runner; no
+  V2 read-only/Codex shell, provider fallback, provider registry, or implicit model
+  selection is reachable through the current service path;
+- generic Result V3 acceptance requires exact request/invocation/binding identity,
+  complete durable custody with verified workload absence, exact authorized changed
+  paths, exact framework test claims, and independently executed sealed tests;
+- `git_workspace_evidence.py` independently observes the Git-backed coding workspace
+  and supplies capability-specific base/head/path/content/change evidence to generic
+  acceptance rather than making repository facts universal ACL identity;
+- the full Context Manifest digest still binds all protected source context, while
+  Invocation V3 `readable_paths` excludes paths already granted by `writable_paths`;
+  writable targets therefore have one explicit authority surface instead of being
+  simultaneously classified as read-only context and write scope;
+- recovery remains custody-backend-specific and fails closed unless exact controller,
+  invocation, absence evidence, and unchanged workspace identity can be proven;
+- historical V2 records remain parseable/reviewable during reconstruction, and the
+  old private `_legacy_*` service helpers remain only for Task 7 deletion; new public
+  invocation/dispatch/recovery operations no longer route through V2;
+- the portable V1 Worker Lab production tree now contains 35 files and matches
+  `sha256:e4da4781e1afb9dfa068a5e239a7dcb3d478fe918db5fab8e19103ccb1017649`;
+- execution authority remains `DISABLED`; no provider/model request was sent.
+
+Validation on the Task 5 materialized tree:
+
+- Python compilation passed;
+- V3 foundations plus Task 5 service acceptance: 35 passed;
+- unaffected application-service regressions: 10 passed, with four legacy
+  installation-status/doctor-boundary tests intentionally excluded;
+- unaffected CLI regressions: 13 passed, with the legacy doctor test intentionally
+  excluded;
+- the excluded legacy checks were run separately and confirmed to fail only at the
+  already-known obsolete `acl-installation-manifest:v2` framework-runtime-closure
+  boundary (`framework runtime closure is incomplete`);
+- the Task 5 suite used injected fake runners/custody only and performed no provider
+  or model execution.
+
+'''
+              current = current.replace(marker, task5 + marker, 1)
+
+          stop = current.index('## Current stop condition\n')
+          current = current[:stop] + '''## Current stop condition
+
+Execution remains disabled.
+
+Do not:
+
+- execute a provider/model or treat benchmark results as execution authority;
+- bypass Provider Binding or substitute provider/model/runtime settings after V3 authorization;
+- re-enable the historical V2 read-only/Codex dispatch shell as a fallback;
+- install Codex to satisfy obsolete configuration;
+- delete legacy runtime/configuration before Task 7;
+- mechanically delete legitimate Git workspace mechanics merely because ACL is moving away from repository-centered identity.
+
+## Immediate next gate
+
+Begin only **Task 6 — provider qualification refinement** from
+`docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
+
+Task 6 must separate installation observation from controlled capability
+qualification and adapt the Pydantic/Ollama provider adapter to consume the exact
+sealed Provider Binding/runtime settings. Use deterministic/mocked tests during the
+implementation. Actual model capability qualification or any model run remains a
+separate explicitly authorized action; benchmark evidence may inform later role
+assignment but must not bypass ACL qualification/binding contracts.
+'''
+          current_path.write_text(current, encoding='utf-8')
+
+          plan_path = Path('docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md')
+          plan = plan_path.read_text(encoding='utf-8')
+          start = plan.index('### Task 5 — migrate application service and current result acceptance\n')
+          end = plan.index('### Task 6 — provider qualification refinement\n', start)
+          task5_plan = '''### Task 5 — migrate application service and current result acceptance
+
+**Status:** complete in the Task 5 reconstruction checkpoint.
+
+- migrate only the invocation/dispatch/recovery portion of `application_service.py`;
+- preserve accepted lifecycle/storage/policy/test behavior;
+- separate platform-specific workspace/process evidence from generic result acceptance;
+- keep Git-specific workspace evidence behind the coding-workspace boundary instead of treating it as universal system identity.
+
+**Stop gate:** current Worker Lab service path uses only V3/current dispatch contracts.
+
+**Accepted Task 5 boundary:** current public application-service preparation,
+authorization, dispatch, recovery, and workspace-write candidate review use
+Invocation/Result V3 and the provider-neutral dispatch seam. Preparation requires an
+explicit logical target plus the exact durable Provider Binding and exact Controller
+Task Packet; authorization rechecks both before transition. Dispatch has no implicit
+runner/provider fallback. Candidate acceptance depends on complete durable custody,
+independent sealed tests, and independently observed Git workspace evidence rather
+than trusting the worker/framework success claim. The Context Manifest continues to
+bind all protected source context, while V3 readable scope excludes paths already in
+the writable scope so one path is not granted through conflicting authority classes.
+Git facts remain coding-workspace evidence, not ACL target identity. Historical V2
+records/private helpers remain only as temporary Task 7 deletion debt and are not the
+current public dispatch path. No provider/model request was sent and execution
+remains `DISABLED`.
+
+'''
+          plan = plan[:start] + task5_plan + plan[end:]
+          startup = plan.rfind('## New-chat startup / Task 5 boundary\n')
+          if startup < 0:
+              raise SystemExit('Task 5 startup handoff marker missing')
+          plan = plan[:startup] + '''## New-chat startup / Task 6 boundary
+
+A fresh implementation chat should read, in this order:
+
+1. `AGENTS.md`
+2. `docs/START_HERE.md`
+3. `docs/CURRENT_STATE.md`
+4. `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`
+5. only the current source/tests directly relevant to **Task 6**
+
+Then inspect the current branch/HEAD and working tree. Perform **Task 6 only**:
+separate installation observation from controlled provider capability qualification,
+bind explicit runtime/context settings, and adapt Pydantic/Ollama to consume the
+sealed Provider Binding/settings. Use deterministic or mocked provider behavior while
+implementing the contract. Do not perform an actual model capability run without a
+separate explicit authorization, delete legacy modules/configuration, redesign
+portable identity V2, or broaden the task into benchmark/model-role assignment.
+'''
+          plan_path.write_text(plan, encoding='utf-8')
+          PY
       - name: Compile Task 5 current path
         run: >-
           python -m compileall -q
@@ -129,6 +278,11 @@ jobs:
           tests/test_provider_binding.py
           tests/test_runtime_selection_v3.py
           tests/test_application_service_v3.py
+      - name: Run custody regressions
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q tests/test_process_custody.py tests/test_windows_job.py
       - name: Run unaffected application-service regressions
         working-directory: components/worker-lab
         env:
@@ -143,6 +297,25 @@ jobs:
         run: >-
           python -m pytest -q tests/test_cli.py
           -k "not doctor_reports_disabled_installation_without_execution"
+      - name: Verify portable component identities
+        shell: bash
+        run: |
+          python - <<'PY'
+          import importlib.util, json
+          from pathlib import Path
+          root = Path.cwd()
+          tool = root / 'tools' / 'verify_portable_installation.py'
+          spec = importlib.util.spec_from_file_location('portable_verify', tool)
+          module = importlib.util.module_from_spec(spec)
+          assert spec and spec.loader
+          spec.loader.exec_module(module)
+          manifest = json.loads((root / 'config' / 'portable-installation-manifest.json').read_text(encoding='utf-8'))
+          for name in ('autonomous-worker-framework', 'worker-lab'):
+              result = module._inspect_component(root, name, manifest['components'][name])
+              assert result['status'] == 'MATCH'
+              print(name, result['file_count'], result['digest'], result['status'])
+          PY
+          python -m pytest -q tests/test_portable_installation.py
       - name: Confirm known legacy manifest boundary remains isolated
         working-directory: components/worker-lab
         env:
@@ -159,13 +332,23 @@ jobs:
           test "$code" -ne 0
           grep -q 'framework runtime closure is incomplete' /tmp/task5-known-boundary.log
           echo 'KNOWN_LEGACY_MANIFEST_BOUNDARY=CONFIRMED'
-      - name: Commit materialized Task 5 patch
+      - name: Confirm execution remains disabled
         shell: bash
         run: |
-          if ! git diff --quiet -- components/worker-lab config/portable-installation-manifest.json; then
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('config/portable-installation-manifest.json').read_text(encoding='utf-8'))
+          assert manifest['activation_policy']['execution_authority'] == 'DISABLED'
+          print('EXECUTION_AUTHORITY=DISABLED')
+          PY
+      - name: Commit materialized Task 5 checkpoint
+        shell: bash
+        run: |
+          if ! git diff --quiet -- components/worker-lab config/portable-installation-manifest.json docs/CURRENT_STATE.md docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md; then
             git config user.name "Task 5 Validation"
             git config user.email "actions@users.noreply.github.com"
-            git add components/worker-lab/worker_lab/application_service.py components/worker-lab/worker_lab/controller_task_packet.py components/worker-lab/worker_lab/cli.py components/worker-lab/worker_lab/service_runtime_v3.py components/worker-lab/tests/test_controller_task_packet.py components/worker-lab/tests/test_application_service.py components/worker-lab/tests/test_application_service_v3.py config/portable-installation-manifest.json
-            git commit -m "wip: validate V3 application service migration"
+            git add components/worker-lab/worker_lab/application_service.py components/worker-lab/worker_lab/controller_task_packet.py components/worker-lab/worker_lab/cli.py components/worker-lab/worker_lab/service_runtime_v3.py components/worker-lab/tests/test_controller_task_packet.py components/worker-lab/tests/test_application_service.py components/worker-lab/tests/test_application_service_v3.py config/portable-installation-manifest.json docs/CURRENT_STATE.md docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md
+            git commit -m "wip: record accepted Task 5 boundary"
             git push origin HEAD:task5-validation-temp
           fi
