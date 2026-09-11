@@ -67,6 +67,8 @@ if old not in text:
     raise SystemExit("constructor assignment anchor differs")
 text = text.replace(old, new, 1)
 
+import re
+
 for name in (
     "review_candidate",
     "prepare_invocation",
@@ -76,11 +78,10 @@ for name in (
     "dispatch_invocation",
     "recover_invocation",
 ):
-    old = f"    def {name}(\n"
-    new = f"    def _legacy_{name}(\n"
-    if old not in text:
+    pattern = rf"(?m)^    def {name}(?=\()"
+    text, count = re.subn(pattern, f"    def _legacy_{name}", text, count=1)
+    if count != 1:
         raise SystemExit(f"legacy method anchor missing: {name}")
-    text = text.replace(old, new, 1)
 
 current_methods = r'''    def review_candidate(self, attempt_id: str) -> CandidateReviewDTO:
         attempt_id = _identity(attempt_id)
