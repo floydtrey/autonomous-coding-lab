@@ -16,7 +16,9 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install pytest
       - name: Materialize Task 6 candidate
-        run: python .task6/apply_task6.py
+        run: |
+          python .task6/fix_patcher.py
+          python .task6/apply_task6.py
       - name: Compile changed current path
         run: |
           python -m py_compile \
