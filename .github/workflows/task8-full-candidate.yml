@@ -18,6 +18,7 @@ jobs:
           python .task8/apply_task8.py
           python .task8/fix_source_v2.py
           python .task8/apply_docs.py
+          python .task8/fix_docs.py
       - name: Refresh source component digests
         run: |
           python - <<'PY'
