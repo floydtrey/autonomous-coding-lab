@@ -8,11 +8,11 @@ When information conflicts, use this order:
 
 1. The user's current request and explicit approvals.
 2. Root `AGENTS.md`.
-3. `docs/CURRENT_STATE.md` for project phase/status, except that portable host-installation identity is governed by `docs/PORTABLE_INSTALLATION_IDENTITY.md` and the active vertical-slice handoff is governed by `docs/CONTROLLER_TASK_PACKET_V1.md` plus current code/tests/Git evidence.
+3. `docs/CURRENT_STATE.md` for project phase/status, except that portable host-installation identity is governed by `docs/PORTABLE_INSTALLATION_IDENTITY.md` until its planned V2 reconstruction, and the active runtime reconstruction is governed by `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` plus current code/tests/Git evidence.
 4. The relevant current design or operating document.
 5. Current code, tests, configuration, and Git evidence.
-6. `migration/inventory/` as consolidation evidence.
-7. `docs/legacy/` as historical context only.
+6. `migration/inventory/` only when a current task explicitly requires consolidation evidence.
+7. Historical material only when the user explicitly asks for historical investigation.
 
 Stop and resolve a conflict instead of silently choosing the more permissive interpretation.
 
@@ -29,22 +29,22 @@ For every task:
 
 | Task | Read next |
 |---|---|
+| Continue the approved runtime cleanup/reconstruction | `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` |
 | Understand component responsibilities or data flow | `docs/ARCHITECTURE.md` |
-| Continue the current supervised vertical slice or inspect the Knowledge Core-to-worker handoff | `docs/CONTROLLER_TASK_PACKET_V1.md` |
-| Verify a clone, move ACL to another Windows host, or inspect portable component identity | `docs/PORTABLE_INSTALLATION_IDENTITY.md` |
-| Inspect or operate the legacy Worker Lab execution path, run a benchmark, back up, or recover | `docs/OPERATIONS.md` |
+| Inspect the Knowledge Core-to-worker informational handoff | `docs/CONTROLLER_TASK_PACKET_V1.md` |
+| Verify the current Windows portable-component baseline | `docs/PORTABLE_INSTALLATION_IDENTITY.md` |
 | Change code, tests, paths, or integration behavior | `docs/DEVELOPMENT.md` |
 | Decide authority, permissions, identity, acceptance, or publication | `docs/GOVERNANCE.md` |
-| Select or resume the implementation sequence toward workers and the GUI | `docs/WORKPLAN.md` |
-| Investigate why a consolidation choice was made | `docs/legacy/README.md`, then only the named historical record |
+| Select or resume the broader implementation sequence toward workers and the GUI | `docs/WORKPLAN.md` |
+| Investigate historical consolidation only when explicitly requested | use Git history first; inspect retained historical material only if still necessary |
 
-## Current versus historical material
+## Current-tree rule
 
-The files directly under `docs/` are current. Files under `docs/legacy/` record earlier standalone repositories and the merger process. A legacy statement may explain a design decision, but it cannot override current code, current documentation, or current authority.
+The current Git tree should describe the current architecture. Git history is the primary historical record.
 
-The JSON files under `migration/inventory/` are deterministic evidence about source and integration trees. They are useful for identity and path investigations; they are not a work queue.
+Do not preserve obsolete runtime architecture, provider fallbacks, machine-specific paths, or old proof implementations in active/current documentation merely so they remain easy to find. The approved runtime reconstruction will remove stale Codex/Terra/MineTrackerWorker/commissioning material from the active tree once current replacements are accepted.
 
-Absolute `MineTrackerWorker` paths retained in historical Phase 1–4 records describe the accepted host used for those proofs. They are not portable installation requirements for the current laptop or the new tower. Use `docs/PORTABLE_INSTALLATION_IDENTITY.md` for the portable host boundary.
+`migration/inventory/` and any remaining historical files are not current architectural authority and are scheduled for review during the reconstruction cleanup. Do not use them to infer current runtime behavior unless the current task explicitly requires them.
 
 ## Freshness rules
 
