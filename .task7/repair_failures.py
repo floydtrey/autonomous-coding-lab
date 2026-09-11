@@ -24,7 +24,6 @@ def remove_functions(path: Path, names: set[str]) -> None:
     path.write_text("".join(lines), encoding="utf-8")
 
 
-# Task 7 is V3-only. _operation_result must not reference the deleted V2 InvocationRecord.
 app = WORKER / "worker_lab" / "application_service.py"
 text = app.read_text(encoding="utf-8")
 text = text.replace(
@@ -35,9 +34,6 @@ if "InvocationRecord," in text or "(InvocationRecord," in text:
     raise RuntimeError("residual V2 InvocationRecord reference remains in application_service.py")
 app.write_text(text, encoding="utf-8")
 
-# The Phase 4 record-normalizer bundle is intentionally deleted by Task 7 because it is obsolete
-# commissioning authority tied to the old MineTrackerWorker proof repository. Its dedicated tests
-# must leave the active protected-definition suite with it.
 protected = TESTS / "test_protected_definitions.py"
 remove_functions(
     protected,
@@ -64,8 +60,6 @@ ptext = ptext.replace(
 )
 protected.write_text(ptext, encoding="utf-8")
 
-# T016/T022 were migrated to the current V3 integration/store/service tests by the Task 7 cleanup.
-# Recompute the protected worker-lab-v3 catalog digest and update only its exact digest assertion.
 catalog_path = WORKER / "curricula" / "catalogs" / "worker-lab-v3.json"
 catalog_value = json.loads(catalog_path.read_text(encoding="utf-8"))
 canonical = json.dumps(catalog_value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
