@@ -16,6 +16,8 @@ The project is deliberately moving toward one supervised end-to-end coding slice
 
 Knowledge Core supplies governed project context. It does not authorize execution. Project Control Center is a separate status/dashboard project and is not ACL architecture or runtime authority.
 
+ACL is being reconstructed as a **system**, not as a repository wrapper. A Git repository may remain the substrate for a coding workspace and exact source-state evidence, but repository names, URLs, remotes, branches, checkout paths, or GitHub locations must not stand in for the logical system/project/target identity. Current reconstruction work must audit repo-bound fields and retain them only where Git-backed coding mechanics/evidence genuinely require them.
+
 ## Accepted foundations
 
 - Knowledge Core SR-2 through G22 and intended-host PostgreSQL restart/recovery qualification are complete.
@@ -79,7 +81,7 @@ Commit `99a581f7ddf75041a8f3584966ce8652bf6afc13` is the accepted portable-verif
 
 ## Runtime-pipeline audit — reconstruction approved
 
-Before implementing Provider Binding V1, the active runtime pipeline was audited against the post-research architecture. The audit found that several execution-path modules still encode obsolete Codex, Terra, Mine Tracker commissioning, legacy installation-manifest, and Windows-universal assumptions.
+Before implementing Provider Binding V1, the active runtime pipeline was audited against the post-research architecture. The audit found that several execution-path modules still encode obsolete Codex, Terra, Mine Tracker commissioning, legacy installation-manifest, Windows-universal, and repository-as-system assumptions.
 
 The project will **not** extend those paths with new provider-binding semantics. The approved cleanup/reconstruction plan is authoritative at:
 
@@ -89,6 +91,8 @@ Key decisions:
 
 - current Git tree should describe current architecture only; Git history is the historical record;
 - do not preserve obsolete runtime code or stale architecture under `docs/legacy/`, migration copies, fallback modules, or compatibility shims solely for history;
+- ACL logical target/system identity must be independent of repository locator/path/URL/branch/remote; Git-specific facts survive only as bounded coding-workspace/backend evidence where justified;
+- Task 1 must inventory and classify repo-bound fields such as `template_repository`, `target_repository`, repository paths/URLs/remotes/branches, and direct `.git` assumptions before later tasks preserve or version them;
 - remove `codex_runtime.py` after dependencies are migrated rather than genericizing it;
 - replace `worker_lab_adapter.py` and `framework_client.py` around provider-neutral dispatch rather than patching their old Codex/installation-manifest architecture;
 - introduce Invocation/Result V3 and Provider Binding V1 before authorization/dispatch integration;
@@ -108,19 +112,22 @@ Do not:
 - preserve Codex/Terra as an automatic fallback path;
 - send Pydantic AI/Ollama chat or completion requests;
 - run a local coding model;
-- implement Provider Binding on top of the old runtime shell before the reconstruction tasks establish the new foundations.
+- implement Provider Binding on top of the old runtime shell before the reconstruction tasks establish the new foundations;
+- mechanically delete legitimate Git workspace mechanics merely because ACL is moving away from repository-centered identity.
 
 ## Immediate next gate
 
-Begin **Task 1 — extract provider-neutral foundations** from `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`.
+Begin **Task 1 — extract provider-neutral foundations and audit repository coupling** from `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`.
 
 Task 1 is intentionally narrow:
 
-- create provider-neutral repository-state helpers;
+- inventory current runtime/domain references to repository names, URLs, paths, remotes, branches, `.git`, `template_repository`, `target_repository`, and equivalent repo-bound identity fields;
+- classify each as justified Git-backed workspace evidence/mechanics, backend-only locator, or obsolete repo-as-system coupling;
+- create provider-neutral repository-state helpers only for justified Git-backed coding-workspace behavior;
 - migrate current consumers away from `local_worker_harness.py` helper imports;
 - remove Mine Tracker default coupling from the generic context/code-task seam only where required for that migration;
 - add focused deterministic tests;
 - keep execution disabled;
-- stop when current generic code no longer depends on commissioning-harness helpers.
+- stop when current generic code no longer depends on commissioning-harness helpers and the repo-coupling inventory clearly identifies what later tasks must redesign or preserve.
 
 Do not continue into platform-neutral custody, Invocation V3, Provider Binding, dispatch reconstruction, legacy deletion, documentation purge, or model execution in the same task.
