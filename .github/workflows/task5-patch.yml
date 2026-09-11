@@ -97,6 +97,14 @@ jobs:
           tests/test_integration_v3.py
           tests/test_provider_binding.py
           tests/test_runtime_selection_v3.py
+      - name: Run application service and CLI regression tests
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        run: >-
+          python -m pytest -q
+          tests/test_application_service.py
+          tests/test_cli.py
       - name: Commit materialized Task 5 patch
         shell: bash
         run: |
