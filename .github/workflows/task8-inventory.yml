@@ -1,0 +1,42 @@
+name: Task 8 Reference Inventory
+on:
+  push:
+    branches: [task8-portable-identity-docs-temp]
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan V1 portable and stale documentation references
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          terms = (
+              'portable-installation-manifest',
+              'acl-portable-installation-manifest:v1',
+              'activation_policy',
+              'execution_authority',
+              'host_requirements',
+              'installation-manifest.json',
+              'acl-installation-manifest:v2',
+              'codex', 'terra', 'minetrackerworker', 'mine_tracker', 'mine tracker',
+              'docs/legacy', 'migration/inventory', 'workplan.md', 'vs_code_handoff.md',
+              'coding-worker:v1', 'runtime selection v1', 'host provider qualification v1',
+          )
+          roots = [Path('AGENTS.md'), Path('README.md'), Path('config'), Path('tools'), Path('tests'), Path('docs'), Path('components/worker-lab')]
+          for root in roots:
+              paths = [root] if root.is_file() else sorted(p for p in root.rglob('*') if p.is_file() and p.suffix.lower() in {'.py','.json','.md','.yml','.yaml'})
+              for p in paths:
+                  try: lines = p.read_text(encoding='utf-8').splitlines()
+                  except Exception: continue
+                  for i,line in enumerate(lines,1):
+                      low=line.lower()
+                      if any(t in low for t in terms): print(f'{p}:{i}:{line[:260]}')
+          print('=== DOC FILES ===')
+          for p in sorted(Path('docs').rglob('*.md')): print(p)
+          print('=== MIGRATION FILES ===')
+          for p in sorted(Path('migration').rglob('*')):
+              if p.is_file(): print(p)
+          PY
