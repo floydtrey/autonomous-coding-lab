@@ -1,10 +1,13 @@
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
 
 
-TOOL_PATH = Path(__file__).resolve().parents[1] / "tools" / "verify_portable_installation.py"
+ROOT = Path(__file__).resolve().parents[1]
+TOOL_PATH = ROOT / "tools" / "verify_portable_installation.py"
+MANIFEST_PATH = ROOT / "config" / "portable-installation-manifest.json"
 SPEC = importlib.util.spec_from_file_location("verify_portable_installation", TOOL_PATH)
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -50,6 +53,14 @@ def test_python_tree_identity_changes_when_installed_bytes_change(tmp_path: Path
     source.write_bytes(b"print('b')\n")
     with pytest.raises(MODULE.PortableIdentityError):
         MODULE._inspect_component(tmp_path, "worker-lab", raw)
+
+
+def test_committed_framework_closure_matches_verifier_contract() -> None:
+    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    configured = tuple(
+        manifest["components"]["autonomous-worker-framework"]["files"]
+    )
+    assert configured == MODULE._FRAMEWORK_FILES
 
 
 def test_portable_policy_never_treats_provider_presence_as_authority() -> None:
