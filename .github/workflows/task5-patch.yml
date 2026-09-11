@@ -47,6 +47,31 @@ jobs:
           if ! grep -q 'from .service_runtime_v3 import (' components/worker-lab/worker_lab/application_service.py; then
             python .task5/patch_task5.py
           fi
+      - name: Repair V3 readable/write scope projection
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('components/worker-lab/worker_lab/service_runtime_v3.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''        "readable_paths": [
+              {"path": item.path, "digest": item.digest}
+              for item in sorted(context.files, key=lambda item: item.path)
+          ],
+          "writable_paths": sorted(exercise.writable_paths),
+          '''
+          new = '''        "readable_paths": [
+              {"path": item.path, "digest": item.digest}
+              for item in sorted(context.files, key=lambda item: item.path)
+              if item.path not in set(exercise.writable_paths)
+          ],
+          "writable_paths": sorted(exercise.writable_paths),
+          '''
+          if old in text:
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          elif 'if item.path not in set(exercise.writable_paths)' not in text:
+              raise SystemExit('V3 readable/write scope projection anchor differs')
+          PY
       - name: Remove obsolete V2 public-service test block
         shell: bash
         run: |
@@ -155,7 +180,7 @@ jobs:
           if ! git diff --quiet -- components/worker-lab config/portable-installation-manifest.json; then
             git config user.name "Task 5 Validation"
             git config user.email "actions@users.noreply.github.com"
-            git add components/worker-lab/worker_lab/application_service.py components/worker-lab/worker_lab/controller_task_packet.py components/worker-lab/worker_lab/cli.py components/worker-lab/tests/test_controller_task_packet.py components/worker-lab/tests/test_application_service.py components/worker-lab/tests/test_application_service_v3.py config/portable-installation-manifest.json
+            git add components/worker-lab/worker_lab/application_service.py components/worker-lab/worker_lab/controller_task_packet.py components/worker-lab/worker_lab/cli.py components/worker-lab/worker_lab/service_runtime_v3.py components/worker-lab/tests/test_controller_task_packet.py components/worker-lab/tests/test_application_service.py components/worker-lab/tests/test_application_service_v3.py config/portable-installation-manifest.json
             git commit -m "wip: validate V3 application service migration"
             git push origin HEAD:task5-validation-temp
           fi
