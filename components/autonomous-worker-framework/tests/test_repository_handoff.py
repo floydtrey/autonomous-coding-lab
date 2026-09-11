@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.local_worker_harness import FIXTURE_TASK_VERSION, FixtureTask, run_fixture_job
+from current_test_fixtures import ready_worker_result
 from tools.repository_handoff import (
     CONTRACT_VERSION,
     RepositoryHandoffError,
@@ -29,22 +29,13 @@ def _candidate(tmp_path: Path):
     _git(repo, "init")
     _git(repo, "config", "user.email", "fixture@example.com")
     _git(repo, "config", "user.name", "Fixture")
-    (repo / "autonomy_smoke").mkdir()
-    (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(b"STATE=A\n")
+    (repo / "candidate").mkdir()
+    candidate = repo / "candidate" / "fixture_state.txt"
+    candidate.write_bytes(b"STATE=A\n")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "fixture baseline")
-    task = FixtureTask.from_mapping(
-        {
-            "contract_version": FIXTURE_TASK_VERSION,
-            "task_id": "fixture-a-to-b",
-            "consumer": "commissioning-fixture",
-            "allowed_paths": ["autonomy_smoke/fixture_state.txt"],
-            "fixture_path": "autonomy_smoke/fixture_state.txt",
-            "initial_state": "A",
-            "target_state": "B",
-        }
-    )
-    return repo, run_fixture_job(task, repo)
+    candidate.write_bytes(b"STATE=B\n")
+    return repo, ready_worker_result(repo)
 
 
 def test_ready_candidate_builds_identity_bound_handoff(tmp_path):
@@ -61,7 +52,7 @@ def test_ready_candidate_builds_identity_bound_handoff(tmp_path):
 
 def test_handoff_rejects_candidate_content_changed_after_validation(tmp_path):
     repo, result = _candidate(tmp_path)
-    (repo / "autonomy_smoke" / "fixture_state.txt").write_bytes(b"STATE=TAMPERED\n")
+    (repo / "candidate" / "fixture_state.txt").write_bytes(b"STATE=TAMPERED\n")
 
     with pytest.raises(RepositoryHandoffError) as error:
         build_repository_handoff(result, repo)

@@ -807,7 +807,7 @@ def _bounded_text(value: Any, name: str) -> str:
         )
     lowered = text.lower()
     if any(marker in lowered for marker in (
-        "openai_api_key", "codex_api_key", "github_token", "gh_token",
+        "openai_api_key", "provider_api_key", "github_token", "gh_token",
         "authorization:", "bearer ", "\\\\", "//", ":\\", ":/",
     )):
         raise LabValidationError(

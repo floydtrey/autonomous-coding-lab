@@ -19,17 +19,13 @@ _COMPONENTS = (
 )
 _FRAMEWORK_FILES = (
     "tools/code_task.py",
-    "tools/codex_runtime.py",
     "tools/consumer_profile.py",
     "tools/dispatch_adapter.py",
-    "tools/local_worker_harness.py",
     "tools/pydantic_ollama_worker.py",
     "tools/repository_handoff.py",
     "tools/repository_state.py",
-    "tools/worker_lab_adapter.py",
     "tools/worker_result.py",
     "tools/worker_runtime.py",
-    "tools/workspace_write_adapter.py",
 )
 
 

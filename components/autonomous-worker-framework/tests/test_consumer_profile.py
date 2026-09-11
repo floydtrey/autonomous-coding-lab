@@ -6,12 +6,12 @@ import pytest
 
 from tools.consumer_profile import (
     ConsumerProfileError,
-    MINE_TRACKER_PROFILE,
     build_context_packet,
     build_context_prompt,
     verify_context_packet,
 )
 from tools.code_task import run_code_task
+from current_test_fixtures import GENERIC_PROFILE
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -21,12 +21,12 @@ def _git(repo: Path, *args: str) -> str:
 
 
 def _repo(tmp_path: Path) -> Path:
-    root = tmp_path / "mine-tracker"
+    root = tmp_path / "consumer"
     root.mkdir()
     _git(root, "init", "-q")
     _git(root, "config", "user.name", "Test")
     _git(root, "config", "user.email", "test@example.invalid")
-    for path in MINE_TRACKER_PROFILE.authority_paths:
+    for path in GENERIC_PROFILE.authority_paths:
         target = root / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(f"authority: {path}\n", encoding="utf-8")
@@ -39,15 +39,10 @@ def _repo(tmp_path: Path) -> Path:
     return root
 
 
-def test_mine_tracker_profile_is_deterministic_and_uses_current_ci_commands():
-    assert MINE_TRACKER_PROFILE.digest() == MINE_TRACKER_PROFILE.digest()
-    assert MINE_TRACKER_PROFILE.digest().startswith("sha256:")
-    assert [item.argv for item in MINE_TRACKER_PROFILE.full_validation] == [
-        ("python", "-m", "compileall", "-q", "app", "tests", "tools", "run_app.py"),
-        ("python", "-m", "pytest", "-q"),
-        ("node", "--check", "web/app.js"),
-        ("node", "--check", "web/lite_ui.js"),
-    ]
+def test_generic_profile_is_deterministic_and_has_validation():
+    assert GENERIC_PROFILE.digest() == GENERIC_PROFILE.digest()
+    assert GENERIC_PROFILE.digest().startswith("sha256:")
+    assert GENERIC_PROFILE.full_validation
 
 
 def test_generic_context_and_code_task_seams_require_an_explicit_profile():
@@ -64,20 +59,20 @@ def test_context_packet_binds_head_authority_task_files_and_scope(tmp_path):
         root,
         allowed_paths=("app/assets.py",),
         task_context_paths=("tests/test_assets.py",),
-        profile=MINE_TRACKER_PROFILE,
+        profile=GENERIC_PROFILE,
     )
     assert packet.repository_head == _git(root, "rev-parse", "HEAD")
     assert packet.allowed_paths == ("app/assets.py",)
-    assert [item.path for item in packet.authority_files] == list(MINE_TRACKER_PROFILE.authority_paths)
+    assert [item.path for item in packet.authority_files] == list(GENERIC_PROFILE.authority_paths)
     assert [item.path for item in packet.task_files] == ["tests/test_assets.py"]
     assert packet.digest().startswith("sha256:")
-    verify_context_packet(packet, root, profile=MINE_TRACKER_PROFILE)
+    verify_context_packet(packet, root, profile=GENERIC_PROFILE)
 
 
 def test_context_prompt_is_read_only_and_explains_exact_boundary(tmp_path):
     root = _repo(tmp_path)
     packet = build_context_packet(
-        root, allowed_paths=("app/assets.py",), profile=MINE_TRACKER_PROFILE
+        root, allowed_paths=("app/assets.py",), profile=GENERIC_PROFILE
     )
     prompt = build_context_prompt(packet, objective="  Explain   a bounded asset change. ")
     assert "Objective: Explain a bounded asset change." in prompt
@@ -90,16 +85,14 @@ def test_context_prompt_is_read_only_and_explains_exact_boundary(tmp_path):
     "path",
     [
         ".github/workflows/ci.yml",
-        "data/mine_tracker.db",
-        "docs/governance/MINE_TRACKER_CURRENT_BASELINE.md",
-        "tests/test_autonomy_controller.py",
-        "tools/autonomy_controller.py",
+        "protected/state.db",
+        "policy.lock",
     ],
 )
 def test_protected_paths_cannot_be_writable(tmp_path, path):
     root = _repo(tmp_path)
     with pytest.raises(ConsumerProfileError) as error:
-        build_context_packet(root, allowed_paths=(path,), profile=MINE_TRACKER_PROFILE)
+        build_context_packet(root, allowed_paths=(path,), profile=GENERIC_PROFILE)
     assert error.value.code == "CONTEXT_SCOPE_PROTECTED"
 
 
@@ -110,7 +103,7 @@ def test_context_paths_are_read_only_and_cannot_overlap_writable_scope(tmp_path)
             root,
             allowed_paths=("app/assets.py",),
             task_context_paths=("app/assets.py",),
-            profile=MINE_TRACKER_PROFILE,
+            profile=GENERIC_PROFILE,
         )
     assert error.value.code == "CONTEXT_SCOPE_INVALID"
 
@@ -120,7 +113,7 @@ def test_dirty_repository_fails_before_packet_creation(tmp_path):
     (root / "app" / "assets.py").write_text("VALUE = 2\n", encoding="utf-8")
     with pytest.raises(ConsumerProfileError) as error:
         build_context_packet(
-            root, allowed_paths=("app/assets.py",), profile=MINE_TRACKER_PROFILE
+            root, allowed_paths=("app/assets.py",), profile=GENERIC_PROFILE
         )
     assert error.value.code == "CONTEXT_REPOSITORY_DIRTY"
 
@@ -128,22 +121,22 @@ def test_dirty_repository_fails_before_packet_creation(tmp_path):
 def test_verification_fails_if_head_moves(tmp_path):
     root = _repo(tmp_path)
     packet = build_context_packet(
-        root, allowed_paths=("app/assets.py",), profile=MINE_TRACKER_PROFILE
+        root, allowed_paths=("app/assets.py",), profile=GENERIC_PROFILE
     )
     (root / "new.txt").write_text("new\n", encoding="utf-8")
     _git(root, "add", "new.txt")
     _git(root, "commit", "-qm", "move head")
     with pytest.raises(ConsumerProfileError) as error:
-        verify_context_packet(packet, root, profile=MINE_TRACKER_PROFILE)
+        verify_context_packet(packet, root, profile=GENERIC_PROFILE)
     assert error.value.code == "CONTEXT_IDENTITY_CHANGED"
 
 
 def test_verification_fails_if_authority_bytes_change(tmp_path):
     root = _repo(tmp_path)
     packet = build_context_packet(
-        root, allowed_paths=("app/assets.py",), profile=MINE_TRACKER_PROFILE
+        root, allowed_paths=("app/assets.py",), profile=GENERIC_PROFILE
     )
-    authority = root / MINE_TRACKER_PROFILE.authority_paths[0]
+    authority = root / GENERIC_PROFILE.authority_paths[0]
     authority.write_text("changed authority\n", encoding="utf-8")
     _git(root, "add", ".")
     _git(root, "commit", "-qm", "change authority")
@@ -151,7 +144,7 @@ def test_verification_fails_if_authority_bytes_change(tmp_path):
         **{**packet.__dict__, "repository_head": _git(root, "rev-parse", "HEAD")}
     )
     with pytest.raises(ConsumerProfileError) as error:
-        verify_context_packet(moved_packet, root, profile=MINE_TRACKER_PROFILE)
+        verify_context_packet(moved_packet, root, profile=GENERIC_PROFILE)
     assert error.value.code == "CONTEXT_AUTHORITY_CHANGED"
 
 
@@ -162,6 +155,6 @@ def test_missing_task_context_fails_closed(tmp_path):
             root,
             allowed_paths=("app/assets.py",),
             task_context_paths=("tests/missing.py",),
-            profile=MINE_TRACKER_PROFILE,
+            profile=GENERIC_PROFILE,
         )
     assert error.value.code == "CONTEXT_FILE_MISSING"

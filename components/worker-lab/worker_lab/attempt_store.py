@@ -85,7 +85,7 @@ class AttemptStore:
         occurred_at: str,
     ) -> AttemptRecord:
         """Durably reload and bind exactly one AUTHORIZED invocation to READY -> RUNNING."""
-        from .integration import InvocationState
+        from .integration_v3 import InvocationState
         from .lifecycle import bind_authorized_invocation
 
         attempt = self.read(self._path_id_from_invocation(invocation_id, invocation_store))

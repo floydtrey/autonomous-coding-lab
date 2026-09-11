@@ -15,20 +15,16 @@
       "root": "components/autonomous-worker-framework",
       "production_root": "tools",
       "scope": "runtime-dependency-closure",
-      "digest": "sha256:ceec8a2e022d4ad253ea6848eb241b4646da2ee32ac90d0747ba87f66aa6d51a",
+      "digest": "sha256:edac32b728348d6a2e2c7521d1c846e5021fe6e40f33db70e7df625d1ca584c5",
       "files": [
         "tools/code_task.py",
-        "tools/codex_runtime.py",
         "tools/consumer_profile.py",
         "tools/dispatch_adapter.py",
-        "tools/local_worker_harness.py",
         "tools/pydantic_ollama_worker.py",
         "tools/repository_handoff.py",
         "tools/repository_state.py",
-        "tools/worker_lab_adapter.py",
         "tools/worker_result.py",
-        "tools/worker_runtime.py",
-        "tools/workspace_write_adapter.py"
+        "tools/worker_runtime.py"
       ]
     },
     "local-model-bench": {
@@ -41,7 +37,7 @@
       "root": "components/worker-lab",
       "production_root": "worker_lab",
       "scope": "python-production-tree",
-      "digest": "sha256:2b14eff998eb282468edacecb8b68b69b184620e73ccf8dc688bb78cb9feb70a"
+      "digest": "sha256:8b92b879d555d3c695318809895947b0a6ac9b1e87cf6caef5db5ad7541549e7"
     }
   },
   "host_requirements": {

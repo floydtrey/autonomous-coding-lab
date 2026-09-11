@@ -4,17 +4,13 @@ import ctypes
 import hashlib
 import os
 import subprocess
-import threading
-import time
 from ctypes import wintypes
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import Callable
 
 from .errors import LabValidationError
 from .canonical import canonical_digest
-from .integration import InvocationRecord
 from .process_custody import (
     PROCESS_CUSTODY_SCHEMA,
     CustodyState,
@@ -102,271 +98,6 @@ class WorkspaceLaunchEvidence:
 WorkspaceInspector = Callable[[Path], WorkspaceLaunchEvidence]
 
 
-class WindowsJobAdapterRunner:
-    """Run one fixed adapter command inside a non-inheritable kill-on-close Job Object."""
-
-    def __init__(
-        self,
-        store: ProcessCustodyStore,
-        *,
-        invocation: InvocationRecord,
-        timeout_seconds: int,
-        workspace_path: Path,
-        stdout_limit: int = 65_536,
-        stderr_limit: int = 16_384,
-        now: Now | None = None,
-        kernel32_factory: Callable[[], object] | None = None,
-        process_launcher: Callable[..., subprocess.Popen[bytes]] | None = None,
-        creation_time_reader: Callable[[object, object], int] | None = None,
-        active_process_waiter: Callable[[object, object], int] | None = None,
-        platform_name: str | None = None,
-        reader_join_timeout: float = 10.0,
-        workspace_inspector: WorkspaceInspector | None = None,
-    ) -> None:
-        if timeout_seconds <= 0 or stdout_limit <= 0 or stderr_limit <= 0:
-            raise LabValidationError("INTEGRATION_RUNTIME_FORBIDDEN", "process limits must be positive")
-        if not isinstance(invocation, InvocationRecord):
-            raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "a strict invocation record is required")
-        self.store = store
-        self.invocation_id = invocation.invocation_id
-        self.invocation_digest = invocation.identity_digest()
-        self.timeout_seconds = timeout_seconds
-        self.stdout_limit = stdout_limit
-        self.stderr_limit = stderr_limit
-        self.workspace_path = workspace_path
-        self.workspace_path_digest = invocation.workspace_path_digest
-        self.starting_commit = invocation.starting_commit
-        self.now = now or _utc_now
-        self.kernel32_factory = kernel32_factory or _kernel32
-        self.process_launcher = process_launcher or subprocess.Popen
-        self.creation_time_reader = creation_time_reader or _process_creation_time
-        self.active_process_waiter = active_process_waiter or _wait_for_zero_active
-        self.platform_name = os.name if platform_name is None else platform_name
-        self.reader_join_timeout = reader_join_timeout
-        self.workspace_inspector = workspace_inspector or inspect_launch_workspace
-
-    def __call__(self, command: tuple[str, ...], payload: bytes) -> bytes:
-        if self.platform_name != "nt":
-            raise LabValidationError("INTEGRATION_RUNTIME_FORBIDDEN", "Windows Job Objects are required")
-        if not command or not all(isinstance(item, str) and item for item in command):
-            raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "adapter command is invalid")
-        if not isinstance(payload, bytes) or not payload:
-            raise LabValidationError("INTEGRATION_RESULT_INVALID", "adapter request is invalid")
-
-        workspace = self.workspace_inspector(self.workspace_path)
-        if (
-            not isinstance(workspace, WorkspaceLaunchEvidence)
-            or _path_key(workspace.workspace_path) != _path_key(self.workspace_path)
-            or workspace.workspace_path_digest != self.workspace_path_digest
-            or workspace.observed_head != self.starting_commit
-            or workspace.status != ""
-            or not _is_digest(workspace.content_digest)
-        ):
-            raise LabValidationError("INTEGRATION_IDENTITY_INVALID", "adapter workspace identity differs")
-
-        kernel32 = self.kernel32_factory()
-        controller_pid = os.getpid()
-        controller_time = self.creation_time_reader(kernel32.GetCurrentProcess(), kernel32)
-        backend = WindowsJobCustodyBackend()
-        custody = ProcessCustodyRecord.from_mapping({
-            "schema_version": PROCESS_CUSTODY_SCHEMA,
-            "invocation_digest": self.invocation_digest,
-            "invocation_id": self.invocation_id,
-            "backend_id": backend.backend_id,
-            "controller_identity": windows_process_identity(controller_pid, controller_time),
-            "worker_identity": None,
-            "workspace_content_digest": workspace.content_digest,
-            "state": "PREPARED",
-            "request_sent": False,
-            "exit_code": None,
-            "active_workload_count": None,
-            "absence_evidence_digest": None,
-            "absence_verified_at": None,
-            "first_failure": None,
-        })
-        self.store.create(custody)
-
-        try:
-            job = _create_job(kernel32)
-        except LabValidationError:
-            # No adapter exists yet. Preserve durable non-dispatch evidence rather
-            # than fabricating an absence count.
-            uncertain = transition_custody(
-                custody, CustodyState.UNCERTAIN, exit_code=None, active_workload_count=None,
-                first_failure="INTEGRATION_CONTAINMENT_FAILED",
-            )
-            self.store.save_transition(uncertain, expected_digest=custody.digest())
-            raise
-        process: subprocess.Popen[bytes] | None = None
-        stdout = bytearray()
-        stderr = bytearray()
-        overflow = threading.Event()
-        overflow_name: list[str] = []
-        termination_lock = threading.Lock()
-        persisted = custody
-        finalized = False
-
-        def terminate_job() -> None:
-            with termination_lock:
-                if job:
-                    kernel32.TerminateJobObject(job, 1)
-
-        try:
-            process = self.process_launcher(
-                list(command), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                shell=False, close_fds=True, creationflags=subprocess.CREATE_NO_WINDOW,
-                cwd=workspace.workspace_path,
-            )
-            if not kernel32.AssignProcessToJobObject(job, wintypes.HANDLE(int(process._handle))):
-                process.terminate()
-                process.wait(timeout=5)
-                try:
-                    active = self.active_process_waiter(job, kernel32)
-                except LabValidationError:
-                    active = None
-                target = CustodyState.TERMINATED if active == 0 else CustodyState.UNCERTAIN
-                failed = transition_custody(
-                    custody, target, exit_code=process.returncode, active_workload_count=active,
-                    first_failure="INTEGRATION_CONTAINMENT_FAILED",
-                )
-                self.store.save_transition(failed, expected_digest=custody.digest())
-                if active == 0:
-                    verified = transition_custody(
-                        failed, CustodyState.ABSENCE_VERIFIED, active_workload_count=0,
-                        absence_evidence_digest=backend.absence_evidence_digest(
-                            failed, basis="job-accounting-zero",
-                        ),
-                        absence_verified_at=self.now(),
-                    )
-                    self.store.save_transition(verified, expected_digest=failed.digest())
-                raise LabValidationError("INTEGRATION_CONTAINMENT_FAILED", "adapter job assignment failed")
-
-            adapter_time = self.creation_time_reader(wintypes.HANDLE(int(process._handle)), kernel32)
-            assigned = transition_custody(
-                custody,
-                CustodyState.ASSIGNED,
-                worker_identity=windows_process_identity(process.pid, adapter_time),
-            )
-            self.store.save_transition(assigned, expected_digest=custody.digest())
-            persisted = assigned
-
-            assert process.stdout is not None and process.stderr is not None and process.stdin is not None
-            reader_failure: list[tuple[str, BaseException]] = []
-            failure_lock = threading.Lock()
-            readers = [
-                threading.Thread(
-                    target=_drain_bounded,
-                    args=(process.stdout, stdout, self.stdout_limit, "stdout", overflow, overflow_name, terminate_job, reader_failure, failure_lock),
-                    daemon=True,
-                ),
-                threading.Thread(
-                    target=_drain_bounded,
-                    args=(process.stderr, stderr, self.stderr_limit, "stderr", overflow, overflow_name, terminate_job, reader_failure, failure_lock),
-                    daemon=True,
-                ),
-            ]
-            for reader in readers:
-                reader.start()
-
-            dispatching = transition_custody(assigned, CustodyState.DISPATCHING)
-            self.store.save_transition(dispatching, expected_digest=assigned.digest())
-            persisted = dispatching
-            process.stdin.write(payload)
-            process.stdin.close()
-
-            timed_out = False
-            try:
-                process.wait(timeout=self.timeout_seconds)
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                terminate_job()
-                process.wait(timeout=10)
-            for reader in readers:
-                reader.join(timeout=self.reader_join_timeout)
-            if any(reader.is_alive() for reader in readers):
-                terminate_job()
-                raise LabValidationError("INTEGRATION_OUTCOME_UNCERTAIN", "adapter output reader did not stop")
-
-            active = self.active_process_waiter(job, kernel32)
-            failure = None
-            if timed_out:
-                failure = "CODEX_TIMEOUT"
-            elif reader_failure:
-                failure = "INTEGRATION_RESULT_INVALID"
-            elif overflow.is_set():
-                failure = f"INTEGRATION_{overflow_name[0].upper()}_LIMIT" if overflow_name else "INTEGRATION_RESULT_INVALID"
-            elif process.returncode != 0:
-                failure = "INTEGRATION_EXECUTION_FAILED"
-
-            target = CustodyState.TERMINATED if failure else CustodyState.EXITED
-            ended = transition_custody(
-                dispatching, target, exit_code=process.returncode,
-                active_workload_count=active, first_failure=failure,
-            )
-            self.store.save_transition(ended, expected_digest=dispatching.digest())
-            persisted = ended
-            if active != 0:
-                raise LabValidationError("INTEGRATION_OUTCOME_UNCERTAIN", "adapter process tree remains active")
-            verified = transition_custody(
-                ended, CustodyState.ABSENCE_VERIFIED, active_workload_count=0,
-                absence_evidence_digest=backend.absence_evidence_digest(
-                    ended, basis="job-accounting-zero",
-                ),
-                absence_verified_at=self.now(),
-            )
-            self.store.save_transition(verified, expected_digest=ended.digest())
-            finalized = True
-            if failure:
-                code = "INTEGRATION_RESULT_INVALID" if (overflow.is_set() or reader_failure) else failure
-                raise LabValidationError(code, "contained adapter execution failed")
-            return bytes(stdout)
-        except BaseException:
-            # Every mid-flight fault (including cancellation and custody-write
-            # faults) first kills the tree, then records only evidence actually
-            # observed.  A failed query is uncertainty, never a fabricated zero.
-            if process is not None and process.poll() is None:
-                terminate_job()
-                try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    pass
-            if not finalized and persisted.state not in {
-                CustodyState.ABSENCE_VERIFIED, CustodyState.EXITED, CustodyState.TERMINATED,
-            }:
-                try:
-                    active = self.active_process_waiter(job, kernel32)
-                except LabValidationError:
-                    active = None
-                target = CustodyState.TERMINATED if active == 0 else CustodyState.UNCERTAIN
-                first_failure = "INTEGRATION_CONTAINMENT_FAILED" if persisted.state is CustodyState.PREPARED else "INTEGRATION_OUTCOME_UNCERTAIN"
-                try:
-                    failed = transition_custody(
-                        persisted, target, exit_code=(process.returncode if process is not None else None),
-                        active_workload_count=active, first_failure=first_failure,
-                    )
-                    self.store.save_transition(failed, expected_digest=persisted.digest())
-                    if active == 0:
-                        verified = transition_custody(
-                            failed,
-                            CustodyState.ABSENCE_VERIFIED,
-                            active_workload_count=0,
-                            absence_evidence_digest=backend.absence_evidence_digest(
-                                failed, basis="job-accounting-zero",
-                            ),
-                            absence_verified_at=self.now(),
-                        )
-                        self.store.save_transition(verified, expected_digest=failed.digest())
-                except LabValidationError:
-                    pass
-            raise
-        finally:
-            if process is not None and process.poll() is None:
-                terminate_job()
-                try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    pass
-            kernel32.CloseHandle(job)
 
 
 def process_creation_time_for_pid(pid: int) -> int | None:
@@ -601,21 +332,6 @@ def _kernel32():
     return kernel32
 
 
-def _create_job(kernel32):
-    job = kernel32.CreateJobObjectW(None, None)
-    if not job:
-        raise LabValidationError("INTEGRATION_CONTAINMENT_FAILED", "could not create Job Object")
-    if not kernel32.SetHandleInformation(job, HANDLE_FLAG_INHERIT, 0):
-        kernel32.CloseHandle(job)
-        raise LabValidationError("INTEGRATION_CONTAINMENT_FAILED", "could not protect Job Object handle")
-    limits = _JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
-    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-    if not kernel32.SetInformationJobObject(
-        job, JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS, ctypes.byref(limits), ctypes.sizeof(limits)
-    ):
-        kernel32.CloseHandle(job)
-        raise LabValidationError("INTEGRATION_CONTAINMENT_FAILED", "could not configure Job Object")
-    return job
 
 
 def _process_creation_time(handle, kernel32) -> int:
@@ -625,56 +341,9 @@ def _process_creation_time(handle, kernel32) -> int:
     return (created.dwHighDateTime << 32) | created.dwLowDateTime
 
 
-def _active_process_count(job, kernel32) -> int:
-    info = _JOBOBJECT_BASIC_ACCOUNTING_INFORMATION()
-    if not kernel32.QueryInformationJobObject(
-        job, JOB_OBJECT_BASIC_ACCOUNTING_INFORMATION_CLASS, ctypes.byref(info), ctypes.sizeof(info), None
-    ):
-        raise LabValidationError("INTEGRATION_CONTAINMENT_FAILED", "could not query Job Object")
-    return int(info.ActiveProcesses)
 
 
-def _wait_for_zero_active(job, kernel32, timeout: float = 5.0) -> int:
-    deadline = time.monotonic() + timeout
-    while True:
-        active = _active_process_count(job, kernel32)
-        if active == 0 or time.monotonic() >= deadline:
-            return active
-        time.sleep(0.01)
 
 
-def _drain_bounded(
-    stream: BinaryIO,
-    target: bytearray,
-    limit: int,
-    name: str,
-    overflow: threading.Event,
-    overflow_name: list[str],
-    terminate: Callable[[], None],
-    failure: list[tuple[str, BaseException]],
-    failure_lock: threading.Lock,
-) -> None:
-    try:
-        while True:
-            chunk = stream.read(4096)
-            if not chunk:
-                return
-            remaining = limit - len(target)
-            if remaining > 0:
-                target.extend(chunk[:remaining])
-            if len(chunk) > remaining:
-                if not overflow.is_set():
-                    overflow_name.append(name)
-                    overflow.set()
-                    terminate()
-    except Exception as exc:
-        # A partial-read exception must never leave already-captured bytes
-        # looking like a complete, trustworthy capture.
-        with failure_lock:
-            if not failure:
-                failure.append((name, exc))
-        terminate()
 
 
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")

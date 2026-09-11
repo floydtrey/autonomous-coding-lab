@@ -7,10 +7,8 @@ from worker_lab.errors import LabValidationError
 from worker_lab.provider_qualification import (
     MINIMUM_CONTEXT_TOKENS,
     PYDANTIC_AI_OLLAMA_V1,
-    HostProviderQualification,
-    inspect_host_provider,
 )
-from worker_lab.runtime_selection import CODING_WORKER_V1
+from worker_lab.runtime_selection import CODING_WORKER_V2
 from tests.provider_capability_fixture import installation_observation
 from worker_lab.provider_qualification import (
     CAPABILITY_PROBE_EVIDENCE_SCHEMA,
@@ -76,8 +74,8 @@ def _metadata_reader(*, context: int = MINIMUM_CONTEXT_TOKENS, capabilities=("co
 def test_candidate_is_bound_to_coding_worker_and_least_privilege_file_surface():
     candidate = PYDANTIC_AI_OLLAMA_V1
 
-    assert candidate.runtime_requirement_profile_id == CODING_WORKER_V1.profile_id
-    assert candidate.runtime_requirement_digest == CODING_WORKER_V1.digest()
+    assert candidate.runtime_requirement_profile_id == CODING_WORKER_V2.profile_id
+    assert candidate.runtime_requirement_digest == CODING_WORKER_V2.digest()
     assert candidate.harness_project == "pydantic/pydantic-ai"
     assert candidate.harness_distribution == "pydantic-ai-slim"
     assert candidate.provider_kind == "ollama"
@@ -95,114 +93,12 @@ def test_candidate_is_bound_to_coding_worker_and_least_privilege_file_surface():
     assert candidate.required_model_capabilities == ("tools",)
 
 
-def test_host_qualification_uses_metadata_only_and_never_chat(tmp_path):
-    root = _repository(tmp_path)
-    executable = _executable(tmp_path)
-    calls, http_json = _metadata_reader()
-
-    report = inspect_host_provider(
-        model="qwen2.5-coder:7b",
-        repository_root=root,
-        executable_resolver=lambda _: str(executable),
-        version_reader=lambda _: "ollama version 0.33.3",
-        distribution_reader=lambda _: ("2.40.0", DIGEST_A),
-        http_json=http_json,
-    )
-
-    assert report.provider_runtime_qualified is True
-    assert report.execution_authority == "DISABLED"
-    assert report.execution_ready is False
-    assert report.runtime_requirement_profile_id == "coding-worker:v1"
-    assert report.model_digest == DIGEST_B
-    assert report.model_context_tokens == MINIMUM_CONTEXT_TOKENS
-    assert report.model_capabilities == ("completion", "tools")
-    assert [url.rsplit("/", 2)[-2:] for _, url, _, _ in calls] == [
-        ["api", "version"],
-        ["api", "tags"],
-        ["api", "show"],
-    ]
-    assert all(not url.endswith("/api/chat") for _, url, _, _ in calls)
-
-    reparsed = HostProviderQualification.from_mapping(report.to_dict())
-    assert reparsed == report
-    assert reparsed.digest() == report.digest()
 
 
-def test_qualification_rejects_non_loopback_or_enabled_authority(tmp_path):
-    executable = _executable(tmp_path)
-    calls, http_json = _metadata_reader()
-
-    with pytest.raises(LabValidationError) as error:
-        inspect_host_provider(
-            model="qwen2.5-coder:7b",
-            repository_root=_repository(tmp_path / "one"),
-            base_url="http://192.168.1.5:11434",
-            executable_resolver=lambda _: str(executable),
-            version_reader=lambda _: "ollama version 0.33.3",
-            distribution_reader=lambda _: ("2.40.0", DIGEST_A),
-            http_json=http_json,
-        )
-    assert error.value.code == "PROVIDER_ENDPOINT_INVALID"
-
-    with pytest.raises(LabValidationError) as error:
-        inspect_host_provider(
-            model="qwen2.5-coder:7b",
-            repository_root=_repository(tmp_path / "two", authority="ENABLED"),
-            executable_resolver=lambda _: str(executable),
-            version_reader=lambda _: "ollama version 0.33.3",
-            distribution_reader=lambda _: ("2.40.0", DIGEST_A),
-            http_json=http_json,
-        )
-    assert error.value.code == "PROVIDER_QUALIFICATION_AUTHORITY_INVALID"
-    assert calls == []
 
 
-def test_qualification_rejects_missing_tools_or_insufficient_context(tmp_path):
-    executable = _executable(tmp_path)
-
-    _, no_tools = _metadata_reader(capabilities=("completion",))
-    with pytest.raises(LabValidationError) as error:
-        inspect_host_provider(
-            model="qwen2.5-coder:7b",
-            repository_root=_repository(tmp_path / "one"),
-            executable_resolver=lambda _: str(executable),
-            version_reader=lambda _: "ollama version 0.33.3",
-            distribution_reader=lambda _: ("2.40.0", DIGEST_A),
-            http_json=no_tools,
-        )
-    assert error.value.code == "PROVIDER_MODEL_CAPABILITY_INVALID"
-
-    _, short_context = _metadata_reader(context=8_192)
-    with pytest.raises(LabValidationError) as error:
-        inspect_host_provider(
-            model="qwen2.5-coder:7b",
-            repository_root=_repository(tmp_path / "two"),
-            executable_resolver=lambda _: str(executable),
-            version_reader=lambda _: "ollama version 0.33.3",
-            distribution_reader=lambda _: ("2.40.0", DIGEST_A),
-            http_json=short_context,
-        )
-    assert error.value.code == "PROVIDER_MODEL_CONTEXT_INVALID"
 
 
-def test_qualification_record_cannot_claim_execution_readiness(tmp_path):
-    root = _repository(tmp_path)
-    executable = _executable(tmp_path)
-    _, http_json = _metadata_reader()
-    report = inspect_host_provider(
-        model="qwen2.5-coder:7b",
-        repository_root=root,
-        executable_resolver=lambda _: str(executable),
-        version_reader=lambda _: "ollama version 0.33.3",
-        distribution_reader=lambda _: ("2.40.0", DIGEST_A),
-        http_json=http_json,
-    )
-    value = report.to_dict()
-    value["execution_ready"] = True
-
-    with pytest.raises(LabValidationError) as error:
-        HostProviderQualification.from_mapping(value)
-    assert error.value.code == "PROVIDER_FIELD_INVALID"
 
 
 

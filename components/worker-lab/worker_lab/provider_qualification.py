@@ -18,7 +18,7 @@ from typing import Any, Callable, Mapping
 
 from .canonical import canonical_digest, canonical_json
 from .errors import LabValidationError
-from .runtime_selection import CODING_WORKER_V1, selected_runtime_requirement_v3
+from .runtime_selection import CODING_WORKER_V2, selected_runtime_requirement_v3
 from .runtime_settings import (
     CODING_WORKER_SETTINGS_V1,
     RuntimeSettingsProfile,
@@ -27,8 +27,6 @@ from .runtime_settings import (
 
 
 CANDIDATE_SCHEMA = "worker-lab-provider-candidate:v1"
-QUALIFICATION_SCHEMA = "worker-lab-host-provider-qualification:v1"
-QUALIFICATION_IDENTITY_SCHEMA = "worker-lab-host-provider-qualification-identity:v1"
 PYDANTIC_AI_OLLAMA_CANDIDATE_ID = "pydantic-ai-ollama-files"
 TOOL_SURFACE_ID = "acl-bounded-file-tools:v1"
 DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
@@ -79,8 +77,8 @@ PYDANTIC_AI_OLLAMA_V1 = ProviderCandidate(
     schema_version=CANDIDATE_SCHEMA,
     candidate_id=PYDANTIC_AI_OLLAMA_CANDIDATE_ID,
     candidate_version=1,
-    runtime_requirement_profile_id=CODING_WORKER_V1.profile_id,
-    runtime_requirement_digest=CODING_WORKER_V1.digest(),
+    runtime_requirement_profile_id=CODING_WORKER_V2.profile_id,
+    runtime_requirement_digest=CODING_WORKER_V2.digest(),
     harness_project="pydantic/pydantic-ai",
     harness_distribution="pydantic-ai-slim",
     provider_kind="ollama",
@@ -312,97 +310,6 @@ class ProviderCapabilityQualification:
 
 
 CapabilityProbeRunner = Callable[[CapabilityProbeRequest], CapabilityProbeEvidence]
-
-
-@dataclass(frozen=True)
-class HostProviderQualification:
-    schema_version: str
-    candidate_id: str
-    candidate_version: int
-    candidate_digest: str
-    runtime_requirement_profile_id: str
-    runtime_requirement_digest: str
-    tool_surface_id: str
-    host_platform: str
-    host_architecture: str
-    python_version: str
-    python_executable: str
-    python_sha256: str
-    harness_distribution: str
-    harness_version: str
-    harness_tree_digest: str
-    provider_kind: str
-    provider_endpoint: str
-    provider_executable: str
-    provider_executable_sha256: str
-    provider_cli_version: str
-    provider_api_version: str
-    model_name: str
-    model_digest: str
-    model_metadata_digest: str
-    model_context_tokens: int
-    model_capabilities: tuple[str, ...]
-    execution_authority: str
-    provider_runtime_qualified: bool
-    execution_ready: bool
-
-    def to_dict(self) -> dict[str, Any]:
-        value = asdict(self)
-        value["model_capabilities"] = list(self.model_capabilities)
-        return value
-
-    def digest(self) -> str:
-        return canonical_digest({
-            "schema_version": QUALIFICATION_IDENTITY_SCHEMA,
-            "qualification": self.to_dict(),
-        })
-
-    @classmethod
-    def from_mapping(
-        cls,
-        value: Any,
-        *,
-        candidate: ProviderCandidate = PYDANTIC_AI_OLLAMA_V1,
-    ) -> "HostProviderQualification":
-        if not isinstance(value, Mapping) or set(value) != set(cls.__dataclass_fields__):
-            raise LabValidationError(
-                "PROVIDER_QUALIFICATION_FIELDS_INVALID",
-                "provider qualification fields are missing or unknown",
-            )
-        capabilities = _texts(value["model_capabilities"], "model capabilities")
-        record = cls(
-            _exact(value["schema_version"], QUALIFICATION_SCHEMA, "schema_version"),
-            _text(value["candidate_id"], "candidate id"),
-            _positive(value["candidate_version"], "candidate version"),
-            _digest(value["candidate_digest"], "candidate digest"),
-            _text(value["runtime_requirement_profile_id"], "runtime requirement profile"),
-            _digest(value["runtime_requirement_digest"], "runtime requirement digest"),
-            _text(value["tool_surface_id"], "tool surface"),
-            _text(value["host_platform"], "host platform"),
-            _text(value["host_architecture"], "host architecture"),
-            _text(value["python_version"], "python version"),
-            _absolute_path_text(value["python_executable"], "python executable"),
-            _digest(value["python_sha256"], "python digest"),
-            _text(value["harness_distribution"], "harness distribution"),
-            _text(value["harness_version"], "harness version"),
-            _digest(value["harness_tree_digest"], "harness tree digest"),
-            _text(value["provider_kind"], "provider kind"),
-            _loopback_endpoint(value["provider_endpoint"]),
-            _absolute_path_text(value["provider_executable"], "provider executable"),
-            _digest(value["provider_executable_sha256"], "provider executable digest"),
-            _text(value["provider_cli_version"], "provider CLI version"),
-            _text(value["provider_api_version"], "provider API version"),
-            _text(value["model_name"], "model name"),
-            _digest(value["model_digest"], "model digest"),
-            _digest(value["model_metadata_digest"], "model metadata digest"),
-            _positive(value["model_context_tokens"], "model context tokens"),
-            capabilities,
-            _exact(value["execution_authority"], "DISABLED", "execution_authority"),
-            _true(value["provider_runtime_qualified"], "provider_runtime_qualified"),
-            _false(value["execution_ready"], "execution_ready"),
-        )
-        _validate_qualification(record, candidate)
-        return record
 
 
 HttpJson = Callable[[str, str, Mapping[str, Any] | None, float], Mapping[str, Any]]
@@ -680,114 +587,6 @@ def _validate_capability_qualification(
         )
 
 
-def inspect_host_provider(
-    *,
-    model: str,
-    repository_root: Path,
-    candidate: ProviderCandidate = PYDANTIC_AI_OLLAMA_V1,
-    base_url: str = DEFAULT_OLLAMA_BASE_URL,
-    executable_name: str = "ollama",
-    timeout_seconds: float = 10.0,
-    distribution_reader: DistributionReader | None = None,
-    executable_resolver: ExecutableResolver | None = None,
-    version_reader: VersionReader | None = None,
-    http_json: HttpJson | None = None,
-) -> HostProviderQualification:
-    """Inspect an installed provider without sending a completion/chat request.
-
-    Qualification is intentionally observation-only. It may inspect package bytes,
-    provider version metadata and model metadata, but it never starts a provider,
-    loads a model, sends /api/chat, or changes execution authority.
-    """
-    if candidate != protected_provider_candidate(candidate.candidate_id):
-        raise LabValidationError(
-            "PROVIDER_CANDIDATE_INVALID",
-            "provider candidate differs from the protected declaration",
-        )
-    model = _text(model, "model name")
-    repository_root = _real_directory(repository_root, "repository root")
-    execution_authority = _portable_execution_authority(repository_root)
-    if execution_authority != "DISABLED":
-        raise LabValidationError(
-            "PROVIDER_QUALIFICATION_AUTHORITY_INVALID",
-            "provider qualification requires execution authority to remain disabled",
-        )
-    endpoint = _loopback_endpoint(base_url)
-
-    distribution_reader = distribution_reader or inspect_distribution
-    harness_version, harness_tree_digest = distribution_reader(candidate.harness_distribution)
-    harness_version = _text(harness_version, "harness version")
-    harness_tree_digest = _digest(harness_tree_digest, "harness tree digest")
-
-    resolver = executable_resolver or shutil.which
-    resolved = resolver(executable_name)
-    if not resolved:
-        raise LabValidationError(
-            "PROVIDER_RUNTIME_UNAVAILABLE",
-            "provider executable is unavailable",
-        )
-    executable = _real_file(Path(resolved), "provider executable")
-    provider_executable_sha256 = _bytes_digest(executable.read_bytes())
-    provider_cli_version = (version_reader or _provider_cli_version)(str(executable))
-
-    request_json = http_json or _http_json
-    version_payload = request_json("GET", endpoint + "/api/version", None, timeout_seconds)
-    provider_api_version = _text(version_payload.get("version"), "provider API version")
-
-    tags_payload = request_json("GET", endpoint + "/api/tags", None, timeout_seconds)
-    model_digest = _model_digest_from_tags(tags_payload, model)
-
-    show_payload = request_json("POST", endpoint + "/api/show", {"model": model}, timeout_seconds)
-    capabilities = _model_capabilities(show_payload)
-    context_tokens = _model_context_tokens(show_payload)
-    metadata_digest = canonical_digest(show_payload)
-
-    missing = set(candidate.required_model_capabilities) - set(capabilities)
-    if missing:
-        raise LabValidationError(
-            "PROVIDER_MODEL_CAPABILITY_INVALID",
-            "model metadata lacks a required capability",
-        )
-    if context_tokens < candidate.minimum_context_tokens:
-        raise LabValidationError(
-            "PROVIDER_MODEL_CONTEXT_INVALID",
-            "model context is below the protected minimum",
-        )
-
-    python_path = _real_file(Path(sys.executable), "Python executable")
-    record = HostProviderQualification(
-        schema_version=QUALIFICATION_SCHEMA,
-        candidate_id=candidate.candidate_id,
-        candidate_version=candidate.candidate_version,
-        candidate_digest=candidate.digest(),
-        runtime_requirement_profile_id=candidate.runtime_requirement_profile_id,
-        runtime_requirement_digest=candidate.runtime_requirement_digest,
-        tool_surface_id=candidate.tool_surface_id,
-        host_platform=platform.system(),
-        host_architecture=platform.machine(),
-        python_version=platform.python_version(),
-        python_executable=str(python_path),
-        python_sha256=_bytes_digest(python_path.read_bytes()),
-        harness_distribution=candidate.harness_distribution,
-        harness_version=harness_version,
-        harness_tree_digest=harness_tree_digest,
-        provider_kind=candidate.provider_kind,
-        provider_endpoint=endpoint,
-        provider_executable=str(executable),
-        provider_executable_sha256=provider_executable_sha256,
-        provider_cli_version=_text(provider_cli_version, "provider CLI version"),
-        provider_api_version=provider_api_version,
-        model_name=model,
-        model_digest=model_digest,
-        model_metadata_digest=metadata_digest,
-        model_context_tokens=context_tokens,
-        model_capabilities=capabilities,
-        execution_authority="DISABLED",
-        provider_runtime_qualified=True,
-        execution_ready=False,
-    )
-    _validate_qualification(record, candidate)
-    return record
 
 
 def inspect_distribution(distribution_name: str) -> tuple[str, str]:
@@ -818,27 +617,6 @@ def inspect_distribution(distribution_name: str) -> tuple[str, str]:
     return version, canonical_digest(entries)
 
 
-def _validate_qualification(record: HostProviderQualification, candidate: ProviderCandidate) -> None:
-    expected = (
-        record.candidate_id == candidate.candidate_id,
-        record.candidate_version == candidate.candidate_version,
-        record.candidate_digest == candidate.digest(),
-        record.runtime_requirement_profile_id == candidate.runtime_requirement_profile_id,
-        record.runtime_requirement_digest == candidate.runtime_requirement_digest,
-        record.tool_surface_id == candidate.tool_surface_id,
-        record.harness_distribution == candidate.harness_distribution,
-        record.provider_kind == candidate.provider_kind,
-        record.execution_authority == "DISABLED",
-        record.provider_runtime_qualified is True,
-        record.execution_ready is False,
-        record.model_context_tokens >= candidate.minimum_context_tokens,
-        set(candidate.required_model_capabilities).issubset(record.model_capabilities),
-    )
-    if not all(expected):
-        raise LabValidationError(
-            "PROVIDER_QUALIFICATION_INVALID",
-            "provider qualification differs from the protected candidate or authority boundary",
-        )
 
 
 def _portable_execution_authority(repository_root: Path) -> str:
@@ -1081,7 +859,7 @@ def _absolute_path_text(value: Any, name: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Inspect one protected ACL host provider without running a model"
+        description="Inspect one protected ACL provider installation without capability execution"
     )
     parser.add_argument("--model", required=True)
     parser.add_argument("--base-url", default=DEFAULT_OLLAMA_BASE_URL)
@@ -1089,7 +867,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     repository_root = Path(__file__).resolve().parents[3]
     try:
-        report = inspect_host_provider(
+        report = inspect_provider_installation(
             model=args.model,
             repository_root=repository_root,
             base_url=args.base_url,
@@ -1098,7 +876,7 @@ def main(argv: list[str] | None = None) -> int:
     except LabValidationError as exc:
         print(f"ERROR {exc.code}: {exc}", file=sys.stderr)
         return 1
-    print(canonical_json({**report.to_dict(), "qualification_digest": report.digest()}))
+    print(canonical_json({**report.to_dict(), "observation_digest": report.digest()}))
     return 0
 
 

@@ -11,7 +11,6 @@ from tests.test_models import curriculum_mapping, evidence_mapping, exercise_map
 from tests.test_policy import context_mapping, policy_mapping, role_mapping
 from tests.test_test_catalog import catalog
 from worker_lab.models import AttemptState, EvidenceRecord, ExerciseRecord
-from worker_lab.operator_control import ONE_TIME_CONFIRMATION
 from worker_lab.policy import ContextManifest, PolicyRecord, RoleRecord
 from worker_lab.attempt_store import AttemptStore
 from worker_lab.lifecycle import transition_attempt
@@ -27,40 +26,11 @@ def write_json(path: Path, value: dict) -> None:
 def test_doctor_reports_disabled_installation_without_execution(capsys) -> None:
     assert main(["doctor"]) == 0
     report = json.loads(capsys.readouterr().out)
-    assert report["schema_version"] == "worker-lab-installation-doctor:v1"
+    assert report["schema_version"] == "worker-lab-installation-doctor:v2"
     assert report["execution_authority"] == "DISABLED"
     assert report["execution_ready"] is False
 
 
-def test_synthetic_operator_command_passes_explicit_one_time_authority(
-    tmp_path: Path, monkeypatch, capsys
-) -> None:
-    import worker_lab.synthetic_read_only as synthetic
-
-    observed = {}
-
-    def fake_run(run_directory, *, controller_identity, authorization):
-        observed.update({
-            "run_directory": run_directory,
-            "controller_identity": controller_identity,
-            "authorization": authorization,
-        })
-        return '{"status":"prepared"}'
-
-    monkeypatch.setattr(synthetic, "run", fake_run)
-    run_directory = tmp_path / "operator-run"
-    assert main([
-        "synthetic-read-only",
-        "--run-directory", str(run_directory),
-        "--controller", "phase2-controller",
-        "--authorize-once", ONE_TIME_CONFIRMATION,
-    ]) == 0
-    assert json.loads(capsys.readouterr().out) == {"status": "prepared"}
-    assert observed == {
-        "run_directory": run_directory,
-        "controller_identity": "phase2-controller",
-        "authorization": ONE_TIME_CONFIRMATION,
-    }
 
 
 def write_authority_fixture(tmp_path: Path, *, mismatched_context: bool = False) -> tuple[Path, Path]:

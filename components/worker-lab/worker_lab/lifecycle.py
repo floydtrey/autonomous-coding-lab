@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from .errors import LabValidationError
-from .integration import InvocationRecord, InvocationState
+from .integration_v3 import InvocationRecordV3, InvocationState
 from .models import AttemptRecord, AttemptState, _timestamp
 
 
@@ -93,7 +93,7 @@ def transition_attempt(
 
 def bind_authorized_invocation(
     attempt: AttemptRecord,
-    invocation: InvocationRecord,
+    invocation: InvocationRecordV3,
     *,
     occurred_at: str,
 ) -> AttemptRecord:
@@ -114,7 +114,8 @@ def bind_authorized_invocation(
         invocation.task_digest == attempt.task_digest,
         invocation.test_catalog_version == attempt.evaluator_catalog_version,
         invocation.test_catalog_digest == attempt.evaluator_catalog_digest,
-        invocation.starting_commit == attempt.starting_commit,
+        invocation.source_state is not None,
+        invocation.source_state is not None and invocation.source_state.base_commit == attempt.starting_commit,
         invocation.sandbox_mode == attempt.sandbox_mode,
         invocation.authorized_by is not None,
         invocation.authorized_at is not None,

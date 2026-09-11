@@ -15,7 +15,7 @@ from .models import (
     ATTEMPT_SCHEMA, CURRICULUM_SCHEMA, EVIDENCE_SCHEMA, EXERCISE_SCHEMA, FAILURE_SCHEMA,
     AttemptRecord, AttemptState, CurriculumRecord, EvidenceRecord, ExerciseRecord, FailureRecord,
 )
-from .operator_control import ONE_TIME_CONFIRMATION, inspect_installation
+from .operator_control import inspect_installation
 from .policy import (
     CONTEXT_MANIFEST_SCHEMA, POLICY_SCHEMA, ROLE_SCHEMA, ContextManifest, PolicyRecord,
     RoleRecord,
@@ -110,20 +110,6 @@ def _parser() -> argparse.ArgumentParser:
     command.set_defaults(handler=_service_recover_invocation)
     command = commands.add_parser("doctor")
     command.set_defaults(handler=_doctor)
-    command = commands.add_parser("synthetic-read-only")
-    command.add_argument("--run-directory", required=True, type=Path)
-    command.add_argument("--controller", required=True)
-    command.add_argument(
-        "--authorize-once",
-        required=True,
-        metavar=ONE_TIME_CONFIRMATION,
-        help="exact one-time confirmation phrase",
-    )
-    command.set_defaults(handler=_synthetic_read_only)
-    command = commands.add_parser("recover-synthetic-read-only")
-    command.add_argument("--run-directory", required=True, type=Path)
-    command.add_argument("--controller", required=True)
-    command.set_defaults(handler=_recover_synthetic_read_only)
     command = commands.add_parser("validate-definition")
     command.add_argument("path", type=Path)
     command.set_defaults(handler=_validate_definition)
@@ -267,20 +253,8 @@ def _doctor(args: argparse.Namespace) -> str:
     return report.to_json()
 
 
-def _synthetic_read_only(args: argparse.Namespace) -> str:
-    from .synthetic_read_only import run
-
-    return run(
-        args.run_directory,
-        controller_identity=args.controller,
-        authorization=args.authorize_once,
-    )
 
 
-def _recover_synthetic_read_only(args: argparse.Namespace) -> str:
-    from .synthetic_read_only import recover
-
-    return recover(args.run_directory, controller_identity=args.controller)
 
 
 def _validate_definition(args: argparse.Namespace) -> str:

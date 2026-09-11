@@ -5,8 +5,9 @@ from dataclasses import replace
 import pytest
 
 from tools.code_task import CodeTaskError, build_code_task, run_code_task
-from tools.consumer_profile import MINE_TRACKER_PROFILE, ValidationCommand, build_context_packet
+from tools.consumer_profile import ValidationCommand, build_context_packet
 from tools.worker_runtime import WorkerExecution
+from current_test_fixtures import GENERIC_PROFILE
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -21,7 +22,7 @@ def _repo(tmp_path: Path) -> Path:
     _git(root, "init", "-q")
     _git(root, "config", "user.name", "Test")
     _git(root, "config", "user.email", "test@example.invalid")
-    for path in MINE_TRACKER_PROFILE.authority_paths:
+    for path in GENERIC_PROFILE.authority_paths:
         target = root / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("authority\n", encoding="utf-8")
@@ -36,13 +37,13 @@ def _contract(root: Path):
     packet = build_context_packet(
         root,
         allowed_paths=("tests/test_assets.py",),
-        profile=MINE_TRACKER_PROFILE,
+        profile=GENERIC_PROFILE,
     )
     command = ValidationCommand("Check candidate", ("git", "diff", "--check"), 10)
     packet = replace(packet, full_validation=(command,))
     contract = build_code_task(
         packet,
-        task_id="MT-TEST-1",
+        task_id="BOUNDED-TEST-1",
         objective="Add archived asset regression coverage",
         expected_changed_paths=("tests/test_assets.py",),
         acceptance_criteria=("The focused regression passes.",),
@@ -66,7 +67,7 @@ def test_general_code_task_runs_in_workspace_write_and_validates(tmp_path):
         packet,
         repo_root=root,
         framework_repo=tmp_path / "framework",
-        profile=MINE_TRACKER_PROFILE,
+        profile=GENERIC_PROFILE,
         executor=executor,
     )
     assert seen[0].sandbox == "workspace-write"
@@ -89,7 +90,7 @@ def test_out_of_scope_worker_change_stops_before_validation(tmp_path):
             packet,
             repo_root=root,
             framework_repo=tmp_path / "framework",
-            profile=MINE_TRACKER_PROFILE,
+            profile=GENERIC_PROFILE,
             executor=executor,
         )
     assert error.value.code == "CODE_TASK_BOUNDARY_FAILED"
@@ -111,7 +112,7 @@ def test_worker_commit_is_rejected(tmp_path):
             packet,
             repo_root=root,
             framework_repo=tmp_path / "framework",
-            profile=MINE_TRACKER_PROFILE,
+            profile=GENERIC_PROFILE,
             executor=executor,
         )
     assert error.value.code == "CODE_TASK_HEAD_CHANGED"
@@ -122,12 +123,12 @@ def test_task_cannot_exceed_context_scope(tmp_path):
     packet = build_context_packet(
         root,
         allowed_paths=("tests/test_assets.py",),
-        profile=MINE_TRACKER_PROFILE,
+        profile=GENERIC_PROFILE,
     )
     with pytest.raises(CodeTaskError) as error:
         build_code_task(
             packet,
-            task_id="MT-TEST-1",
+            task_id="BOUNDED-TEST-1",
             objective="Bad scope",
             expected_changed_paths=("app/assets.py",),
             acceptance_criteria=("No",),
@@ -141,11 +142,11 @@ def test_validation_stops_at_first_failure(tmp_path):
     packet = build_context_packet(
         root,
         allowed_paths=("tests/test_assets.py",),
-        profile=MINE_TRACKER_PROFILE,
+        profile=GENERIC_PROFILE,
     )
     contract = build_code_task(
         packet,
-        task_id="MT-TEST-1",
+        task_id="BOUNDED-TEST-1",
         objective="Fail validation",
         expected_changed_paths=("tests/test_assets.py",),
         acceptance_criteria=("No",),
@@ -162,7 +163,7 @@ def test_validation_stops_at_first_failure(tmp_path):
             packet,
             repo_root=root,
             framework_repo=tmp_path / "framework",
-            profile=MINE_TRACKER_PROFILE,
+            profile=GENERIC_PROFILE,
             executor=executor,
         )
     assert error.value.code == "CODE_TASK_QUICK_FAILED"
