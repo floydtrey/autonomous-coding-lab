@@ -1,6 +1,6 @@
 # Runtime Core Reconstruction Plan
 
-**Status:** Tasks 1–8 complete in the current architecture; Task 9 next.  
+**Status:** Tasks 1–9 complete; deterministic reconstruction accepted.  
 **Execution authority:** `DISABLED`
 
 ## Goal
@@ -18,7 +18,7 @@ Reconstruct ACL around one provider-neutral, target-system-centered authority/ex
 7. Durable containment/custody is backend-neutral; Windows Job Objects are the current first backend.
 8. Workers receive only ACL-owned protected tool scope. Shell/network/process/publication/approval authority is not implied.
 9. Worker success is independently verified before acceptance.
-10. Execution remains disabled through reconstruction.
+10. Reconstruction completion does not grant execution authority; activation/qualification still require separate user authorization.
 
 ## Current execution path
 
@@ -48,12 +48,13 @@ User objective
 - **Task 6:** installation observation separated from controlled capability qualification; sealed settings consumed by provider adapter.
 - **Task 7:** obsolete active-tree runtime/config/test paths removed; current V3 path only.
 - **Task 8:** portable source identity V2 separated from host/provider/activation/authorization state; current operating documentation reduced to one architecture.
+- **Task 9:** full deterministic reconstruction acceptance on the exact checkpoint, with source identity, documentation, repository-boundary, no-fallback, clean-checkpoint, and disabled-execution gates all passing.
 
-Git history contains the detailed implementation history of Tasks 1–8.
+Git history contains the detailed implementation history of Tasks 1–9.
 
-## Task 9 — full deterministic reconstruction acceptance
+## Task 9 — accepted deterministic reconstruction gate
 
-Before any model run, prove on the exact candidate commit:
+The exact accepted checkpoint was required to prove:
 
 - current complete Autonomous Worker Framework tests pass;
 - current complete Worker Lab tests pass;
@@ -62,14 +63,19 @@ Before any model run, prove on the exact candidate commit:
 - current operating documentation describes one architecture only;
 - obsolete active-runtime references are absent from production/config/current operating docs;
 - any surviving repository-specific contract is explicitly justified as Git-workspace/backend mechanics or evidence;
-- working tree/checkpoint contains no temporary validation machinery;
+- the checkpoint contains no temporary Task 9 validation machinery;
 - local activation has not been smuggled into committed source identity;
+- provider capability qualification requires an explicit injected probe runner;
 - no implicit provider/model/runner fallback exists;
 - execution remains `DISABLED`;
-- no actual provider/model request or capability qualification has occurred during reconstruction.
+- no actual provider/model request or real capability qualification occurred during reconstruction.
 
-**Stop gate:** only after Task 9 passes may the user separately authorize actual provider/model host qualification and a supervised disposable vertical slice.
+Task 9 changes only the accepted reconstruction status/documentation. It does not alter production runtime behavior or portable component byte closures.
 
-## Out of scope until after Task 9
+## Post-reconstruction stop gate
 
-Do not run a local model, call chat/completion endpoints, enable persistent execution, add autonomous retry loops, add GUI work, expand Knowledge Core retrieval, build a Linux containment backend, or start a new broad model/harness campaign as part of reconstruction acceptance.
+Reconstruction is complete, but this is **not** authorization to run a model or activate ACL.
+
+Only after separate explicit user authorization may ACL proceed to actual host/provider capability qualification and then a supervised disposable vertical slice. Provider/model choice should be informed by qualification and, where useful, separate Benchmark Lab evidence; benchmark output remains advisory and cannot authorize ACL work.
+
+Persistent execution, autonomous retry loops, GUI work, Knowledge Core expansion, Linux containment, publication authority, and broader model/harness campaigns remain separate later tasks.

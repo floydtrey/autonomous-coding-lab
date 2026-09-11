@@ -50,6 +50,6 @@ Knowledge Core design/evidence lives under `docs/architecture/knowledge-core/`. 
 
 ## Reconstruction status
 
-Runtime reconstruction Tasks 1–8 are represented by the current tree. Task 9 is the remaining deterministic acceptance gate before any real provider/model qualification or supervised model execution is authorized.
+Runtime reconstruction Tasks 1–9 are complete in the accepted architecture. The deterministic reconstruction gate has passed on the exact checkpoint bytes.
 
-**Execution authority remains `DISABLED`.**
+**Execution authority remains `DISABLED`.** Actual provider/model host qualification, supervised disposable vertical-slice execution, or persistent activation requires separate explicit user authorization after reconstruction.
