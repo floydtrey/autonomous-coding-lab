@@ -91,4 +91,14 @@ if matched != 1:
     raise RuntimeError(f"expected exactly one worker-lab-v3 digest assertion, found {matched}")
 protected.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+# The AWF documentation contract still asserted a superseded pre-reconstruction Phase 1 checkpoint.
+# Preserve durable current-document invariants without doing Task 8's documentation rewrite.
+doc_test = ROOT / "components" / "autonomous-worker-framework" / "tests" / "test_project_documentation.py"
+dtext = doc_test.read_text(encoding="utf-8")
+old = '''def test_current_state_records_accepted_checkpoint_and_remaining_work():\n    current = _read("docs/CURRENT_STATE.md")\n    assert "## Accepted Phase 1 checkpoint" in current\n    assert "## Phase 1 validation evidence" in current\n    assert "## Not yet available" in current\n    assert "5f6c41da132daa12f0bb8c4be054112d77ef7e54" in current\n    assert "Execution authority:** disabled" in current\n'''
+new = '''def test_current_state_records_reconstruction_authority_and_remaining_work():\n    current = _read("docs/CURRENT_STATE.md")\n    assert "# Current State" in current\n    assert "**Execution authority:** `DISABLED`" in current\n    assert "docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md" in current\n    assert "Runtime reconstruction Task 1" in current\n    assert "no actual provider/model execution occurs during reconstruction" in current\n'''
+if old not in dtext:
+    raise RuntimeError("stale AWF documentation assertion block not found")
+doc_test.write_text(dtext.replace(old, new), encoding="utf-8")
+
 print(f"Task 7 diagnosed repairs applied; worker-lab-v3 digest={new_digest}")
