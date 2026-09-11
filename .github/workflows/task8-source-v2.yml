@@ -14,7 +14,9 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install pytest
       - name: Materialize V2 candidate
-        run: python .task8/apply_task8.py
+        run: |
+          python .task8/apply_task8.py
+          python .task8/fix_source_v2.py
       - name: Refresh source component digests
         run: |
           python - <<'PY'
