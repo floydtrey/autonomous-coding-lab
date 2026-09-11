@@ -29,6 +29,9 @@ JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS = 9
 JOB_OBJECT_BASIC_ACCOUNTING_INFORMATION_CLASS = 1
 HANDLE_FLAG_INHERIT = 0x00000001
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+WINDOWS_JOB_BACKEND_ID = "windows-job-object:v1"
+WINDOWS_PROCESS_IDENTITY_SCHEMA = "windows-process:v1"
+WINDOWS_JOB_ABSENCE_SCHEMA = "worker-lab-windows-job-absence-evidence:v1"
 
 
 class _FILETIME(ctypes.Structure):
@@ -164,20 +167,20 @@ class WindowsJobAdapterRunner:
         kernel32 = self.kernel32_factory()
         controller_pid = os.getpid()
         controller_time = self.creation_time_reader(kernel32.GetCurrentProcess(), kernel32)
+        backend = WindowsJobCustodyBackend()
         custody = ProcessCustodyRecord.from_mapping({
             "schema_version": PROCESS_CUSTODY_SCHEMA,
             "invocation_digest": self.invocation_digest,
             "invocation_id": self.invocation_id,
-            "controller_pid": controller_pid,
-            "controller_creation_time_100ns": controller_time,
-            "adapter_pid": None,
-            "adapter_creation_time_100ns": None,
-            "containment_mode": "windows-job-kill-on-close",
+            "backend_id": backend.backend_id,
+            "controller_identity": windows_process_identity(controller_pid, controller_time),
+            "worker_identity": None,
             "workspace_content_digest": workspace.content_digest,
             "state": "PREPARED",
             "request_sent": False,
             "exit_code": None,
-            "active_process_count": None,
+            "active_workload_count": None,
+            "absence_evidence_digest": None,
             "absence_verified_at": None,
             "first_failure": None,
         })
@@ -189,7 +192,7 @@ class WindowsJobAdapterRunner:
             # No adapter exists yet. Preserve durable non-dispatch evidence rather
             # than fabricating an absence count.
             uncertain = transition_custody(
-                custody, CustodyState.UNCERTAIN, exit_code=None, active_process_count=None,
+                custody, CustodyState.UNCERTAIN, exit_code=None, active_workload_count=None,
                 first_failure="INTEGRATION_CONTAINMENT_FAILED",
             )
             self.store.save_transition(uncertain, expected_digest=custody.digest())
@@ -223,13 +226,16 @@ class WindowsJobAdapterRunner:
                     active = None
                 target = CustodyState.TERMINATED if active == 0 else CustodyState.UNCERTAIN
                 failed = transition_custody(
-                    custody, target, exit_code=process.returncode, active_process_count=active,
+                    custody, target, exit_code=process.returncode, active_workload_count=active,
                     first_failure="INTEGRATION_CONTAINMENT_FAILED",
                 )
                 self.store.save_transition(failed, expected_digest=custody.digest())
                 if active == 0:
                     verified = transition_custody(
-                        failed, CustodyState.ABSENCE_VERIFIED, active_process_count=0,
+                        failed, CustodyState.ABSENCE_VERIFIED, active_workload_count=0,
+                        absence_evidence_digest=backend.absence_evidence_digest(
+                            failed, basis="job-accounting-zero",
+                        ),
                         absence_verified_at=self.now(),
                     )
                     self.store.save_transition(verified, expected_digest=failed.digest())
@@ -237,8 +243,9 @@ class WindowsJobAdapterRunner:
 
             adapter_time = self.creation_time_reader(wintypes.HANDLE(int(process._handle)), kernel32)
             assigned = transition_custody(
-                custody, CustodyState.ASSIGNED, adapter_pid=process.pid,
-                adapter_creation_time_100ns=adapter_time,
+                custody,
+                CustodyState.ASSIGNED,
+                worker_identity=windows_process_identity(process.pid, adapter_time),
             )
             self.store.save_transition(assigned, expected_digest=custody.digest())
             persisted = assigned
@@ -294,14 +301,17 @@ class WindowsJobAdapterRunner:
             target = CustodyState.TERMINATED if failure else CustodyState.EXITED
             ended = transition_custody(
                 dispatching, target, exit_code=process.returncode,
-                active_process_count=active, first_failure=failure,
+                active_workload_count=active, first_failure=failure,
             )
             self.store.save_transition(ended, expected_digest=dispatching.digest())
             persisted = ended
             if active != 0:
                 raise LabValidationError("INTEGRATION_OUTCOME_UNCERTAIN", "adapter process tree remains active")
             verified = transition_custody(
-                ended, CustodyState.ABSENCE_VERIFIED, active_process_count=0,
+                ended, CustodyState.ABSENCE_VERIFIED, active_workload_count=0,
+                absence_evidence_digest=backend.absence_evidence_digest(
+                    ended, basis="job-accounting-zero",
+                ),
                 absence_verified_at=self.now(),
             )
             self.store.save_transition(verified, expected_digest=ended.digest())
@@ -332,12 +342,19 @@ class WindowsJobAdapterRunner:
                 try:
                     failed = transition_custody(
                         persisted, target, exit_code=(process.returncode if process is not None else None),
-                        active_process_count=active, first_failure=first_failure,
+                        active_workload_count=active, first_failure=first_failure,
                     )
                     self.store.save_transition(failed, expected_digest=persisted.digest())
                     if active == 0:
-                        verified = transition_custody(failed, CustodyState.ABSENCE_VERIFIED,
-                                                      active_process_count=0, absence_verified_at=self.now())
+                        verified = transition_custody(
+                            failed,
+                            CustodyState.ABSENCE_VERIFIED,
+                            active_workload_count=0,
+                            absence_evidence_digest=backend.absence_evidence_digest(
+                                failed, basis="job-accounting-zero",
+                            ),
+                            absence_verified_at=self.now(),
+                        )
                         self.store.save_transition(verified, expected_digest=failed.digest())
                 except LabValidationError:
                     pass
@@ -363,6 +380,102 @@ def process_creation_time_for_pid(pid: int) -> int | None:
         return _process_creation_time(handle, kernel32)
     finally:
         kernel32.CloseHandle(handle)
+
+
+def windows_process_identity(pid: int, creation_time_100ns: int) -> str:
+    """Encode a Windows process identity for the backend's opaque custody field."""
+    if (
+        isinstance(pid, bool)
+        or not isinstance(pid, int)
+        or pid <= 0
+        or isinstance(creation_time_100ns, bool)
+        or not isinstance(creation_time_100ns, int)
+        or creation_time_100ns <= 0
+    ):
+        raise LabValidationError(
+            "INTEGRATION_PROCESS_IDENTITY_INVALID", "Windows process identity is invalid",
+        )
+    return f"{WINDOWS_PROCESS_IDENTITY_SCHEMA}:{pid}:{creation_time_100ns}"
+
+
+class WindowsJobCustodyBackend:
+    """Interpret Custody V2 identities and absence evidence for Job Objects."""
+
+    backend_id = WINDOWS_JOB_BACKEND_ID
+
+    def __init__(self, process_probe: Callable[[int], int | None] | None = None) -> None:
+        if process_probe is not None and not callable(process_probe):
+            raise LabValidationError(
+                "INTEGRATION_CUSTODY_BACKEND_INVALID", "Windows process probe is invalid",
+            )
+        self._process_probe = process_probe or process_creation_time_for_pid
+
+    def controller_is_active(self, record: ProcessCustodyRecord) -> bool:
+        self._require_backend(record)
+        pid, creation_time = _parse_windows_process_identity(record.controller_identity)
+        return self._process_probe(pid) == creation_time
+
+    def absence_evidence_after_controller_exit(
+        self, record: ProcessCustodyRecord,
+    ) -> str | None:
+        if self.controller_is_active(record):
+            return None
+        return self.absence_evidence_digest(
+            record, basis="controller-exit-after-job-zero",
+        )
+
+    def absence_evidence_digest(
+        self,
+        record: ProcessCustodyRecord,
+        *,
+        basis: str,
+    ) -> str:
+        self._require_backend(record)
+        if basis not in {"job-accounting-zero", "controller-exit-after-job-zero"}:
+            raise LabValidationError(
+                "INTEGRATION_CUSTODY_BACKEND_INVALID", "Windows absence basis is invalid",
+            )
+        if record.active_workload_count != 0:
+            raise LabValidationError(
+                "INTEGRATION_OUTCOME_UNCERTAIN", "Windows Job Object does not prove absence",
+            )
+        if record.worker_identity is not None:
+            _parse_windows_process_identity(record.worker_identity)
+        return canonical_digest({
+            "schema_version": WINDOWS_JOB_ABSENCE_SCHEMA,
+            "backend_id": self.backend_id,
+            "invocation_digest": record.invocation_digest,
+            "controller_identity": record.controller_identity,
+            "worker_identity": record.worker_identity,
+            "active_workload_count": record.active_workload_count,
+            "basis": basis,
+        })
+
+    def _require_backend(self, record: ProcessCustodyRecord) -> None:
+        if not isinstance(record, ProcessCustodyRecord) or record.backend_id != self.backend_id:
+            raise LabValidationError(
+                "INTEGRATION_CUSTODY_BACKEND_INVALID", "custody is not Windows Job Object evidence",
+            )
+
+
+def _parse_windows_process_identity(value: str) -> tuple[int, int]:
+    try:
+        schema, version, pid_text, creation_text = value.split(":")
+        pid = int(pid_text)
+        creation_time = int(creation_text)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise LabValidationError(
+            "INTEGRATION_PROCESS_IDENTITY_INVALID", "Windows process identity is invalid",
+        ) from exc
+    if f"{schema}:{version}" != WINDOWS_PROCESS_IDENTITY_SCHEMA:
+        raise LabValidationError(
+            "INTEGRATION_PROCESS_IDENTITY_INVALID", "Windows process identity schema differs",
+        )
+    if windows_process_identity(pid, creation_time) != value:
+        raise LabValidationError(
+            "INTEGRATION_PROCESS_IDENTITY_INVALID", "Windows process identity is not canonical",
+        )
+    return pid, creation_time
 
 
 def inspect_launch_workspace(path: Path) -> WorkspaceLaunchEvidence:
@@ -462,40 +575,6 @@ def _workspace_git(root: Path, *arguments: str) -> str:
 
 def _path_key(path: Path) -> str:
     return os.path.normcase(os.path.normpath(str(path)))
-
-
-def controller_is_active(record: ProcessCustodyRecord, probe: Callable[[int], int | None] = process_creation_time_for_pid) -> bool:
-    observed = probe(record.controller_pid)
-    return observed == record.controller_creation_time_100ns
-
-
-def recover_absence_after_controller_exit(
-    record: ProcessCustodyRecord,
-    *,
-    probe: Callable[[int], int | None] = process_creation_time_for_pid,
-    now: Now | None = None,
-) -> tuple[ProcessCustodyRecord, ProcessCustodyRecord] | None:
-    """Derive fail-closed absence evidence after the exact controller is gone."""
-    if controller_is_active(record, probe):
-        return None
-    if record.state is CustodyState.ABSENCE_VERIFIED:
-        return None
-    if record.state is not CustodyState.TERMINATED:
-        raise LabValidationError("INTEGRATION_OUTCOME_UNCERTAIN", "custody state cannot prove restart absence")
-    if (
-        not record.request_sent
-        or record.adapter_pid is None
-        or record.adapter_creation_time_100ns is None
-        or record.active_process_count != 0
-        or record.first_failure is None
-    ):
-        raise LabValidationError("INTEGRATION_OUTCOME_UNCERTAIN", "custody lacks complete absence evidence")
-    failed = record
-    verified = transition_custody(
-        failed, CustodyState.ABSENCE_VERIFIED, active_process_count=0,
-        absence_verified_at=(now or _utc_now)(),
-    )
-    return failed, verified
 
 
 def _kernel32():

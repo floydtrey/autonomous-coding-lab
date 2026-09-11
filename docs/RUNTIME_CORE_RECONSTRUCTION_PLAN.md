@@ -1,6 +1,6 @@
 # Runtime Core Reconstruction Plan
 
-**Status:** approved plan; Task 1 complete; Task 2 not started
+**Status:** approved plan; Tasks 1-2 complete; Task 3 not started
 
 **Purpose:** reconstruct the ACL execution/runtime shell around the accepted Worker Lab authority model so the active tree is provider-neutral, model-swappable, host-portable, target-system-centered, and no longer carries obsolete Codex/Terra/Mine Tracker commissioning paths.
 
@@ -270,6 +270,8 @@ qualification, or execution work was performed.
 
 ### Task 2 — define platform-neutral containment/custody contract
 
+**Status:** complete in the Task 2 reconstruction checkpoint.
+
 - design custody V2;
 - preserve current fail-closed/absence-proof semantics;
 - make Windows Job Objects one backend;
@@ -277,6 +279,16 @@ qualification, or execution work was performed.
 - no provider execution.
 
 **Stop gate:** durable authority/result contracts no longer require Windows-only process fields.
+
+**Accepted Task 2 boundary:** `worker-lab-process-custody:v2` records a
+versioned backend identifier, opaque controller/worker identities, a generic active
+workload count, and a digest of backend-produced absence evidence. Windows PIDs,
+process creation times, PID-reuse checks, and Job Object accounting are confined to
+the `windows-job-object:v1` backend. Generic recovery requires the backend named by
+the durable record and remains fail-closed when the controller is active, the
+backend differs, the workload count is unknown/nonzero, or absence evidence is
+missing. No Linux backend, Invocation/Result V3, Provider Binding, dispatch
+reconstruction, provider qualification, or execution work was performed.
 
 ### Task 3 — Invocation/Result V3 + Provider Binding V1
 

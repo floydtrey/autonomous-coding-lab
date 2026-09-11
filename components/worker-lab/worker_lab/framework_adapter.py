@@ -328,11 +328,11 @@ def accept_execute_response(
     if (
         custody.invocation_id != record.invocation_id
         or custody.invocation_digest != record.identity_digest()
-        or custody.adapter_pid is None
-        or custody.adapter_creation_time_100ns is None
+        or custody.worker_identity is None
         or not custody.request_sent
         or custody.state is not CustodyState.ABSENCE_VERIFIED
-        or custody.active_process_count != 0
+        or custody.active_workload_count != 0
+        or custody.absence_evidence_digest is None
         or custody.exit_code != 0
         or custody.first_failure is not None
     ):
@@ -432,11 +432,11 @@ def accept_workspace_write_response(
     if (
         custody.invocation_id != record.invocation_id
         or custody.invocation_digest != record.identity_digest()
-        or custody.adapter_pid is None
-        or custody.adapter_creation_time_100ns is None
+        or custody.worker_identity is None
         or not custody.request_sent
         or custody.state is not CustodyState.ABSENCE_VERIFIED
-        or custody.active_process_count != 0
+        or custody.active_workload_count != 0
+        or custody.absence_evidence_digest is None
         or custody.exit_code != 0
         or custody.first_failure is not None
     ):

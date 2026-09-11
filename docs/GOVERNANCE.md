@@ -44,6 +44,13 @@ Workers do not commit, push, merge, change Git configuration, or hold publicatio
 
 Execution remains disabled for the consolidated installation until a bilateral installed-component identity contract is accepted and a specific attempt is authorized. The current installation-manifest v2 candidate records `DISABLED` execution and a `DEFERRED` Worker Lab participant. Worker Lab and the framework adapter enforce that policy independently; a valid manifest or runtime identity does not supersede it.
 
+Containment evidence is accepted only through the versioned backend named by the
+durable custody record. Generic authority and result acceptance treat
+controller/worker identities as opaque and require zero active workloads plus
+backend-produced absence evidence; operating-system process identifiers and reuse
+rules cannot become universal authority fields. Missing, contradictory, stale, or
+wrong-backend evidence remains uncertainty and fails closed.
+
 ## Change authority
 
 | Change | Required decision |

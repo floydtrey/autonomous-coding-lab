@@ -371,25 +371,36 @@ def test_actual_execute_response_becomes_custody_bound_strict_result(tmp_path):
     store = ProcessCustodyStore(tmp_path / "state")
     prepared_custody = ProcessCustodyRecord.from_mapping({
         "schema_version": PROCESS_CUSTODY_SCHEMA, "invocation_digest": invocation.identity_digest(),
-        "invocation_id": invocation.invocation_id, "controller_pid": 1, "controller_creation_time_100ns": 1,
-        "adapter_pid": None, "adapter_creation_time_100ns": None, "containment_mode": "windows-job-kill-on-close",
+        "invocation_id": invocation.invocation_id, "backend_id": "fixture-containment:v1",
+        "controller_identity": "fixture-controller:v1:1", "worker_identity": None,
         "workspace_content_digest": DIGEST,
-        "state": "PREPARED", "request_sent": False, "exit_code": None, "active_process_count": None,
-        "absence_verified_at": None, "first_failure": None,
+        "state": "PREPARED", "request_sent": False, "exit_code": None, "active_workload_count": None,
+        "absence_evidence_digest": None, "absence_verified_at": None, "first_failure": None,
     })
     store.create(prepared_custody)
     custody = ProcessCustodyRecord.from_mapping({
-        **prepared_custody.to_dict(), "adapter_pid": 2, "adapter_creation_time_100ns": 2,
-        "state": "ABSENCE_VERIFIED", "request_sent": True, "exit_code": 0, "active_process_count": 0,
+        **prepared_custody.to_dict(), "worker_identity": "fixture-worker:v1:2",
+        "state": "ABSENCE_VERIFIED", "request_sent": True, "exit_code": 0, "active_workload_count": 0,
+        "absence_evidence_digest": "sha256:" + "b" * 64,
         "absence_verified_at": "2026-08-28T00:00:01Z", "first_failure": None,
     })
     store.save_transition(
-        ProcessCustodyRecord.from_mapping({**prepared_custody.to_dict(), "state": "ASSIGNED", "adapter_pid": 2, "adapter_creation_time_100ns": 2}),
+        ProcessCustodyRecord.from_mapping({
+            **prepared_custody.to_dict(), "state": "ASSIGNED",
+            "worker_identity": "fixture-worker:v1:2",
+        }),
         expected_digest=prepared_custody.digest(),
     )
-    dispatching = ProcessCustodyRecord.from_mapping({**custody.to_dict(), "state": "DISPATCHING", "exit_code": None, "active_process_count": None, "absence_verified_at": None})
+    dispatching = ProcessCustodyRecord.from_mapping({
+        **custody.to_dict(), "state": "DISPATCHING", "exit_code": None,
+        "active_workload_count": None, "absence_evidence_digest": None,
+        "absence_verified_at": None,
+    })
     store.save_transition(dispatching, expected_digest=store.read(invocation.invocation_id).digest())
-    exited = ProcessCustodyRecord.from_mapping({**custody.to_dict(), "state": "EXITED", "absence_verified_at": None})
+    exited = ProcessCustodyRecord.from_mapping({
+        **custody.to_dict(), "state": "EXITED", "absence_evidence_digest": None,
+        "absence_verified_at": None,
+    })
     store.save_transition(exited, expected_digest=dispatching.digest())
     store.save_transition(custody, expected_digest=exited.digest())
     raw = __import__("json").dumps({"invocation_digest": invocation.identity_digest(), "prompt_digest": invocation.prompt_digest,
@@ -434,7 +445,9 @@ def test_actual_execute_response_becomes_custody_bound_strict_result(tmp_path):
     with pytest.raises(LabValidationError) as error:
         accept(custody=dispatching)
     assert error.value.code == "INTEGRATION_OUTCOME_UNCERTAIN"
-    non_dispatched = ProcessCustodyRecord.from_mapping({**custody.to_dict(), "adapter_pid": None, "adapter_creation_time_100ns": None, "request_sent": False})
+    non_dispatched = ProcessCustodyRecord.from_mapping({
+        **custody.to_dict(), "worker_identity": None, "request_sent": False,
+    })
     with pytest.raises(LabValidationError) as error:
         accept_execute_response(raw, invocation, non_dispatched, runtime_identity=DIGEST,
                                 started_at="2026-08-28T00:00:00Z", ended_at="2026-08-28T00:00:01Z",

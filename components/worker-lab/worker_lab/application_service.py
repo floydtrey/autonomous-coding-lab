@@ -85,7 +85,13 @@ from .workspace import (
     prepare_workspace,
     verify_workspace,
 )
-from .process_custody import CustodyState, ProcessCustodyRecord, ProcessCustodyStore
+from .process_custody import (
+    CustodyBackend,
+    CustodyState,
+    ProcessCustodyRecord,
+    ProcessCustodyStore,
+    recover_absence_after_controller_exit,
+)
 from .read_only_evidence import (
     READ_ONLY_EVALUATION_PLAN_SCHEMA,
     ReadOnlyEvidenceCollector,
@@ -94,9 +100,9 @@ from .read_only_evidence import (
 )
 from .windows_job import (
     WindowsJobAdapterRunner,
+    WindowsJobCustodyBackend,
     WorkspaceLaunchEvidence,
     inspect_launch_workspace,
-    recover_absence_after_controller_exit,
     workspace_content_digest,
 )
 
@@ -107,7 +113,7 @@ RECORD_LIST_SCHEMA = "worker-lab-service-record-list:v1"
 RECORD_DETAIL_SCHEMA = "worker-lab-service-record-detail:v1"
 OPERATION_RESULT_SCHEMA = "worker-lab-service-operation-result:v2"
 BACKUP_RESULT_SCHEMA = "worker-lab-service-backup-result:v1"
-RECOVERY_RESULT_SCHEMA = "worker-lab-service-recovery-result:v1"
+RECOVERY_RESULT_SCHEMA = "worker-lab-service-recovery-result:v2"
 ATTEMPT_TIMELINE_SCHEMA = "worker-lab-service-attempt-timeline:v1"
 CANDIDATE_REVIEW_SCHEMA = "worker-lab-service-candidate-review:v1"
 WORKSPACE_WRITE_CANDIDATE_REVIEW_SCHEMA = "worker-lab-service-candidate-review:v2"
@@ -411,7 +417,7 @@ class WorkerLabApplicationService:
         data_root: Path,
         *,
         clock: Callable[[], str] | None = None,
-        process_probe: Callable[[int], int | None] | None = None,
+        custody_backend: CustodyBackend | None = None,
         read_only_adapter: ReadOnlyAdapter | None = None,
         workspace_write_adapter: WorkspaceWriteAdapter | None = None,
         sealed_test_executor: SealedTestExecutor | None = None,
@@ -424,9 +430,14 @@ class WorkerLabApplicationService:
             raise LabValidationError("SERVICE_COMMAND_INVALID", "workspace-write adapter must be callable")
         if sealed_test_executor is not None and not callable(sealed_test_executor):
             raise LabValidationError("SERVICE_COMMAND_INVALID", "sealed test executor must be callable")
+        if custody_backend is not None and (
+            not isinstance(getattr(custody_backend, "backend_id", None), str)
+            or not callable(getattr(custody_backend, "absence_evidence_after_controller_exit", None))
+        ):
+            raise LabValidationError("SERVICE_COMMAND_INVALID", "custody backend must satisfy Custody V2")
         self.data_root = data_root
         self._clock = clock or _utc_now
-        self._process_probe = process_probe
+        self._custody_backend = custody_backend or WindowsJobCustodyBackend()
         self._read_only_adapter = read_only_adapter or _execute_read_only_adapter
         self._workspace_write_adapter = workspace_write_adapter or _execute_workspace_write_adapter
         self._sealed_test_executor = sealed_test_executor or _run_sealed_test
@@ -1174,8 +1185,7 @@ class WorkerLabApplicationService:
         if (
             custody.invocation_id != invocation_id
             or custody.invocation_digest != expected
-            or custody.adapter_pid is None
-            or custody.adapter_creation_time_100ns is None
+            or custody.worker_identity is None
             or not custody.request_sent
         ):
             raise LabValidationError(
@@ -1185,12 +1195,10 @@ class WorkerLabApplicationService:
         occurred_at = self._clock()
         verified_custody = custody
         if custody.state is CustodyState.TERMINATED:
-            recovery_arguments: dict[str, Any] = {"now": lambda: occurred_at}
-            if self._process_probe is not None:
-                recovery_arguments["probe"] = self._process_probe
             recovered = recover_absence_after_controller_exit(
                 custody,
-                **recovery_arguments,
+                backend=self._custody_backend,
+                now=lambda: occurred_at,
             )
             if recovered is None:
                 raise LabValidationError(
@@ -1204,7 +1212,8 @@ class WorkerLabApplicationService:
                 "process custody cannot prove adapter absence",
             )
         if (
-            verified_custody.active_process_count != 0
+            verified_custody.active_workload_count != 0
+            or verified_custody.absence_evidence_digest is None
             or verified_custody.absence_verified_at is None
             or verified_custody.workspace_content_digest != workspace.content_digest
         ):

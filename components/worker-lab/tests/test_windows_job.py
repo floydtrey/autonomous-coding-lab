@@ -214,7 +214,7 @@ def test_job_runner_assigns_before_request_and_proves_normal_absence(tmp_path):
     assert item(command, b"request") == b"{}"
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.ABSENCE_VERIFIED
-    assert custody.request_sent and custody.active_process_count == 0
+    assert custody.request_sent and custody.active_workload_count == 0
 
 
 def test_job_runner_terminates_tree_on_stream_overflow(tmp_path):
@@ -224,7 +224,7 @@ def test_job_runner_terminates_tree_on_stream_overflow(tmp_path):
     with pytest.raises(LabValidationError) as error:
         item(command, b"request")
     assert error.value.code == "INTEGRATION_RESULT_INVALID"
-    assert store.read("INVOCATION-001").active_process_count == 0
+    assert store.read("INVOCATION-001").active_workload_count == 0
 
 
 def test_job_runner_terminates_inert_child_tree_on_timeout(tmp_path):
@@ -237,7 +237,7 @@ def test_job_runner_terminates_inert_child_tree_on_timeout(tmp_path):
     assert error.value.code == "CODEX_TIMEOUT"
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.ABSENCE_VERIFIED
-    assert custody.active_process_count == 0
+    assert custody.active_workload_count == 0
 
 
 def test_job_creation_failure_prevents_launch_and_never_fabricates_absence(tmp_path):
@@ -266,7 +266,7 @@ def test_job_creation_failure_prevents_launch_and_never_fabricates_absence(tmp_p
     assert not launched
     assert custody.state is CustodyState.UNCERTAIN
     assert not custody.request_sent
-    assert custody.active_process_count is None
+    assert custody.active_workload_count is None
 
 
 def test_adapter_launch_failure_is_non_dispatching_uncertainty(tmp_path):
@@ -280,7 +280,7 @@ def test_adapter_launch_failure_is_non_dispatching_uncertainty(tmp_path):
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.ABSENCE_VERIFIED
     assert not custody.request_sent
-    assert custody.active_process_count == 0
+    assert custody.active_workload_count == 0
     assert custody.first_failure == "INTEGRATION_CONTAINMENT_FAILED"
 
 
@@ -297,7 +297,7 @@ def test_assignment_failure_terminates_before_request_with_independent_zero(tmp_
     assert not stdin.written
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.ABSENCE_VERIFIED
-    assert custody.active_process_count == 0
+    assert custody.active_workload_count == 0
     assert process._terminated
 
 
@@ -312,7 +312,7 @@ def test_assignment_failure_with_failed_query_leaves_uncertain(tmp_path):
         item(("inert-adapter",), b"request")
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.UNCERTAIN
-    assert custody.active_process_count is None
+    assert custody.active_workload_count is None
 
 
 def test_adapter_creation_time_capture_failure_terminates_and_preserves_failure(tmp_path):
@@ -336,7 +336,7 @@ def test_adapter_creation_time_capture_failure_terminates_and_preserves_failure(
     assert not stdin.written
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.ABSENCE_VERIFIED
-    assert custody.active_process_count == 0
+    assert custody.active_workload_count == 0
     assert custody.first_failure == "INTEGRATION_CONTAINMENT_FAILED"
     assert kernel.terminated
 
@@ -356,7 +356,7 @@ def test_assigned_persistence_failure_preserves_first_failure(tmp_path):
     assert not stdin.written
     custody = real_store.read("INVOCATION-001")
     assert custody.state is CustodyState.ABSENCE_VERIFIED
-    assert custody.active_process_count == 0
+    assert custody.active_workload_count == 0
     assert custody.first_failure == "INTEGRATION_CONTAINMENT_FAILED"
 
 
@@ -377,7 +377,7 @@ def test_dispatching_persistence_failure_preserves_first_failure_and_never_dispa
     # Request was never sent, so custody cannot claim verified absence; it must
     # remain the weaker TERMINATED evidence instead of a fabricated success shape.
     assert custody.state is CustodyState.TERMINATED
-    assert custody.active_process_count == 0
+    assert custody.active_workload_count == 0
     assert custody.first_failure == "INTEGRATION_OUTCOME_UNCERTAIN"
     assert failing.saved_states == ["ASSIGNED", "TERMINATED"]
 
@@ -393,7 +393,7 @@ def test_standard_input_write_failure_ends_in_verified_absence(tmp_path):
         item(("inert-adapter",), b"request")
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.ABSENCE_VERIFIED
-    assert custody.active_process_count == 0
+    assert custody.active_workload_count == 0
     assert custody.first_failure == "INTEGRATION_OUTCOME_UNCERTAIN"
 
 
@@ -408,7 +408,7 @@ def test_simulated_interruption_terminates_and_verifies_absence(tmp_path):
         item(("inert-adapter",), b"request")
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.ABSENCE_VERIFIED
-    assert custody.active_process_count == 0
+    assert custody.active_workload_count == 0
     assert kernel.terminated
 
 
@@ -425,7 +425,7 @@ def test_reader_exception_is_authoritative_and_never_returns_partial_success(tmp
     assert error.value.code == "INTEGRATION_RESULT_INVALID"
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.ABSENCE_VERIFIED
-    assert custody.active_process_count == 0
+    assert custody.active_workload_count == 0
     assert custody.first_failure == "INTEGRATION_RESULT_INVALID"
     assert kernel.terminated
 
@@ -466,7 +466,7 @@ def test_active_process_query_failure_after_exit_leaves_uncertain(tmp_path):
         item(("inert-adapter",), b"request")
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.UNCERTAIN
-    assert custody.active_process_count is None
+    assert custody.active_workload_count is None
 
 
 def test_nonzero_active_count_after_exit_never_becomes_verified(tmp_path):
@@ -480,7 +480,7 @@ def test_nonzero_active_count_after_exit_never_becomes_verified(tmp_path):
     assert error.value.code == "INTEGRATION_OUTCOME_UNCERTAIN"
     custody = store.read("INVOCATION-001")
     assert custody.state is CustodyState.EXITED
-    assert custody.active_process_count == 1
+    assert custody.active_workload_count == 1
 
 
 def test_terminal_persistence_failure_never_fabricates_verified_absence(tmp_path):
@@ -496,4 +496,4 @@ def test_terminal_persistence_failure_never_fabricates_verified_absence(tmp_path
     assert error.value.code == "STORAGE_WRITE_FAILED"
     custody = real_store.read("INVOCATION-001")
     assert custody.state is CustodyState.EXITED
-    assert custody.active_process_count == 0
+    assert custody.active_workload_count == 0

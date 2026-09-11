@@ -48,7 +48,8 @@ The framework owns:
 
 - Codex authentication and forbidden-key rejection;
 - removal of GitHub credential-like variables;
-- allowed sandbox modes and Windows process custody;
+- allowed sandbox modes and a platform-neutral custody contract;
+- containment backends, with Windows Job Objects as the first implementation;
 - subprocess timeouts and bounded output capture;
 - target-repository identity, path, and cleanliness enforcement;
 - trusted validation transport;
@@ -104,3 +105,11 @@ Development Git state helps audit changes, but an installed runtime cannot safel
 7. Trusted evaluation determines acceptance. Publication and merge remain separate actions.
 
 Every boundary fails closed. Availability of a provider, model, executable, configuration entry, or prior successful run never skips a later authority check.
+
+Durable custody records bind a versioned containment backend, opaque
+backend-owned controller/worker identities, active-workload state, and a digest of
+backend-produced absence evidence. The generic authority/result boundary does not
+interpret operating-system process identifiers. Windows PID, creation-time,
+PID-reuse, and Job Object accounting rules remain inside the Windows backend; a
+future Linux backend must satisfy the same generic custody and absence-proof
+contract without changing authority records.

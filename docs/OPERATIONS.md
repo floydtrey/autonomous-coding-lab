@@ -80,6 +80,15 @@ Creating attempts, workspaces, or prepared invocations changes durable state and
 
 `prepare-invocation` seals the prompt, verified workspace receipt, protected definitions, test plan, component identities, writable/readable scope, and immutable invocation identity. Authorization is a separate controller-bound transition. Dispatch is a still-later transition and remains blocked by the committed execution policy.
 
+Recovery now reads `worker-lab-process-custody:v2`. The durable record names a
+containment backend and carries opaque backend identities rather than universal
+Windows PID fields. Recovery must use the exact named backend and accepts absence
+only when durable dispatch evidence, a zero active-workload count, and
+backend-produced absence evidence all agree. An active controller, an unknown or
+nonzero workload count, a backend mismatch, or missing evidence stops recovery.
+The only implemented containment backend remains Windows Job Objects; no Linux
+execution backend exists yet.
+
 ## Runtime Selection V1
 
 Worker Lab now protects a provider-neutral runtime requirement for new work:

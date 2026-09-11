@@ -57,7 +57,11 @@ from .models import (
     WorkspaceReceipt,
 )
 from .policy import CONTEXT_MANIFEST_SCHEMA, POLICY_SCHEMA, ROLE_SCHEMA, ContextManifest, PolicyRecord, RoleRecord
-from .process_custody import CustodyState, ProcessCustodyStore
+from .process_custody import (
+    CustodyState,
+    ProcessCustodyStore,
+    recover_absence_after_controller_exit,
+)
 from .operator_control import (
     RecoveryEvidence,
     inspect_installation,
@@ -80,8 +84,8 @@ from .test_catalog import CATALOG_SCHEMA, ChangeFacts, CostClass, TestCatalog, T
 from .validation import attempt_task_digest
 from .windows_job import (
     WindowsJobAdapterRunner,
+    WindowsJobCustodyBackend,
     inspect_launch_workspace,
-    recover_absence_after_controller_exit,
 )
 from .workspace import discard_workspace, prepare_workspace, verify_workspace
 
@@ -228,7 +232,11 @@ def recover(run_root: Path, *, controller_identity: str) -> str:
         custody_store = ProcessCustodyStore(lab / "state")
         custody = custody_store.read(invocation.invocation_id)
         if custody.state is not CustodyState.ABSENCE_VERIFIED:
-            recovered = recover_absence_after_controller_exit(custody)
+            recovered = recover_absence_after_controller_exit(
+                custody,
+                backend=WindowsJobCustodyBackend(),
+                now=lambda: occurred_at,
+            )
             if recovered is None:
                 raise LabValidationError("OPERATOR_RECOVERY_ACTIVE", "original controller is still active")
             _, verified = recovered

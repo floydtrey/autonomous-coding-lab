@@ -48,7 +48,25 @@ from worker_lab.process_custody import (
     transition_custody,
 )
 from worker_lab.storage import AtomicRecordStore
-from worker_lab.windows_job import workspace_content_digest
+from worker_lab.windows_job import (
+    WINDOWS_JOB_BACKEND_ID,
+    WindowsJobCustodyBackend,
+    windows_process_identity,
+    workspace_content_digest,
+)
+
+
+CONTROLLER_IDENTITY = windows_process_identity(424242, 123456789)
+WORKER_IDENTITY = windows_process_identity(515151, 987654321)
+ABSENCE_EVIDENCE_DIGEST = "sha256:" + "f" * 64
+
+
+class FixtureCustodyBackend:
+    backend_id = "fixture-containment:v1"
+
+    def absence_evidence_after_controller_exit(self, record):
+        assert record.backend_id == self.backend_id
+        return ABSENCE_EVIDENCE_DIGEST
 
 
 def populated_lab(root: Path) -> Path:
@@ -119,16 +137,15 @@ def injected_read_only_adapter(
             "schema_version": PROCESS_CUSTODY_SCHEMA,
             "invocation_digest": invocation.identity_digest(),
             "invocation_id": invocation.invocation_id,
-            "controller_pid": 424242,
-            "controller_creation_time_100ns": 123456789,
-            "adapter_pid": None,
-            "adapter_creation_time_100ns": None,
-            "containment_mode": "windows-job-kill-on-close",
+            "backend_id": WINDOWS_JOB_BACKEND_ID,
+            "controller_identity": CONTROLLER_IDENTITY,
+            "worker_identity": None,
             "workspace_content_digest": workspace_content_digest(workspace_path),
             "state": "PREPARED",
             "request_sent": False,
             "exit_code": None,
-            "active_process_count": None,
+            "active_workload_count": None,
+            "absence_evidence_digest": None,
             "absence_verified_at": None,
             "first_failure": None,
         })
@@ -136,8 +153,7 @@ def injected_read_only_adapter(
         assigned = transition_custody(
             prepared,
             CustodyState.ASSIGNED,
-            adapter_pid=515151,
-            adapter_creation_time_100ns=987654321,
+            worker_identity=WORKER_IDENTITY,
         )
         custody_store.save_transition(assigned, expected_digest=prepared.digest())
         dispatching = transition_custody(assigned, CustodyState.DISPATCHING)
@@ -146,13 +162,14 @@ def injected_read_only_adapter(
             dispatching,
             CustodyState.EXITED,
             exit_code=0,
-            active_process_count=0,
+            active_workload_count=0,
         )
         custody_store.save_transition(exited, expected_digest=dispatching.digest())
         absent = transition_custody(
             exited,
             CustodyState.ABSENCE_VERIFIED,
-            active_process_count=0,
+            active_workload_count=0,
+            absence_evidence_digest=ABSENCE_EVIDENCE_DIGEST,
             absence_verified_at="2026-09-01T12:00:00Z",
         )
         custody_store.save_transition(absent, expected_digest=exited.digest())
@@ -165,7 +182,7 @@ def dispatch_fixture(
     tmp_path: Path,
     *,
     adapter,
-    process_probe=None,
+    custody_backend=None,
 ) -> tuple[WorkerLabApplicationService, Path, str, str]:
     lab, target = write_authority_fixture(tmp_path)
     exercise_path = lab / "curricula" / "exercises" / "record-model" / "v1.json"
@@ -178,7 +195,7 @@ def dispatch_fixture(
     service = WorkerLabApplicationService(
         lab,
         clock=lambda: "2026-09-01T12:00:00Z",
-        process_probe=process_probe,
+        custody_backend=custody_backend,
         read_only_adapter=adapter,
         sealed_test_executor=lambda definition, workspace: 0,
     )
@@ -206,7 +223,7 @@ def workspace_write_dispatch_fixture(
     tmp_path: Path,
     *,
     adapter,
-    process_probe=None,
+    custody_backend=None,
 ) -> tuple[WorkerLabApplicationService, Path, str, str]:
     lab, target = write_authority_fixture(tmp_path)
     context_path = lab / "curricula" / "contexts" / "record-model-context" / "v1.json"
@@ -218,7 +235,7 @@ def workspace_write_dispatch_fixture(
     service = WorkerLabApplicationService(
         lab,
         clock=lambda: "2026-09-01T12:00:00Z",
-        process_probe=process_probe,
+        custody_backend=custody_backend,
         workspace_write_adapter=adapter,
         sealed_test_executor=lambda definition, workspace: 0,
     )
@@ -272,6 +289,9 @@ def recovery_fixture(
     *,
     invocation_state: InvocationState = InvocationState.UNCERTAIN,
     custody_state: CustodyState = CustodyState.ABSENCE_VERIFIED,
+    backend_id: str = WINDOWS_JOB_BACKEND_ID,
+    controller_identity: str = CONTROLLER_IDENTITY,
+    worker_identity: str = WORKER_IDENTITY,
 ) -> tuple[Path, Path, str, str]:
     lab, target = write_authority_fixture(root)
     workspace_root = root / "workspaces"
@@ -318,16 +338,15 @@ def recovery_fixture(
         "schema_version": PROCESS_CUSTODY_SCHEMA,
         "invocation_digest": identity_digest,
         "invocation_id": invocation_id,
-        "controller_pid": 424242,
-        "controller_creation_time_100ns": 123456789,
-        "adapter_pid": None,
-        "adapter_creation_time_100ns": None,
-        "containment_mode": "windows-job-kill-on-close",
+        "backend_id": backend_id,
+        "controller_identity": controller_identity,
+        "worker_identity": None,
         "workspace_content_digest": workspace_content_digest(workspace_root / attempt_id),
         "state": "PREPARED",
         "request_sent": False,
         "exit_code": None,
-        "active_process_count": None,
+        "active_workload_count": None,
+        "absence_evidence_digest": None,
         "absence_verified_at": None,
         "first_failure": None,
     })
@@ -335,8 +354,7 @@ def recovery_fixture(
     assigned = transition_custody(
         custody,
         CustodyState.ASSIGNED,
-        adapter_pid=515151,
-        adapter_creation_time_100ns=987654321,
+        worker_identity=worker_identity,
     )
     custody_store.save_transition(assigned, expected_digest=custody.digest())
     dispatch_custody = transition_custody(assigned, CustodyState.DISPATCHING)
@@ -345,7 +363,7 @@ def recovery_fixture(
         final_custody = transition_custody(
             dispatch_custody,
             CustodyState.UNCERTAIN,
-            active_process_count=0,
+            active_workload_count=0,
             first_failure="INTEGRATION_OUTCOME_UNCERTAIN",
         )
     else:
@@ -353,7 +371,7 @@ def recovery_fixture(
             dispatch_custody,
             CustodyState.TERMINATED,
             exit_code=1,
-            active_process_count=0,
+            active_workload_count=0,
             first_failure="INTEGRATION_OUTCOME_UNCERTAIN",
         )
         custody_store.save_transition(terminated, expected_digest=dispatch_custody.digest())
@@ -362,7 +380,8 @@ def recovery_fixture(
         final_custody = transition_custody(
             terminated,
             CustodyState.ABSENCE_VERIFIED,
-            active_process_count=0,
+            active_workload_count=0,
+            absence_evidence_digest=ABSENCE_EVIDENCE_DIGEST,
             absence_verified_at="2026-08-31T12:00:02Z",
         )
         dispatch_custody = terminated
@@ -387,16 +406,15 @@ def candidate_fixture(root: Path, *, retain_evidence: bool = False) -> tuple[Pat
         "schema_version": PROCESS_CUSTODY_SCHEMA,
         "invocation_digest": invocation.identity_digest(),
         "invocation_id": invocation.invocation_id,
-        "controller_pid": 1,
-        "controller_creation_time_100ns": 1,
-        "adapter_pid": None,
-        "adapter_creation_time_100ns": None,
-        "containment_mode": "windows-job-kill-on-close",
+        "backend_id": WINDOWS_JOB_BACKEND_ID,
+        "controller_identity": windows_process_identity(1, 1),
+        "worker_identity": None,
         "workspace_content_digest": DIGEST,
         "state": "ABSENCE_VERIFIED",
         "request_sent": False,
         "exit_code": None,
-        "active_process_count": 0,
+        "active_workload_count": 0,
+        "absence_evidence_digest": ABSENCE_EVIDENCE_DIGEST,
         "absence_verified_at": "2026-08-28T00:00:01Z",
         "first_failure": None,
     })
@@ -1040,7 +1058,9 @@ def test_workspace_write_dispatch_stays_non_mutating_while_disabled_and_recovers
         raise AssertionError("disabled policy must not call the workspace-write adapter")
 
     service, workspace_root, invocation_id, identity_digest = workspace_write_dispatch_fixture(
-        tmp_path, adapter=adapter, process_probe=lambda _: None,
+        tmp_path,
+        adapter=adapter,
+        custody_backend=WindowsJobCustodyBackend(lambda _: None),
     )
     before = snapshot(service.data_root)
     with pytest.raises(LabValidationError) as error:
@@ -1058,7 +1078,7 @@ def test_workspace_write_dispatch_stays_non_mutating_while_disabled_and_recovers
             response=b"{}",
             runtime=runtime,
         )(invocation, prompt, workspace, custody, contract),
-        process_probe=lambda _: None,
+        custody_backend=WindowsJobCustodyBackend(lambda _: None),
     )
     enable_dispatch_for_injected_test(monkeypatch)
     with pytest.raises(LabValidationError) as error:
@@ -1135,7 +1155,7 @@ def test_dispatch_rejects_injected_bad_outcome_and_retains_recovery_path(
     service, workspace_root, invocation_id, identity_digest = dispatch_fixture(
         tmp_path,
         adapter=adapter,
-        process_probe=lambda pid: None,
+        custody_backend=WindowsJobCustodyBackend(lambda pid: None),
     )
     enable_dispatch_for_injected_test(monkeypatch)
 
@@ -1177,7 +1197,7 @@ def test_recovery_requires_exact_absence_and_unchanged_workspace_and_is_idempote
     service = WorkerLabApplicationService(
         lab,
         clock=lambda: "2026-09-01T12:00:03Z",
-        process_probe=lambda _: None,
+        custody_backend=WindowsJobCustodyBackend(lambda _: None),
     )
     recovered = service.recover_invocation(
         invocation_id,
@@ -1185,7 +1205,7 @@ def test_recovery_requires_exact_absence_and_unchanged_workspace_and_is_idempote
         "trusted-controller",
         workspace_root,
     ).to_dict()
-    assert recovered["schema_version"] == "worker-lab-service-recovery-result:v1"
+    assert recovered["schema_version"] == "worker-lab-service-recovery-result:v2"
     assert recovered["operation"] == "recover-invocation"
     assert recovered["workspace_outcome"] == "unchanged-retained"
     assert recovered["workspace"]["status"] == ""
@@ -1202,6 +1222,34 @@ def test_recovery_requires_exact_absence_and_unchanged_workspace_and_is_idempote
     ).to_dict() == recovered
 
 
+def test_recovery_uses_the_backend_named_by_platform_neutral_custody(
+    tmp_path: Path,
+) -> None:
+    lab, workspace_root, invocation_id, identity_digest = recovery_fixture(
+        tmp_path,
+        custody_state=CustodyState.TERMINATED,
+        backend_id=FixtureCustodyBackend.backend_id,
+        controller_identity="fixture-controller:v1:424242",
+        worker_identity="fixture-worker:v1:515151",
+    )
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-09-01T12:00:03Z",
+        custody_backend=FixtureCustodyBackend(),
+    )
+
+    recovered = service.recover_invocation(
+        invocation_id,
+        identity_digest,
+        "trusted-controller",
+        workspace_root,
+    )
+
+    assert recovered.custody.backend_id == FixtureCustodyBackend.backend_id
+    assert recovered.custody.absence_evidence_digest == ABSENCE_EVIDENCE_DIGEST
+    assert recovered.custody.state is CustodyState.ABSENCE_VERIFIED
+
+
 def test_recovery_rejects_wrong_authority_active_controller_and_uncertain_custody(
     tmp_path: Path,
 ) -> None:
@@ -1212,7 +1260,7 @@ def test_recovery_rejects_wrong_authority_active_controller_and_uncertain_custod
     service = WorkerLabApplicationService(
         lab,
         clock=lambda: "2026-09-01T12:00:03Z",
-        process_probe=lambda _: 123456789,
+        custody_backend=WindowsJobCustodyBackend(lambda _: 123456789),
     )
     for digest, controller, code in (
         ("sha256:" + "d" * 64, "trusted-controller", "INTEGRATION_IDENTITY_INVALID"),

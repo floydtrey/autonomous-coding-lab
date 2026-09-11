@@ -136,6 +136,51 @@ Validation on the Task 1 working tree:
   closure was refreshed only for exact Task 1 dependency bytes; its repository/Codex
   semantics remain unchanged and obsolete.
 
+## Runtime reconstruction Task 2 — accepted checkpoint
+
+Task 2 versioned process custody to
+`worker-lab-process-custody:v2` without granting execution authority.
+
+Accepted changes:
+
+- the durable custody schema now binds a versioned backend identifier, opaque
+  controller and worker identities, a generic active-workload count, and a digest
+  of backend-produced absence evidence;
+- generic transition, storage, recovery, service recovery, and result-acceptance
+  code no longer requires Windows PIDs, process creation times, a Job Object mode,
+  or a Windows-named active-process count;
+- Windows Job Objects remain the only implemented backend, with Windows process
+  identity parsing, PID-reuse detection, Job Object accounting, and absence-evidence
+  construction confined to `windows_job.py`;
+- recovery requires the backend named by the durable record and remains
+  fail-closed for active controllers, backend substitution, incomplete dispatch
+  evidence, unknown/nonzero workloads, and absent or malformed absence evidence;
+- the portable Worker Lab production tree contains 28 files and matches
+  `sha256:5bf7aaffc87c04c5018d028a34c32e68c7edd7f9ab23cc4251b7f57d26a814dc`;
+- execution authority remains `DISABLED`; no Linux backend, provider binding,
+  dispatch reconstruction, provider/model qualification, or provider/model request
+  was performed.
+
+Validation on the Task 2 working tree:
+
+- focused custody and result-acceptance gate: 29 passed;
+- application-service suite with a deterministic injected installation report:
+  33 passed;
+- deterministic Windows Job backend seams exercised without native process/model
+  execution: 15 passed;
+- root tests: 13 passed;
+- portable identity contract tests: 4 passed;
+- direct Worker Lab portable production-tree inspection: `MATCH`.
+
+The direct Linux Worker Lab full-suite diagnostic reported 340 passed, 36 failed,
+and 21 skipped. All 36 failures are blocked by the accepted starting tree's
+obsolete `acl-installation-manifest:v2` loader: its
+hard-coded runtime contract is Windows/Codex-specific and its Autonomous Worker
+Framework closure predates the Task 1 `repository_state.py` addition. These failures
+occur before the affected application/runtime tests reach custody behavior. The
+legacy manifest/loader was not expanded in Task 2 because it is scheduled for
+removal in Task 7. Native Windows Job Object execution was not performed.
+
 ## Current stop condition
 
 Execution remains disabled.
@@ -152,15 +197,15 @@ Do not:
 
 ## Immediate next gate
 
-Begin only **Task 2 — define the platform-neutral containment/custody contract**
-from `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
+Begin only **Task 3 — Invocation/Result V3 + Provider Binding V1** from
+`docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
 
-Task 2 must design custody V2, preserve fail-closed/absence-proof behavior, and make
-Windows Job Objects one backend without implementing Linux or executing a provider.
-Repository-decoupling work deliberately deferred from Task 1 remains governed by the
-inventory: Invocation/Result V3 and logical target/workspace identity in Task 3,
-backend-only locator placement during dispatch/service migration in Tasks 4–5,
+Task 3 must introduce logical target/workspace identity independent of repository
+locators, keep Git source-state facts capability-specific, seal provider/model/runtime
+settings before authorization, and add fail-closed binding tests without executing a
+provider. Repository-decoupling work still governed by the Task 1 inventory remains
+for backend-only locator placement during dispatch/service migration in Tasks 4–5,
 obsolete repository-centered path deletion in Task 7, and portable identity V2 plus
 documentation cleanup in Task 8.
 
-Do not begin any of those tasks as part of the Task 1 checkpoint.
+Do not begin Task 3 or any later task as part of the Task 2 checkpoint.

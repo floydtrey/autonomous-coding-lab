@@ -4,16 +4,18 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping, Protocol
 
 from .canonical import canonical_digest
 from .errors import LabValidationError
 from .storage import AtomicRecordStore
 
 
-PROCESS_CUSTODY_SCHEMA = "worker-lab-process-custody:v1"
+PROCESS_CUSTODY_SCHEMA = "worker-lab-process-custody:v2"
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _ID_RE = re.compile(r"^[A-Z0-9][A-Z0-9-]{5,95}$")
+_BACKEND_ID_RE = re.compile(r"^[a-z][a-z0-9-]{2,63}:v[1-9][0-9]*$")
+_BACKEND_IDENTITY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:._-]{0,255}$")
 
 
 class CustodyState(StrEnum):
@@ -42,16 +44,15 @@ class ProcessCustodyRecord:
     schema_version: str
     invocation_digest: str
     invocation_id: str
-    controller_pid: int
-    controller_creation_time_100ns: int
-    adapter_pid: int | None
-    adapter_creation_time_100ns: int | None
-    containment_mode: str
+    backend_id: str
+    controller_identity: str
+    worker_identity: str | None
     workspace_content_digest: str
     state: CustodyState
     request_sent: bool
     exit_code: int | None
-    active_process_count: int | None
+    active_workload_count: int | None
+    absence_evidence_digest: str | None
     absence_verified_at: str | None
     first_failure: str | None
 
@@ -74,11 +75,13 @@ class ProcessCustodyRecord:
         record = cls(
             _exact(value["schema_version"], PROCESS_CUSTODY_SCHEMA),
             _digest(value["invocation_digest"]), _id(value["invocation_id"]),
-            _positive(value["controller_pid"]), _positive(value["controller_creation_time_100ns"]),
-            _optional_positive(value["adapter_pid"]), _optional_positive(value["adapter_creation_time_100ns"]),
-            _exact(value["containment_mode"], "windows-job-kill-on-close"), _digest(value["workspace_content_digest"]), state,
+            _backend_id(value["backend_id"]), _backend_identity(value["controller_identity"]),
+            _optional_backend_identity(value["worker_identity"]),
+            _digest(value["workspace_content_digest"]), state,
             _boolean(value["request_sent"]), _optional_integer(value["exit_code"]),
-            _optional_count(value["active_process_count"]), _optional_timestamp(value["absence_verified_at"]),
+            _optional_count(value["active_workload_count"]),
+            _optional_digest(value["absence_evidence_digest"]),
+            _optional_timestamp(value["absence_verified_at"]),
             _optional_text(value["first_failure"]),
         )
         _validate_custody(record)
@@ -89,10 +92,10 @@ def transition_custody(
     record: ProcessCustodyRecord,
     target: CustodyState,
     *,
-    adapter_pid: int | None = None,
-    adapter_creation_time_100ns: int | None = None,
+    worker_identity: str | None = None,
     exit_code: int | None = None,
-    active_process_count: int | None = None,
+    active_workload_count: int | None = None,
+    absence_evidence_digest: str | None = None,
     absence_verified_at: str | None = None,
     first_failure: str | None = None,
 ) -> ProcessCustodyRecord:
@@ -101,27 +104,79 @@ def transition_custody(
     value = record.to_dict()
     value["state"] = str(target)
     if target is CustodyState.ASSIGNED:
-        value["adapter_pid"] = adapter_pid
-        value["adapter_creation_time_100ns"] = adapter_creation_time_100ns
-    elif adapter_pid is not None or adapter_creation_time_100ns is not None:
-        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "adapter identity is set only at assignment")
+        value["worker_identity"] = worker_identity
+    elif worker_identity is not None:
+        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "worker identity is set only at assignment")
     if target is CustodyState.DISPATCHING:
         value["request_sent"] = True
     if target in {CustodyState.EXITED, CustodyState.TERMINATED, CustodyState.UNCERTAIN}:
         value["exit_code"] = exit_code
-        value["active_process_count"] = active_process_count
+        value["active_workload_count"] = active_workload_count
         if first_failure is not None:
             value["first_failure"] = first_failure
     elif target is not CustodyState.ABSENCE_VERIFIED and (
-        exit_code is not None or active_process_count is not None or first_failure is not None
+        exit_code is not None or active_workload_count is not None or first_failure is not None
     ):
-        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "process outcome fields are premature")
+        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "workload outcome fields are premature")
     if target is CustodyState.ABSENCE_VERIFIED:
-        value["active_process_count"] = active_process_count
+        value["active_workload_count"] = active_workload_count
+        value["absence_evidence_digest"] = absence_evidence_digest
         value["absence_verified_at"] = absence_verified_at
-    elif absence_verified_at is not None:
-        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "absence time is premature")
+    elif absence_evidence_digest is not None or absence_verified_at is not None:
+        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "absence evidence is premature")
     return ProcessCustodyRecord.from_mapping(value)
+
+
+class CustodyBackend(Protocol):
+    """Platform backend used only to interpret opaque custody identities."""
+
+    backend_id: str
+
+    def absence_evidence_after_controller_exit(
+        self, record: ProcessCustodyRecord,
+    ) -> str | None: ...
+
+
+def recover_absence_after_controller_exit(
+    record: ProcessCustodyRecord,
+    *,
+    backend: CustodyBackend,
+    now: Callable[[], str],
+) -> tuple[ProcessCustodyRecord, ProcessCustodyRecord] | None:
+    """Derive absence only through the backend named by the durable record."""
+    try:
+        backend_id = _backend_id(backend.backend_id)
+        recover = backend.absence_evidence_after_controller_exit
+    except (AttributeError, TypeError) as exc:
+        raise LabValidationError(
+            "INTEGRATION_CUSTODY_BACKEND_INVALID", "custody backend is invalid",
+        ) from exc
+    if backend_id != record.backend_id or not callable(recover):
+        raise LabValidationError(
+            "INTEGRATION_CUSTODY_BACKEND_INVALID", "custody backend identity differs",
+        )
+    if record.state is CustodyState.ABSENCE_VERIFIED:
+        return None
+    if record.state is not CustodyState.TERMINATED:
+        raise LabValidationError("INTEGRATION_OUTCOME_UNCERTAIN", "custody state cannot prove restart absence")
+    if (
+        not record.request_sent
+        or record.worker_identity is None
+        or record.active_workload_count != 0
+        or record.first_failure is None
+    ):
+        raise LabValidationError("INTEGRATION_OUTCOME_UNCERTAIN", "custody lacks complete absence evidence")
+    evidence_digest = recover(record)
+    if evidence_digest is None:
+        return None
+    verified = transition_custody(
+        record,
+        CustodyState.ABSENCE_VERIFIED,
+        active_workload_count=0,
+        absence_evidence_digest=_digest(evidence_digest),
+        absence_verified_at=now(),
+    )
+    return record, verified
 
 
 class ProcessCustodyStore:
@@ -151,17 +206,20 @@ class ProcessCustodyStore:
         if current.digest() != _digest(expected_digest):
             raise LabValidationError("INTEGRATION_CUSTODY_STALE_WRITE", "custody snapshot is stale")
         immutable = (
-            "schema_version", "invocation_digest", "invocation_id", "controller_pid",
-            "controller_creation_time_100ns", "containment_mode",
+            "schema_version", "invocation_digest", "invocation_id", "backend_id",
+            "controller_identity",
             "workspace_content_digest",
         )
         if any(getattr(current, field) != getattr(updated, field) for field in immutable):
             raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "custody identity changed")
-        if current.adapter_pid is not None and (
-            updated.adapter_pid != current.adapter_pid
-            or updated.adapter_creation_time_100ns != current.adapter_creation_time_100ns
+        if current.worker_identity is not None and updated.worker_identity != current.worker_identity:
+            raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "worker identity changed")
+        if (
+            current.worker_identity is None
+            and updated.worker_identity is not None
+            and updated.state is not CustodyState.ASSIGNED
         ):
-            raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "adapter identity changed")
+            raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "worker identity bypassed assignment")
         if current.first_failure is not None and updated.first_failure != current.first_failure:
             raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "first failure changed")
         if updated.state not in LEGAL_CUSTODY_TRANSITIONS[current.state]:
@@ -175,16 +233,16 @@ class ProcessCustodyStore:
 
 
 def _validate_custody(record: ProcessCustodyRecord) -> None:
-    assigned = record.adapter_pid is not None and record.adapter_creation_time_100ns is not None
-    if (record.adapter_pid is None) != (record.adapter_creation_time_100ns is None):
-        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "adapter process identity is incomplete")
+    assigned = record.worker_identity is not None
     if record.state is CustodyState.PREPARED and assigned:
-        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "prepared custody cannot have adapter identity")
+        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "prepared custody cannot have worker identity")
     if record.state not in {
         CustodyState.PREPARED, CustodyState.TERMINATED, CustodyState.UNCERTAIN,
         CustodyState.ABSENCE_VERIFIED,
     } and not assigned:
-        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "custody state requires adapter identity")
+        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "custody state requires worker identity")
+    if record.request_sent and not assigned:
+        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "dispatched custody requires worker identity")
     expected_sent = record.state in {
         CustodyState.DISPATCHING, CustodyState.EXITED, CustodyState.ABSENCE_VERIFIED,
     }
@@ -197,9 +255,16 @@ def _validate_custody(record: ProcessCustodyRecord) -> None:
     if record.state is CustodyState.EXITED and record.exit_code is None:
         raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "exited custody requires exit code")
     if record.state is CustodyState.ABSENCE_VERIFIED:
-        if record.active_process_count != 0 or record.absence_verified_at is None:
-            raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "absence proof requires zero active processes and time")
-    elif record.absence_verified_at is not None:
+        if (
+            record.active_workload_count != 0
+            or record.absence_evidence_digest is None
+            or record.absence_verified_at is None
+        ):
+            raise LabValidationError(
+                "INTEGRATION_CUSTODY_INVALID",
+                "absence proof requires zero active workloads, backend evidence, and time",
+            )
+    elif record.absence_evidence_digest is not None or record.absence_verified_at is not None:
         raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "absence proof is premature")
 
 
@@ -227,20 +292,32 @@ def _digest(value: Any) -> str:
     return text
 
 
+def _optional_digest(value: Any) -> str | None:
+    return None if value is None else _digest(value)
+
+
+def _backend_id(value: Any) -> str:
+    text = _text(value)
+    if _BACKEND_ID_RE.fullmatch(text) is None:
+        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "backend identifier is invalid")
+    return text
+
+
+def _backend_identity(value: Any) -> str:
+    text = _text(value)
+    if _BACKEND_IDENTITY_RE.fullmatch(text) is None:
+        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "backend identity is invalid")
+    return text
+
+
+def _optional_backend_identity(value: Any) -> str | None:
+    return None if value is None else _backend_identity(value)
+
+
 def _exact(value: Any, expected: str) -> str:
     if _text(value) != expected:
         raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "unsupported custody value")
     return expected
-
-
-def _positive(value: Any) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "positive integer required")
-    return value
-
-
-def _optional_positive(value: Any) -> int | None:
-    return None if value is None else _positive(value)
 
 
 def _optional_integer(value: Any) -> int | None:
@@ -255,7 +332,7 @@ def _optional_count(value: Any) -> int | None:
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "non-negative process count required")
+        raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "non-negative workload count required")
     return value
 
 
