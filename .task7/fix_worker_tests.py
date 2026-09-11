@@ -34,10 +34,9 @@ windows.write_text('''import subprocess\nfrom pathlib import Path\n\nfrom worker
 
 # CLI keeps current operations and the reusable authority fixture; remove synthetic command coverage.
 cli = TESTS / 'test_cli.py'
-ctext = cli.read_text(encoding='utf-8')
-ctext = ctext.replace('from worker_lab.operator_control import ONE_TIME_CONFIRMATION\n', '')
 remove_functions(cli, {'test_synthetic_operator_command_passes_explicit_one_time_authority'})
 ctext = cli.read_text(encoding='utf-8')
+ctext = ctext.replace('from worker_lab.operator_control import ONE_TIME_CONFIRMATION\n', '')
 ctext = ctext.replace('"worker-lab-installation-doctor:v1"', '"worker-lab-installation-doctor:v2"')
 cli.write_text(ctext, encoding='utf-8')
 
