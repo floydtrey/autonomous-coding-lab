@@ -129,9 +129,15 @@ def test_prepare_controller_invocation_uses_public_service_and_seals_packet_dige
             assert identity == attempt.attempt_id
             return SimpleNamespace(record=attempt.to_dict())
 
-        def prepare_invocation(self, attempt_id, workspace_root, prompt):
+        def prepare_invocation(
+            self, attempt_id, workspace_root, prompt, *,
+            logical_target_id, provider_binding_id, provider_binding_digest,
+        ):
             assert attempt_id == attempt.attempt_id
             assert str(workspace_root) == "workspace-root"
+            assert logical_target_id == "target:record-model"
+            assert provider_binding_id == "BINDING-0001"
+            assert provider_binding_digest == "sha256:" + "a" * 64
             captured["prompt"] = prompt
             return FakeInvocation(prompt)
 
@@ -139,6 +145,9 @@ def test_prepare_controller_invocation_uses_public_service_and_seals_packet_dige
         FakeService(),
         attempt_id=attempt.attempt_id,
         workspace_root="workspace-root",
+        logical_target_id="target:record-model",
+        provider_binding_id="BINDING-0001",
+        provider_binding_digest="sha256:" + "a" * 64,
         controller_identity="trusted-controller",
         user_request="Use retrieved guidance but do not expand scope.",
         kc_search_response=kc_response(),

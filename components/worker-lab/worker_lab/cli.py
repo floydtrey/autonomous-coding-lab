@@ -78,6 +78,9 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("attempt_id")
     command.add_argument("--workspace-root", required=True, type=Path)
     command.add_argument("--prompt-file", required=True, type=Path)
+    command.add_argument("--logical-target-id", required=True)
+    command.add_argument("--provider-binding-id", required=True)
+    command.add_argument("--provider-binding-digest", required=True)
     command.set_defaults(handler=_service_prepare_invocation)
     command = commands.add_parser("authorize-invocation")
     command.add_argument("invocation_id")
@@ -211,6 +214,9 @@ def _service_prepare_invocation(args: argparse.Namespace) -> str:
         args.attempt_id,
         args.workspace_root,
         prompt,
+        logical_target_id=args.logical_target_id,
+        provider_binding_id=args.provider_binding_id,
+        provider_binding_digest=args.provider_binding_digest,
     ).to_json()
 
 

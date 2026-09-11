@@ -19,7 +19,10 @@ _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 class ControllerTaskService(Protocol):
     def show_record(self, collection: str, identity: str): ...
-    def prepare_invocation(self, attempt_id: str, workspace_root, prompt: str): ...
+    def prepare_invocation(
+        self, attempt_id: str, workspace_root, prompt: str, *,
+        logical_target_id: str, provider_binding_id: str, provider_binding_digest: str,
+    ): ...
 
 @dataclass(frozen=True)
 class KnowledgeCoreSegmentEvidence:
@@ -259,6 +262,7 @@ def build_controller_task_packet(
 
 def prepare_controller_task_invocation(
     service: ControllerTaskService, *, attempt_id: str, workspace_root,
+    logical_target_id: str, provider_binding_id: str, provider_binding_digest: str,
     controller_identity: str, user_request: str, kc_search_response: Mapping[str, Any],
     result_indexes: Sequence[int] = (0,),
 ) -> PreparedControllerInvocation:
@@ -268,7 +272,12 @@ def prepare_controller_task_invocation(
         attempt, controller_identity=controller_identity, user_request=user_request,
         kc_search_response=kc_search_response, result_indexes=result_indexes,
     )
-    invocation = service.prepare_invocation(attempt_id, workspace_root, packet.to_json())
+    invocation = service.prepare_invocation(
+        attempt_id, workspace_root, packet.to_json(),
+        logical_target_id=logical_target_id,
+        provider_binding_id=provider_binding_id,
+        provider_binding_digest=provider_binding_digest,
+    )
     if invocation.to_dict()["record"].get("prompt_digest") != packet.digest():
         raise LabValidationError("CONTROLLER_PACKET_IDENTITY_INVALID", "prepared invocation does not seal the exact Controller Task Packet")
     return PreparedControllerInvocation(packet, invocation)
