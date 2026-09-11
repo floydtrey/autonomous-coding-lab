@@ -43,39 +43,9 @@ def bytes_digest(value: bytes) -> str:
 
 
 def qualification():
-    candidate = PYDANTIC_AI_OLLAMA_V1
-    executable = str(Path(sys.executable).resolve())
-    return HostProviderQualification.from_mapping({
-        "schema_version": QUALIFICATION_SCHEMA,
-        "candidate_id": candidate.candidate_id,
-        "candidate_version": candidate.candidate_version,
-        "candidate_digest": candidate.digest(),
-        "runtime_requirement_profile_id": candidate.runtime_requirement_profile_id,
-        "runtime_requirement_digest": candidate.runtime_requirement_digest,
-        "tool_surface_id": candidate.tool_surface_id,
-        "host_platform": "fixture-os",
-        "host_architecture": "fixture-arch",
-        "python_version": "3.12.0",
-        "python_executable": executable,
-        "python_sha256": DIGEST_A,
-        "harness_distribution": candidate.harness_distribution,
-        "harness_version": "1.2.3",
-        "harness_tree_digest": DIGEST_B,
-        "provider_kind": candidate.provider_kind,
-        "provider_endpoint": "http://127.0.0.1:11434",
-        "provider_executable": executable,
-        "provider_executable_sha256": DIGEST_A,
-        "provider_cli_version": "fixture-provider",
-        "provider_api_version": "fixture-api",
-        "model_name": "fixture-model",
-        "model_digest": DIGEST_B,
-        "model_metadata_digest": DIGEST_C,
-        "model_context_tokens": 65_536,
-        "model_capabilities": ["completion", "tools"],
-        "execution_authority": "DISABLED",
-        "provider_runtime_qualified": True,
-        "execution_ready": False,
-    })
+    from tests.provider_capability_fixture import capability_qualification
+
+    return capability_qualification(model_name="fixture-model")
 
 
 def packet() -> ControllerTaskPacket:

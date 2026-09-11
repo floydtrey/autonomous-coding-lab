@@ -28,39 +28,12 @@ DIGEST_C = "sha256:" + "c" * 64
 
 
 def qualification(*, model_digest: str = DIGEST_A, harness_tree_digest: str = DIGEST_C):
-    candidate = PYDANTIC_AI_OLLAMA_V1
-    executable = str(Path(sys.executable).resolve())
-    return HostProviderQualification.from_mapping({
-        "schema_version": QUALIFICATION_SCHEMA,
-        "candidate_id": candidate.candidate_id,
-        "candidate_version": candidate.candidate_version,
-        "candidate_digest": candidate.digest(),
-        "runtime_requirement_profile_id": candidate.runtime_requirement_profile_id,
-        "runtime_requirement_digest": candidate.runtime_requirement_digest,
-        "tool_surface_id": candidate.tool_surface_id,
-        "host_platform": "fixture-os",
-        "host_architecture": "fixture-arch",
-        "python_version": "3.12.0",
-        "python_executable": executable,
-        "python_sha256": DIGEST_B,
-        "harness_distribution": candidate.harness_distribution,
-        "harness_version": "1.2.3",
-        "harness_tree_digest": harness_tree_digest,
-        "provider_kind": candidate.provider_kind,
-        "provider_endpoint": "http://127.0.0.1:11434",
-        "provider_executable": executable,
-        "provider_executable_sha256": DIGEST_B,
-        "provider_cli_version": "fixture-provider",
-        "provider_api_version": "fixture-api",
-        "model_name": "qwen2.5-coder:7b",
-        "model_digest": model_digest,
-        "model_metadata_digest": DIGEST_C,
-        "model_context_tokens": 65_536,
-        "model_capabilities": ["completion", "tools"],
-        "execution_authority": "DISABLED",
-        "provider_runtime_qualified": True,
-        "execution_ready": False,
-    })
+    from tests.provider_capability_fixture import capability_qualification
+
+    return capability_qualification(
+        model_digest=model_digest,
+        installation_observation_digest=harness_tree_digest,
+    )
 
 
 def test_binding_seals_v3_requirement_exact_qualification_and_settings():
@@ -124,3 +97,11 @@ def test_unknown_binding_fields_rejected():
     with pytest.raises(LabValidationError) as error:
         ProviderBinding.from_mapping(value)
     assert error.value.code == "PROVIDER_BINDING_FIELDS_INVALID"
+
+
+def test_metadata_only_installation_observation_cannot_create_binding():
+    from tests.provider_capability_fixture import installation_observation
+
+    with pytest.raises(LabValidationError) as error:
+        create_provider_binding("BINDING-0002", installation_observation())
+    assert error.value.code == "PROVIDER_BINDING_QUALIFICATION_INVALID"

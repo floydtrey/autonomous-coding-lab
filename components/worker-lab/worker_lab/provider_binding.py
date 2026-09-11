@@ -7,7 +7,17 @@ from typing import Any, Mapping
 
 from .canonical import canonical_digest
 from .errors import LabValidationError
-from .provider_qualification import HostProviderQualification, protected_provider_candidate
+from .provider_qualification import (
+    PROVIDER_ADAPTER_ID,
+    ProviderCapabilityQualification,
+    protected_provider_candidate,
+)
+from .runtime_settings import (
+    CODING_WORKER_SETTINGS_V1,
+    RUNTIME_SETTINGS_SCHEMA,
+    RuntimeSettingsProfile,
+    validate_runtime_settings,
+)
 from .runtime_selection import (
     CODING_WORKER_V1,
     resolve_runtime_identity,
@@ -18,44 +28,8 @@ from .storage import AtomicRecordStore
 
 PROVIDER_BINDING_SCHEMA = "worker-lab-provider-binding:v1"
 PROVIDER_BINDING_IDENTITY_SCHEMA = "worker-lab-provider-binding-identity:v1"
-RUNTIME_SETTINGS_SCHEMA = "worker-lab-runtime-settings:v1"
-PROVIDER_ADAPTER_ID = "pydantic-ai-ollama-files:v1"
 _BINDING_ID_RE = re.compile(r"^[A-Z][A-Z0-9-]{7,95}$")
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-
-
-@dataclass(frozen=True)
-class RuntimeSettingsProfile:
-    schema_version: str
-    profile_id: str
-    profile_version: int
-    requested_context_tokens: int
-    request_limit: int
-    tool_calls_limit: int
-    tool_timeout_seconds: int
-    tool_retries: int
-    output_retries: int
-    max_concurrency: int
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-    def digest(self) -> str:
-        return canonical_digest(self.to_dict())
-
-
-CODING_WORKER_SETTINGS_V1 = RuntimeSettingsProfile(
-    schema_version=RUNTIME_SETTINGS_SCHEMA,
-    profile_id="bounded-code-worker-settings:v1",
-    profile_version=1,
-    requested_context_tokens=32_768,
-    request_limit=12,
-    tool_calls_limit=24,
-    tool_timeout_seconds=30,
-    tool_retries=2,
-    output_retries=1,
-    max_concurrency=1,
-)
 
 
 @dataclass(frozen=True)
@@ -121,43 +95,42 @@ class ProviderBinding:
 
 def create_provider_binding(
     binding_id: str,
-    qualification: HostProviderQualification,
+    qualification: ProviderCapabilityQualification,
     *,
     settings: RuntimeSettingsProfile = CODING_WORKER_SETTINGS_V1,
 ) -> ProviderBinding:
-    """Seal observed qualification into the exact V3 runtime identity.
-
-    This constructs records only. It sends no provider request, starts no model,
-    and grants no execution authority.
-    """
-    if not isinstance(qualification, HostProviderQualification):
+    """Seal one exact controlled capability qualification into V3 authorization identity."""
+    if not isinstance(qualification, ProviderCapabilityQualification):
         raise LabValidationError(
             "PROVIDER_BINDING_QUALIFICATION_INVALID",
-            "provider binding requires a protected host qualification record",
+            "provider binding requires controlled capability qualification evidence",
         )
-    qualification = HostProviderQualification.from_mapping(qualification.to_dict())
+    qualification = ProviderCapabilityQualification.from_mapping(
+        qualification.to_dict(),
+        settings=settings,
+    )
     qualification_candidate = protected_provider_candidate(qualification.candidate_id)
     requirement = selected_runtime_requirement_v3()
+    _validate_settings(settings)
     if (
         qualification.candidate_version != qualification_candidate.candidate_version
         or qualification.candidate_digest != qualification_candidate.digest()
-        or qualification.runtime_requirement_profile_id != CODING_WORKER_V1.profile_id
-        or qualification.runtime_requirement_digest != CODING_WORKER_V1.digest()
+        or qualification.runtime_requirement_profile_id != requirement.profile_id
+        or qualification.runtime_requirement_digest != requirement.digest()
+        or qualification.provider_adapter_id != PROVIDER_ADAPTER_ID
         or qualification.tool_surface_id != qualification_candidate.tool_surface_id
         or qualification.provider_kind != qualification_candidate.provider_kind
+        or qualification.runtime_settings_profile_id != settings.profile_id
+        or qualification.runtime_settings_digest != settings.digest()
+        or qualification.requested_context_tokens != settings.requested_context_tokens
+        or qualification.effective_context_tokens < settings.requested_context_tokens
         or qualification.execution_authority != "DISABLED"
-        or qualification.provider_runtime_qualified is not True
+        or qualification.capability_qualified is not True
         or qualification.execution_ready is not False
     ):
         raise LabValidationError(
             "PROVIDER_BINDING_QUALIFICATION_INVALID",
-            "host qualification does not match the protected qualification candidate",
-        )
-    _validate_settings(settings)
-    if settings.requested_context_tokens > qualification.model_context_tokens:
-        raise LabValidationError(
-            "PROVIDER_BINDING_SETTINGS_INVALID",
-            "requested context exceeds the qualified model context",
+            "controlled capability qualification does not match the protected runtime contract",
         )
     record = ProviderBinding(
         schema_version=PROVIDER_BINDING_SCHEMA,
@@ -178,7 +151,7 @@ def create_provider_binding(
         runtime_settings_profile_id=settings.profile_id,
         runtime_settings_digest=settings.digest(),
     )
-    validate_current_provider_binding(record)
+    validate_current_provider_binding(record, settings=settings)
     return record
 
 
@@ -215,30 +188,38 @@ def validate_current_provider_binding(
 
 def validate_binding_qualification(
     binding: ProviderBinding,
-    qualification: HostProviderQualification,
+    qualification: ProviderCapabilityQualification,
+    *,
+    settings: RuntimeSettingsProfile = CODING_WORKER_SETTINGS_V1,
 ) -> None:
-    """Reject model, harness, host, provider, or qualification substitution."""
-    validate_current_provider_binding(binding)
-    if not isinstance(qualification, HostProviderQualification):
+    """Reject model, observed installation, probe, or runtime-settings substitution."""
+    validate_current_provider_binding(binding, settings=settings)
+    if not isinstance(qualification, ProviderCapabilityQualification):
         raise LabValidationError(
             "PROVIDER_BINDING_QUALIFICATION_MISMATCH",
-            "provider binding does not match the supplied host qualification",
+            "provider binding does not match controlled capability qualification evidence",
         )
-    qualification = HostProviderQualification.from_mapping(qualification.to_dict())
+    qualification = ProviderCapabilityQualification.from_mapping(
+        qualification.to_dict(),
+        settings=settings,
+    )
     if (
         binding.host_provider_qualification_digest != qualification.digest()
         or binding.qualification_candidate_id != qualification.candidate_id
         or binding.qualification_candidate_version != qualification.candidate_version
         or binding.qualification_candidate_digest != qualification.candidate_digest
+        or binding.provider_adapter_id != qualification.provider_adapter_id
         or binding.tool_surface_id != qualification.tool_surface_id
         or binding.provider_kind != qualification.provider_kind
         or binding.model_name != qualification.model_name
         or binding.model_digest != qualification.model_digest
         or binding.model_metadata_digest != qualification.model_metadata_digest
+        or binding.runtime_settings_profile_id != qualification.runtime_settings_profile_id
+        or binding.runtime_settings_digest != qualification.runtime_settings_digest
     ):
         raise LabValidationError(
             "PROVIDER_BINDING_QUALIFICATION_MISMATCH",
-            "provider binding does not match the supplied host qualification",
+            "provider binding does not match controlled capability qualification evidence",
         )
 
 
@@ -282,26 +263,7 @@ class ProviderBindingStore:
 
 
 def _validate_settings(settings: RuntimeSettingsProfile) -> None:
-    if settings != CODING_WORKER_SETTINGS_V1:
-        raise LabValidationError(
-            "PROVIDER_BINDING_SETTINGS_INVALID",
-            "runtime settings are not the protected current profile",
-        )
-    if (
-        settings.schema_version != RUNTIME_SETTINGS_SCHEMA
-        or settings.profile_version != 1
-        or settings.requested_context_tokens <= 0
-        or settings.request_limit <= 0
-        or settings.tool_calls_limit <= 0
-        or settings.tool_timeout_seconds <= 0
-        or settings.tool_retries < 0
-        or settings.output_retries < 0
-        or settings.max_concurrency <= 0
-    ):
-        raise LabValidationError(
-            "PROVIDER_BINDING_SETTINGS_INVALID",
-            "runtime settings profile is invalid",
-        )
+    validate_runtime_settings(settings)
 
 
 def _binding_id(value: Any) -> str:

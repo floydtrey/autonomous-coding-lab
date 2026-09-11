@@ -213,7 +213,9 @@ def request(root: Path, base_commit: str):
 
 
 def executor(binding, binding_digest, seen, root: Path):
-    def execute(worker_request):
+    def execute(worker_request, runtime_settings):
+        assert runtime_settings["request_limit"] == 12
+        assert runtime_settings["requested_context_tokens"] == 32768
         seen.append(worker_request)
         (root / "target.py").write_text("VALUE = 2\n", encoding="utf-8")
         return WorkerExecution(("fake-provider",), 0, "changed target", "")
@@ -273,7 +275,7 @@ def test_executor_identity_substitution_is_rejected_before_execution(tmp_path):
     raw, _, binding, _, binding_digest = request(root, base_commit)
     called = False
 
-    def fake(_):
+    def fake(_, __):
         nonlocal called
         called = True
         raise AssertionError("mismatched executor must not run")
@@ -307,7 +309,7 @@ def test_tampered_runtime_settings_fail_before_provider_execution(tmp_path):
     tampered = canonical_json(value).encode("utf-8")
     called = False
 
-    def fake(_):
+    def fake(_, __):
         nonlocal called
         called = True
         raise AssertionError("tampered settings must not run")
@@ -337,7 +339,8 @@ def test_nonzero_provider_result_is_rejected_even_when_workspace_would_validate(
     raw, _, binding, _, binding_digest = request(root, base_commit)
     called = False
 
-    def failed(worker_request):
+    def failed(worker_request, runtime_settings):
+        assert runtime_settings["tool_calls_limit"] == 24
         nonlocal called
         called = True
         (root / "target.py").write_text("VALUE = 2\n", encoding="utf-8")
