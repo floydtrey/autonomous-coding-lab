@@ -235,6 +235,57 @@ Task 3 intentionally does **not** migrate `framework_client.py`,
 ordered under Tasks 4–5 so the new contracts are not layered onto the obsolete
 Codex/installation-manifest shell.
 
+## Runtime reconstruction Task 4 — accepted checkpoint
+
+Task 4 establishes the current V3 dispatch foundations without migrating
+`application_service.py` and without invoking a real provider.
+
+Accepted changes:
+
+- `dispatch_client.py` accepts only an authorized `DISPATCHING` Invocation V3
+  workspace-write task, requires the exact durable Provider Binding and protected
+  runtime-settings profile, verifies the exact Controller Task Packet/prompt and
+  sealed task/test/scope, and emits one bounded canonical dispatch envelope;
+- logical target/workspace identities and capability-specific Git source evidence
+  remain in the sealed V3 record, while local workspace/framework paths are passed
+  separately to the framework adapter as backend locators rather than durable ACL
+  target identity;
+- `dispatch_adapter.py` independently validates the V3 envelope, reconstructs the
+  bounded consumer profile/context/code task, and accepts exactly one explicitly
+  injected `BoundProviderExecutor`; it contains no provider registry, default
+  provider, fallback provider, Codex path, or Terra path;
+- the injected executor must match the sealed provider-adapter identity,
+  tool-surface identity, Provider Binding digest, and runtime-settings digest
+  before workspace mutation can occur;
+- a nonzero provider execution result fails closed as `DISPATCH_PROVIDER_FAILED`
+  even when the authorized file changes would otherwise satisfy validation;
+- existing provider-neutral `code_task.py` containment, exact changed-path,
+  candidate-identity, diff, and independent validation behavior is reused rather
+  than duplicated or weakened;
+- the existing portable V1 Autonomous Worker Framework runtime closure now contains
+  12 files and matches
+  `sha256:81926dbde5d8ac45408c9d0d0ab9819f65c977e166cbe34d802cf445de29d9ac`;
+- the portable V1 Worker Lab production tree now contains 31 files and matches
+  `sha256:eecac00f96a46f25a6dab03eef933192956572c49a8b5f542784d24935175695`;
+- execution authority remains `DISABLED`; no provider/model request was sent.
+
+Validation on the Task 4 candidate and committed-byte temp tree:
+
+- Python compilation passed;
+- framework Task 4 plus stable generic regressions: 28 passed;
+- Worker Lab Task 4 plus V3/Provider Binding regressions: 24 passed;
+- Worker Lab/framework dispatch protocol constants matched exactly;
+- direct portable component inspection: Autonomous Worker Framework `MATCH`, Worker
+  Lab `MATCH`;
+- portable installation contract tests: 4 passed;
+- the same validation passed again against the committed portable identities with
+  no further portable-source changes required.
+
+Task 4 intentionally does **not** migrate the live `application_service.py` path.
+The old V2 `framework_client.py` / `worker_lab_adapter.py` shell remains reachable
+only through that not-yet-migrated service path until Task 5, and obsolete modules
+remain scheduled for deletion in Task 7.
+
 ## Current stop condition
 
 Execution remains disabled.
@@ -252,11 +303,12 @@ Do not:
 
 ## Immediate next gate
 
-Begin only **Task 4 — generic dispatch client + dispatch adapter** from
-`docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
+Begin only **Task 5 — migrate application service and current result acceptance**
+from `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
 
-Task 4 must replace the old `framework_client.py` / `worker_lab_adapter.py`
-responsibilities with a minimal provider-neutral dispatch seam, preserve explicit
-no-fallback behavior, and use injected fake provider executors only. Do not migrate
-the application service in the same task; that remains Task 5. Actual provider/model
-qualification and execution remain out of scope.
+Task 5 must migrate only the invocation/dispatch/recovery portion of
+`application_service.py` onto the accepted V3/current dispatch contracts while
+preserving lifecycle, storage, policy, test, custody, and independent result
+acceptance behavior. Keep Git workspace evidence behind the coding-workspace
+boundary. Provider qualification refinement, legacy deletion, and actual
+provider/model execution remain out of scope.
