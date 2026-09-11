@@ -45,7 +45,8 @@ Validation on the Task 5 materialized tree:
   installation-status/doctor-boundary tests intentionally excluded;
 - unaffected CLI regressions: 13 passed, with the legacy doctor test intentionally
   excluded;
-- custody regressions and portable identity checks are part of the final committed-byte gate;
+- custody regressions: 10 passed and 20 Windows-native cases skipped on Linux;
+- both portable component identities reported `MATCH` and portable contract tests passed 4/4;
 - the excluded legacy checks were run separately and confirmed to fail only at the
   already-known obsolete `acl-installation-manifest:v2` framework-runtime-closure
   boundary (`framework runtime closure is incomplete`);
@@ -134,19 +135,32 @@ if '## Runtime reconstruction Task 5 — accepted checkpoint' not in current:
     if marker not in current:
         raise SystemExit('CURRENT_STATE Task 5 marker missing')
     current = current.replace(marker, CURRENT_TASK5 + marker, 1)
+else:
+    start = current.index('## Runtime reconstruction Task 5 — accepted checkpoint\n')
+    end = current.index(marker, start)
+    current = current[:start] + CURRENT_TASK5 + current[end:]
+old_runtime_selection = '- Runtime Selection V1 at `0ad1b212581fb7b18110b9155763bf49b42df442` protects the historical `coding-worker:v1` capability requirement used by the still-live V2 application seam.'
+new_runtime_selection = '- Runtime Selection V1 at `0ad1b212581fb7b18110b9155763bf49b42df442` preserves the historical `coding-worker:v1` qualification identity; the current public application-service execution path is Invocation/Result V3 and binds provider/model/settings through Provider Binding before authorization.'
+if old_runtime_selection in current:
+    current = current.replace(old_runtime_selection, new_runtime_selection, 1)
 stop = current.index(marker)
 current = current[:stop] + CURRENT_TAIL
 current_path.write_text(current, encoding='utf-8')
 
 plan_path = Path('docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md')
 plan = plan_path.read_text(encoding='utf-8')
+plan = plan.replace(
+    '**Status:** approved plan; Tasks 1-4 complete; Task 5 next',
+    '**Status:** approved plan; Tasks 1-5 complete; Task 6 next',
+    1,
+)
 start = plan.index('### Task 5 — migrate application service and current result acceptance\n')
 end = plan.index('### Task 6 — provider qualification refinement\n', start)
 plan = plan[:start] + PLAN_TASK5 + plan[end:]
 startup = plan.rfind('## New-chat startup / Task 5 boundary\n')
 if startup < 0:
-    if '## New-chat startup / Task 6 boundary' not in plan:
-        raise SystemExit('Task 5 startup handoff marker missing')
-else:
-    plan = plan[:startup] + PLAN_STARTUP
+    startup = plan.rfind('## New-chat startup / Task 6 boundary\n')
+    if startup < 0:
+        raise SystemExit('Task 5/6 startup handoff marker missing')
+plan = plan[:startup] + PLAN_STARTUP
 plan_path.write_text(plan, encoding='utf-8')
