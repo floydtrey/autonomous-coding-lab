@@ -1,0 +1,59 @@
+name: Task 7 Obsolete Runtime Inventory
+on:
+  push:
+    branches: [task7-obsolete-cleanup-temp]
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Current runtime obsolete-term scan
+        shell: bash
+        run: |
+          echo '=== ACTIVE CODE/CONFIG/CURRENT DOC MATCHES ==='
+          rg -n -i 'codex|terra|MineTrackerWorker|mine[_ -]?tracker|autonomy_smoke|acl-installation-manifest:v2|installation-manifest.json|monorepo-identity|framework_client|worker_lab_adapter|workspace_write_adapter|synthetic_read_only|local_worker_harness|context_probe|task_contract|worker_fixture_validator' \
+            components/autonomous-worker-framework/tools \
+            components/worker-lab/worker_lab \
+            components/worker-lab/curricula \
+            config \
+            docs/ARCHITECTURE.md docs/CONTROLLER_TASK_PACKET_V1.md docs/CURRENT_STATE.md docs/DEVELOPMENT.md docs/GOVERNANCE.md docs/OPERATIONS.md docs/PORTABLE_INSTALLATION_IDENTITY.md docs/REPOSITORY_COUPLING_INVENTORY.md docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md docs/START_HERE.md docs/VS_CODE_HANDOFF.md docs/WORKPLAN.md \
+            || true
+      - name: Candidate module import graph
+        shell: bash
+        run: |
+          echo '=== IMPORT/REFERENCE GRAPH ==='
+          rg -n 'codex_runtime|context_probe|local_worker_harness|monorepo_identity|task_contract|worker_fixture_validator|worker_lab_adapter|workspace_write_adapter|framework_client|installation_manifest|synthetic_read_only|integration\b|invocation_store\b|framework_adapter|read_only_evidence|CODING_WORKER_V1|MINE_TRACKER_PROFILE|HostProviderQualification' \
+            components/autonomous-worker-framework \
+            components/worker-lab \
+            --glob '!**/__pycache__/**' || true
+      - name: List candidate files
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          candidates = [
+            'components/autonomous-worker-framework/tools/codex_runtime.py',
+            'components/autonomous-worker-framework/tools/context_probe.py',
+            'components/autonomous-worker-framework/tools/local_worker_harness.py',
+            'components/autonomous-worker-framework/tools/monorepo_identity.py',
+            'components/autonomous-worker-framework/tools/task_contract.py',
+            'components/autonomous-worker-framework/tools/worker_fixture_validator.py',
+            'components/autonomous-worker-framework/tools/worker_lab_adapter.py',
+            'components/autonomous-worker-framework/tools/workspace_write_adapter.py',
+            'components/worker-lab/worker_lab/framework_client.py',
+            'components/worker-lab/worker_lab/installation_manifest.py',
+            'components/worker-lab/worker_lab/integration.py',
+            'components/worker-lab/worker_lab/invocation_store.py',
+            'components/worker-lab/worker_lab/synthetic_read_only.py',
+            'config/installation-manifest.json',
+            'config/monorepo-identity.json',
+          ]
+          for item in candidates:
+              p = Path(item)
+              print(('PRESENT ' if p.exists() else 'ABSENT  ') + item)
+          PY
