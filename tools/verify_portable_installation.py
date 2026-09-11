@@ -24,6 +24,7 @@ _FRAMEWORK_FILES = (
     "tools/local_worker_harness.py",
     "tools/pydantic_ollama_worker.py",
     "tools/repository_handoff.py",
+    "tools/repository_state.py",
     "tools/worker_lab_adapter.py",
     "tools/worker_result.py",
     "tools/worker_runtime.py",

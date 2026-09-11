@@ -10,12 +10,11 @@ from typing import Any, Callable, Sequence
 try:
     from tools.consumer_profile import (
         ConsumerProfile,
-        MINE_TRACKER_PROFILE,
         ValidationCommand,
         WorkerContextPacket,
         verify_context_packet,
     )
-    from tools.local_worker_harness import candidate_content_digest, changed_paths, repository_head
+    from tools.repository_state import candidate_content_digest, changed_paths, repository_head
     from tools.repository_handoff import RepositoryHandoff, build_repository_handoff
     from tools.worker_result import (
         BoundaryResult,
@@ -28,10 +27,10 @@ try:
     from tools.worker_runtime import WorkerExecution, WorkerRequest
 except ModuleNotFoundError:  # direct execution support
     from consumer_profile import (  # type: ignore
-        ConsumerProfile, MINE_TRACKER_PROFILE, ValidationCommand, WorkerContextPacket,
+        ConsumerProfile, ValidationCommand, WorkerContextPacket,
         verify_context_packet,
     )
-    from local_worker_harness import candidate_content_digest, changed_paths, repository_head  # type: ignore
+    from repository_state import candidate_content_digest, changed_paths, repository_head  # type: ignore
     from repository_handoff import RepositoryHandoff, build_repository_handoff  # type: ignore
     from worker_result import (  # type: ignore
         BoundaryResult, ValidationResult, ValidationStage, WorkerResult, WorkerStatus,
@@ -151,8 +150,8 @@ def run_code_task(
     *,
     repo_root: Path,
     framework_repo: Path,
+    profile: ConsumerProfile,
     executor: Executor | None = None,
-    profile: ConsumerProfile = MINE_TRACKER_PROFILE,
 ) -> CodeTaskResult:
     _verify_contract(contract, packet)
     verify_context_packet(packet, repo_root, profile=profile)

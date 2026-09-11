@@ -32,7 +32,11 @@ def _repo(tmp_path: Path) -> Path:
 
 def test_code_task_uses_provider_neutral_worker_request(tmp_path):
     root = _repo(tmp_path)
-    packet = build_context_packet(root, allowed_paths=("tests/test_assets.py",))
+    packet = build_context_packet(
+        root,
+        allowed_paths=("tests/test_assets.py",),
+        profile=MINE_TRACKER_PROFILE,
+    )
     validation = ValidationCommand("Check candidate", ("git", "diff", "--check"), 10)
     packet = replace(packet, full_validation=(validation,))
     contract = build_code_task(
@@ -55,6 +59,7 @@ def test_code_task_uses_provider_neutral_worker_request(tmp_path):
         packet,
         repo_root=root,
         framework_repo=tmp_path / "framework",
+        profile=MINE_TRACKER_PROFILE,
         executor=executor,
     )
 

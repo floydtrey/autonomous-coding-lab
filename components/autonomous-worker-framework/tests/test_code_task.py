@@ -5,8 +5,8 @@ from dataclasses import replace
 import pytest
 
 from tools.code_task import CodeTaskError, build_code_task, run_code_task
-from tools.codex_runtime import CodexExecution
 from tools.consumer_profile import MINE_TRACKER_PROFILE, ValidationCommand, build_context_packet
+from tools.worker_runtime import WorkerExecution
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -33,7 +33,11 @@ def _repo(tmp_path: Path) -> Path:
 
 
 def _contract(root: Path):
-    packet = build_context_packet(root, allowed_paths=("tests/test_assets.py",))
+    packet = build_context_packet(
+        root,
+        allowed_paths=("tests/test_assets.py",),
+        profile=MINE_TRACKER_PROFILE,
+    )
     command = ValidationCommand("Check candidate", ("git", "diff", "--check"), 10)
     packet = replace(packet, full_validation=(command,))
     contract = build_code_task(
@@ -55,13 +59,14 @@ def test_general_code_task_runs_in_workspace_write_and_validates(tmp_path):
     def executor(request):
         seen.append(request)
         (root / "tests" / "test_assets.py").write_text("VALUE = 2\n", encoding="utf-8")
-        return CodexExecution(("codex",), 0, "implemented test", "")
+        return WorkerExecution(("fake-provider",), 0, "implemented test", "")
 
     result = run_code_task(
         contract,
         packet,
         repo_root=root,
         framework_repo=tmp_path / "framework",
+        profile=MINE_TRACKER_PROFILE,
         executor=executor,
     )
     assert seen[0].sandbox == "workspace-write"
@@ -76,10 +81,17 @@ def test_out_of_scope_worker_change_stops_before_validation(tmp_path):
 
     def executor(request):
         (root / "unexpected.py").write_text("bad\n", encoding="utf-8")
-        return CodexExecution(("codex",), 0, "done", "")
+        return WorkerExecution(("fake-provider",), 0, "done", "")
 
     with pytest.raises(CodeTaskError) as error:
-        run_code_task(contract, packet, repo_root=root, framework_repo=tmp_path / "framework", executor=executor)
+        run_code_task(
+            contract,
+            packet,
+            repo_root=root,
+            framework_repo=tmp_path / "framework",
+            profile=MINE_TRACKER_PROFILE,
+            executor=executor,
+        )
     assert error.value.code == "CODE_TASK_BOUNDARY_FAILED"
 
 
@@ -91,16 +103,27 @@ def test_worker_commit_is_rejected(tmp_path):
         (root / "tests" / "test_assets.py").write_text("VALUE = 2\n", encoding="utf-8")
         _git(root, "add", ".")
         _git(root, "commit", "-qm", "forbidden")
-        return CodexExecution(("codex",), 0, "done", "")
+        return WorkerExecution(("fake-provider",), 0, "done", "")
 
     with pytest.raises(CodeTaskError) as error:
-        run_code_task(contract, packet, repo_root=root, framework_repo=tmp_path / "framework", executor=executor)
+        run_code_task(
+            contract,
+            packet,
+            repo_root=root,
+            framework_repo=tmp_path / "framework",
+            profile=MINE_TRACKER_PROFILE,
+            executor=executor,
+        )
     assert error.value.code == "CODE_TASK_HEAD_CHANGED"
 
 
 def test_task_cannot_exceed_context_scope(tmp_path):
     root = _repo(tmp_path)
-    packet = build_context_packet(root, allowed_paths=("tests/test_assets.py",))
+    packet = build_context_packet(
+        root,
+        allowed_paths=("tests/test_assets.py",),
+        profile=MINE_TRACKER_PROFILE,
+    )
     with pytest.raises(CodeTaskError) as error:
         build_code_task(
             packet,
@@ -115,7 +138,11 @@ def test_task_cannot_exceed_context_scope(tmp_path):
 
 def test_validation_stops_at_first_failure(tmp_path):
     root = _repo(tmp_path)
-    packet = build_context_packet(root, allowed_paths=("tests/test_assets.py",))
+    packet = build_context_packet(
+        root,
+        allowed_paths=("tests/test_assets.py",),
+        profile=MINE_TRACKER_PROFILE,
+    )
     contract = build_code_task(
         packet,
         task_id="MT-TEST-1",
@@ -127,8 +154,15 @@ def test_validation_stops_at_first_failure(tmp_path):
 
     def executor(request):
         (root / "tests" / "test_assets.py").write_text("VALUE = 2\n", encoding="utf-8")
-        return CodexExecution(("codex",), 0, "done", "")
+        return WorkerExecution(("fake-provider",), 0, "done", "")
 
     with pytest.raises(CodeTaskError) as error:
-        run_code_task(contract, packet, repo_root=root, framework_repo=tmp_path / "framework", executor=executor)
+        run_code_task(
+            contract,
+            packet,
+            repo_root=root,
+            framework_repo=tmp_path / "framework",
+            profile=MINE_TRACKER_PROFILE,
+            executor=executor,
+        )
     assert error.value.code == "CODE_TASK_QUICK_FAILED"

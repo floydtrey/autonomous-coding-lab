@@ -7,14 +7,14 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from tools.local_worker_harness import (
+    from tools.repository_state import (
         candidate_content_digest,
         changed_paths,
         repository_head,
     )
     from tools.worker_result import WorkerResult, validate_worker_result
 except ModuleNotFoundError:  # direct execution support
-    from local_worker_harness import (  # type: ignore
+    from repository_state import (  # type: ignore
         candidate_content_digest,
         changed_paths,
         repository_head,

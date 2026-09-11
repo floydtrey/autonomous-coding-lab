@@ -2,16 +2,28 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
-import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
+try:
+    from tools.repository_state import (
+        RepositoryStateError,
+        repository_head,
+        require_clean_workspace,
+        require_repository_root,
+    )
+except ModuleNotFoundError:  # direct execution support
+    from repository_state import (  # type: ignore
+        RepositoryStateError,
+        repository_head,
+        require_clean_workspace,
+        require_repository_root,
+    )
+
 
 PROFILE_VERSION = "consumer-profile:v1"
 CONTEXT_VERSION = "worker-context:v1"
-SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 class ConsumerProfileError(ValueError):
@@ -215,16 +227,12 @@ def build_context_packet(
     repo_root: Path,
     *,
     allowed_paths: Iterable[str],
+    profile: ConsumerProfile,
     task_context_paths: Iterable[str] = (),
-    profile: ConsumerProfile = MINE_TRACKER_PROFILE,
 ) -> WorkerContextPacket:
-    root = repo_root.resolve()
-    _require_repository(root)
-    if _git(root, "status", "--porcelain"):
-        raise ConsumerProfileError("CONTEXT_REPOSITORY_DIRTY", "target repository must be clean")
-    head = _git(root, "rev-parse", "HEAD")
-    if not SHA_RE.fullmatch(head):
-        raise ConsumerProfileError("CONTEXT_IDENTITY_INVALID", "repository HEAD is not a full Git SHA")
+    root = _context_repository_root(repo_root)
+    _require_clean_context_workspace(root)
+    head = _context_repository_head(root, "CONTEXT_IDENTITY_INVALID")
 
     allowed = _normalized_paths(
         allowed_paths, "allowed_paths", require_nonempty=True, require_sorted=True
@@ -261,18 +269,16 @@ def verify_context_packet(
     packet: WorkerContextPacket,
     repo_root: Path,
     *,
-    profile: ConsumerProfile = MINE_TRACKER_PROFILE,
+    profile: ConsumerProfile,
 ) -> None:
-    root = repo_root.resolve()
-    _require_repository(root)
+    root = _context_repository_root(repo_root)
     if packet.version != CONTEXT_VERSION or packet.consumer != profile.consumer:
         raise ConsumerProfileError("CONTEXT_PROFILE_MISMATCH", "context packet profile is unsupported")
     if packet.profile_digest != profile.digest():
         raise ConsumerProfileError("CONTEXT_PROFILE_MISMATCH", "consumer profile changed")
-    if _git(root, "rev-parse", "HEAD") != packet.repository_head:
+    if _context_repository_head(root, "CONTEXT_IDENTITY_CHANGED") != packet.repository_head:
         raise ConsumerProfileError("CONTEXT_IDENTITY_CHANGED", "repository HEAD changed")
-    if _git(root, "status", "--porcelain"):
-        raise ConsumerProfileError("CONTEXT_REPOSITORY_DIRTY", "target repository must be clean")
+    _require_clean_context_workspace(root)
     if _fingerprints(root, tuple(item.path for item in packet.authority_files), "authority") != packet.authority_files:
         raise ConsumerProfileError("CONTEXT_AUTHORITY_CHANGED", "authoritative context changed")
     if _fingerprints(root, tuple(item.path for item in packet.task_files), "task context") != packet.task_files:
@@ -351,20 +357,31 @@ def _reject_protected(profile: ConsumerProfile, path: str) -> None:
         raise ConsumerProfileError("CONTEXT_SCOPE_PROTECTED", f"protected path cannot be writable: {path}")
 
 
-def _require_repository(root: Path) -> None:
-    if not root.is_dir() or not (root / ".git").exists():
-        raise ConsumerProfileError("CONTEXT_REPOSITORY_INVALID", "target must be an existing Git repository")
-    if Path(_git(root, "rev-parse", "--show-toplevel")).resolve() != root:
-        raise ConsumerProfileError("CONTEXT_REPOSITORY_INVALID", "target must be the Git repository root")
+def _context_repository_root(root: Path) -> Path:
+    try:
+        return require_repository_root(root)
+    except RepositoryStateError as exc:
+        raise ConsumerProfileError(
+            "CONTEXT_REPOSITORY_INVALID",
+            "target must be a Git-backed coding workspace root",
+        ) from exc
 
 
-def _git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ("git", *args), cwd=root, text=True, encoding="utf-8", capture_output=True, check=False
-    )
-    if completed.returncode:
-        raise ConsumerProfileError("CONTEXT_GIT_FAILED", completed.stderr.strip() or "Git command failed")
-    return completed.stdout.strip()
+def _context_repository_head(root: Path, failure_code: str) -> str:
+    try:
+        return repository_head(root)
+    except RepositoryStateError as exc:
+        raise ConsumerProfileError(failure_code, "Git source-state identity is invalid") from exc
+
+
+def _require_clean_context_workspace(root: Path) -> None:
+    try:
+        require_clean_workspace(root)
+    except RepositoryStateError as exc:
+        raise ConsumerProfileError(
+            "CONTEXT_REPOSITORY_DIRTY",
+            "Git-backed coding workspace must be clean",
+        ) from exc
 
 
 def _digest(value: dict[str, Any]) -> str:

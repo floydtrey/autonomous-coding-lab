@@ -1,6 +1,6 @@
 # Current State
 
-**Last updated:** 2026-09-10
+**Last updated:** 2026-09-11
 
 **Repository location:** portable; current laptop checkout is `C:\projects\autonomous-coding-lab`
 
@@ -101,6 +101,38 @@ Key decisions:
 - make portable source identity host-independent; host/platform/provider facts belong to qualification/local state;
 - no actual provider/model execution occurs during reconstruction.
 
+## Runtime reconstruction Task 1 — accepted checkpoint
+
+Task 1 extracted the provider-neutral Git-backed coding-workspace primitives from
+the commissioning harness and recorded the complete classification at
+`docs/REPOSITORY_COUPLING_INVENTORY.md`.
+
+Accepted changes:
+
+- `repository_state.py` owns exact HEAD, changed-path, clean-workspace,
+  repository-root, and candidate-content inspection;
+- `code_task.py`, `repository_handoff.py`, and `local_git_publisher.py` no longer
+  import repository helpers from `local_worker_harness.py`;
+- generic context creation, context verification, and code-task execution require
+  an explicit `ConsumerProfile`; Mine Tracker is no longer an implicit generic
+  default;
+- legitimate Git source-state verification, candidate evidence, workspace
+  containment, publication separation, and Knowledge Core source provenance remain;
+- the portable V1 Autonomous Worker Framework runtime closure contains 11 files and
+  matches `sha256:f1fcae00aa138e2033be64e9d06e5c5bdc4a7dd183360c424b31c36c1ce30b1a`;
+- execution authority remains `DISABLED` and no provider/model request was sent.
+
+Validation on the Task 1 working tree:
+
+- focused deterministic framework gate: 61 passed;
+- portable V1 contract tests: 4 passed;
+- direct Autonomous Worker Framework portable-closure inspection: `MATCH`;
+- broader framework diagnostic: 225 passed and 8 failed. Seven failures are confined
+  to the obsolete `worker_lab_adapter.py` / `acl-installation-manifest:v2` path whose
+  stale bytes must not be refreshed during Task 1; one is the pre-existing
+  `test_project_documentation.py` assertion for superseded Phase 1 headings absent
+  from the accepted starting commit.
+
 ## Current stop condition
 
 Execution remains disabled.
@@ -117,17 +149,15 @@ Do not:
 
 ## Immediate next gate
 
-Begin **Task 1 — extract provider-neutral foundations and audit repository coupling** from `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`.
+Begin only **Task 2 — define the platform-neutral containment/custody contract**
+from `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
 
-Task 1 is intentionally narrow:
+Task 2 must design custody V2, preserve fail-closed/absence-proof behavior, and make
+Windows Job Objects one backend without implementing Linux or executing a provider.
+Repository-decoupling work deliberately deferred from Task 1 remains governed by the
+inventory: Invocation/Result V3 and logical target/workspace identity in Task 3,
+backend-only locator placement during dispatch/service migration in Tasks 4–5,
+obsolete repository-centered path deletion in Task 7, and portable identity V2 plus
+documentation cleanup in Task 8.
 
-- inventory current runtime/domain references to repository names, URLs, paths, remotes, branches, `.git`, `template_repository`, `target_repository`, and equivalent repo-bound identity fields;
-- classify each as justified Git-backed workspace evidence/mechanics, backend-only locator, or obsolete repo-as-system coupling;
-- create provider-neutral repository-state helpers only for justified Git-backed coding-workspace behavior;
-- migrate current consumers away from `local_worker_harness.py` helper imports;
-- remove Mine Tracker default coupling from the generic context/code-task seam only where required for that migration;
-- add focused deterministic tests;
-- keep execution disabled;
-- stop when current generic code no longer depends on commissioning-harness helpers and the repo-coupling inventory clearly identifies what later tasks must redesign or preserve.
-
-Do not continue into platform-neutral custody, Invocation V3, Provider Binding, dispatch reconstruction, legacy deletion, documentation purge, or model execution in the same task.
+Do not begin any of those tasks as part of the Task 1 checkpoint.

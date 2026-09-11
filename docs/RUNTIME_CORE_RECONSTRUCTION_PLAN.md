@@ -1,6 +1,6 @@
 # Runtime Core Reconstruction Plan
 
-**Status:** approved plan; implementation not started
+**Status:** approved plan; Task 1 complete; Task 2 not started
 
 **Purpose:** reconstruct the ACL execution/runtime shell around the accepted Worker Lab authority model so the active tree is provider-neutral, model-swappable, host-portable, target-system-centered, and no longer carries obsolete Codex/Terra/Mine Tracker commissioning paths.
 
@@ -247,6 +247,9 @@ Complete these one bounded task at a time. Do not collapse them into one broad r
 
 ### Task 1 — extract provider-neutral foundations and audit repository coupling
 
+**Status:** complete in the Task 1 reconstruction checkpoint. The classified
+inventory is `docs/REPOSITORY_COUPLING_INVENTORY.md`.
+
 - inventory current runtime/domain references to repository names, URLs, paths, remotes, branches, `.git`, `template_repository`, `target_repository`, and equivalent repo-bound identity fields;
 - classify each reference as justified Git-backed workspace evidence/mechanics, backend-only locator, or obsolete repo-as-system coupling;
 - add generic repository-state helpers only for the justified Git-backed coding-workspace functions;
@@ -256,6 +259,14 @@ Complete these one bounded task at a time. Do not collapse them into one broad r
 - no execution.
 
 **Stop gate:** generic current code no longer needs commissioning harness helpers, and the repository-coupling inventory is explicit enough that later tasks will not accidentally preserve repository identity as ACL system identity.
+
+**Accepted Task 1 boundary:** provider-neutral Git-backed workspace inspection is
+isolated in `tools/repository_state.py`; current generic context/code-task consumers
+no longer import repository helpers from `local_worker_harness.py`; generic context
+and code-task entry points require an explicitly supplied protected profile; and the
+inventory distinguishes justified Git evidence, backend locators, and obsolete
+repository-as-system coupling. No custody, V3, Provider Binding, dispatch, deletion,
+qualification, or execution work was performed.
 
 ### Task 2 — define platform-neutral containment/custody contract
 

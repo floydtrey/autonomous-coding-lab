@@ -15,7 +15,7 @@
       "root": "components/autonomous-worker-framework",
       "production_root": "tools",
       "scope": "runtime-dependency-closure",
-      "digest": "sha256:cb76f6ed59a5fb57b5b22faa31103fd285302b042b2bb3af7722b41e580d1414",
+      "digest": "sha256:f1fcae00aa138e2033be64e9d06e5c5bdc4a7dd183360c424b31c36c1ce30b1a",
       "files": [
         "tools/code_task.py",
         "tools/codex_runtime.py",
@@ -23,6 +23,7 @@
         "tools/local_worker_harness.py",
         "tools/pydantic_ollama_worker.py",
         "tools/repository_handoff.py",
+        "tools/repository_state.py",
         "tools/worker_lab_adapter.py",
         "tools/worker_result.py",
         "tools/worker_runtime.py",

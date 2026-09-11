@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import Any, Sequence
 
 try:
-    from tools.local_worker_harness import candidate_content_digest, changed_paths, repository_head
+    from tools.repository_state import candidate_content_digest, changed_paths, repository_head
     from tools.repository_handoff import RepositoryHandoff, build_repository_handoff
     from tools.worker_result import WorkerResult, validate_worker_result
 except ModuleNotFoundError:  # direct execution support
-    from local_worker_harness import candidate_content_digest, changed_paths, repository_head  # type: ignore
+    from repository_state import candidate_content_digest, changed_paths, repository_head  # type: ignore
     from repository_handoff import RepositoryHandoff, build_repository_handoff  # type: ignore
     from worker_result import WorkerResult, validate_worker_result  # type: ignore
 

@@ -23,6 +23,13 @@ try:
         resolve_fixture_path,
         validate_fixture,
     )
+    from tools.repository_state import (
+        RepositoryStateError,
+        candidate_content_digest,
+        changed_paths,
+        repository_head,
+        require_clean_workspace,
+    )
     from tools.worker_result import (
         CONTRACT_VERSION as WORKER_RESULT_VERSION,
         BoundaryResult,
@@ -47,6 +54,13 @@ except ModuleNotFoundError:  # direct execution: python tools/local_worker_harne
         resolve_fixture_path,
         validate_fixture,
     )
+    from repository_state import (  # type: ignore
+        RepositoryStateError,
+        candidate_content_digest,
+        changed_paths,
+        repository_head,
+        require_clean_workspace,
+    )
     from worker_result import (  # type: ignore
         CONTRACT_VERSION as WORKER_RESULT_VERSION,
         BoundaryResult,
@@ -68,8 +82,7 @@ class HarnessSetupError(ValueError):
     """Raised when a local commissioning task is malformed or unsafe."""
 
 
-class HarnessRuntimeError(RuntimeError):
-    """Raised when the local repository cannot be inspected safely."""
+HarnessRuntimeError = RepositoryStateError
 
 
 @dataclass(frozen=True)
@@ -229,35 +242,6 @@ def _run_git(repo_root: Path, *args: str) -> str:
     return process.stdout
 
 
-def repository_head(repo_root: Path) -> str:
-    value = _run_git(repo_root, "rev-parse", "HEAD").strip().lower()
-    if not re_full_sha(value):
-        raise HarnessRuntimeError("target repository HEAD is not a normal 40-character Git SHA")
-    return value
-
-
-def re_full_sha(value: str) -> bool:
-    return len(value) == 40 and all(char in "0123456789abcdef" for char in value)
-
-
-def changed_paths(repo_root: Path, base_sha: str) -> list[str]:
-    changed: set[str] = set()
-    for args in (
-        ("diff", "--name-only", "--diff-filter=ACDMRT", base_sha),
-        ("ls-files", "--others", "--exclude-standard"),
-    ):
-        for line in _run_git(repo_root, *args).splitlines():
-            if line.strip():
-                changed.add(_normalise_repo_path(line.strip()))
-    return sorted(changed)
-
-
-def require_clean_workspace(repo_root: Path) -> None:
-    status = _run_git(repo_root, "status", "--porcelain")
-    if status.strip():
-        raise HarnessRuntimeError("target repository must be clean before a worker job starts")
-
-
 def task_contract_digest(
     task: FixtureTask,
     validation_plan: ConsumerValidationPlan | None = None,
@@ -271,23 +255,6 @@ def task_contract_digest(
         separators=(",", ":"),
     ).encode("utf-8")
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
-
-
-def candidate_content_digest(repo_root: Path, paths: Sequence[str]) -> str:
-    digest = hashlib.sha256()
-    for path in sorted(paths):
-        normal = _normalise_repo_path(path)
-        candidate = repo_root / PurePosixPath(normal)
-        digest.update(normal.encode("utf-8"))
-        digest.update(b"\0")
-        if candidate.is_file():
-            digest.update(b"FILE\0")
-            digest.update(candidate.read_bytes())
-        elif candidate.exists():
-            digest.update(b"NONFILE\0")
-        else:
-            digest.update(b"ABSENT\0")
-    return "sha256:" + digest.hexdigest()
 
 
 def validate_patch_boundary(paths: Sequence[str], allowed_paths: Sequence[str]) -> None:

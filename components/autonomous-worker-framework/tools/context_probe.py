@@ -9,6 +9,7 @@ from typing import Callable, Sequence
 try:
     from tools.codex_runtime import CodexExecution, CodexRequest, execute_codex
     from tools.consumer_profile import (
+        MINE_TRACKER_PROFILE,
         WorkerContextPacket,
         build_context_packet,
         build_context_prompt,
@@ -17,6 +18,7 @@ try:
 except ModuleNotFoundError:  # direct execution support
     from codex_runtime import CodexExecution, CodexRequest, execute_codex  # type: ignore
     from consumer_profile import (  # type: ignore
+        MINE_TRACKER_PROFILE,
         WorkerContextPacket,
         build_context_packet,
         build_context_prompt,
@@ -56,6 +58,7 @@ def run_context_probe(
         repo_root,
         allowed_paths=allowed_paths,
         task_context_paths=task_context_paths,
+        profile=MINE_TRACKER_PROFILE,
     )
     execution = executor(
         CodexRequest(
@@ -68,7 +71,7 @@ def run_context_probe(
     response = execution.stdout.strip()
     if not response:
         raise ValueError("Codex context probe returned no analysis")
-    verify_context_packet(packet, repo_root)
+    verify_context_packet(packet, repo_root, profile=MINE_TRACKER_PROFILE)
     return packet, ContextProbeResult(
         context_digest=packet.digest(),
         repository_head=packet.repository_head,
