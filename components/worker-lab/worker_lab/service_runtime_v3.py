@@ -165,6 +165,7 @@ def prepare_invocation(
         "readable_paths": [
             {"path": item.path, "digest": item.digest}
             for item in sorted(context.files, key=lambda item: item.path)
+            if item.path not in set(exercise.writable_paths)
         ],
         "writable_paths": sorted(exercise.writable_paths),
         "source_state": {
