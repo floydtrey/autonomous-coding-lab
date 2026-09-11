@@ -42,7 +42,7 @@ def _binding() -> QualifiedRuntimeBinding:
 def test_bounded_file_tools_read_then_atomic_write(tmp_path: Path):
     root = tmp_path.resolve()
     target = root / "target.py"
-    target.write_text("VALUE = 1\n", encoding="utf-8")
+    target.write_bytes(b"VALUE = 1\r\n")
 
     tools = BoundedFileTools(
         root,
@@ -50,8 +50,8 @@ def test_bounded_file_tools_read_then_atomic_write(tmp_path: Path):
         writable_paths=("target.py",),
     )
     read = json.loads(tools.read_file("target.py"))
-    assert read["content"] == "VALUE = 1\n"
-    assert read["sha256"] == _digest("VALUE = 1\n")
+    assert read["content"] == "VALUE = 1\r\n"
+    assert read["sha256"] == _digest("VALUE = 1\r\n")
 
     written = json.loads(
         tools.write_file(
@@ -61,7 +61,7 @@ def test_bounded_file_tools_read_then_atomic_write(tmp_path: Path):
         )
     )
     assert written["sha256"] == _digest("VALUE = 2\n")
-    assert target.read_text(encoding="utf-8") == "VALUE = 2\n"
+    assert target.read_bytes() == b"VALUE = 2\n"
 
 
 def test_bounded_file_tools_reject_scope_escape_and_stale_write(tmp_path: Path):
