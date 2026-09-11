@@ -1,0 +1,110 @@
+name: Task 6 Regression Gate
+on:
+  push:
+    branches: [task6-provider-qualification]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest
+      - name: Compile Task 6 current path
+        run: |
+          python -m py_compile \
+            components/worker-lab/worker_lab/runtime_settings.py \
+            components/worker-lab/worker_lab/provider_qualification.py \
+            components/worker-lab/worker_lab/provider_binding.py \
+            components/autonomous-worker-framework/tools/dispatch_adapter.py \
+            components/autonomous-worker-framework/tools/pydantic_ollama_worker.py
+      - name: Run Task 6 Worker Lab contracts
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q \
+            tests/test_provider_qualification.py \
+            tests/test_provider_binding.py \
+            tests/test_runtime_selection_v3.py \
+            tests/test_integration_v3.py \
+            tests/test_dispatch_client.py \
+            tests/test_application_service_v3.py
+      - name: Run Task 6 framework contracts
+        working-directory: components/autonomous-worker-framework
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m pytest -q \
+            tests/test_pydantic_ollama_worker.py \
+            tests/test_dispatch_adapter.py \
+            tests/test_worker_runtime_seam.py \
+            tests/test_code_task.py
+      - name: Run custody regressions
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q tests/test_process_custody.py tests/test_windows_job.py
+      - name: Run unaffected application-service regressions
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        run: >-
+          python -m pytest -q tests/test_application_service.py
+          -k "not health_and_installation_status_are_non_mutating_and_disabled and not absent_data_root_is_healthy_empty_and_remains_absent and not queries_reject_invalid_data_roots_without_mutation and not cli_exposes_service_health_list_and_show"
+      - name: Run unaffected CLI regressions
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        run: >-
+          python -m pytest -q tests/test_cli.py
+          -k "not doctor_reports_disabled_installation_without_execution"
+      - name: Verify portable identities and contract
+        env:
+          PYTHONPATH: components/worker-lab
+        run: |
+          python - <<'PY'
+          import importlib.util, json
+          from pathlib import Path
+          root = Path.cwd()
+          spec = importlib.util.spec_from_file_location('portable_verify', root / 'tools' / 'verify_portable_installation.py')
+          module = importlib.util.module_from_spec(spec)
+          assert spec is not None and spec.loader is not None
+          spec.loader.exec_module(module)
+          manifest = json.loads((root / 'config' / 'portable-installation-manifest.json').read_text(encoding='utf-8'))
+          for name in ('autonomous-worker-framework', 'worker-lab'):
+              result = module._inspect_component(root, name, manifest['components'][name])
+              assert result['status'] == 'MATCH'
+              print(name, result['file_count'], result['digest'], result['status'])
+          assert manifest['activation_policy']['execution_authority'] == 'DISABLED'
+          print('EXECUTION_AUTHORITY=DISABLED')
+          PY
+          python -m pytest -q tests/test_portable_installation.py
+      - name: Confirm capability qualification cannot default to provider execution
+        env:
+          PYTHONPATH: components/worker-lab
+        run: |
+          python - <<'PY'
+          import inspect
+          from worker_lab.provider_qualification import qualify_provider_capabilities
+          parameter = inspect.signature(qualify_provider_capabilities).parameters['probe_runner']
+          assert parameter.default is inspect.Parameter.empty
+          print('EXPLICIT_PROBE_RUNNER_REQUIRED')
+          PY
+      - name: Confirm known legacy manifest boundary remains isolated
+        working-directory: components/worker-lab
+        env:
+          PYTHONPATH: .
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q \
+            tests/test_application_service.py::test_health_and_installation_status_are_non_mutating_and_disabled \
+            tests/test_cli.py::test_doctor_reports_disabled_installation_without_execution \
+            > /tmp/task6-known-boundary.log 2>&1
+          code=$?
+          set -e
+          test "$code" -ne 0
+          grep -q 'framework runtime closure is incomplete' /tmp/task6-known-boundary.log
+          echo 'KNOWN_LEGACY_MANIFEST_BOUNDARY=CONFIRMED'
