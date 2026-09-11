@@ -1,0 +1,31 @@
+name: Task 7 Service Structure
+on:
+  push:
+    branches: [task7-obsolete-cleanup-temp]
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+          for rel in [
+              'components/worker-lab/worker_lab/application_service.py',
+              'components/worker-lab/worker_lab/operator_control.py',
+              'components/worker-lab/worker_lab/windows_job.py',
+          ]:
+              path=Path(rel); tree=ast.parse(path.read_text())
+              print(f'=== {rel} ===')
+              for node in tree.body:
+                  if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef)):
+                      print(type(node).__name__, node.name, node.lineno, node.end_lineno)
+                      if isinstance(node,ast.ClassDef) and node.name=='WorkerLabApplicationService':
+                          for child in node.body:
+                              if isinstance(child,(ast.FunctionDef,ast.AsyncFunctionDef)):
+                                  print('  method', child.name, child.lineno, child.end_lineno)
+          PY
