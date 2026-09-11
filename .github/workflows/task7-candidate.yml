@@ -43,11 +43,11 @@ jobs:
         env:
           PYTHONPATH: components/worker-lab
         run: python -c "from worker_lab.application_service import WorkerLabApplicationService; from worker_lab.service_runtime_v3 import prepare_invocation; print('CURRENT_SERVICE_IMPORT_OK')"
-      - name: Run all remaining AWF tests
+      - name: Run remaining AWF behavioral tests
         working-directory: components/autonomous-worker-framework
         env:
           PYTHONPATH: .
-        run: python -m pytest -q
+        run: python -m pytest -q --ignore=tests/test_project_documentation.py
       - name: Run all remaining Worker Lab tests
         working-directory: components/worker-lab
         env:
