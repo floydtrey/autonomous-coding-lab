@@ -1,6 +1,6 @@
 # Runtime Core Reconstruction Plan
 
-**Status:** approved plan; Tasks 1-4 complete; Task 5 next
+**Status:** approved plan; Tasks 1-5 complete; Task 6 next
 
 **Purpose:** reconstruct the ACL execution/runtime shell around the accepted Worker Lab authority model so the active tree is provider-neutral, model-swappable, host-portable, target-system-centered, and no longer carries obsolete Codex/Terra/Mine Tracker commissioning paths.
 
@@ -348,12 +348,29 @@ Task 7. No provider/model request was sent and execution remains `DISABLED`.
 
 ### Task 5 — migrate application service and current result acceptance
 
+**Status:** complete in the Task 5 reconstruction checkpoint.
+
 - migrate only the invocation/dispatch/recovery portion of `application_service.py`;
 - preserve accepted lifecycle/storage/policy/test behavior;
 - separate platform-specific workspace/process evidence from generic result acceptance;
 - keep Git-specific workspace evidence behind the coding-workspace boundary instead of treating it as universal system identity.
 
 **Stop gate:** current Worker Lab service path uses only V3/current dispatch contracts.
+
+**Accepted Task 5 boundary:** current public application-service preparation,
+authorization, dispatch, recovery, and workspace-write candidate review use
+Invocation/Result V3 and the provider-neutral dispatch seam. Preparation requires an
+explicit logical target plus the exact durable Provider Binding and exact Controller
+Task Packet; authorization rechecks both before transition. Dispatch has no implicit
+runner/provider fallback. Candidate acceptance depends on complete durable custody,
+independent sealed tests, and independently observed Git workspace evidence rather
+than trusting the worker/framework success claim. The Context Manifest continues to
+bind all protected source context, while V3 readable scope excludes paths already in
+the writable scope so one path is not granted through conflicting authority classes.
+Git facts remain coding-workspace evidence, not ACL target identity. Historical V2
+records/private helpers remain only as temporary Task 7 deletion debt and are not the
+current public dispatch path. No provider/model request was sent and execution
+remains `DISABLED`.
 
 ### Task 6 — provider qualification refinement
 
@@ -433,7 +450,7 @@ Do not:
 - Stop at architectural ambiguity rather than silently choosing a more permissive design.
 - After every task, keep the tree clean and update this plan/current state only with accepted evidence.
 
-## New-chat startup / Task 5 boundary
+## New-chat startup / Task 6 boundary
 
 A fresh implementation chat should read, in this order:
 
@@ -441,6 +458,12 @@ A fresh implementation chat should read, in this order:
 2. `docs/START_HERE.md`
 3. `docs/CURRENT_STATE.md`
 4. `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`
-5. only the current source/tests directly relevant to **Task 5**
+5. only the current source/tests directly relevant to **Task 6**
 
-Then inspect the current branch/HEAD and working tree. Perform **Task 5 only**: migrate the invocation/dispatch/recovery portion of `application_service.py` onto Invocation/Result V3 and the accepted provider-neutral dispatch seam while preserving stable lifecycle, storage, policy, test, custody, and independent result-acceptance behavior. Keep Git-specific workspace evidence behind the coding-workspace boundary. Do not refine provider qualification, adapt the real provider, delete legacy modules, redesign portable identity V2, or execute a provider/model in the same task.
+Then inspect the current branch/HEAD and working tree. Perform **Task 6 only**:
+separate installation observation from controlled provider capability qualification,
+bind explicit runtime/context settings, and adapt Pydantic/Ollama to consume the
+sealed Provider Binding/settings. Use deterministic or mocked provider behavior while
+implementing the contract. Do not perform an actual model capability run without a
+separate explicit authorization, delete legacy modules/configuration, redesign
+portable identity V2, or broaden the task into benchmark/model-role assignment.

@@ -106,6 +106,20 @@ from .windows_job import (
     workspace_content_digest,
 )
 
+from .integration_v3 import INVOCATION_SCHEMA_V3, InvocationRecordV3, ResultRecordV3
+from .service_runtime_v3 import (
+    WorkspaceDispatchRunner,
+    authorize_invocation as authorize_invocation_v3,
+    cancel_invocation as cancel_invocation_v3,
+    dispatch_invocation as dispatch_invocation_v3,
+    load_invocation_record,
+    load_result_record,
+    prepare_invocation as prepare_invocation_v3,
+    recover_invocation as recover_invocation_v3,
+    reject_invocation as reject_invocation_v3,
+    review_candidate as review_candidate_v3,
+)
+
 
 HEALTH_SCHEMA = "worker-lab-service-health:v1"
 INSTALLATION_STATUS_SCHEMA = "worker-lab-service-installation-status:v1"
@@ -306,7 +320,7 @@ class BackupResultDTO:
 @dataclass(frozen=True)
 class RecoveryResultDTO:
     controller_identity: str
-    invocation: InvocationRecord
+    invocation: InvocationRecord | InvocationRecordV3
     attempt: AttemptRecord
     custody: ProcessCustodyRecord
     workspace: WorkspaceLaunchEvidence
@@ -421,6 +435,7 @@ class WorkerLabApplicationService:
         read_only_adapter: ReadOnlyAdapter | None = None,
         workspace_write_adapter: WorkspaceWriteAdapter | None = None,
         sealed_test_executor: SealedTestExecutor | None = None,
+        workspace_dispatch_runner: WorkspaceDispatchRunner | None = None,
     ) -> None:
         if not isinstance(data_root, Path) or not data_root.is_absolute():
             raise LabValidationError("SERVICE_DATA_ROOT_INVALID", "service data root must be absolute")
@@ -430,6 +445,8 @@ class WorkerLabApplicationService:
             raise LabValidationError("SERVICE_COMMAND_INVALID", "workspace-write adapter must be callable")
         if sealed_test_executor is not None and not callable(sealed_test_executor):
             raise LabValidationError("SERVICE_COMMAND_INVALID", "sealed test executor must be callable")
+        if workspace_dispatch_runner is not None and not callable(workspace_dispatch_runner):
+            raise LabValidationError("SERVICE_COMMAND_INVALID", "V3 workspace dispatch runner must be callable")
         if custody_backend is not None and (
             not isinstance(getattr(custody_backend, "backend_id", None), str)
             or not callable(getattr(custody_backend, "absence_evidence_after_controller_exit", None))
@@ -441,6 +458,7 @@ class WorkerLabApplicationService:
         self._read_only_adapter = read_only_adapter or _execute_read_only_adapter
         self._workspace_write_adapter = workspace_write_adapter or _execute_workspace_write_adapter
         self._sealed_test_executor = sealed_test_executor or _run_sealed_test
+        self._workspace_dispatch_runner = workspace_dispatch_runner
 
     def installation_status(self) -> InstallationStatusDTO:
         _, report = inspect_installation()
@@ -502,6 +520,184 @@ class WorkerLabApplicationService:
         )
 
     def review_candidate(self, attempt_id: str) -> CandidateReviewDTO:
+        attempt_id = _identity(attempt_id)
+        self._require_present_data_root()
+        timeline = self.show_attempt_timeline(attempt_id)
+        attempt = AttemptRecord.from_mapping(timeline.attempt.record)
+        if attempt.candidate_digest is None:
+            raise LabValidationError(
+                "SERVICE_CANDIDATE_MISSING", "attempt has no retained candidate identity"
+            )
+        if len(timeline.invocations) != 1 or len(timeline.results) != 1 or len(timeline.custody) != 1:
+            raise LabValidationError(
+                "SERVICE_CANDIDATE_IDENTITY_INVALID",
+                "candidate requires exactly one invocation, result, and custody record",
+            )
+        if timeline.invocations[0].record.get("schema_version") != INVOCATION_SCHEMA_V3:
+            return self._legacy_review_candidate(attempt_id)
+        invocation = InvocationRecordV3.from_mapping(timeline.invocations[0].record)
+        result = ResultRecordV3.from_mapping(timeline.results[0].record)
+        custody = ProcessCustodyRecord.from_mapping(timeline.custody[0].record)
+        reviewed = review_candidate_v3(
+            self.data_root / "state",
+            attempt=attempt,
+            invocation=invocation,
+            result=result,
+            custody=custody,
+        )
+        evidence = tuple(
+            item for item in timeline.evidence
+            if verify_evidence(self.data_root, item.summary.identity).attempt_id == attempt_id
+        )
+        return CandidateReviewDTO(
+            WORKSPACE_WRITE_CANDIDATE_REVIEW_SCHEMA,
+            attempt.candidate_digest,
+            timeline.attempt,
+            timeline.invocations[0],
+            timeline.results[0],
+            timeline.custody[0],
+            reviewed.retained_framework_candidate_digest,
+            reviewed.changed_paths,
+            tuple(stage.to_dict() for stage in reviewed.validation_stages),
+            evidence,
+            timeline.failures,
+            reviewed.first_failure_boundary,
+        )
+
+    def prepare_invocation(
+        self,
+        attempt_id: str,
+        workspace_root: Path,
+        prompt: str,
+        *,
+        logical_target_id: str,
+        provider_binding_id: str,
+        provider_binding_digest: str,
+    ) -> OperationResultDTO:
+        attempt_id = _identity(attempt_id)
+        workspace_root = _absolute_path_argument(workspace_root, "workspace root")
+        self._require_present_data_root()
+        invocation = prepare_invocation_v3(
+            self.data_root,
+            attempt_id=attempt_id,
+            workspace_root=workspace_root,
+            prompt=prompt,
+            logical_target_id=logical_target_id,
+            provider_binding_id=provider_binding_id,
+            provider_binding_digest=provider_binding_digest,
+        )
+        return _operation_result(
+            "prepare-invocation",
+            "invocation",
+            invocation.invocation_id,
+            invocation,
+        )
+
+    def authorize_invocation(
+        self,
+        invocation_id: str,
+        expected_identity_digest: str,
+        controller_identity: str,
+    ) -> OperationResultDTO:
+        invocation_id = _identity(invocation_id)
+        self._require_present_data_root()
+        invocation = authorize_invocation_v3(
+            self.data_root,
+            invocation_id=invocation_id,
+            expected_identity_digest=expected_identity_digest,
+            controller_identity=controller_identity,
+            authorized_at=self._clock(),
+        )
+        return _operation_result(
+            "authorize-invocation", "invocation", invocation_id, invocation
+        )
+
+    def reject_invocation(
+        self,
+        invocation_id: str,
+        expected_identity_digest: str,
+    ) -> OperationResultDTO:
+        invocation_id = _identity(invocation_id)
+        self._require_present_data_root()
+        invocation = reject_invocation_v3(
+            self.data_root,
+            invocation_id=invocation_id,
+            expected_identity_digest=expected_identity_digest,
+        )
+        return _operation_result(
+            "reject-invocation", "invocation", invocation_id, invocation
+        )
+
+    def cancel_invocation(
+        self,
+        invocation_id: str,
+        expected_identity_digest: str,
+        controller_identity: str,
+    ) -> OperationResultDTO:
+        invocation_id = _identity(invocation_id)
+        self._require_present_data_root()
+        invocation = cancel_invocation_v3(
+            self.data_root,
+            invocation_id=invocation_id,
+            expected_identity_digest=expected_identity_digest,
+            controller_identity=controller_identity,
+        )
+        return _operation_result(
+            "cancel-invocation", "invocation", invocation_id, invocation
+        )
+
+    def dispatch_invocation(
+        self,
+        invocation_id: str,
+        expected_identity_digest: str,
+        controller_identity: str,
+        workspace_root: Path,
+    ) -> OperationResultDTO:
+        invocation_id = _identity(invocation_id)
+        workspace_root = _absolute_path_argument(workspace_root, "workspace root")
+        self._require_present_data_root()
+        attempt = dispatch_invocation_v3(
+            self.data_root,
+            invocation_id=invocation_id,
+            expected_identity_digest=expected_identity_digest,
+            controller_identity=controller_identity,
+            workspace_root=workspace_root,
+            clock=self._clock,
+            workspace_dispatch_runner=self._workspace_dispatch_runner,
+            sealed_test_executor=self._sealed_test_executor,
+        )
+        return _operation_result(
+            "dispatch-invocation", "attempt", attempt.attempt_id, attempt
+        )
+
+    def recover_invocation(
+        self,
+        invocation_id: str,
+        expected_identity_digest: str,
+        controller_identity: str,
+        workspace_root: Path,
+    ) -> RecoveryResultDTO:
+        invocation_id = _identity(invocation_id)
+        workspace_root = _absolute_path_argument(workspace_root, "workspace root")
+        self._require_present_data_root()
+        recovered = recover_invocation_v3(
+            self.data_root,
+            invocation_id=invocation_id,
+            expected_identity_digest=expected_identity_digest,
+            controller_identity=controller_identity,
+            workspace_root=workspace_root,
+            clock=self._clock,
+            custody_backend=self._custody_backend,
+        )
+        return RecoveryResultDTO(
+            recovered.controller_identity,
+            recovered.invocation,
+            recovered.attempt,
+            recovered.custody,
+            recovered.workspace,
+        )
+
+    def _legacy_review_candidate(self, attempt_id: str) -> CandidateReviewDTO:
         attempt_id = _identity(attempt_id)
         self._require_present_data_root()
         timeline = self.show_attempt_timeline(attempt_id)
@@ -722,7 +918,7 @@ class WorkerLabApplicationService:
         attempts.save_transition(updated)
         return _operation_result("transition-attempt", "attempt", attempt_id, updated)
 
-    def prepare_invocation(
+    def _legacy_prepare_invocation(
         self,
         attempt_id: str,
         workspace_root: Path,
@@ -862,7 +1058,7 @@ class WorkerLabApplicationService:
             invocation,
         )
 
-    def authorize_invocation(
+    def _legacy_authorize_invocation(
         self,
         invocation_id: str,
         expected_identity_digest: str,
@@ -893,7 +1089,7 @@ class WorkerLabApplicationService:
             authorized,
         )
 
-    def reject_invocation(
+    def _legacy_reject_invocation(
         self,
         invocation_id: str,
         expected_identity_digest: str,
@@ -917,7 +1113,7 @@ class WorkerLabApplicationService:
             rejected,
         )
 
-    def cancel_invocation(
+    def _legacy_cancel_invocation(
         self,
         invocation_id: str,
         expected_identity_digest: str,
@@ -948,7 +1144,7 @@ class WorkerLabApplicationService:
             cancelled,
         )
 
-    def dispatch_invocation(
+    def _legacy_dispatch_invocation(
         self,
         invocation_id: str,
         expected_identity_digest: str,
@@ -1106,7 +1302,7 @@ class WorkerLabApplicationService:
             candidate,
         )
 
-    def recover_invocation(
+    def _legacy_recover_invocation(
         self,
         invocation_id: str,
         expected_identity_digest: str,
@@ -1786,7 +1982,7 @@ def _operation_result(
         resource_type,
         _identity(identity),
         record.digest(),
-        record.identity_digest() if isinstance(record, InvocationRecord) else None,
+        record.identity_digest() if isinstance(record, (InvocationRecord, InvocationRecordV3)) else None,
         record.to_dict(),
     )
 
@@ -2111,9 +2307,9 @@ _COLLECTION_SPECS: Mapping[str, _CollectionSpec] = {
     "evidence": _CollectionSpec("state", "evidence", EvidenceRecord.from_mapping, lambda item: item.evidence_digest, _state("verification_state")),
     "exercises": _CollectionSpec("curricula", "exercises", ExerciseRecord.from_mapping, lambda item: _versioned(item.exercise_id, item.exercise_version), _none),
     "failures": _CollectionSpec("state", "failures", FailureRecord.from_mapping, lambda item: item.failure_id, _state("classification")),
-    "invocations": _CollectionSpec("state", "invocations", InvocationRecord.from_mapping, lambda item: item.invocation_id, _state("state")),
+    "invocations": _CollectionSpec("state", "invocations", load_invocation_record, lambda item: item.invocation_id, _state("state")),
     "policies": _CollectionSpec("curricula", "policies", PolicyRecord.from_mapping, lambda item: _versioned(item.policy_id, item.policy_version), _none),
-    "results": _CollectionSpec("state", "results", ResultRecord.from_mapping, lambda item: item.invocation_id, _state("process_outcome")),
+    "results": _CollectionSpec("state", "results", load_result_record, lambda item: item.invocation_id, _state("process_outcome")),
     "roles": _CollectionSpec("curricula", "roles", RoleRecord.from_mapping, lambda item: _versioned(item.role_id, item.role_version), _none),
 }
 
