@@ -1,0 +1,22 @@
+name: Task 6 Inventory
+on:
+  push:
+    branches: [task6-provider-qualification]
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inventory provider qualification and executor seams
+        shell: bash
+        run: |
+          echo '=== create_provider_binding ==='
+          grep -RIn --exclude-dir=.git 'create_provider_binding' components || true
+          echo '=== HostProviderQualification ==='
+          grep -RIn --exclude-dir=.git 'HostProviderQualification' components || true
+          echo '=== BoundProviderExecutor ==='
+          grep -RIn --exclude-dir=.git 'BoundProviderExecutor' components || true
+          echo '=== execute_pydantic_ollama ==='
+          grep -RIn --exclude-dir=.git 'execute_pydantic_ollama' components || true
+          echo '=== provider_runtime_qualified ==='
+          grep -RIn --exclude-dir=.git 'provider_runtime_qualified' components config docs/CURRENT_STATE.md docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md || true
