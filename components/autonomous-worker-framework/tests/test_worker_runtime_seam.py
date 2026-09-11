@@ -3,9 +3,8 @@ import subprocess
 from dataclasses import replace
 
 from tools.code_task import build_code_task, run_code_task
-from tools.codex_runtime import codex_command
 from tools.consumer_profile import MINE_TRACKER_PROFILE, ValidationCommand, build_context_packet
-from tools.worker_runtime import WorkerExecution, WorkerRequest
+from tools.worker_runtime import PROVIDER_QUALIFIED, WorkerExecution, WorkerRequest
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -63,11 +62,13 @@ def test_code_task_uses_provider_neutral_worker_request(tmp_path):
     assert type(observed[0]) is WorkerRequest
     assert observed[0].sandbox == "workspace-write"
     assert observed[0].target_repo == root
+    assert observed[0].model == PROVIDER_QUALIFIED
+    assert observed[0].reasoning_effort == PROVIDER_QUALIFIED
     assert result.changed_paths == ("tests/test_assets.py",)
     assert result.worker_response == "implemented"
 
 
-def test_worker_request_remains_compatible_with_legacy_codex_command(tmp_path):
+def test_worker_request_does_not_select_a_provider(tmp_path):
     target = _repo(tmp_path)
     framework = tmp_path / "framework"
     framework.mkdir()
@@ -78,10 +79,8 @@ def test_worker_request_remains_compatible_with_legacy_codex_command(tmp_path):
         sandbox="workspace-write",
     )
 
-    command = codex_command(request, executable="codex")
-
-    assert command[0] == "codex"
-    assert "--sandbox" in command
-    assert "workspace-write" in command
-    assert "--model" in command
-    assert request.model in command
+    assert request.model == PROVIDER_QUALIFIED
+    assert request.reasoning_effort == PROVIDER_QUALIFIED
+    assert request.timeout_seconds == 900
+    assert request.target_repo == target
+    assert request.framework_repo == framework
