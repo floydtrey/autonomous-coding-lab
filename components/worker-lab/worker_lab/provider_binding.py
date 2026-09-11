@@ -123,9 +123,7 @@ def create_provider_binding(
         or qualification.runtime_settings_digest != settings.digest()
         or qualification.requested_context_tokens != settings.requested_context_tokens
         or qualification.effective_context_tokens < settings.requested_context_tokens
-        or qualification.execution_authority != "DISABLED"
         or qualification.capability_qualified is not True
-        or qualification.execution_ready is not False
     ):
         raise LabValidationError(
             "PROVIDER_BINDING_QUALIFICATION_INVALID",

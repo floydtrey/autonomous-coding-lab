@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 import pytest
@@ -26,16 +25,6 @@ from worker_lab.provider_qualification import (
 
 DIGEST_A = "sha256:" + "a" * 64
 DIGEST_B = "sha256:" + "b" * 64
-
-
-def _repository(tmp_path: Path, *, authority: str = "DISABLED") -> Path:
-    root = tmp_path / "repo"
-    (root / "config").mkdir(parents=True)
-    (root / "config" / "portable-installation-manifest.json").write_text(
-        json.dumps({"activation_policy": {"execution_authority": authority}}),
-        encoding="utf-8",
-    )
-    return root
 
 
 def _executable(tmp_path: Path) -> Path:
@@ -122,12 +111,10 @@ def _passing_probe(request, *, prompt_tokens=None):
 
 
 def test_installation_observation_records_metadata_without_claiming_capability(tmp_path):
-    root = _repository(tmp_path)
     executable = _executable(tmp_path)
     calls, http_json = _metadata_reader(context=8_192, capabilities=("completion",))
     observation = inspect_provider_installation(
         model="qwen2.5-coder:7b",
-        repository_root=root,
         executable_resolver=lambda _: str(executable),
         version_reader=lambda _: "ollama version 0.33.3",
         distribution_reader=lambda _: ("2.40.0", DIGEST_A),
@@ -158,7 +145,6 @@ def test_controlled_probe_seals_tool_and_context_evidence():
     assert len(requests) == 1
     assert qualified.installation_observation_digest == observed.digest()
     assert qualified.capability_qualified is True
-    assert qualified.execution_ready is False
     assert qualified.requested_context_tokens == 32_768
     assert qualified.effective_context_tokens == 32_768
     assert ProviderCapabilityQualification.from_mapping(qualified.to_dict()) == qualified

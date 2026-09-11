@@ -55,7 +55,7 @@ RECOVERY_CLEANUP_OUTCOME = (
     "adapter absence and unchanged workspace verified; workspace retained"
 )
 _DIGEST_PREFIX = "sha256:"
-_PORTABLE_SCHEMA = "acl-portable-installation-manifest:v1"
+_SOURCE_SCHEMA = "acl-portable-source-manifest:v2"
 
 Clock = Callable[[], str]
 WorkspaceDispatchRunner = Callable[
@@ -1108,7 +1108,7 @@ def _require_no_dispatch_artifacts(state_root: Path, invocation_id: str) -> None
 
 def _current_source_digests() -> tuple[str, str]:
     root = Path(__file__).resolve().parents[3]
-    manifest_path = root / "config" / "portable-installation-manifest.json"
+    manifest_path = root / "config" / "portable-source-manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -1117,19 +1117,29 @@ def _current_source_digests() -> tuple[str, str]:
             "portable source manifest is unavailable or invalid",
         ) from exc
     try:
-        authority = manifest["activation_policy"]["execution_authority"]
         components = manifest["components"]
         worker = components["worker-lab"]
         framework = components["autonomous-worker-framework"]
+        separation = manifest["separation_policy"]
     except (KeyError, TypeError) as exc:
         raise LabValidationError(
             "INTEGRATION_V3_SOURCE_IDENTITY_INVALID",
             "portable source manifest fields are invalid",
         ) from exc
-    if manifest.get("schema_version") != _PORTABLE_SCHEMA or authority != "DISABLED":
+    expected_separation = {
+        "host_qualification": "separate-evidence",
+        "provider_capability_qualification": "separate-evidence",
+        "local_activation": "local-operator-state",
+        "task_authorization": "worker-lab-invocation-v3",
+    }
+    if (
+        manifest.get("schema_version") != _SOURCE_SCHEMA
+        or manifest.get("source_identity_id") != "acl-runtime-source:v2"
+        or separation != expected_separation
+    ):
         raise LabValidationError(
             "INTEGRATION_V3_SOURCE_IDENTITY_INVALID",
-            "current source identity must remain on the DISABLED portable baseline",
+            "current portable source identity differs",
         )
     worker_digest = _component_digest(root, worker)
     framework_digest = _component_digest(root, framework)

@@ -60,7 +60,6 @@ def installation_observation(
         "model_metadata_digest": model_metadata_digest,
         "model_context_tokens": model_context_tokens,
         "model_capabilities": list(model_capabilities),
-        "execution_authority": "DISABLED",
     })
 
 
@@ -84,7 +83,7 @@ def capability_qualification(
     ).digest()
     return ProviderCapabilityQualification.from_mapping({
         "schema_version": CAPABILITY_QUALIFICATION_SCHEMA,
-        "qualification_version": 1,
+        "qualification_version": 2,
         "installation_observation_digest": observation_digest,
         "candidate_id": candidate.candidate_id,
         "candidate_version": candidate.candidate_version,
@@ -105,7 +104,5 @@ def capability_qualification(
         "tool_evidence_digest": tool_evidence_digest,
         "context_fixture_id": CONTEXT_CAPABILITY_FIXTURE_ID,
         "context_evidence_digest": context_evidence_digest,
-        "execution_authority": "DISABLED",
         "capability_qualified": True,
-        "execution_ready": False,
     })

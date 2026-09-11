@@ -23,12 +23,19 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value), encoding="utf-8")
 
 
-def test_doctor_reports_disabled_installation_without_execution(capsys) -> None:
+def test_doctor_reports_source_identity_without_activation_claims(capsys) -> None:
     assert main(["doctor"]) == 0
     report = json.loads(capsys.readouterr().out)
-    assert report["schema_version"] == "worker-lab-installation-doctor:v2"
-    assert report["execution_authority"] == "DISABLED"
-    assert report["execution_ready"] is False
+    assert report["schema_version"] == "worker-lab-source-doctor:v3"
+    assert report["source_identity_id"] == "acl-runtime-source:v2"
+    assert "execution_authority" not in report
+
+
+def test_source_status_uses_current_source_identity_contract(capsys) -> None:
+    assert main(["source-status"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["schema_version"] == "worker-lab-service-source-status:v1"
+    assert report["source_identity"]["source_identity_id"] == "acl-runtime-source:v2"
 
 
 
