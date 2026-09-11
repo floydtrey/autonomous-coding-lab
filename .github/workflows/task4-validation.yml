@@ -25,6 +25,28 @@ jobs:
             rm .task4/dispatch_adapter.py.gz
           fi
 
+      - name: Apply bound-provider failure guard candidate
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          adapter = Path("components/autonomous-worker-framework/tools/dispatch_adapter.py")
+          source = adapter.read_text(encoding="utf-8")
+          if "def execute_bound(request: WorkerRequest)" not in source:
+              old = '''        result = run_code_task(\n            contract,\n            context,\n            repo_root=root,\n            framework_repo=framework,\n            executor=provider_executor.execute,\n            profile=profile,\n        )\n'''
+              new = '''        def execute_bound(request: WorkerRequest) -> WorkerExecution:\n            execution = provider_executor.execute(request)\n            if not isinstance(execution, WorkerExecution) or execution.returncode != 0:\n                raise DispatchAdapterError(\n                    "DISPATCH_PROVIDER_FAILED",\n                    "bound provider executor did not complete successfully",\n                )\n            return execution\n\n        result = run_code_task(\n            contract,\n            context,\n            repo_root=root,\n            framework_repo=framework,\n            executor=execute_bound,\n            profile=profile,\n        )\n'''
+              if old not in source:
+                  raise SystemExit("provider execution block differs from reviewed candidate")
+              adapter.write_text(source.replace(old, new), encoding="utf-8")
+
+          test = Path("components/autonomous-worker-framework/tests/test_dispatch_adapter.py")
+          source = test.read_text(encoding="utf-8")
+          if "def test_nonzero_provider_result_is_rejected_even_when_workspace_would_validate" not in source:
+              source += '''\n\ndef test_nonzero_provider_result_is_rejected_even_when_workspace_would_validate(tmp_path):\n    root, base_commit = repo(tmp_path)\n    framework = tmp_path / "framework"\n    framework.mkdir()\n    raw, _, binding, _, binding_digest = request(root, base_commit)\n    called = False\n\n    def failed(worker_request):\n        nonlocal called\n        called = True\n        (root / "target.py").write_text("VALUE = 2\\n", encoding="utf-8")\n        return WorkerExecution(("fake-provider",), 7, "partial output", "provider failed")\n\n    handle = BoundProviderExecutor(\n        provider_adapter_id=binding["provider_adapter_id"],\n        tool_surface_id=binding["tool_surface_id"],\n        provider_binding_digest=binding_digest,\n        runtime_settings_digest=binding["runtime_settings_digest"],\n        execute=failed,\n    )\n    with pytest.raises(DispatchAdapterError) as error:\n        execute_workspace_write(\n            raw,\n            workspace_root=root,\n            framework_root=framework,\n            provider_executor=handle,\n        )\n    assert error.value.code == "DISPATCH_PROVIDER_FAILED"\n    assert called is True\n    assert git(root, "rev-parse", "HEAD") == base_commit\n'''
+              test.write_text(source, encoding="utf-8")
+          PY
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -85,13 +107,13 @@ jobs:
               assert client[name] == adapter[name], (name, client[name], adapter[name])
           PY
 
-      - name: Commit materialized candidate on temporary branch
+      - name: Commit validated candidate on temporary branch
         shell: bash
         run: |
-          if ! git diff --quiet -- components/autonomous-worker-framework/tools/dispatch_adapter.py .task4; then
+          if ! git diff --quiet -- components/autonomous-worker-framework/tools/dispatch_adapter.py components/autonomous-worker-framework/tests/test_dispatch_adapter.py .task4; then
             git config user.name "Task 4 Validation"
             git config user.email "actions@users.noreply.github.com"
-            git add components/autonomous-worker-framework/tools/dispatch_adapter.py .task4
-            git commit -m "chore: materialize Task 4 dispatch adapter"
+            git add components/autonomous-worker-framework/tools/dispatch_adapter.py components/autonomous-worker-framework/tests/test_dispatch_adapter.py .task4
+            git commit -m "test: fail closed on provider execution failure"
             git push origin HEAD:task4-validation-temp
           fi
