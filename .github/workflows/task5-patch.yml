@@ -19,6 +19,27 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install pytest
+      - name: Repair staging patcher anchor
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.task5/patch_task5.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''anchor = "    def _legacy_review_candidate(\\n"
+          if anchor not in text:
+              raise SystemExit("current method insertion anchor missing")
+          text = text.replace(anchor, current_methods + anchor, 1)
+          '''
+          new = '''match = re.search(r"(?m)^    def _legacy_review_candidate(?=\\()", text)
+          if match is None:
+              raise SystemExit("current method insertion anchor missing")
+          text = text[:match.start()] + current_methods + text[match.start():]
+          '''
+          if old not in text:
+              raise SystemExit('staging patcher repair anchor differs')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Apply service migration once
         shell: bash
         run: |
