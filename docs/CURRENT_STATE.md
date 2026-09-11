@@ -24,14 +24,14 @@ ACL is being reconstructed as a **system**, not as a repository wrapper. A Git r
 - Knowledge Core Consumer V1 at `37f08f4090d59573108100ddf1b35a4923f01c29` returns verified segment content with exact provenance while preserving canonical evidence and privacy/serving checks.
 - Portable ACL component identity separates committed component/source identity from per-host provider qualification, although the current portable-host contract still contains Windows-specific assumptions that are scheduled for reconstruction.
 - Controller Task Packet V1 seals the user request and exact Knowledge Core evidence as informational context without granting authority.
-- Runtime Selection V1 at `0ad1b212581fb7b18110b9155763bf49b42df442` protects the provider-neutral `coding-worker:v1` capability requirement.
+- Runtime Selection V1 at `0ad1b212581fb7b18110b9155763bf49b42df442` protects the historical `coding-worker:v1` capability requirement used by the still-live V2 application seam.
 - Generic framework `WorkerRequest` no longer has an implicit Codex executor fallback.
 
 ## Host Provider Qualification Contract V1 — accepted baseline
 
 The first protected provider candidate is **Pydantic AI core + Ollama**, not the full Pydantic AI Harness.
 
-The current accepted baseline candidate maps `coding-worker:v1` to:
+The current accepted baseline candidate maps historical `coding-worker:v1` qualification evidence to:
 
 ```text
 candidate: pydantic-ai-ollama-files
@@ -45,11 +45,11 @@ allowed effects: bounded file read/write only
 forbidden effects: approval, git, network, process, publication, shell
 ```
 
-The existing qualification mechanism is observation-only and does not send a chat/completion request or enable execution. The focused gate passed 31 tests. The measured Worker Lab production tree is `sha256:52086119d189f41aa6ab708f7e03ce57a1cc70c3b4eaaeffd661556917115b67` across 28 files. Portable verification reported all three components `MATCH`, `provider_runtime_qualified=false`, `execution_authority=DISABLED`, and `execution_ready=false`, with a clean working tree.
+The existing qualification mechanism is observation-only and does not send a chat/completion request or enable execution. The focused gate passed 31 tests. The measured Worker Lab production tree at that baseline was `sha256:52086119d189f41aa6ab708f7e03ce57a1cc70c3b4eaaeffd661556917115b67` across 28 files. Portable verification reported all three components `MATCH`, `provider_runtime_qualified=false`, `execution_authority=DISABLED`, and `execution_ready=false`, with a clean working tree.
 
 Commit `81882c94798de80af4d54f04f52e545e4ab3c8cb` records the accepted Worker Lab portable identity for that contract baseline.
 
-The reconstruction plan will refine this area before first execution: provider installation metadata will not be treated as proof of end-to-end tool/context capability, and behavior-bearing runtime settings must be sealed explicitly in Provider Binding rather than inherited from provider defaults.
+The reconstruction plan will refine provider qualification before first execution: provider installation metadata will not be treated as proof of end-to-end tool/context capability. Task 3 now seals behavior-bearing runtime settings in Provider Binding; Task 6 remains responsible for controlled capability qualification and making the provider adapter consume those sealed settings.
 
 ## Bounded Pydantic/Ollama worker adapter — accepted baseline
 
@@ -67,7 +67,7 @@ Accepted behavior includes:
 - bounded model requests/tool calls/tool execution/concurrency/output;
 - no exposed shell, Git, arbitrary process, publication, approval, directory-enumeration, or arbitrary network tool.
 
-The deterministic focused adapter gate passed 14 tests. The portable-verifier contract regression passed 4 tests. The accepted Windows portable verification reported:
+The deterministic focused adapter gate passed 14 tests. The portable-verifier contract regression passed 4 tests. The accepted Windows portable verification for that baseline reported:
 
 - Autonomous Worker Framework: `sha256:cb76f6ed59a5fb57b5b22faa31103fd285302b042b2bb3af7722b41e580d1414` across 10 files — `MATCH`;
 - Local Model Bench: `sha256:139331ea42c914575d1119125a702ac5de2129b9bedc235bfc189700e8265afc` across 10 files — `MATCH`;
@@ -181,6 +181,60 @@ occur before the affected application/runtime tests reach custody behavior. The
 legacy manifest/loader was not expanded in Task 2 because it is scheduled for
 removal in Task 7. Native Windows Job Object execution was not performed.
 
+## Runtime reconstruction Task 3 — accepted checkpoint
+
+Task 3 introduces the provider-neutral authorization foundations without migrating
+the still-live V2 application/dispatch path and without executing a provider.
+
+Accepted changes:
+
+- historical `coding-worker:v1` and Host Provider Qualification V1 identities remain
+  unchanged for the legacy V2 seam; new `coding-worker:v2` is a separate
+  provider-neutral runtime requirement containing no fake `model` or
+  `reasoning_effort` selectors;
+- Provider Binding V1 seals the exact runtime-requirement digest, Host Provider
+  Qualification digest, provider adapter identity, tool-surface identity, exact
+  model identity/digests, and the protected behavior-bearing runtime-settings
+  profile before authorization;
+- the protected settings profile seals requested context (`32768`), request/tool
+  limits, tool timeout, retry counts, and concurrency. No temperature is invented
+  because the current adapter does not explicitly control one;
+- Invocation V3 binds logical `target:` and `workspace:` identities independent of
+  repository locator, Controller Task Packet/prompt identities, protected tests,
+  framework/source contract identities, exact read/write scope, runtime requirement,
+  and Provider Binding;
+- Git base commit and workspace digests are nested coding-workspace source evidence,
+  not ACL target identity;
+- the authorization transition requires the exact durable Provider Binding and
+  fails closed for missing, stale, invalid, or substituted binding evidence;
+- Result V3 preserves the existing independent-acceptance evidence needed for later
+  service migration, including request/invocation linkage, process/custody identity,
+  candidate/proposal digest, validation stages, containment outcome, exact changed
+  paths, and capability-specific Git result evidence;
+- model or harness qualification substitution invalidates the binding;
+- benchmark and controlled qualification evidence may later determine which exact
+  model/configuration is fit for an ACL role, but Task 3 does not select or hard-code
+  a preferred model;
+- the portable V1 Worker Lab production tree now contains 30 files and matches
+  `sha256:6172ab988f48896128beb143fc2f6bc0529d891b1eb2a5310f4016aad0bc6a25`;
+- execution authority remains `DISABLED`; no provider/model request was sent.
+
+Validation on the Task 3 candidate tree:
+
+- Python compilation passed;
+- required V2 compatibility plus Task 3 focused suites: 48 passed;
+- portable Worker Lab file-count/digest check: 30 files, exact manifest match;
+- portable installation contract tests: 4 passed;
+- isolated deterministic V3 contract harness: 20 passed;
+- legacy `framework_client.py` / `application_service.py` diagnostic: 23 passed and
+  29 failed, with all failures blocked by the already-known obsolete
+  `acl-installation-manifest:v2` framework-runtime-closure boundary before V3 logic.
+
+Task 3 intentionally does **not** migrate `framework_client.py`,
+`worker_lab_adapter.py`, or `application_service.py` to V3. That work remains
+ordered under Tasks 4–5 so the new contracts are not layered onto the obsolete
+Codex/installation-manifest shell.
+
 ## Current stop condition
 
 Execution remains disabled.
@@ -192,20 +246,17 @@ Do not:
 - preserve Codex/Terra as an automatic fallback path;
 - send Pydantic AI/Ollama chat or completion requests;
 - run a local coding model;
-- implement Provider Binding on top of the old runtime shell before the reconstruction tasks establish the new foundations;
+- bypass Provider Binding when authorizing a V3 invocation;
+- choose or substitute provider/model/runtime settings after V3 authorization;
 - mechanically delete legitimate Git workspace mechanics merely because ACL is moving away from repository-centered identity.
 
 ## Immediate next gate
 
-Begin only **Task 3 — Invocation/Result V3 + Provider Binding V1** from
+Begin only **Task 4 — generic dispatch client + dispatch adapter** from
 `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
 
-Task 3 must introduce logical target/workspace identity independent of repository
-locators, keep Git source-state facts capability-specific, seal provider/model/runtime
-settings before authorization, and add fail-closed binding tests without executing a
-provider. Repository-decoupling work still governed by the Task 1 inventory remains
-for backend-only locator placement during dispatch/service migration in Tasks 4–5,
-obsolete repository-centered path deletion in Task 7, and portable identity V2 plus
-documentation cleanup in Task 8.
-
-Do not begin Task 3 or any later task as part of the Task 2 checkpoint.
+Task 4 must replace the old `framework_client.py` / `worker_lab_adapter.py`
+responsibilities with a minimal provider-neutral dispatch seam, preserve explicit
+no-fallback behavior, and use injected fake provider executors only. Do not migrate
+the application service in the same task; that remains Task 5. Actual provider/model
+qualification and execution remain out of scope.

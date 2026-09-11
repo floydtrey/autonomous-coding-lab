@@ -1,6 +1,6 @@
 # Runtime Core Reconstruction Plan
 
-**Status:** approved plan; Tasks 1-2 complete; Task 3 not started
+**Status:** approved plan; Tasks 1-3 complete; Task 4 next
 
 **Purpose:** reconstruct the ACL execution/runtime shell around the accepted Worker Lab authority model so the active tree is provider-neutral, model-swappable, host-portable, target-system-centered, and no longer carries obsolete Codex/Terra/Mine Tracker commissioning paths.
 
@@ -292,6 +292,8 @@ reconstruction, provider qualification, or execution work was performed.
 
 ### Task 3 — Invocation/Result V3 + Provider Binding V1
 
+**Status:** complete in the Task 3 reconstruction checkpoint.
+
 - define exact immutable binding semantics;
 - introduce target/workspace identity independent of repository locator;
 - keep Git base-commit/repository facts capability-specific rather than universal where possible;
@@ -301,6 +303,24 @@ reconstruction, provider qualification, or execution work was performed.
 - no provider execution.
 
 **Stop gate:** provider/model/runtime settings cannot be chosen after authorization, and Invocation V3 does not use a repository locator as the logical target identity.
+
+**Accepted Task 3 boundary:** historical `coding-worker:v1` and Host Provider
+Qualification V1 identities remain unchanged for the still-live V2 seam. A separate
+provider-neutral `coding-worker:v2` requirement is used by Invocation V3 and carries
+no fake model/reasoning selectors. Provider Binding V1 seals the exact Host Provider
+Qualification digest, provider adapter/tool surface, exact model identities/digests,
+and protected behavior-bearing runtime settings before authorization. Invocation V3
+binds logical target/workspace, Controller Task Packet/prompt, framework/source,
+protected tests, exact scope, runtime requirement, and Provider Binding; Git base
+commit/workspace facts are nested coding-workspace source evidence rather than target
+identity. Authorization requires the exact durable binding and fails closed for
+missing, stale, invalid, or substituted binding evidence. Result V3 retains request
+linkage, custody/process identity, candidate/proposal identity, validation stages,
+containment outcome, exact changed paths, and nested Git result evidence needed for
+independent acceptance. Benchmark/qualification evidence may later decide which
+exact model/configuration fills a role; this contract does not choose a preferred
+model. The live application/dispatch path remains V2 until Tasks 4–5. No provider or
+model request was sent and execution remains `DISABLED`.
 
 ### Task 4 — generic dispatch client + dispatch adapter
 
@@ -398,7 +418,7 @@ Do not:
 - Stop at architectural ambiguity rather than silently choosing a more permissive design.
 - After every task, keep the tree clean and update this plan/current state only with accepted evidence.
 
-## New-chat startup / Task 1 boundary
+## New-chat startup / Task 4 boundary
 
 A fresh implementation chat should read, in this order:
 
@@ -406,6 +426,6 @@ A fresh implementation chat should read, in this order:
 2. `docs/START_HERE.md`
 3. `docs/CURRENT_STATE.md`
 4. `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`
-5. only the current source/tests directly relevant to **Task 1**
+5. only the current source/tests directly relevant to **Task 4**
 
-Then inspect the current branch/HEAD and working tree. Perform **Task 1 only**: first inventory and classify repository-bound assumptions so Git/repository remains a coding-workspace substrate rather than ACL system identity; then extract provider-neutral repository-state foundations and migrate the current consumers needed to remove their dependency on the old commissioning harness. Do not proceed into custody, Invocation V3, Provider Binding, dispatch reconstruction, deletion, or execution in the same task.
+Then inspect the current branch/HEAD and working tree. Perform **Task 4 only**: replace the old framework-client/worker-adapter responsibilities with the minimal provider-neutral dispatch client and adapter required by the accepted V3/Provider Binding contracts. Preserve exact no-fallback behavior, use injected fake provider executors only, and do not migrate `application_service.py`, refine provider qualification, delete legacy modules, or execute a provider/model in the same task.
