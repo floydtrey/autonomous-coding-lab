@@ -14,6 +14,9 @@ class WorkerRequest:
     Model and reasoning values describe a protected capability requirement, not
     a provider executable or model name. A host-qualified provider adapter must
     resolve them before execution without changing task scope or validation authority.
+
+    File scope is exact and pre-sealed by ACL. Provider adapters may expose only
+    these paths to the model; they must not infer authority from prompt text.
     """
 
     prompt: str
@@ -24,6 +27,8 @@ class WorkerRequest:
     reasoning_effort: str = PROVIDER_QUALIFIED
     timeout_seconds: int = 900
     output_last_message: Path | None = None
+    readable_paths: tuple[str, ...] = ()
+    writable_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

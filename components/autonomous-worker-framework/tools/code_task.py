@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Callable, Sequence
 
 try:
-    from tools.codex_runtime import execute_codex
     from tools.consumer_profile import (
         ConsumerProfile,
         MINE_TRACKER_PROFILE,
@@ -28,7 +27,6 @@ try:
     )
     from tools.worker_runtime import WorkerExecution, WorkerRequest
 except ModuleNotFoundError:  # direct execution support
-    from codex_runtime import execute_codex  # type: ignore
     from consumer_profile import (  # type: ignore
         ConsumerProfile, MINE_TRACKER_PROFILE, ValidationCommand, WorkerContextPacket,
         verify_context_packet,
@@ -153,17 +151,33 @@ def run_code_task(
     *,
     repo_root: Path,
     framework_repo: Path,
-    executor: Executor = execute_codex,
+    executor: Executor | None = None,
     profile: ConsumerProfile = MINE_TRACKER_PROFILE,
 ) -> CodeTaskResult:
     _verify_contract(contract, packet)
     verify_context_packet(packet, repo_root, profile=profile)
+    if executor is None:
+        raise CodeTaskError(
+            "CODE_TASK_EXECUTOR_REQUIRED",
+            "code-task execution requires an injected provider executor",
+        )
+    readable_paths = tuple(
+        sorted(
+            {
+                *(item.path for item in packet.authority_files),
+                *(item.path for item in packet.task_files),
+                *contract.expected_changed_paths,
+            }
+        )
+    )
     execution = executor(
         WorkerRequest(
             prompt=_implementation_prompt(contract, packet),
             target_repo=repo_root,
             framework_repo=framework_repo,
             sandbox="workspace-write",
+            readable_paths=readable_paths,
+            writable_paths=contract.expected_changed_paths,
         )
     )
     if repository_head(repo_root) != contract.repository_head:
