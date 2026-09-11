@@ -64,15 +64,25 @@ jobs:
           tests/test_runtime_selection_v3.py
 
       - name: Confirm client and adapter protocol constants agree
-        env:
-          PYTHONPATH: components/worker-lab:components/autonomous-worker-framework
+        shell: bash
         run: |
           python - <<'PY'
-          from worker_lab import dispatch_client
-          from tools import dispatch_adapter
-          assert dispatch_client.DISPATCH_REQUEST_SCHEMA == dispatch_adapter.DISPATCH_REQUEST_SCHEMA
-          assert dispatch_client.DISPATCH_RESPONSE_SCHEMA == dispatch_adapter.DISPATCH_RESPONSE_SCHEMA
-          assert dispatch_client.WORKSPACE_WRITE_TASK_SCHEMA == dispatch_adapter.WORKSPACE_WRITE_TASK_SCHEMA
+          import ast
+          from pathlib import Path
+
+          def constants(path):
+              tree = ast.parse(Path(path).read_text(encoding="utf-8"))
+              values = {}
+              for node in tree.body:
+                  if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                      if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                          values[node.targets[0].id] = node.value.value
+              return values
+
+          client = constants("components/worker-lab/worker_lab/dispatch_client.py")
+          adapter = constants("components/autonomous-worker-framework/tools/dispatch_adapter.py")
+          for name in ("DISPATCH_REQUEST_SCHEMA", "DISPATCH_RESPONSE_SCHEMA", "WORKSPACE_WRITE_TASK_SCHEMA"):
+              assert client[name] == adapter[name], (name, client[name], adapter[name])
           PY
 
       - name: Commit materialized candidate on temporary branch
