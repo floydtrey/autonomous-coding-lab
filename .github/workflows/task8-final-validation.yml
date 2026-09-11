@@ -68,8 +68,8 @@ jobs:
           from pathlib import Path
           import sys
           sys.path.insert(0,'components/worker-lab')
-          from worker_lab.provider_qualification import qualify_provider_capability
-          sig=inspect.signature(qualify_provider_capability)
+          from worker_lab.provider_qualification import qualify_provider_capabilities
+          sig=inspect.signature(qualify_provider_capabilities)
           assert sig.parameters['probe_runner'].default is inspect.Parameter.empty
           assert not Path('config/portable-installation-manifest.json').exists()
           assert not Path('tools/verify_portable_installation.py').exists()
