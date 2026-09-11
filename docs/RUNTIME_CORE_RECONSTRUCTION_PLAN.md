@@ -1,6 +1,6 @@
 # Runtime Core Reconstruction Plan
 
-**Status:** approved plan; Tasks 1-5 complete; Task 6 next
+**Status:** approved plan; Tasks 1-6 complete; Task 7 next
 
 **Purpose:** reconstruct the ACL execution/runtime shell around the accepted Worker Lab authority model so the active tree is provider-neutral, model-swappable, host-portable, target-system-centered, and no longer carries obsolete Codex/Terra/Mine Tracker commissioning paths.
 
@@ -374,6 +374,8 @@ remains `DISABLED`.
 
 ### Task 6 — provider qualification refinement
 
+**Status:** complete in the Task 6 reconstruction checkpoint.
+
 - separate installation observation from controlled capability qualification;
 - bind explicit runtime/context settings;
 - adapt Pydantic/Ollama to consume the sealed binding/settings;
@@ -381,6 +383,22 @@ remains `DISABLED`.
 - actual model qualification remains separately authorized.
 
 **Stop gate:** selecting another supported model requires qualification/binding data, not ACL source changes.
+
+**Accepted Task 6 boundary:** metadata-only installation observation no longer
+satisfies the current Provider Binding path. Current controlled capability
+qualification seals the exact observed installation/model, provider adapter/tool
+surface, V3 runtime requirement, protected runtime-settings digest, requested/effective
+context, and checked tool/context evidence. A capability probe runner must be supplied
+explicitly; Task 6 provides no default path that can silently launch a model. The
+Pydantic/Ollama adapter consumes the exact sealed request/tool limits, timeout,
+retries, and concurrency and fail-closes if settings or capability-qualified context
+do not match the binding. Because Ollama's OpenAI-compatible endpoint does not expose
+a truthful per-request context control, ACL proves the context target during
+qualification instead of fabricating a request setting. Selecting a different
+supported model is therefore observation + qualification + binding data, not an ACL
+source change. Historical Host Provider Qualification V1 remains temporarily
+parseable for reconstruction/Task 7 cleanup but cannot create a current binding. No
+actual model/provider capability run was performed and execution remains `DISABLED`.
 
 ### Task 7 — remove obsolete active-tree implementation
 
@@ -450,7 +468,7 @@ Do not:
 - Stop at architectural ambiguity rather than silently choosing a more permissive design.
 - After every task, keep the tree clean and update this plan/current state only with accepted evidence.
 
-## New-chat startup / Task 6 boundary
+## New-chat startup / Task 7 boundary
 
 A fresh implementation chat should read, in this order:
 
@@ -458,12 +476,12 @@ A fresh implementation chat should read, in this order:
 2. `docs/START_HERE.md`
 3. `docs/CURRENT_STATE.md`
 4. `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`
-5. only the current source/tests directly relevant to **Task 6**
+5. the Task 1 repository-coupling inventory and only current source/tests directly relevant to **Task 7**
 
-Then inspect the current branch/HEAD and working tree. Perform **Task 6 only**:
-separate installation observation from controlled provider capability qualification,
-bind explicit runtime/context settings, and adapt Pydantic/Ollama to consume the
-sealed Provider Binding/settings. Use deterministic or mocked provider behavior while
-implementing the contract. Do not perform an actual model capability run without a
-separate explicit authorization, delete legacy modules/configuration, redesign
-portable identity V2, or broaden the task into benchmark/model-role assignment.
+Then inspect the current branch/HEAD and working tree. Perform **Task 7 only**:
+remove obsolete active-tree Codex/Terra/Mine Tracker commissioning runtime,
+`acl-installation-manifest:v2`, synthetic historical execution paths, and stale
+repository-as-system assumptions that the accepted V3/provider-neutral path no longer
+needs. Preserve justified Git-backed workspace/evidence mechanics. Do not redesign
+portable identity V2, broadly rewrite current documentation beyond deletion fallout,
+or perform an actual provider/model capability run.

@@ -159,7 +159,7 @@ class DispatchAdapterError(RuntimeError):
         self.summary = summary
 
 
-ProviderExecutor = Callable[[WorkerRequest], WorkerExecution]
+ProviderExecutor = Callable[[WorkerRequest, Mapping[str, Any]], WorkerExecution]
 
 
 @dataclass(frozen=True)
@@ -255,7 +255,7 @@ def execute_workspace_write(
             quick_validation=quick,
         )
         def execute_bound(request: WorkerRequest) -> WorkerExecution:
-            execution = provider_executor.execute(request)
+            execution = provider_executor.execute(request, parsed.runtime_settings)
             if not isinstance(execution, WorkerExecution) or execution.returncode != 0:
                 raise DispatchAdapterError(
                     "DISPATCH_PROVIDER_FAILED",

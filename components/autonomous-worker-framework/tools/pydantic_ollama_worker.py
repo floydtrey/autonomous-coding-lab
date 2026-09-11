@@ -8,7 +8,7 @@ import tempfile
 import urllib.parse
 from dataclasses import asdict, dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 try:
     from tools.worker_runtime import PROVIDER_QUALIFIED, WorkerExecution, WorkerRequest
@@ -20,6 +20,7 @@ CANDIDATE_ID = "pydantic-ai-ollama-files"
 TOOL_SURFACE_ID = "acl-bounded-file-tools:v1"
 HARNESS_DISTRIBUTION = "pydantic-ai-slim"
 PROVIDER_KIND = "ollama"
+RUNTIME_SETTINGS_SCHEMA = "worker-lab-runtime-settings:v1"
 MAX_FILE_BYTES = 262_144
 MAX_FINAL_MESSAGE_BYTES = 32_768
 ABSENT_DIGEST = "absent"
@@ -42,6 +43,10 @@ class QualifiedRuntimeBinding:
     """
 
     qualification_digest: str
+    installation_observation_digest: str
+    runtime_settings_profile_id: str
+    runtime_settings_digest: str
+    qualified_context_tokens: int
     candidate_id: str
     tool_surface_id: str
     harness_distribution: str
@@ -56,7 +61,7 @@ class QualifiedRuntimeBinding:
     model_digest: str
     model_metadata_digest: str
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     def digest(self) -> str:
@@ -67,6 +72,70 @@ class QualifiedRuntimeBinding:
             ensure_ascii=False,
         ).encode("utf-8")
         return _bytes_digest(encoded)
+
+
+@dataclass(frozen=True)
+class SealedRuntimeSettings:
+    schema_version: str
+    profile_id: str
+    profile_version: int
+    requested_context_tokens: int
+    request_limit: int
+    tool_calls_limit: int
+    tool_timeout_seconds: int
+    tool_retries: int
+    output_retries: int
+    max_concurrency: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    def digest(self) -> str:
+        return _bytes_digest(_canonical_json(self.to_dict()).encode("utf-8"))
+
+    @classmethod
+    def from_mapping(cls, value: Any) -> "SealedRuntimeSettings":
+        fields = set(cls.__dataclass_fields__)
+        if not isinstance(value, dict) or set(value) != fields:
+            raise PydanticWorkerError(
+                "PYDANTIC_WORKER_SETTINGS_INVALID",
+                "runtime settings fields are missing or unknown",
+            )
+        if value.get("schema_version") != RUNTIME_SETTINGS_SCHEMA:
+            raise PydanticWorkerError(
+                "PYDANTIC_WORKER_SETTINGS_INVALID",
+                "runtime settings schema differs",
+            )
+        profile_id = value.get("profile_id")
+        if not isinstance(profile_id, str) or not profile_id.strip() or profile_id != profile_id.strip():
+            raise PydanticWorkerError(
+                "PYDANTIC_WORKER_SETTINGS_INVALID",
+                "runtime settings profile is invalid",
+            )
+        positive = (
+            "profile_version",
+            "requested_context_tokens",
+            "request_limit",
+            "tool_calls_limit",
+            "tool_timeout_seconds",
+            "max_concurrency",
+        )
+        nonnegative = ("tool_retries", "output_retries")
+        for name in positive:
+            item = value.get(name)
+            if isinstance(item, bool) or not isinstance(item, int) or item <= 0:
+                raise PydanticWorkerError(
+                    "PYDANTIC_WORKER_SETTINGS_INVALID",
+                    f"{name} must be positive",
+                )
+        for name in nonnegative:
+            item = value.get(name)
+            if isinstance(item, bool) or not isinstance(item, int) or item < 0:
+                raise PydanticWorkerError(
+                    "PYDANTIC_WORKER_SETTINGS_INVALID",
+                    f"{name} must be nonnegative",
+                )
+        return cls(**value)
 
 
 class BoundedFileTools:
@@ -225,24 +294,30 @@ class BoundedFileTools:
         return target
 
 
-AgentRunner = Callable[[WorkerRequest, QualifiedRuntimeBinding, BoundedFileTools], str]
+AgentRunner = Callable[[WorkerRequest, QualifiedRuntimeBinding, SealedRuntimeSettings, BoundedFileTools], str]
 
 
 def execute_pydantic_ollama(
     request: WorkerRequest,
     binding: QualifiedRuntimeBinding,
+    runtime_settings: Mapping[str, Any] | SealedRuntimeSettings,
     *,
     runner: AgentRunner | None = None,
 ) -> WorkerExecution:
     """Execute one provider-qualified request through only ACL-owned file tools."""
     _validate_request(request)
-    _validate_binding(binding)
+    settings = (
+        runtime_settings
+        if isinstance(runtime_settings, SealedRuntimeSettings)
+        else SealedRuntimeSettings.from_mapping(dict(runtime_settings))
+    )
+    _validate_binding(binding, settings)
     tools = BoundedFileTools(
         request.target_repo,
         readable_paths=request.readable_paths,
         writable_paths=request.writable_paths,
     )
-    output = (runner or _run_pydantic_agent)(request, binding, tools)
+    output = (runner or _run_pydantic_agent)(request, binding, settings, tools)
     if not isinstance(output, str) or not output.strip() or "\x00" in output:
         raise PydanticWorkerError(
             "PYDANTIC_WORKER_RESULT_INVALID",
@@ -271,6 +346,7 @@ def execute_pydantic_ollama(
 def _run_pydantic_agent(
     request: WorkerRequest,
     binding: QualifiedRuntimeBinding,
+    settings: SealedRuntimeSettings,
     tools: BoundedFileTools,
 ) -> str:
     """Production Pydantic AI path. Imports are intentionally lazy for deterministic tests."""
@@ -307,14 +383,17 @@ def _run_pydantic_agent(
             "change, then return a concise summary."
         ),
         tools=(tools.read_file, tools.write_file),
-        retries={"tools": 2, "output": 1},
-        tool_timeout=30,
-        max_concurrency=1,
+        retries={"tools": settings.tool_retries, "output": settings.output_retries},
+        tool_timeout=settings.tool_timeout_seconds,
+        max_concurrency=settings.max_concurrency,
     )
     try:
         result = agent.run_sync(
             request.prompt,
-            usage_limits=UsageLimits(request_limit=12, tool_calls_limit=24),
+            usage_limits=UsageLimits(
+                request_limit=settings.request_limit,
+                tool_calls_limit=settings.tool_calls_limit,
+            ),
         )
     except Exception as exc:
         raise PydanticWorkerError(
@@ -356,7 +435,10 @@ def _validate_request(request: WorkerRequest) -> None:
         )
 
 
-def _validate_binding(binding: QualifiedRuntimeBinding) -> None:
+def _validate_binding(
+    binding: QualifiedRuntimeBinding,
+    settings: SealedRuntimeSettings,
+) -> None:
     if not isinstance(binding, QualifiedRuntimeBinding):
         raise PydanticWorkerError(
             "PYDANTIC_WORKER_BINDING_INVALID",
@@ -364,6 +446,8 @@ def _validate_binding(binding: QualifiedRuntimeBinding) -> None:
         )
     for value, name in (
         (binding.qualification_digest, "qualification digest"),
+        (binding.installation_observation_digest, "installation observation digest"),
+        (binding.runtime_settings_digest, "runtime settings digest"),
         (binding.harness_tree_digest, "harness tree digest"),
         (binding.provider_executable_sha256, "provider executable digest"),
         (binding.model_digest, "model digest"),
@@ -375,6 +459,11 @@ def _validate_binding(binding: QualifiedRuntimeBinding) -> None:
         or binding.tool_surface_id != TOOL_SURFACE_ID
         or binding.harness_distribution != HARNESS_DISTRIBUTION
         or binding.provider_kind != PROVIDER_KIND
+        or binding.runtime_settings_profile_id != settings.profile_id
+        or binding.runtime_settings_digest != settings.digest()
+        or isinstance(binding.qualified_context_tokens, bool)
+        or not isinstance(binding.qualified_context_tokens, int)
+        or binding.qualified_context_tokens < settings.requested_context_tokens
     ):
         raise PydanticWorkerError(
             "PYDANTIC_WORKER_BINDING_INVALID",
