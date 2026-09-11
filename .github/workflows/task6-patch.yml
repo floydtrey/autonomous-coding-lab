@@ -53,7 +53,7 @@ jobs:
       - name: Run portable contract tests
         env:
           PYTHONPATH: components/worker-lab
-        run: python -m pytest -q tests/test_portable_installation_contract.py
+        run: python -m pytest -q tests/test_portable_installation.py
       - name: Confirm no provider/model endpoint was invoked by tests
         run: |
           ! grep -RIn --exclude='provider_qualification.py' --exclude='test_provider_qualification.py' --exclude='*.md' '/api/chat\|/v1/chat/completions' .task6 components/worker-lab/tests components/autonomous-worker-framework/tests
