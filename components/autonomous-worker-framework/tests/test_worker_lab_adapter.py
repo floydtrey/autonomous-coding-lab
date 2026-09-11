@@ -177,6 +177,7 @@ def _installation_fixture(tmp_path):
         "consumer_profile.py",
         "local_worker_harness.py",
         "repository_handoff.py",
+        "repository_state.py",
         "worker_lab_adapter.py",
         "worker_result.py",
         "workspace_write_adapter.py",

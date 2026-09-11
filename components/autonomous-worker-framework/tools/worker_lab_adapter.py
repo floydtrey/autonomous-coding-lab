@@ -48,6 +48,7 @@ _RUNTIME_FILES = (
     "tools/consumer_profile.py",
     "tools/local_worker_harness.py",
     "tools/repository_handoff.py",
+    "tools/repository_state.py",
     "tools/worker_lab_adapter.py",
     "tools/worker_result.py",
     "tools/workspace_write_adapter.py",

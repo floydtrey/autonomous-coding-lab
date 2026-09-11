@@ -119,7 +119,7 @@ Accepted changes:
 - legitimate Git source-state verification, candidate evidence, workspace
   containment, publication separation, and Knowledge Core source provenance remain;
 - the portable V1 Autonomous Worker Framework runtime closure contains 11 files and
-  matches `sha256:f1fcae00aa138e2033be64e9d06e5c5bdc4a7dd183360c424b31c36c1ce30b1a`;
+  matches `sha256:22c519673bb8f2b5826687b3e8b8df22b004865b702b8fb2215d4e8bd84861d6`;
 - execution authority remains `DISABLED` and no provider/model request was sent.
 
 Validation on the Task 1 working tree:
@@ -127,11 +127,14 @@ Validation on the Task 1 working tree:
 - focused deterministic framework gate: 61 passed;
 - portable V1 contract tests: 4 passed;
 - direct Autonomous Worker Framework portable-closure inspection: `MATCH`;
-- broader framework diagnostic: 225 passed and 8 failed. Seven failures are confined
-  to the obsolete `worker_lab_adapter.py` / `acl-installation-manifest:v2` path whose
-  stale bytes must not be refreshed during Task 1; one is the pre-existing
+- broader framework diagnostic on this Linux workspace: 225 passed and 8 failed.
+  Seven failures are confined to the obsolete Windows/Codex
+  `worker_lab_adapter.py` / `acl-installation-manifest:v2` path because its hard-coded
+  Windows runtime paths are not valid Linux paths; one is the pre-existing
   `test_project_documentation.py` assertion for superseded Phase 1 headings absent
-  from the accepted starting commit.
+  from the accepted starting commit. The transitional disabled manifest's file-set
+  closure was refreshed only for exact Task 1 dependency bytes; its repository/Codex
+  semantics remain unchanged and obsolete.
 
 ## Current stop condition
 

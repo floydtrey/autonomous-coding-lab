@@ -75,6 +75,9 @@ paths. Task 1 records but does not version or delete them.
   import helpers from the commissioning harness.
 - `local_worker_harness.py` consumes the extracted helpers only to keep its old tests
   intact until the documented Task 7 deletion gate.
+- The disabled legacy installation manifest's file-set closure includes the new
+  helper only so transitional fail-closed identity checks still describe exact
+  current bytes; its repository/Codex schema semantics were not extended.
 - Generic context creation, context verification, and code-task execution require an
   explicit `ConsumerProfile`; Mine Tracker is no longer an implicit generic default.
 - No legitimate Git source-state verification, workspace containment, knowledge

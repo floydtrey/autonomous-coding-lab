@@ -34,11 +34,11 @@
       "installed_tree": {
         "schema_version": "acl-installed-file-set:v1",
         "scope": "runtime-dependency-closure",
-        "digest": "sha256:b9c1061422b0cb28e94086f070ddf8fe4bf4c7a744b7e8589af2dca2b87de1f8",
+        "digest": "sha256:c0b8e65b3ff2ec4f6ba543fd8fdf54c9842e737fd10b96009c9837275a13d8dd",
         "files": [
           {
             "path": "tools/code_task.py",
-            "sha256": "sha256:67f8d2450c3050d3648477d18efa781269b0a6dc3112188fabd2a50978dd447b"
+            "sha256": "sha256:1d95ab9cacfd05c19c804610f6c0443c35e916f8daafedba951a2f700224f83d"
           },
           {
             "path": "tools/codex_runtime.py",
@@ -46,19 +46,23 @@
           },
           {
             "path": "tools/consumer_profile.py",
-            "sha256": "sha256:cf3debc7052022a7123c77d5ed9569aab748c465c9f1bd3714f766284e6de9c0"
+            "sha256": "sha256:f49f6a21d8a97ccc7e46408b4d221de341a207e42f3952664104d827995b43e9"
           },
           {
             "path": "tools/local_worker_harness.py",
-            "sha256": "sha256:41e85b71ee8922f09af6b2733882bcc675e2af656cceb9330d827e72f541574c"
+            "sha256": "sha256:a9c4de795454091877bb9a9fe74574fa14e6f99ca2c27f62d90d61175cdbe22a"
           },
           {
             "path": "tools/repository_handoff.py",
-            "sha256": "sha256:627e301a2dc8860ac25c8c16462fdec31c0c645578db70454526e0e07d9ad108"
+            "sha256": "sha256:480ca1a116d46baef197f78f8ea4ce7c69e32f470e33ffe75a2b4e421b31041a"
+          },
+          {
+            "path": "tools/repository_state.py",
+            "sha256": "sha256:b2f45980aca6b5089eb2cc5da0db7941a1f76ccd0330c3e24acd641bd2d6c7d5"
           },
           {
             "path": "tools/worker_lab_adapter.py",
-            "sha256": "sha256:b2c9fea546f2dd39c3e3334f8205962f37306fa621135299e6edf1331a039c2f"
+            "sha256": "sha256:77633a12bb227922ac9103dc5139093f0d677251ee857643ee06d5c3b9f769a1"
           },
           {
             "path": "tools/worker_result.py",
@@ -66,7 +70,7 @@
           },
           {
             "path": "tools/workspace_write_adapter.py",
-            "sha256": "sha256:a5e0ebc088817a2238b1f9860a642fa305767c12dd2ed3878cbc82cde27e5429"
+            "sha256": "sha256:08962e9a27943ff03bfe26a69ce4919f781ca627f249657a9b951ae2d3ee04ed"
           }
         ]
       },
