@@ -945,9 +945,24 @@ def _compensate_preparation(
         return str(exc)
 
 
+def _windows_extended_path(raw: str) -> str:
+    if raw.startswith("\\\\?\\"):
+        return raw
+    if raw.startswith("\\\\"):
+        return "\\\\?\\UNC\\" + raw[2:]
+    return "\\\\?\\" + raw
+
+
+def _removal_path(path: Path) -> Path:
+    if os.name != "nt":
+        return path
+    return Path(_windows_extended_path(str(path.absolute())))
+
+
 def _remove_tree(path: Path) -> None:
-    _assert_no_reparse_tree(path)
-    shutil.rmtree(path, onexc=_remove_readonly)
+    removal_path = _removal_path(path)
+    _assert_no_reparse_tree(removal_path)
+    shutil.rmtree(removal_path, onexc=_remove_readonly)
 
 
 def _remove_readonly(function: Callable[..., object], path: str, error: BaseException) -> None:
