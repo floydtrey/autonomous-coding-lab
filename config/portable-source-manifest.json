@@ -1,0 +1,45 @@
+{
+  "schema_version": "acl-portable-source-manifest:v2",
+  "source_identity_id": "acl-runtime-source:v2",
+  "components": {
+    "autonomous-worker-framework": {
+      "root": "components/autonomous-worker-framework",
+      "production_root": "tools",
+      "scope": "runtime-dependency-closure",
+      "files": [
+        "tools/code_task.py",
+        "tools/consumer_profile.py",
+        "tools/dispatch_adapter.py",
+        "tools/pydantic_ollama_worker.py",
+        "tools/repository_handoff.py",
+        "tools/repository_state.py",
+        "tools/worker_result.py",
+        "tools/worker_runtime.py"
+      ],
+      "digest": "sha256:edac32b728348d6a2e2c7521d1c846e5021fe6e40f33db70e7df625d1ca584c5"
+    },
+    "local-model-bench": {
+      "root": "components/local-model-bench",
+      "production_root": "src/localbench",
+      "scope": "python-production-tree",
+      "digest": "sha256:139331ea42c914575d1119125a702ac5de2129b9bedc235bfc189700e8265afc"
+    },
+    "worker-lab": {
+      "root": "components/worker-lab",
+      "production_root": "worker_lab",
+      "scope": "python-production-tree",
+      "digest": "sha256:08a13548f9e193c85ae1280a56386237e1c3903467eb6681602827340825ab96"
+    }
+  },
+  "separation_policy": {
+    "host_qualification": "separate-evidence",
+    "provider_capability_qualification": "separate-evidence",
+    "local_activation": "local-operator-state",
+    "task_authorization": "worker-lab-invocation-v3"
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "component_digest_algorithm": "acl-source-file-set:v2",
+    "path_policy": "checkout-relative-no-traversal:v1"
+  }
+}

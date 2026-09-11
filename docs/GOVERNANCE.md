@@ -1,88 +1,47 @@
 # Governance
 
-## Governing principle
+## Authority hierarchy
 
-No component may grant itself more authority. Human intent, task authorization, execution capability, evidence, acceptance, and publication are separate decisions.
+User intent is translated through Worker Lab protected definitions. Worker Lab—not the model, provider, harness, repository, or retrieved documentation—owns authorization and acceptance.
 
-## Authority chain
+Knowledge Core evidence is informational. Local Model Bench is advisory. Provider qualification is evidence. Provider Binding is immutable execution identity. None grants task authority by itself.
 
-1. The human defines the scope and grants any consequential permission.
-2. Worker Lab resolves versioned policy, role, exercise, context, tests, and attempt identity.
-3. The framework enforces execution security and the target boundary.
-4. Evaluators produce evidence bound to the exact attempt and candidate.
-5. A trusted controller accepts or rejects the result.
-6. Publication and merge occur only through a separately authorized path.
+## Fail-closed rules
 
-If any required identity or approval is absent, the operation stops.
+Fail closed: reject or block when a required protected identity, digest, scope, test, custody record, Provider Binding, source identity, or capability-specific workspace evidence is missing, stale, unknown, or mismatched.
 
-## Configuration is not authorization
+Do not silently fall back to another provider, model, tool surface, runtime setting, workspace, or target.
 
-An installed executable, model, provider URL, manifest entry, role file, or enabled feature only makes a capability addressable. It does not authorize a specific attempt. Likewise, a previous successful run does not authorize another run.
+## Tool and effect boundary
 
-`config/` may identify installed components and integration expectations. It must not silently encode task approval.
+The model receives only ACL-owned tools explicitly allowed by the task contract. Read-only and workspace-write are distinct authority classes. Shell, arbitrary process execution, unrestricted network access, Git publication, approval, and unrestricted filesystem enumeration are forbidden unless a future protected capability explicitly grants them.
 
-## Protected definitions
+Workers do not commit, push, merge, publish, or approve their own work under the current coding slice.
 
-Worker Lab policies, roles, curricula, exercises, context manifests, and evaluator catalogs affect what a worker may do and how it is judged. They are authority-bearing records. Changes require trusted review, versioning, immutable identity, and tests that preserve deny-wins behavior.
+## Credential boundary
 
-A worker must never modify the policy, task, expected evaluator behavior, or evidence rules governing its own attempt.
+Secrets are host/operator concerns and must not be committed into source identity, prompts, evidence, benchmark fixtures, or candidate output. Provider adapters should use only the credentials required by their explicitly qualified transport. ACL must not expose unrelated environment secrets to a worker.
 
-## Model and planner governance
+## Source, host, activation, and authorization separation
 
-- Local Model Bench evidence is advisory.
-- Deterministic JSON/format success is not semantic correctness.
-- Planner output is an untrusted proposal until requirements, dependencies, scope, ambiguity, and test coverage are validated.
-- A coding worker cannot approve its own work.
-- Model selection is role-specific; success in structured extraction does not prove planning, coding, diagnosis, or review fitness.
-- Human review remains required until objective role-graduation evidence is accepted.
+Portable source identity binds only reviewed source bytes. It is not a host qualification record and is not an activation switch.
 
-## Execution boundary
+Host/provider installation observation and capability qualification are separate evidence. Local activation or a future kill switch must live in local operator state outside committed source identity. Per-task authorization remains a Worker Lab lifecycle transition over one exact Provider Binding.
 
-The framework permits only explicit `read-only` or `workspace-write` sandboxes. Full-access modes fail closed. ChatGPT-managed authentication is required; `OPENAI_API_KEY` and `CODEX_API_KEY` are forbidden for worker execution. GitHub credential-like environment variables are stripped.
+Changing source identity must never be the mechanism for enabling execution.
 
-Workers do not commit, push, merge, change Git configuration, or hold publication credentials. The target repository must be separate, explicitly named, identity-bound, and clean at the required starting commit.
+## Logical target identity
 
-Execution remains disabled for the consolidated installation until a bilateral installed-component identity contract is accepted and a specific attempt is authorized. The current installation-manifest v2 candidate records `DISABLED` execution and a `DEFERRED` Worker Lab participant. Worker Lab and the framework adapter enforce that policy independently; a valid manifest or runtime identity does not supersede it.
+ACL target identity is logical and stable across repository relocation. Git repository mechanics are allowed only inside a Git-backed coding-workspace backend. A repository URL/path/branch/remote must not substitute for system identity or authorization.
 
-Containment evidence is accepted only through the versioned backend named by the
-durable custody record. Generic authority and result acceptance treat
-controller/worker identities as opaque and require zero active workloads plus
-backend-produced absence evidence; operating-system process identifiers and reuse
-rules cannot become universal authority fields. Missing, contradictory, stale, or
-wrong-backend evidence remains uncertainty and fails closed.
+## Provider/model changes
 
-## Change authority
+A new provider/model/configuration requires observation, controlled qualification, and a new Provider Binding. The change must not require rewriting Worker Lab authority, Knowledge Core, Controller Task Packet, result acceptance, or lifecycle semantics.
 
-| Change | Required decision |
-|---|---|
-| Documentation correction | Normal scoped review |
-| Component implementation | Component tests and scoped review |
-| Cross-component protocol or identity | Bilateral tests, full affected suites, security review |
-| Worker/model execution | Explicit task authorization and current identity preflight |
-| External/product repository access | Explicit repository and operation scope |
-| Commit, push, publish, or merge | Separate explicit authorization |
-| Destructive cleanup or irreversible migration | Named targets, backup/rollback plan, explicit approval |
+## Publication
 
-## Evidence and acceptance
+Execution and publication are separate. A valid candidate does not authorize commit, push, merge, deployment, or external side effects. Publication requires its own future protected capability and human/controller policy.
 
-Evidence must bind the relevant source/install identity, attempt, target commit, candidate, environment, test catalog, and result. A passing provider request, process exit code, or test subset is not interchangeable with whole-task acceptance.
+## Reconstruction safety
 
-Historical evidence remains useful when its inputs have not changed. Do not recreate it for ceremony. Revalidate when code, configuration, identity, environment-sensitive behavior, or the acceptance claim changes.
-
-## Scope withdrawal
-
-When a deeply integrated program capability is removed, treat removal as a forward change, not a request to erase history:
-
-1. Freeze new work on the withdrawn capability.
-2. Identify entrypoints, dependencies, shared infrastructure, data, tests, and documentation.
-3. Separate capability-specific code from shared code.
-4. Remove integrations in dependency order with regression evidence.
-5. Preserve compatibility or data migration where required.
-6. Put irreversible data deletion behind explicit approval.
-7. Record what was intentionally retained and why.
-
-Workers may implement bounded removal tasks, but the trusted controller owns the scope and the decision to destroy data.
-
-## Anti-drift rule
-
-One task should produce one bounded outcome and one proportionate validation record. Discoveries outside scope are reported, not automatically repaired. Accepted checks are not rerun unless their inputs changed. This rule exists to prevent circular audits from replacing forward progress.
+Execution remains `DISABLED` until Task 9 passes and the user separately authorizes the next supervised step. No actual provider/model qualification or model request is part of Tasks 1–9 unless explicitly authorized outside this reconstruction plan.

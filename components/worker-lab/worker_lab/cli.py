@@ -15,7 +15,7 @@ from .models import (
     ATTEMPT_SCHEMA, CURRICULUM_SCHEMA, EVIDENCE_SCHEMA, EXERCISE_SCHEMA, FAILURE_SCHEMA,
     AttemptRecord, AttemptState, CurriculumRecord, EvidenceRecord, ExerciseRecord, FailureRecord,
 )
-from .operator_control import inspect_installation
+from .operator_control import inspect_source_identity
 from .policy import (
     CONTEXT_MANIFEST_SCHEMA, POLICY_SCHEMA, ROLE_SCHEMA, ContextManifest, PolicyRecord,
     RoleRecord,
@@ -59,8 +59,8 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(required=True)
     command = commands.add_parser("health")
     command.set_defaults(handler=_service_health)
-    command = commands.add_parser("installation-status")
-    command.set_defaults(handler=_service_installation_status)
+    command = commands.add_parser("source-status")
+    command.set_defaults(handler=_service_source_status)
     command = commands.add_parser("list-records")
     command.add_argument("collection", choices=COLLECTIONS)
     command.set_defaults(handler=_service_list_records)
@@ -174,8 +174,8 @@ def _service_health(args: argparse.Namespace) -> str:
     return _service(args).health().to_json()
 
 
-def _service_installation_status(args: argparse.Namespace) -> str:
-    return _service(args).installation_status().to_json()
+def _service_source_status(args: argparse.Namespace) -> str:
+    return _service(args).source_status().to_json()
 
 
 def _service_list_records(args: argparse.Namespace) -> str:
@@ -249,7 +249,7 @@ def _service_recover_invocation(args: argparse.Namespace) -> str:
 
 def _doctor(args: argparse.Namespace) -> str:
     del args
-    _, report = inspect_installation()
+    _, report = inspect_source_identity()
     return report.to_json()
 
 

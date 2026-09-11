@@ -1,57 +1,55 @@
 # Autonomous Coding Lab
 
-Autonomous Coding Lab (ACL) is a local-first system for defining bounded coding work, running it through a controlled execution boundary, and evaluating local models before trusting them with a role.
+Autonomous Coding Lab (ACL) is a supervised local-agent system for bounded work. It combines a protected authority plane, governed knowledge context, a provider-neutral execution framework, and an advisory model benchmark. Git is one coding-workspace backend; it is not ACL's system identity.
 
-The repository contains one system with three deliberately separate responsibilities:
+## Current architecture
 
-| Component | Responsibility | Authority |
-|---|---|---|
-| `worker-lab` | Tasks, policies, roles, attempts, lifecycle, evidence, and graduation | Decides what work may occur and what evidence is acceptable |
-| `autonomous-worker-framework` | Authentication isolation, sandboxing, subprocess execution, repository boundaries, and validation transport | Executes only an already-authorized contract |
-| `local-model-bench` | Repeatable prompt/model comparisons and validation packets | Advisory evidence only; it cannot authorize or execute work |
+- **Worker Lab** owns policy, roles, exercises, lifecycle, test selection, authorization, Provider Binding, and independent result acceptance.
+- **Autonomous Worker Framework** executes one bounded task inside the exact supplied workspace/tool scope and returns evidence; it does not grant itself authority.
+- **Knowledge Core** supplies governed informational context through Controller Task Packet V1; retrieved content never expands authority.
+- **Local Model Bench** is advisory. Benchmark scores may inform model selection but never authorize execution.
+- **Provider adapters and containment backends** are replaceable implementations beneath the protected contracts. The current first provider adapter is Pydantic AI + Ollama; the current first containment backend is Windows Job Objects.
 
-Local Model Bench is peer/advisory infrastructure, not a runtime dependency of Worker Lab or the framework.
+The current runtime path is Invocation/Result V3 and Provider Binding V1. A different qualified model/provider must be selectable through qualification and binding data rather than source edits.
 
-## Current status
+## Identity boundaries
 
-The three source histories and component trees have been consolidated. The accepted Phase 1 runtime checkpoint is commit `5f6c41da132daa12f0bb8c4be054112d77ef7e54`; its current-state acceptance record is committed at `8c4f697`.
+`config/portable-source-manifest.json` is **portable source identity V2**. It binds reviewed ACL source/component bytes only. It deliberately does not contain host requirements, provider qualification, local activation, or task authorization.
 
-Worker execution is currently **disabled**. Phase 2's guarded synthetic read-only proof completed successfully with one retained `CANDIDATE`, an unchanged disposable workspace, and verified process absence. Phase 3 is in progress: checkpoints `a288a15`, `cf9d45f`, `e776743`, `e505866`, and `e938a18` establish shared queries, attempt/workspace lifecycle commands, guarded invocation decisions, backup/verify/restore operations, and fail-closed recovery after verified process absence. Complete timelines and candidate review queries are next. A disconnected GUI design is preserved under `components/worker-lab/prototypes/`.
+These are separate layers:
 
-Read [Start Here](docs/START_HERE.md) before changing the repository. The exact accepted and in-progress state is in [Current State](docs/CURRENT_STATE.md).
+1. portable source identity;
+2. host/provider installation observation;
+3. controlled provider capability qualification;
+4. immutable Provider Binding;
+5. local operator activation/containment state;
+6. one-invocation Worker Lab authorization.
 
-## Repository layout
+A repository URL, branch, checkout path, remote, or `.git` directory is never ACL target identity. Git facts appear only where a Git-backed coding workspace needs exact source-state evidence.
 
-```text
-autonomous-coding-lab/
-|-- components/
-|   |-- autonomous-worker-framework/
-|   |-- worker-lab/
-|   `-- local-model-bench/
-|-- config/                 installation and integration identity
-|-- docs/                   current system documentation
-|   `-- legacy/             historical evidence, not current instructions
-|-- migration/inventory/    deterministic consolidation evidence
-|-- tests/                  root inventory-tool tests
-`-- tools/                  structural inventory and query utilities
-```
+## Start here
 
-## Documentation
+Read these current documents in order:
 
-- [Start Here](docs/START_HERE.md) — minimum reading route and task startup rules
-- [Current State](docs/CURRENT_STATE.md) — accepted checkpoint, unfinished work, and next gate
-- [Architecture](docs/ARCHITECTURE.md) — component and trust boundaries
-- [Operations](docs/OPERATIONS.md) — Windows setup and safe operator commands
-- [Development](docs/DEVELOPMENT.md) — change and validation workflow
-- [Governance](docs/GOVERNANCE.md) — authority, identity, and acceptance rules
-- [Project Audit and Work Plan](docs/WORKPLAN.md) — trusted delivery sequence for workers and the GUI
-- [VS Code Handoff](docs/VS_CODE_HANDOFF.md) — concise resume point for the next Phase 3 slice
-- [Legacy index](docs/legacy/README.md) — where the pre-consolidation records went
+1. `AGENTS.md`
+2. `docs/START_HERE.md`
+3. `docs/CURRENT_STATE.md`
+4. `docs/ARCHITECTURE.md`
+5. `docs/GOVERNANCE.md`
 
-## Safety summary
+Operational references:
 
-- Configuration can make a capability available; it does not authorize a task.
-- Planner and model output is untrusted input until Worker Lab accepts it.
-- Workers do not commit, push, merge, change Git configuration, or gain publication authority.
-- The first failed identity, scope, or evidence boundary stops the operation.
-- Source repositories and external product repositories remain outside ACL unless a task explicitly places one in scope.
+- `docs/OPERATIONS.md`
+- `docs/DEVELOPMENT.md`
+- `docs/PORTABLE_SOURCE_IDENTITY.md`
+- `docs/CONTROLLER_TASK_PACKET_V1.md`
+- `docs/REPOSITORY_COUPLING_INVENTORY.md`
+- `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`
+
+Knowledge Core design/evidence lives under `docs/architecture/knowledge-core/`. Research under `docs/research/` is evidence/reference material, not runtime authority.
+
+## Reconstruction status
+
+Runtime reconstruction Tasks 1–8 are represented by the current tree. Task 9 is the remaining deterministic acceptance gate before any real provider/model qualification or supervised model execution is authorized.
+
+**Execution authority remains `DISABLED`.**

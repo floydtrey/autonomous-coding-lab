@@ -33,8 +33,8 @@ from .models import (
     WorkspaceReceiptState,
 )
 from .operator_control import (
-    DoctorReport,
-    inspect_installation,
+    SourceDoctorReport,
+    inspect_source_identity,
     validate_controller_identity,
 )
 from .policy import (
@@ -78,7 +78,7 @@ from .service_runtime_v3 import (
 
 
 HEALTH_SCHEMA = "worker-lab-service-health:v1"
-INSTALLATION_STATUS_SCHEMA = "worker-lab-service-installation-status:v1"
+SOURCE_STATUS_SCHEMA = "worker-lab-service-source-status:v1"
 RECORD_LIST_SCHEMA = "worker-lab-service-record-list:v1"
 RECORD_DETAIL_SCHEMA = "worker-lab-service-record-detail:v1"
 OPERATION_RESULT_SCHEMA = "worker-lab-service-operation-result:v2"
@@ -180,13 +180,13 @@ class RecordDetailDTO:
 
 
 @dataclass(frozen=True)
-class InstallationStatusDTO:
-    doctor: DoctorReport
+class SourceStatusDTO:
+    doctor: SourceDoctorReport
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "schema_version": INSTALLATION_STATUS_SCHEMA,
-            "installation": self.doctor.to_dict(),
+            "schema_version": SOURCE_STATUS_SCHEMA,
+            "source_identity": self.doctor.to_dict(),
         }
 
     def to_json(self) -> str:
@@ -195,7 +195,7 @@ class InstallationStatusDTO:
 
 @dataclass(frozen=True)
 class HealthDTO:
-    doctor: DoctorReport
+    doctor: SourceDoctorReport
     data_root_state: str
     collection_counts: Mapping[str, int]
 
@@ -204,7 +204,7 @@ class HealthDTO:
             "schema_version": HEALTH_SCHEMA,
             "status": "healthy",
             "data_root_state": self.data_root_state,
-            "execution_ready": self.doctor.execution_ready,
+            "execution_ready": False,
             "collection_counts": dict(sorted(self.collection_counts.items())),
         }
 
@@ -390,12 +390,12 @@ class WorkerLabApplicationService:
         self._sealed_test_executor = sealed_test_executor or _run_sealed_test
         self._workspace_dispatch_runner = workspace_dispatch_runner
 
-    def installation_status(self) -> InstallationStatusDTO:
-        _, report = inspect_installation()
-        return InstallationStatusDTO(report)
+    def source_status(self) -> SourceStatusDTO:
+        _, report = inspect_source_identity()
+        return SourceStatusDTO(report)
 
     def health(self) -> HealthDTO:
-        _, report = inspect_installation()
+        _, report = inspect_source_identity()
         state = self._data_root_state()
         counts = {collection: len(self.list_records(collection).items) for collection in COLLECTIONS}
         return HealthDTO(report, state, counts)

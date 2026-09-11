@@ -31,12 +31,12 @@ PYDANTIC_AI_OLLAMA_CANDIDATE_ID = "pydantic-ai-ollama-files"
 TOOL_SURFACE_ID = "acl-bounded-file-tools:v1"
 DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 MINIMUM_CONTEXT_TOKENS = 32_768
-INSTALLATION_OBSERVATION_SCHEMA = "worker-lab-provider-installation-observation:v1"
-INSTALLATION_OBSERVATION_IDENTITY_SCHEMA = "worker-lab-provider-installation-observation-identity:v1"
+INSTALLATION_OBSERVATION_SCHEMA = "worker-lab-provider-installation-observation:v2"
+INSTALLATION_OBSERVATION_IDENTITY_SCHEMA = "worker-lab-provider-installation-observation-identity:v2"
 CAPABILITY_PROBE_REQUEST_SCHEMA = "worker-lab-provider-capability-probe-request:v1"
 CAPABILITY_PROBE_EVIDENCE_SCHEMA = "worker-lab-provider-capability-probe-evidence:v1"
-CAPABILITY_QUALIFICATION_SCHEMA = "worker-lab-provider-capability-qualification:v1"
-CAPABILITY_QUALIFICATION_IDENTITY_SCHEMA = "worker-lab-provider-capability-qualification-identity:v1"
+CAPABILITY_QUALIFICATION_SCHEMA = "worker-lab-provider-capability-qualification:v2"
+CAPABILITY_QUALIFICATION_IDENTITY_SCHEMA = "worker-lab-provider-capability-qualification-identity:v2"
 PROVIDER_ADAPTER_ID = "pydantic-ai-ollama-files:v1"
 TOOL_CAPABILITY_FIXTURE_ID = "acl-bounded-file-tool-probe:v1"
 CONTEXT_CAPABILITY_FIXTURE_ID = "acl-context-retention-probe:v1"
@@ -122,8 +122,6 @@ class ProviderInstallationObservation:
     model_metadata_digest: str
     model_context_tokens: int
     model_capabilities: tuple[str, ...]
-    execution_authority: str
-
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
         value["model_capabilities"] = list(self.model_capabilities)
@@ -172,7 +170,6 @@ class ProviderInstallationObservation:
             _digest(value["model_metadata_digest"], "model metadata digest"),
             _positive(value["model_context_tokens"], "model context tokens"),
             _texts(value["model_capabilities"], "model capabilities"),
-            _exact(value["execution_authority"], "DISABLED", "execution_authority"),
         )
         _validate_installation_observation(record, candidate)
         return record
@@ -253,9 +250,7 @@ class ProviderCapabilityQualification:
     tool_evidence_digest: str
     context_fixture_id: str
     context_evidence_digest: str
-    execution_authority: str
     capability_qualified: bool
-    execution_ready: bool
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -301,9 +296,7 @@ class ProviderCapabilityQualification:
             _digest(value["tool_evidence_digest"], "tool evidence digest"),
             _exact(value["context_fixture_id"], CONTEXT_CAPABILITY_FIXTURE_ID, "context fixture"),
             _digest(value["context_evidence_digest"], "context evidence digest"),
-            _exact(value["execution_authority"], "DISABLED", "execution_authority"),
             _true(value["capability_qualified"], "capability_qualified"),
-            _false(value["execution_ready"], "execution_ready"),
         )
         _validate_capability_qualification(record, settings=settings)
         return record
@@ -332,7 +325,6 @@ def protected_provider_candidate(candidate_id: str) -> ProviderCandidate:
 def inspect_provider_installation(
     *,
     model: str,
-    repository_root: Path,
     candidate: ProviderCandidate = PYDANTIC_AI_OLLAMA_V1,
     base_url: str = DEFAULT_OLLAMA_BASE_URL,
     executable_name: str = "ollama",
@@ -349,12 +341,6 @@ def inspect_provider_installation(
             "provider candidate differs from the protected declaration",
         )
     model = _text(model, "model name")
-    repository_root = _real_directory(repository_root, "repository root")
-    if _portable_execution_authority(repository_root) != "DISABLED":
-        raise LabValidationError(
-            "PROVIDER_QUALIFICATION_AUTHORITY_INVALID",
-            "provider installation observation requires execution authority to remain disabled",
-        )
     endpoint = _loopback_endpoint(base_url)
     distribution_reader = distribution_reader or inspect_distribution
     harness_version, harness_tree_digest = distribution_reader(candidate.harness_distribution)
@@ -405,7 +391,6 @@ def inspect_provider_installation(
         model_metadata_digest=metadata_digest,
         model_context_tokens=context_tokens,
         model_capabilities=capabilities,
-        execution_authority="DISABLED",
     )
     _validate_installation_observation(record, candidate)
     return record
@@ -466,7 +451,7 @@ def qualify_provider_capabilities(
     _validate_capability_probe_evidence(evidence, request)
     record = ProviderCapabilityQualification(
         schema_version=CAPABILITY_QUALIFICATION_SCHEMA,
-        qualification_version=1,
+        qualification_version=2,
         installation_observation_digest=observation.digest(),
         candidate_id=candidate.candidate_id,
         candidate_version=candidate.candidate_version,
@@ -487,9 +472,7 @@ def qualify_provider_capabilities(
         tool_evidence_digest=evidence.tool_evidence_digest,
         context_fixture_id=CONTEXT_CAPABILITY_FIXTURE_ID,
         context_evidence_digest=evidence.context_evidence_digest,
-        execution_authority="DISABLED",
         capability_qualified=True,
-        execution_ready=False,
     )
     _validate_capability_qualification(record, settings=settings)
     return record
@@ -506,7 +489,6 @@ def _validate_installation_observation(
         record.tool_surface_id == candidate.tool_surface_id,
         record.harness_distribution == candidate.harness_distribution,
         record.provider_kind == candidate.provider_kind,
-        record.execution_authority == "DISABLED",
     )
     if not all(expected):
         raise LabValidationError(
@@ -563,7 +545,7 @@ def _validate_capability_qualification(
     candidate = protected_provider_candidate(record.candidate_id)
     requirement = selected_runtime_requirement_v3()
     if (
-        record.qualification_version != 1
+        record.qualification_version != 2
         or record.candidate_version != candidate.candidate_version
         or record.candidate_digest != candidate.digest()
         or record.runtime_requirement_profile_id != requirement.profile_id
@@ -577,9 +559,7 @@ def _validate_capability_qualification(
         or record.effective_context_tokens < settings.requested_context_tokens
         or record.tool_fixture_id != TOOL_CAPABILITY_FIXTURE_ID
         or record.context_fixture_id != CONTEXT_CAPABILITY_FIXTURE_ID
-        or record.execution_authority != "DISABLED"
         or record.capability_qualified is not True
-        or record.execution_ready is not False
     ):
         raise LabValidationError(
             "PROVIDER_CAPABILITY_QUALIFICATION_INVALID",
@@ -617,19 +597,6 @@ def inspect_distribution(distribution_name: str) -> tuple[str, str]:
     return version, canonical_digest(entries)
 
 
-
-
-def _portable_execution_authority(repository_root: Path) -> str:
-    path = repository_root / "config" / "portable-installation-manifest.json"
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-        authority = value["activation_policy"]["execution_authority"]
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as exc:
-        raise LabValidationError(
-            "PROVIDER_QUALIFICATION_AUTHORITY_INVALID",
-            "portable execution authority is unavailable",
-        ) from exc
-    return _text(authority, "execution authority")
 
 
 def _provider_cli_version(executable: str) -> str:
@@ -865,11 +832,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base-url", default=DEFAULT_OLLAMA_BASE_URL)
     parser.add_argument("--ollama-executable", default="ollama")
     args = parser.parse_args(argv)
-    repository_root = Path(__file__).resolve().parents[3]
     try:
         report = inspect_provider_installation(
             model=args.model,
-            repository_root=repository_root,
             base_url=args.base_url,
             executable_name=args.ollama_executable,
         )

@@ -1,115 +1,73 @@
 # Architecture
 
-## System model
+ACL is a supervised system for turning a user objective into one bounded, independently verified task execution. Repository mechanics are optional backend details, not the system abstraction.
 
-Autonomous Coding Lab is one local-first system composed of three peers with different trust levels:
+## Authority plane
+
+Worker Lab owns the protected definition and lifecycle of work:
+
+- curriculum/exercise, policy, role, context manifest, and test catalog;
+- attempts and workspace receipts;
+- Controller Task Packet identity;
+- runtime requirement and sealed runtime settings;
+- provider capability qualification and Provider Binding;
+- Invocation/Result V3 lifecycle;
+- containment/custody evidence;
+- independent result/candidate acceptance.
+
+A provider, model, harness, or worker cannot self-authorize or self-certify acceptance.
+
+## Informational knowledge plane
+
+Knowledge Core stores and retrieves governed information. Controller Task Packet V1 binds exact Knowledge Core evidence into the task prompt while marking it informational-only. Retrieved content cannot add readable/writable paths, tools, tests, capabilities, publication authority, or lifecycle authority.
+
+## Execution plane
+
+Autonomous Worker Framework receives one canonical dispatch envelope and independently validates the protected identities/scope. It reconstructs the bounded task and invokes one explicitly supplied provider executor whose adapter, tool surface, Provider Binding, and runtime settings match the sealed request.
+
+The provider receives only ACL-owned tools. Current bounded coding tools are exact-file read/write operations. Shell, process, arbitrary network, Git publication, approval, and unrestricted directory traversal are not implied provider capabilities.
+
+## Provider model
+
+The provider path is data-driven:
 
 ```text
-human scope and approvals
-          |
-          v
-Worker Lab control plane
-policy -> role -> exercise -> attempt -> evidence -> acceptance
-          |
-          | authorized, versioned invocation contract
-          v
-Autonomous Worker Framework
-identity -> credentials -> sandbox -> subprocess -> repository boundary -> result
-          |
-          v
-isolated disposable target/workspace
-
-Local Model Bench -----------------------------------+
-prompt/model evidence -> human or Worker Lab review -+
+installation observation
+  -> controlled capability qualification
+  -> Provider Binding
+  -> Worker Lab task authorization
+  -> bounded dispatch
 ```
 
-Local Model Bench informs model and prompt choices. It is deliberately outside the execution chain.
+Observation describes installed facts. Qualification proves the required controlled tool/context behavior. Provider Binding freezes the exact qualified combination for authorization. None of these layers is local activation by itself.
 
-## Component responsibilities
+Pydantic AI + Ollama is the first adapter implementation. Another supported provider/model should require new observation/qualification/binding data, not changes to Worker Lab authority contracts.
 
-### Worker Lab: control plane
+## Containment
 
-Worker Lab owns:
+Durable process custody uses a provider-neutral V2 contract. Windows Job Objects implement the current Windows backend. A future Linux backend must fit the same authority/custody contract rather than changing Invocation/Result identity.
 
-- curricula and immutable exercise definitions;
-- policy and role limits;
-- task authority and requirement identity;
-- attempts, invocations, lifecycle, retries, and failures;
-- workspace receipts and durable state;
-- evaluator catalogs, evidence identity, acceptance, and graduation.
+## Identity layers
 
-Policy, role, curriculum, and evaluator definitions are authority-bearing runtime records. Treating them as ordinary editable preferences would let a worker redefine its own boundaries.
+1. **Portable source identity** — reviewed ACL component bytes (`acl-portable-source-manifest:v2`).
+2. **Host/provider observation** — platform, Python/harness, provider executable/API, model metadata.
+3. **Capability qualification** — controlled proof that the exact observed configuration satisfies required behavior.
+4. **Provider Binding** — immutable provider/model/settings identity used before task authorization.
+5. **Local activation/containment state** — operator/host state, never committed source identity.
+6. **Task authorization** — one exact Worker Lab invocation and controller decision.
 
-Worker Lab's application service is the client boundary above those records and policies. The CLI uses it now, and the future GUI must use the same service rather than reading or writing storage directly. It exposes strict, versioned, non-mutating health, installation-status, list, and show DTOs; operation-result DTOs for attempt/workspace lifecycle and guarded invocation decisions; backup-result DTOs for create, verify, and restore; and a recovery-result DTO binding the terminal attempt, invocation, custody, and unchanged-workspace evidence. Operation-result v2 carries the immutable invocation identity required for exact authorization, rejection, and controller-bound pre-dispatch cancellation. Later methods remain responsible for general dispatch, complete timelines, and candidate review.
+## Target/workspace boundary
 
-### Autonomous Worker Framework: execution and security
+Invocation V3 uses logical target/workspace identities. For the current coding slice, Git-backed source state is nested capability-specific evidence: base commit, workspace receipt/root/path digests, observed head, content digest, and changed paths.
 
-The framework owns:
+Repository names, URLs, remotes, branch names, checkout paths, and `.git` are not logical ACL target identity.
 
-- Codex authentication and forbidden-key rejection;
-- removal of GitHub credential-like variables;
-- allowed sandbox modes and a platform-neutral custody contract;
-- containment backends, with Windows Job Objects as the first implementation;
-- subprocess timeouts and bounded output capture;
-- target-repository identity, path, and cleanliness enforcement;
-- trusted validation transport;
-- candidate publication and handoff mechanisms controlled outside the worker.
+## Acceptance boundary
 
-The framework must not invent tasks or approve its own results. Worker Lab must not copy or weaken framework security logic.
+Worker success is only a claim. Worker Lab independently checks durable custody, exact request/binding identities, authorized changed paths, sealed tests, candidate/result identity, and workspace evidence before lifecycle promotion.
 
-### Local Model Bench: advisory peer
+Workers do not commit, push, merge, publish, or approve their own result unless a separate protected publication capability is explicitly introduced and authorized.
 
-Local Model Bench owns:
+## Advisory benchmark
 
-- deterministic model and case ordering;
-- Ollama, managed llama.cpp/GGUF, and OpenAI-compatible provider adapters;
-- isolated or explicitly preserved prompt context;
-- per-case checkpointing, resumability, and error capture;
-- raw response, token, timing, throughput, and model metadata;
-- deterministic contract evaluation and reviewable reports.
-
-Its outputs are observations, not task contracts. A planner response becomes actionable only after a trusted controller validates it and Worker Lab records the authorized form.
-
-## Root integration layer
-
-The repository root supplies installation identity, shared integration configuration, current documentation, and structural inventory tools. It does not own worker policy or execution authority.
-
-Current integration files include:
-
-- `config/monorepo-identity.json` — accepted source/import and component-scope identity evidence;
-- `config/installation-manifest.json` — strict installed-file, runtime, and disabled-activation identity candidate;
-- `migration/inventory/` — source/current structure and connection evidence;
-- `tools/` — deterministic inventory, query, and repair-plan utilities.
-
-## Identity model
-
-Four identities must not be conflated:
-
-| Identity | Meaning |
-|---|---|
-| Source identity | Which original component commit/tree was imported |
-| Installation identity | Which installed ACL files and entrypoints are being invoked now |
-| Target repository identity | Which clean repository/commit a task may inspect or modify |
-| Candidate identity | Which exact result bytes/commit were validated for possible acceptance |
-
-Development Git state helps audit changes, but an installed runtime cannot safely assume every component directory is a standalone Git repository. Installation-manifest v2 therefore preserves source commit/tree provenance separately from SHA-256 installed-file sets. Worker Lab verifies its production tree and the expected framework/runtime identities; the framework adapter independently verifies its entrypoint and adjacent Codex runtime dependency before loading that dependency. Both sides enforce the manifest's disabled/deferred activation policy before preflight or execution. The candidate remains unaccepted until the Phase 1 clean-tree and remote gates are satisfied.
-
-## Trust and data flow
-
-1. A human or trusted controller supplies a scope.
-2. A planner may propose decomposition, but the proposal remains untrusted.
-3. Worker Lab resolves the policy, role, context, evaluator catalog, task digest, and target identity.
-4. Only an authorized attempt may produce an invocation contract.
-5. The framework rechecks runtime and repository boundaries before executing.
-6. Results return as structured evidence; they do not self-approve.
-7. Trusted evaluation determines acceptance. Publication and merge remain separate actions.
-
-Every boundary fails closed. Availability of a provider, model, executable, configuration entry, or prior successful run never skips a later authority check.
-
-Durable custody records bind a versioned containment backend, opaque
-backend-owned controller/worker identities, active-workload state, and a digest of
-backend-produced absence evidence. The generic authority/result boundary does not
-interpret operating-system process identifiers. Windows PID, creation-time,
-PID-reuse, and Job Object accounting rules remain inside the Windows backend; a
-future Linux backend must satisfy the same generic custody and absence-proof
-contract without changing authority records.
+Local Model Bench is independent and advisory. Its measurements can help choose which model/configuration to qualify for a role. Benchmark output never modifies Worker Lab policy, Provider Binding, or task authorization.
