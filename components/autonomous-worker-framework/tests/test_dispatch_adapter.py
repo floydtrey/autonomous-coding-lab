@@ -328,3 +328,35 @@ def test_tampered_runtime_settings_fail_before_provider_execution(tmp_path):
         )
     assert error.value.code == "DISPATCH_SETTINGS_INVALID"
     assert called is False
+
+
+def test_nonzero_provider_result_is_rejected_even_when_workspace_would_validate(tmp_path):
+    root, base_commit = repo(tmp_path)
+    framework = tmp_path / "framework"
+    framework.mkdir()
+    raw, _, binding, _, binding_digest = request(root, base_commit)
+    called = False
+
+    def failed(worker_request):
+        nonlocal called
+        called = True
+        (root / "target.py").write_text("VALUE = 2\n", encoding="utf-8")
+        return WorkerExecution(("fake-provider",), 7, "partial output", "provider failed")
+
+    handle = BoundProviderExecutor(
+        provider_adapter_id=binding["provider_adapter_id"],
+        tool_surface_id=binding["tool_surface_id"],
+        provider_binding_digest=binding_digest,
+        runtime_settings_digest=binding["runtime_settings_digest"],
+        execute=failed,
+    )
+    with pytest.raises(DispatchAdapterError) as error:
+        execute_workspace_write(
+            raw,
+            workspace_root=root,
+            framework_root=framework,
+            provider_executor=handle,
+        )
+    assert error.value.code == "DISPATCH_PROVIDER_FAILED"
+    assert called is True
+    assert git(root, "rev-parse", "HEAD") == base_commit

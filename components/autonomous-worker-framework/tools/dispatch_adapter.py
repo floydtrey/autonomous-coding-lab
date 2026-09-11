@@ -254,12 +254,21 @@ def execute_workspace_write(
             acceptance_criteria=tuple(task["acceptance_criteria"]),
             quick_validation=quick,
         )
+        def execute_bound(request: WorkerRequest) -> WorkerExecution:
+            execution = provider_executor.execute(request)
+            if not isinstance(execution, WorkerExecution) or execution.returncode != 0:
+                raise DispatchAdapterError(
+                    "DISPATCH_PROVIDER_FAILED",
+                    "bound provider executor did not complete successfully",
+                )
+            return execution
+
         result = run_code_task(
             contract,
             context,
             repo_root=root,
             framework_repo=framework,
-            executor=provider_executor.execute,
+            executor=execute_bound,
             profile=profile,
         )
         handoff = build_code_task_handoff(contract, result, repo_root=root)
