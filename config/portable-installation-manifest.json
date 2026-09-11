@@ -15,11 +15,12 @@
       "root": "components/autonomous-worker-framework",
       "production_root": "tools",
       "scope": "runtime-dependency-closure",
-      "digest": "sha256:22c519673bb8f2b5826687b3e8b8df22b004865b702b8fb2215d4e8bd84861d6",
+      "digest": "sha256:81926dbde5d8ac45408c9d0d0ab9819f65c977e166cbe34d802cf445de29d9ac",
       "files": [
         "tools/code_task.py",
         "tools/codex_runtime.py",
         "tools/consumer_profile.py",
+        "tools/dispatch_adapter.py",
         "tools/local_worker_harness.py",
         "tools/pydantic_ollama_worker.py",
         "tools/repository_handoff.py",
@@ -40,7 +41,7 @@
       "root": "components/worker-lab",
       "production_root": "worker_lab",
       "scope": "python-production-tree",
-      "digest": "sha256:6172ab988f48896128beb143fc2f6bc0529d891b1eb2a5310f4016aad0bc6a25"
+      "digest": "sha256:eecac00f96a46f25a6dab03eef933192956572c49a8b5f542784d24935175695"
     }
   },
   "host_requirements": {

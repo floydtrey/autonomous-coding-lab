@@ -21,6 +21,7 @@ _FRAMEWORK_FILES = (
     "tools/code_task.py",
     "tools/codex_runtime.py",
     "tools/consumer_profile.py",
+    "tools/dispatch_adapter.py",
     "tools/local_worker_harness.py",
     "tools/pydantic_ollama_worker.py",
     "tools/repository_handoff.py",
