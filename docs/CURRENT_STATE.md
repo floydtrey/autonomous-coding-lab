@@ -24,7 +24,7 @@ ACL is being reconstructed as a **system**, not as a repository wrapper. A Git r
 - Knowledge Core Consumer V1 at `37f08f4090d59573108100ddf1b35a4923f01c29` returns verified segment content with exact provenance while preserving canonical evidence and privacy/serving checks.
 - Portable ACL component identity separates committed component/source identity from per-host provider qualification, although the current portable-host contract still contains Windows-specific assumptions that are scheduled for reconstruction.
 - Controller Task Packet V1 seals the user request and exact Knowledge Core evidence as informational context without granting authority.
-- Runtime Selection V1 at `0ad1b212581fb7b18110b9155763bf49b42df442` protects the historical `coding-worker:v1` capability requirement used by the still-live V2 application seam.
+- Runtime Selection V1 at `0ad1b212581fb7b18110b9155763bf49b42df442` preserves the historical `coding-worker:v1` qualification identity; the current public application-service execution path is Invocation/Result V3 and binds provider/model/settings through Provider Binding before authorization.
 - Generic framework `WorkerRequest` no longer has an implicit Codex executor fallback.
 
 ## Host Provider Qualification Contract V1 — accepted baseline
@@ -331,7 +331,8 @@ Validation on the Task 5 materialized tree:
   installation-status/doctor-boundary tests intentionally excluded;
 - unaffected CLI regressions: 13 passed, with the legacy doctor test intentionally
   excluded;
-- custody regressions and portable identity checks are part of the final committed-byte gate;
+- custody regressions: 10 passed and 20 Windows-native cases skipped on Linux;
+- both portable component identities reported `MATCH` and portable contract tests passed 4/4;
 - the excluded legacy checks were run separately and confirmed to fail only at the
   already-known obsolete `acl-installation-manifest:v2` framework-runtime-closure
   boundary (`framework runtime closure is incomplete`);
