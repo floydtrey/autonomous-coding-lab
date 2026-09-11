@@ -1,0 +1,200 @@
+name: Task 4 Docs Temp
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - task4-validation-temp
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record accepted Task 4 boundary
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          current_path = Path("docs/CURRENT_STATE.md")
+          current = current_path.read_text(encoding="utf-8")
+          anchor = '''Task 3 intentionally does **not** migrate `framework_client.py`,
+          `worker_lab_adapter.py`, or `application_service.py` to V3. That work remains
+          ordered under Tasks 4–5 so the new contracts are not layered onto the obsolete
+          Codex/installation-manifest shell.
+
+          ## Current stop condition
+          '''
+          anchor = anchor.replace("          ", "")
+          task4 = '''Task 3 intentionally does **not** migrate `framework_client.py`,
+          `worker_lab_adapter.py`, or `application_service.py` to V3. That work remains
+          ordered under Tasks 4–5 so the new contracts are not layered onto the obsolete
+          Codex/installation-manifest shell.
+
+          ## Runtime reconstruction Task 4 — accepted checkpoint
+
+          Task 4 establishes the current V3 dispatch foundations without migrating
+          `application_service.py` and without invoking a real provider.
+
+          Accepted changes:
+
+          - `dispatch_client.py` accepts only an authorized `DISPATCHING` Invocation V3
+            workspace-write task, requires the exact durable Provider Binding and protected
+            runtime-settings profile, verifies the exact Controller Task Packet/prompt and
+            sealed task/test/scope, and emits one bounded canonical dispatch envelope;
+          - logical target/workspace identities and capability-specific Git source evidence
+            remain in the sealed V3 record, while local workspace/framework paths are passed
+            separately to the framework adapter as backend locators rather than durable ACL
+            target identity;
+          - `dispatch_adapter.py` independently validates the V3 envelope, reconstructs the
+            bounded consumer profile/context/code task, and accepts exactly one explicitly
+            injected `BoundProviderExecutor`; it contains no provider registry, default
+            provider, fallback provider, Codex path, or Terra path;
+          - the injected executor must match the sealed provider-adapter identity,
+            tool-surface identity, Provider Binding digest, and runtime-settings digest
+            before workspace mutation can occur;
+          - a nonzero provider execution result fails closed as `DISPATCH_PROVIDER_FAILED`
+            even when the authorized file changes would otherwise satisfy validation;
+          - existing provider-neutral `code_task.py` containment, exact changed-path,
+            candidate-identity, diff, and independent validation behavior is reused rather
+            than duplicated or weakened;
+          - the existing portable V1 Autonomous Worker Framework runtime closure now contains
+            12 files and matches
+            `sha256:81926dbde5d8ac45408c9d0d0ab9819f65c977e166cbe34d802cf445de29d9ac`;
+          - the portable V1 Worker Lab production tree now contains 31 files and matches
+            `sha256:eecac00f96a46f25a6dab03eef933192956572c49a8b5f542784d24935175695`;
+          - execution authority remains `DISABLED`; no provider/model request was sent.
+
+          Validation on the Task 4 candidate and committed-byte temp tree:
+
+          - Python compilation passed;
+          - framework Task 4 plus stable generic regressions: 28 passed;
+          - Worker Lab Task 4 plus V3/Provider Binding regressions: 24 passed;
+          - Worker Lab/framework dispatch protocol constants matched exactly;
+          - direct portable component inspection: Autonomous Worker Framework `MATCH`, Worker
+            Lab `MATCH`;
+          - portable installation contract tests: 4 passed;
+          - the same validation passed again against the committed portable identities with
+            no further portable-source changes required.
+
+          Task 4 intentionally does **not** migrate the live `application_service.py` path.
+          The old V2 `framework_client.py` / `worker_lab_adapter.py` shell remains reachable
+          only through that not-yet-migrated service path until Task 5, and obsolete modules
+          remain scheduled for deletion in Task 7.
+
+          ## Current stop condition
+          '''
+          task4 = task4.replace("          ", "")
+          if anchor not in current:
+              raise SystemExit("CURRENT_STATE Task 3 anchor differs")
+          current = current.replace(anchor, task4, 1)
+          old_gate = '''## Immediate next gate
+
+          Begin only **Task 4 — generic dispatch client + dispatch adapter** from
+          `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
+
+          Task 4 must replace the old `framework_client.py` / `worker_lab_adapter.py`
+          responsibilities with a minimal provider-neutral dispatch seam, preserve explicit
+          no-fallback behavior, and use injected fake provider executors only. Do not migrate
+          the application service in the same task; that remains Task 5. Actual provider/model
+          qualification and execution remain out of scope.'''.replace("          ", "")
+          new_gate = '''## Immediate next gate
+
+          Begin only **Task 5 — migrate application service and current result acceptance**
+          from `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` in a later bounded task.
+
+          Task 5 must migrate only the invocation/dispatch/recovery portion of
+          `application_service.py` onto the accepted V3/current dispatch contracts while
+          preserving lifecycle, storage, policy, test, custody, and independent result
+          acceptance behavior. Keep Git workspace evidence behind the coding-workspace
+          boundary. Provider qualification refinement, legacy deletion, and actual
+          provider/model execution remain out of scope.'''.replace("          ", "")
+          if old_gate not in current:
+              raise SystemExit("CURRENT_STATE Task 4 gate differs")
+          current = current.replace(old_gate, new_gate, 1)
+          current_path.write_text(current, encoding="utf-8")
+
+          plan_path = Path("docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md")
+          plan = plan_path.read_text(encoding="utf-8")
+          old_status = "**Status:** approved plan; Tasks 1-3 complete; Task 4 next"
+          new_status = "**Status:** approved plan; Tasks 1-4 complete; Task 5 next"
+          if old_status not in plan:
+              raise SystemExit("plan status differs")
+          plan = plan.replace(old_status, new_status, 1)
+
+          old_task4 = '''### Task 4 — generic dispatch client + dispatch adapter
+
+          - replace `framework_client.py` and `worker_lab_adapter.py` responsibilities with minimal current modules;
+          - migrate workspace-write task reconstruction/verification from the old bridge as needed;
+          - explicit no-fallback behavior;
+          - injected fake provider executors only.
+
+          **Stop gate:** workspace-write dispatch has no Codex/Terra dependency and no implicit provider selection.
+          '''.replace("          ", "")
+          new_task4 = '''### Task 4 — generic dispatch client + dispatch adapter
+
+          **Status:** complete in the Task 4 reconstruction checkpoint.
+
+          - replace `framework_client.py` and `worker_lab_adapter.py` responsibilities with minimal current modules;
+          - migrate workspace-write task reconstruction/verification from the old bridge as needed;
+          - explicit no-fallback behavior;
+          - injected fake provider executors only.
+
+          **Stop gate:** workspace-write dispatch has no Codex/Terra dependency and no implicit provider selection.
+
+          **Accepted Task 4 boundary:** Worker Lab `dispatch_client.py` creates one bounded
+          canonical V3 workspace-write dispatch envelope only after exact authorization,
+          durable Provider Binding, runtime settings, Controller Task Packet, task, scope,
+          and test-plan checks. Framework `dispatch_adapter.py` independently validates that
+          envelope, reconstructs the provider-neutral code task, and requires one explicit
+          `BoundProviderExecutor` whose adapter/tool-surface/binding/settings identities match
+          the sealed request. No provider registry, default, Codex/Terra fallback, or implicit
+          provider selection exists. Workspace/framework paths are backend locators supplied
+          outside durable ACL target identity. Nonzero provider execution fails closed even if
+          resulting files would validate. The live application service remains on V2 until
+          Task 5; Provider Qualification refinement remains Task 6; legacy deletion remains
+          Task 7. No provider/model request was sent and execution remains `DISABLED`.
+          '''.replace("          ", "")
+          if old_task4 not in plan:
+              raise SystemExit("plan Task 4 block differs")
+          plan = plan.replace(old_task4, new_task4, 1)
+
+          old_start = '''## New-chat startup / Task 4 boundary
+
+          A fresh implementation chat should read, in this order:
+
+          1. `AGENTS.md`
+          2. `docs/START_HERE.md`
+          3. `docs/CURRENT_STATE.md`
+          4. `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`
+          5. only the current source/tests directly relevant to **Task 4**
+
+          Then inspect the current branch/HEAD and working tree. Perform **Task 4 only**: replace the old framework-client/worker-adapter responsibilities with the minimal provider-neutral dispatch client and adapter required by the accepted V3/Provider Binding contracts. Preserve exact no-fallback behavior, use injected fake provider executors only, and do not migrate `application_service.py`, refine provider qualification, delete legacy modules, or execute a provider/model in the same task.'''.replace("          ", "")
+          new_start = '''## New-chat startup / Task 5 boundary
+
+          A fresh implementation chat should read, in this order:
+
+          1. `AGENTS.md`
+          2. `docs/START_HERE.md`
+          3. `docs/CURRENT_STATE.md`
+          4. `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`
+          5. only the current source/tests directly relevant to **Task 5**
+
+          Then inspect the current branch/HEAD and working tree. Perform **Task 5 only**: migrate the invocation/dispatch/recovery portion of `application_service.py` onto Invocation/Result V3 and the accepted provider-neutral dispatch seam while preserving stable lifecycle, storage, policy, test, custody, and independent result-acceptance behavior. Keep Git-specific workspace evidence behind the coding-workspace boundary. Do not refine provider qualification, adapt the real provider, delete legacy modules, redesign portable identity V2, or execute a provider/model in the same task.'''.replace("          ", "")
+          if old_start not in plan:
+              raise SystemExit("plan startup block differs")
+          plan = plan.replace(old_start, new_start, 1)
+          plan_path.write_text(plan, encoding="utf-8")
+          PY
+      - name: Commit checkpoint docs on temporary branch
+        shell: bash
+        run: |
+          git config user.name "Task 4 Validation"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/CURRENT_STATE.md docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md
+          git diff --cached --quiet && exit 0
+          git commit -m "docs: record Task 4 checkpoint"
+          git push origin HEAD:task4-validation-temp
