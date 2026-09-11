@@ -22,6 +22,7 @@ _FRAMEWORK_FILES = (
     "tools/codex_runtime.py",
     "tools/consumer_profile.py",
     "tools/local_worker_harness.py",
+    "tools/pydantic_ollama_worker.py",
     "tools/repository_handoff.py",
     "tools/worker_lab_adapter.py",
     "tools/worker_result.py",
