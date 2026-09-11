@@ -18,10 +18,10 @@ Do not regenerate recovery evidence, import histories, or structural inventories
 
 | Area | Primary owner |
 |---|---|
-| `components/worker-lab/worker_lab/` | Authority, records, lifecycle, workspace/evidence control |
-| `components/autonomous-worker-framework/tools/` | Execution security, containment, validation, handoff |
+| `components/worker-lab/worker_lab/` | Authority, records, lifecycle, workspace/evidence control, protected runtime requirements |
+| `components/autonomous-worker-framework/tools/` | Execution security, containment, validation, provider-neutral worker request/handoff |
 | `components/local-model-bench/src/localbench/` | Provider-independent benchmarking and evaluation |
-| `config/` | Installation/integration identity, never task authorization |
+| `config/` | Portable installation identity and legacy installation contracts, never task authorization |
 | `tools/` and `migration/inventory/` | Consolidation inspection and evidence |
 | `docs/` | Current operator/developer truth |
 
@@ -38,6 +38,16 @@ python -m pytest -q tests
 ```
 
 These tests validate the inventory tooling; they do not certify component runtimes.
+
+### Portable installation identity
+
+From the repository root on a candidate Windows host:
+
+```powershell
+python .\tools\verify_portable_installation.py
+```
+
+This verifies committed component bytes plus the portable Windows/CPython/architecture requirements. It deliberately does not require a provider and must not report execution ready merely because the component and host checks pass.
 
 ### Worker Lab
 
@@ -71,29 +81,47 @@ From `components\local-model-bench` after bootstrap:
 
 Unit and schema/config validation do not require running a model. Do not launch a model benchmark merely because benchmark code or documentation changed unless fresh provider behavior is part of the task.
 
-## Cross-component identity changes
+## Portable identity and provider qualification
 
-An installation-identity change affects a security boundary. Review it as one protocol change:
+Keep four identities distinct:
 
-1. Define the installed file set and digest algorithm.
-2. Verify manifest path containment and exact entrypoint bytes.
-3. Bind Worker Lab's expected runtime identity to the same representation.
-4. Reject missing, malformed, outside-root, or mismatched entries.
-5. Run focused tests on both sides.
-6. Run the full Worker Lab and framework suites once.
-7. Keep execution disabled until a separate authority decision.
+1. **Git/source identity** — the committed code and tree being reviewed.
+2. **Portable component identity** — deterministic protected component bytes recorded in `config/portable-installation-manifest.json`.
+3. **Host/provider identity** — the exact provider/harness/runtime/model qualified on one host to satisfy a protected Worker Lab runtime requirement such as `coding-worker:v1`.
+4. **Task authorization identity** — the exact invocation/controller decision that permits one bounded execution.
 
-Development Git identity, installed-file identity, target-repository identity, and candidate identity must stay separate.
+A portable manifest change is a security-boundary change. Review it as follows:
+
+1. Define the protected file set and canonical digest algorithm.
+2. Verify containment, deterministic checkout bytes, and exact entrypoint/runtime-closure membership.
+3. Verify the intended host requirements separately from any provider executable path.
+4. Keep provider qualification out of the committed portable component identity unless the contract is deliberately versioned to say otherwise.
+5. Run focused tests on every affected component.
+6. Recalculate and record affected portable component digests from canonical worktree bytes.
+7. Run `verify_portable_installation.py` on the intended host after the refreshed manifest is committed.
+8. Keep execution authority disabled until a separate authorization decision.
+
+Do not edit the legacy `config/installation-manifest.json` merely to make its old Codex paths match a different machine. It remains the disabled historical Codex execution/proof contract until a deliberate migration replaces it.
+
+## Runtime Selection V1
+
+Worker Lab owns the protected capability requirement. The current selected requirement for new bounded coding work is `coding-worker:v1`, capability `bounded-code-task`.
+
+The task/invocation layer may state provider-qualified selectors and timeout constraints, but it must not choose a machine-specific executable path or smuggle provider credentials into task identity. Provider selection belongs behind the host-qualification boundary.
+
+The framework owns the provider-neutral `WorkerRequest` and execution containment. Generic framework code must not regain implicit Terra/Codex defaults. Historical Terra records remain parseable only for compatibility/evidence.
+
+When adding the first local provider adapter, test at least these failure cases before any real model run: wrong provider identity, wrong model identity, missing runtime, substituted executable/path, changed task scope, changed writable paths, provider attempting unauthorized capabilities, and provider-qualified-but-execution-disabled.
 
 ## Documentation maintenance
 
 - Update `docs/CURRENT_STATE.md` only after evidence exists.
 - Update `docs/ARCHITECTURE.md` when ownership or protocol direction changes.
-- Update `docs/OPERATIONS.md` when an operator command or recovery path changes.
+- Update `docs/OPERATIONS.md` when an operator command, host qualification, or recovery path changes.
 - Update `docs/GOVERNANCE.md` for authority or security decisions.
 - Move obsolete material to `docs/legacy/`; do not leave two active sources of truth.
 - Do not create a new milestone, handoff, decision log, or checklist when an existing current page can hold the necessary fact.
 
 ## Completion report
 
-Report the changed files, validation actually run, known unresolved issues, and actions not taken. Do not claim the working tree is accepted, clean, pushed, or executable unless each statement was verified in the current task.
+Report the changed files, validation actually run, known unresolved issues, and actions not taken. Do not claim the working tree is accepted, clean, pushed, provider-qualified, or executable unless each statement was verified in the current task.

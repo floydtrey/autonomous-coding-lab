@@ -1,19 +1,18 @@
 # Operations
 
-This guide covers safe local inspection and benchmark operation on Windows. Worker execution remains disabled. The synthetic proof command is documented so its authority boundary can be reviewed, but it fails before creating a run directory while the installation policy is disabled.
+This guide covers safe local inspection, portable installation verification, Worker Lab administration, and benchmark operation on Windows. **Worker execution remains disabled.** Provider qualification, installation verification, and successful tests do not authorize a worker or model run.
 
-Run commands from `C:\Users\MineTrackerWorker\repos\autonomous-coding-lab` unless a section says otherwise.
+Run commands from the repository root unless a section says otherwise. The repository path is not authority; the current laptop checkout is `C:\projects\autonomous-coding-lab`, while a fresh tower clone may use a different path.
 
 ## Prerequisites
 
 - Windows 10 22H2 or newer
 - Git
-- Python 3.12 for Worker Lab and the unified development environment
-- Python 3.10 or newer for Local Model Bench
-- Ollama only when running Ollama-backed benchmarks
-- `llama-server` and an exact GGUF only when using the managed llama.cpp provider
+- CPython 3.12 AMD64 for the current portable ACL host contract
+- Ollama only when intentionally running Ollama-backed Local Model Bench work
+- `llama-server` and an exact GGUF only when intentionally using the managed llama.cpp benchmark provider
 
-Each component currently keeps its own environment. Do not assume one virtual environment proves all three components.
+Each component may keep its own environment. A Python environment, installed provider, or benchmark runtime does not by itself qualify the full ACL execution path.
 
 ## Inspect repository status
 
@@ -22,15 +21,46 @@ git status --short --branch
 git log -1 --oneline
 ```
 
-The accepted checkpoint and known unfinished changes are recorded in `docs/CURRENT_STATE.md`. If Git disagrees with that file, stop and reconcile the documentation before relying on either.
+The current checkpoint and unfinished gate are recorded in `docs/CURRENT_STATE.md`. If Git disagrees with that file, stop and reconcile before relying on either.
+
+## Portable installation verification
+
+For the current provider-neutral vertical-slice path, the active portability contract is `config/portable-installation-manifest.json`.
+
+From the repository root:
+
+```powershell
+python .\tools\verify_portable_installation.py
+```
+
+This verification checks the protected component bytes and host requirements without requiring Codex or another provider. The intended result while no provider has been qualified is:
+
+```text
+provider_runtime_qualified=false
+execution_authority=DISABLED
+execution_ready=false
+```
+
+Those values are not failures. Portable component identity and host/provider qualification are separate, and neither is task authorization.
+
+The current portable manifest records the Autonomous Worker Framework runtime closure, Local Model Bench Python production tree, and Worker Lab Python production tree using the `acl-installed-file-set:v1` canonical digest algorithm. It requires Windows, CPython 3.12, and AMD64, but it does not commit a machine-specific Python path or provider executable path.
+
+## Legacy installation doctor
+
+From `components\worker-lab`:
+
+```powershell
+python -m worker_lab.cli doctor
+```
+
+`doctor` currently verifies the legacy `config/installation-manifest.json` (`acl-installation-manifest:v2`), including its historical pinned Python and Codex identities. It is retained for the old Codex proof/execution contract and is **not** the current portability check for the new provider-neutral vertical-slice path. Do not install Codex or rewrite its absolute paths merely to make the legacy doctor pass on a new host.
 
 ## Worker Lab administrative interface
 
-From `components\worker-lab` with a Python 3.12 environment:
+From `components\worker-lab` with Python 3.12:
 
 ```powershell
 python -m worker_lab.cli --help
-python -m worker_lab.cli doctor
 python -m worker_lab.cli --root <lab-data-root> health
 python -m worker_lab.cli --root <lab-data-root> installation-status
 python -m worker_lab.cli --root <lab-data-root> list-records <collection>
@@ -41,57 +71,66 @@ python -m worker_lab.cli --root <lab-data-root> reject-invocation <invocation-id
 python -m worker_lab.cli --root <lab-data-root> cancel-invocation <invocation-id> --expected-identity-digest <sha256-digest> --controller <same-controller-id>
 python -m worker_lab.cli --root <lab-data-root> dispatch-invocation <invocation-id> --expected-identity-digest <sha256-digest> --controller <same-controller-id> --workspace-root <workspace-root>
 python -m worker_lab.cli --root <lab-data-root> recover-invocation <invocation-id> --expected-identity-digest <sha256-digest> --controller <same-controller-id> --workspace-root <workspace-root>
-python -m worker_lab.cli --root <lab-data-root> list-curricula
-python -m worker_lab.cli validate-definition <definition.json>
 python -m worker_lab.cli --root <lab-data-root> backup <backup-directory>
 python -m worker_lab.cli verify-backup <backup-directory>
 python -m worker_lab.cli restore <backup-directory> <empty-destination>
 ```
 
-`doctor` verifies the strict installation manifest, complete component file sets, and pinned Python/Codex identities. It does not launch the framework adapter, Codex, or a local model. An `execution_ready` value of `false` is the expected result while policy is disabled.
+Creating attempts, workspaces, or prepared invocations changes durable state and requires an explicit bounded task. The existence of a CLI command never supplies authorization.
 
-The Phase 3 service queries emit canonical versioned JSON for CLI and future GUI clients. Supported collections are `attempts`, `catalogs`, `contexts`, `curricula`, `evidence`, `exercises`, `failures`, `invocations`, `policies`, `results`, and `roles`. Versioned definition identities use `<name>@v<version>`; other records use their durable record identity. All four operations are non-mutating. Health, list, and show reject invalid data roots; record queries also reject corrupt records, duplicate identities, and unsafe input. Installation-status verifies the installed identity independently of the data root.
+`prepare-invocation` seals the prompt, verified workspace receipt, protected definitions, test plan, component identities, writable/readable scope, and immutable invocation identity. Authorization is a separate controller-bound transition. Dispatch is a still-later transition and remains blocked by the committed execution policy.
 
-Creating attempts or workspaces changes durable state and requires an explicit task. The existence of a CLI command does not authorize framework execution.
+## Runtime Selection V1
 
-`create-attempt`, `prepare-workspace`, `verify-workspace`, `transition-attempt`, and `discard-workspace` now use the same application service intended for future GUI clients. The service returns a versioned operation-result DTO internally while the CLI preserves its established record-shaped JSON output. These commands create or change durable state, but they do not create, authorize, or dispatch an invocation.
+Worker Lab now protects a provider-neutral runtime requirement for new work:
 
-`prepare-invocation` seals the prompt bytes, verified workspace receipt, protected definitions, test plan, installed component identities, and immutable invocation identity. It permits only one durable invocation per attempt. `authorize-invocation` requires that exact immutable digest and a validated controller identity; `reject-invocation` requires the same digest and creates a terminal rejection. `cancel-invocation` accepts only an authorized invocation, requires the same immutable digest and authorizing controller, and records terminal `ABORTED` before any dispatch. Prepared invocations use rejection instead. Dispatched or uncertain invocations cannot use this cancellation path and require recovery with exact process-custody evidence. These commands return operation-result v2 JSON. None performs adapter preflight or dispatch, and disabled installation policy remains in force.
-
-`dispatch-invocation` is the service-owned read-only dispatch path. It reloads and binds the exact authorized invocation, controller, protected definitions, workspace receipt, sealed prompt, installed runtime, process custody, result, and candidate evidence. It calls the framework adapter and sealed evaluator only after `require_execution_enabled`; with the committed disabled installation, it fails before any durable dispatch transition, process-custody record, adapter call, worker, or model. Workspace-write dispatch is not supported until Phase 4.
-
-`recover-invocation` grants no execution authority. It accepts only a controller-bound `DISPATCHING`, `UNCERTAIN`, or partially persisted `ABORTED` invocation tied to a `RUNNING` recovery attempt. Recovery requires an exact prepared-workspace receipt, unchanged detached workspace content and HEAD, no result record, and custody that either already proves zero active processes or was durably terminated with zero active processes after the exact original controller exited. Custody whose own state is `UNCERTAIN` remains unrecoverable. Successful recovery records terminal invocation and attempt aborts and retains the unchanged workspace for inspection. The operation is restart-safe across partially persisted custody, invocation, and attempt transitions.
-
-Backup, verification, and restore commands now route through the application service and return its verified file count through the established CLI output. The versioned service result also carries the exact manifest digest and manifest content for future GUI clients. Backups include durable `curricula/` and `state/` data only. Source code, repository internals, caches, and disposable workspaces are not backup content.
-
-## Synthetic read-only proof boundary
-
-The supported Phase 2 command requires all three operator inputs: a new absolute run directory outside every Git repository, a stable controller identity, and the exact one-time confirmation phrase.
-
-```powershell
-python -m worker_lab.cli synthetic-read-only `
-  --run-directory C:\worker-lab-runs\phase2-proof `
-  --controller <controller-identity> `
-  --authorize-once AUTHORIZE-SYNTHETIC-READ-ONLY-ONCE
+```text
+requirement: coding-worker:v1
+capability: bounded-code-task
+model selector: provider-qualified
+reasoning selector: provider-qualified
+provider selection: host-qualified-only
 ```
 
-This command is not standing authority. With the committed disabled policy it returns `INTEGRATION_EXECUTION_DISABLED` before creating the run directory or launching any subprocess. The accepted Phase 2 proof temporarily activated only Worker Lab and the framework, ran once, and restored disabled policy; future runs must preserve the same bounded authority and evidence controls.
+The requirement is part of task/runtime admission; it is not a provider executable, model name, or authorization token. Historical `terra-medium:v1` invocation records remain parseable for evidence compatibility but are not the selected requirement for newly prepared work.
 
-When an authorized run is admitted, Worker Lab writes strict activation and one-time authorization evidence before adapter preflight. The authorization is bound to the controller, canonical run-directory digest, invocation identity, installed component digests, and pinned runtime identities. Reusing the same directory is rejected.
+The Autonomous Worker Framework `WorkerRequest` requires explicit model/reasoning values from a qualified provider boundary. Generic code-task construction no longer silently defaults to Terra.
 
-For a recorded interrupted run, recovery is explicit and does not activate execution:
+## Host Provider Qualification V1 — next gate
 
-```powershell
-python -m worker_lab.cli recover-synthetic-read-only `
-  --run-directory C:\worker-lab-runs\phase2-proof `
-  --controller <same-controller-identity>
+Host Provider Qualification V1 has not yet been accepted. Its job is to map `coding-worker:v1` to one exact host provider/harness/runtime/model identity while preserving ACL-owned task scope, validation, custody, and authorization boundaries.
+
+The qualification must prove all of the following before any real worker execution:
+
+1. the provider executable/runtime and model identity are exact and reproducible on the host;
+2. the provider can consume the ACL bounded `WorkerRequest` contract without gaining scope or approval authority;
+3. provider qualification can be verified independently of a task authorization;
+4. execution remains disabled after qualification;
+5. a later real run still requires one explicit supervised vertical-slice authorization.
+
+Use the existing harness/model research to select the first candidate. Do not start a new broad research campaign merely to complete qualification.
+
+## Worker execution gate
+
+Do not authorize or dispatch the historical prepared Phase 4 invocation. Do not call framework execution adapter modes, run a coding worker, or run a local model as part of routine verification.
+
+Before the first supervised vertical-slice execution, the accepted chain must be:
+
+```text
+portable component identity
+  -> host/provider qualification
+  -> exact bounded task + context
+  -> explicit controller/human authorization
+  -> one worker dispatch
+  -> independent validation
+  -> verified/retry/blocked result
 ```
 
-Pre-dispatch recovery verifies the unchanged workspace, terminates the durable invocation, removes the disposable workspace, and records the aborted attempt. Post-dispatch recovery proceeds only from exact process-custody absence evidence and an unchanged workspace; uncertainty remains fail-closed.
+Passing any earlier gate does not imply permission for the next one. The committed default remains `DISABLED`.
 
 ## Local Model Bench setup
 
-From `components\local-model-bench`:
+Local Model Bench remains advisory and separate from Worker Lab execution authority. From `components\local-model-bench`:
 
 ```powershell
 .\scripts\bootstrap.ps1
@@ -100,33 +139,21 @@ From `components\local-model-bench`:
 .\.venv\Scripts\python.exe -m localbench doctor --config .\configs\ollama-16gb.json
 ```
 
-`pull-models.ps1` downloads models named by the baseline setup. Review the configuration before downloading if disk space or model selection has changed.
+Review a benchmark configuration before downloading or running models. For ACL worker-model evaluation, the intended starting context is 32K; benchmark completion is not semantic acceptance and does not qualify a provider for Worker Lab automatically.
 
-## Run and watch a benchmark
-
-Start the default unattended benchmark:
+To run an intentionally authorized benchmark:
 
 ```powershell
 .\scripts\run-unattended.ps1
 ```
 
-The launcher prints the exact result directory and watcher command. To follow the newest run:
-
-```powershell
-.\scripts\watch-status.ps1
-```
-
-For a single status reading:
+To inspect progress without contacting the model:
 
 ```powershell
 .\scripts\watch-status.ps1 -Once
 ```
 
-The watcher reads `checkpoint.json`; it does not contact or slow the model. The run is complete only when `manifest.json` records a terminal status. Provider completion alone is not a quality pass.
-
-## Interrupted or failed benchmarks
-
-Each completed case is written immediately. Resume the exact run rather than starting over:
+Resume an interrupted exact run rather than starting over:
 
 ```powershell
 .\.venv\Scripts\python.exe -m localbench run `
@@ -134,26 +161,8 @@ Each completed case is written immediately. Resume the exact run rather than sta
   --resume <existing-result-directory>
 ```
 
-Add `--rerun-errors` only when intentionally retrying terminal error cases. A failed case is not appended to preserved conversation history, so later preserved-context cases rebuild from the last successful turn.
+Benchmark results, provider qualification evidence, Worker Lab execution evidence, and human acceptance are separate evidence classes and must not be substituted for one another.
 
-Inspect these artifacts in order:
+## Historical proofs
 
-1. `manifest.json` for terminal state.
-2. `checkpoint.json` for the last completed/current case.
-3. Per-case JSON for the response or structured error.
-4. Launcher stderr log for a process-level failure.
-5. `evaluation.json` or `evaluation.md` for scoring when evaluation is enabled.
-
-## Commit benchmark evidence
-
-Before committing results:
-
-- confirm configs contain environment-variable names, never credential values;
-- keep raw case JSON, manifest, checkpoint, effective redacted config, and evaluation reports together;
-- exclude transient PID and launcher log files unless they explain a failure;
-- name the run and review so a later reader can identify model order, suite, and purpose;
-- record human semantic review separately from deterministic completion/format scoring.
-
-## Worker execution gate
-
-Do not call `worker_lab_adapter.py execute-read-only`, the guarded synthetic command, or any workspace-write path as routine operation. Each run must name the accepted installation identity, controller, one-time authorization, disposable run directory or target, sandbox, test catalog, stop conditions, and applicable authority. The committed default remains disabled even after a successful proof.
+The prior synthetic read-only Codex proof and September 1 Phase 4 prepared packet are retained as historical evidence. Their exact identities and commands are preserved in `docs/legacy/CURRENT_STATE_2026-09-01.md` and Git history. They are not standing authority and are not the current next gate.
