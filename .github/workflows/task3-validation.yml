@@ -34,7 +34,7 @@ jobs:
           tests/test_runtime_selection.py
           tests/test_provider_qualification.py
           tests/test_integration.py
-          tests/test_framework_adapter.py
+          tests/test_framework_client.py
           tests/test_application_service.py
           tests/test_runtime_selection_v3.py
           tests/test_provider_binding.py
