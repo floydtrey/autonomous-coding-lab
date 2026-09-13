@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -75,7 +75,7 @@ def test_graphiti_partition_is_stable_and_rotates_with_scope_or_generation_profi
     assert all(ch.islower() or ch.isdigit() or ch == "_" for ch in first)
 
 
-def test_provider_source_binding_is_explicit_operational_evidence_not_segment_identity():
+def test_provider_source_binding_keeps_opaque_provider_id_as_evidence_only():
     segment = _segment()
     binding = ProjectionProviderSourceBinding(
         resource_version_ref=segment.resource_version_ref,
@@ -89,6 +89,9 @@ def test_provider_source_binding_is_explicit_operational_evidence_not_segment_id
     assert binding.resource_version_ref == segment.resource_version_ref
     assert binding.segment_key == segment.segment_key
     assert binding.provider_source_id == "provider-minted-episode-id"
+    # KC must not silently reinterpret provider-owned identifiers as KC UUID identity.
+    with pytest.raises(ValueError):
+        UUID(binding.provider_source_id)
 
 
 def test_graphiti_behavior_digest_excludes_secrets_but_binds_behavior():
