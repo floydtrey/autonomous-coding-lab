@@ -6,6 +6,19 @@
 
 `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` is the reconstruction acceptance record and post-reconstruction boundary. no actual provider/model execution occurs during reconstruction.
 
+## Active model-admission preparation
+
+Post-reconstruction work has begun on `feat/model-admission-operator-path`.
+`docs/MODEL_ADMISSION_WORKPLAN.md` is the active implementation and handoff
+record. Work is currently at MA-1: durable provider observation, qualification,
+and Provider Binding operations. Execution remains disabled.
+
+The user's Local Model Bench campaign is running on the intended host. ACL work
+must not contact Ollama, inspect its live model inventory, launch a model, or
+read/write the active benchmark checkout until the user reports that campaign
+complete. Deterministic fake-provider tests and GitHub Actions are the current
+validation paths.
+
 ## Current runtime architecture
 
 ACL has one active runtime architecture:
@@ -31,7 +44,7 @@ Accepted component identities remain:
 
 - Autonomous Worker Framework: 8-file closure at `sha256:edac32b728348d6a2e2c7521d1c846e5021fe6e40f33db70e7df625d1ca584c5`;
 - Local Model Bench: 10-file production tree at `sha256:139331ea42c914575d1119125a702ac5de2129b9bedc235bfc189700e8265afc`;
-- Worker Lab: 29-file production tree at `sha256:08a13548f9e193c85ae1280a56386237e1c3903467eb6681602827340825ab96`.
+- Worker Lab: 29-file production tree at `sha256:f7da2a750241f1bd6e76ddf383ab82a017a2f1aaa69a395d0ae994f8ec05c224`.
 
 ## Provider qualification separation
 
