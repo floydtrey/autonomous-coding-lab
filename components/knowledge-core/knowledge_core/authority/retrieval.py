@@ -9,6 +9,7 @@ class RetrievalAuthorityOperation(StrEnum):
     """Bounded retrieval operations that require deterministic admission."""
 
     SEARCH_TEXT = "retrieval.search_text"
+    SEARCH_GRAPH = "retrieval.search_graph"
 
 
 @dataclass(frozen=True)
@@ -19,12 +20,25 @@ class RetrievalAuthorityRequest:
     operation: RetrievalAuthorityOperation
     limit: int
     include_superseded: bool
+    namespace_key: str | None = None
+    scope_key: str | None = None
 
     def __post_init__(self) -> None:
         if not self.caller_principal_ref.strip():
             raise ValueError("caller_principal_ref must be non-empty")
         if self.limit < 1 or self.limit > 50:
             raise ValueError("retrieval limit must be between 1 and 50")
+        for field_name, value in (
+            ("namespace_key", self.namespace_key),
+            ("scope_key", self.scope_key),
+        ):
+            if value is not None and not value.strip():
+                raise ValueError(f"{field_name} must be null or non-empty")
+        if self.operation is RetrievalAuthorityOperation.SEARCH_GRAPH:
+            if self.namespace_key is None or self.scope_key is None:
+                raise ValueError(
+                    "graph retrieval authority requires explicit namespace_key and scope_key"
+                )
 
 
 @dataclass(frozen=True)

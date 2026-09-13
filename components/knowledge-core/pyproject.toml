@@ -20,6 +20,9 @@ test = [
   "pytest>=8,<9",
   "httpx>=0.28,<1",
 ]
+graphiti = [
+  "graphiti-core[falkordb]==0.30.2",
+]
 
 [tool.setuptools.packages.find]
 include = ["knowledge_core*"]
