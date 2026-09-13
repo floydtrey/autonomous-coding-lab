@@ -61,6 +61,17 @@ from .process_custody import (
     recover_absence_after_controller_exit,
 )
 from .windows_job import WindowsJobCustodyBackend, WorkspaceLaunchEvidence
+from .provider_binding import ProviderBinding, ProviderBindingStore, create_provider_binding
+from .provider_qualification import (
+    CapabilityProbeRunner,
+    ProviderCapabilityQualification,
+    ProviderInstallationObservation,
+    qualify_provider_capabilities,
+)
+from .provider_records import (
+    ProviderCapabilityQualificationStore,
+    ProviderInstallationObservationStore,
+)
 
 from .integration_v3 import INVOCATION_SCHEMA_V3, InvocationRecordV3, ResultRecordV3
 from .service_runtime_v3 import (
@@ -96,6 +107,9 @@ COLLECTIONS = (
     "failures",
     "invocations",
     "policies",
+    "provider-bindings",
+    "provider-capability-qualifications",
+    "provider-installation-observations",
     "results",
     "roles",
 )
@@ -117,6 +131,7 @@ Loader = Callable[[Any], _Record]
 Identity = Callable[[_Record], str]
 State = Callable[[_Record], str | None]
 SealedTestExecutor = Callable[[TestDefinition, Path], int]
+ProviderInstallationObserver = Callable[..., ProviderInstallationObservation]
 
 
 @dataclass(frozen=True)
@@ -372,6 +387,8 @@ class WorkerLabApplicationService:
         custody_backend: CustodyBackend | None = None,
         sealed_test_executor: SealedTestExecutor | None = None,
         workspace_dispatch_runner: WorkspaceDispatchRunner | None = None,
+        provider_installation_observer: ProviderInstallationObserver | None = None,
+        provider_capability_probe_runner: CapabilityProbeRunner | None = None,
     ) -> None:
         if not isinstance(data_root, Path) or not data_root.is_absolute():
             raise LabValidationError("SERVICE_DATA_ROOT_INVALID", "service data root must be absolute")
@@ -379,6 +396,10 @@ class WorkerLabApplicationService:
             raise LabValidationError("SERVICE_COMMAND_INVALID", "sealed test executor must be callable")
         if workspace_dispatch_runner is not None and not callable(workspace_dispatch_runner):
             raise LabValidationError("SERVICE_COMMAND_INVALID", "V3 workspace dispatch runner must be callable")
+        if provider_installation_observer is not None and not callable(provider_installation_observer):
+            raise LabValidationError("SERVICE_COMMAND_INVALID", "provider installation observer must be callable")
+        if provider_capability_probe_runner is not None and not callable(provider_capability_probe_runner):
+            raise LabValidationError("SERVICE_COMMAND_INVALID", "provider capability probe runner must be callable")
         if custody_backend is not None and (
             not isinstance(getattr(custody_backend, "backend_id", None), str)
             or not callable(getattr(custody_backend, "absence_evidence_after_controller_exit", None))
@@ -389,6 +410,8 @@ class WorkerLabApplicationService:
         self._custody_backend = custody_backend or WindowsJobCustodyBackend()
         self._sealed_test_executor = sealed_test_executor or _run_sealed_test
         self._workspace_dispatch_runner = workspace_dispatch_runner
+        self._provider_installation_observer = provider_installation_observer
+        self._provider_capability_probe_runner = provider_capability_probe_runner
 
     def source_status(self) -> SourceStatusDTO:
         _, report = inspect_source_identity()
@@ -433,6 +456,77 @@ class WorkerLabApplicationService:
             raise LabValidationError("SERVICE_RECORD_DUPLICATE", "requested service identity is ambiguous")
         record = matches[0]
         return RecordDetailDTO(_summary(collection, record, spec), record.to_dict())
+
+    def observe_provider_installation(
+        self,
+        *,
+        model: str,
+        base_url: str,
+        executable_name: str,
+    ) -> OperationResultDTO:
+        if self._provider_installation_observer is None:
+            raise LabValidationError(
+                "PROVIDER_OBSERVER_REQUIRED",
+                "provider installation observation requires an explicitly supplied observer",
+            )
+        observation = self._provider_installation_observer(
+            model=model,
+            base_url=base_url,
+            executable_name=executable_name,
+        )
+        observation = ProviderInstallationObservation.from_mapping(observation.to_dict())
+        stored = ProviderInstallationObservationStore(self.data_root / "state").create(
+            observation
+        )
+        return _operation_result(
+            "observe-provider-installation",
+            "provider-installation-observation",
+            stored.digest(),
+            stored,
+        )
+
+    def qualify_provider_capabilities(
+        self,
+        observation_digest: str,
+    ) -> OperationResultDTO:
+        if self._provider_capability_probe_runner is None:
+            raise LabValidationError(
+                "PROVIDER_CAPABILITY_PROBE_REQUIRED",
+                "provider capability qualification requires an explicitly supplied probe runner",
+            )
+        state_root = self.data_root / "state"
+        observation = ProviderInstallationObservationStore(state_root).read(
+            observation_digest
+        )
+        qualification = qualify_provider_capabilities(
+            observation,
+            probe_runner=self._provider_capability_probe_runner,
+        )
+        stored = ProviderCapabilityQualificationStore(state_root).create(qualification)
+        return _operation_result(
+            "qualify-provider-capabilities",
+            "provider-capability-qualification",
+            stored.digest(),
+            stored,
+        )
+
+    def create_provider_binding(
+        self,
+        binding_id: str,
+        qualification_digest: str,
+    ) -> OperationResultDTO:
+        state_root = self.data_root / "state"
+        qualification = ProviderCapabilityQualificationStore(state_root).read(
+            qualification_digest
+        )
+        binding = create_provider_binding(binding_id, qualification)
+        ProviderBindingStore(state_root).create(binding)
+        return _operation_result(
+            "create-provider-binding",
+            "provider-binding",
+            binding.binding_id,
+            binding,
+        )
 
     def show_attempt_timeline(self, attempt_id: str) -> AttemptTimelineDTO:
         attempt_id = _identity(attempt_id)
@@ -1141,6 +1235,9 @@ _COLLECTION_SPECS: Mapping[str, _CollectionSpec] = {
     "failures": _CollectionSpec("state", "failures", FailureRecord.from_mapping, lambda item: item.failure_id, _state("classification")),
     "invocations": _CollectionSpec("state", "invocations", load_invocation_record, lambda item: item.invocation_id, _state("state")),
     "policies": _CollectionSpec("curricula", "policies", PolicyRecord.from_mapping, lambda item: _versioned(item.policy_id, item.policy_version), _none),
+    "provider-bindings": _CollectionSpec("state", "provider-bindings", ProviderBinding.from_mapping, lambda item: item.binding_id, _none),
+    "provider-capability-qualifications": _CollectionSpec("state", "provider-capability-qualifications", ProviderCapabilityQualification.from_mapping, lambda item: item.digest(), _none),
+    "provider-installation-observations": _CollectionSpec("state", "provider-installation-observations", ProviderInstallationObservation.from_mapping, lambda item: item.digest(), _none),
     "results": _CollectionSpec("state", "results", load_result_record, lambda item: item.invocation_id, _state("process_outcome")),
     "roles": _CollectionSpec("curricula", "roles", RoleRecord.from_mapping, lambda item: _versioned(item.role_id, item.role_version), _none),
 }

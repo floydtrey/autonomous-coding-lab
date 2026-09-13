@@ -132,6 +132,12 @@ model selection but does not replace ACL qualification.
 
 ## Resume point
 
-Current work begins at **MA-1**. Before continuing, verify the working branch and
-read this file plus `docs/CURRENT_STATE.md`. Do not begin MA-5 while the Local
-Model Bench campaign is running.
+An **MA-1 candidate** is in progress on the working branch. It adds
+content-addressed observation/qualification storage, service operations, explicit
+observation and binding CLI commands, deterministic lifecycle tests, and a
+Windows runtime-core CI lane. The next step is remote CI acceptance, followed by
+an exact accepted-commit documentation checkpoint.
+
+Before continuing, verify the working branch and read this file plus
+`docs/CURRENT_STATE.md`. Do not begin MA-5 while the Local Model Bench campaign
+is running.

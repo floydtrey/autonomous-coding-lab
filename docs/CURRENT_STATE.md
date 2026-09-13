@@ -10,8 +10,9 @@
 
 Post-reconstruction work has begun on `feat/model-admission-operator-path`.
 `docs/MODEL_ADMISSION_WORKPLAN.md` is the active implementation and handoff
-record. Work is currently at MA-1: durable provider observation, qualification,
-and Provider Binding operations. Execution remains disabled.
+record. An MA-1 candidate now adds durable provider observation and qualification
+records, Provider Binding operations, and a Windows runtime-core CI lane. Remote
+acceptance is pending. Execution remains disabled.
 
 The user's Local Model Bench campaign is running on the intended host. ACL work
 must not contact Ollama, inspect its live model inventory, launch a model, or
@@ -44,7 +45,7 @@ Accepted component identities remain:
 
 - Autonomous Worker Framework: 8-file closure at `sha256:edac32b728348d6a2e2c7521d1c846e5021fe6e40f33db70e7df625d1ca584c5`;
 - Local Model Bench: 10-file production tree at `sha256:139331ea42c914575d1119125a702ac5de2129b9bedc235bfc189700e8265afc`;
-- Worker Lab: 29-file production tree at `sha256:f7da2a750241f1bd6e76ddf383ab82a017a2f1aaa69a395d0ae994f8ec05c224`.
+- Worker Lab: 30-file production tree at `sha256:1bfa65ddb6aed63c2581c1888331ebc6ad1aa670d2cefcf93bc5bb6e6c077b40`.
 
 ## Provider qualification separation
 
@@ -52,7 +53,10 @@ Provider installation observation V2 records installed host/provider/model facts
 
 Provider Binding seals the exact capability-qualification digest, model identity, adapter/tool surface, runtime requirement, and runtime settings before Worker Lab authorization. Qualification evidence never activates ACL.
 
-There is no default capability-probe runner and the normal CLI does not inject a workspace dispatch runner.
+There is no default capability-probe runner and the normal CLI does not inject a
+workspace dispatch runner. Provider installation observation is an explicit CLI
+operation; capability qualification remains a service operation whose runner
+must be explicitly supplied.
 
 ## Task 9 deterministic reconstruction acceptance
 

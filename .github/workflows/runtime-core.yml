@@ -1,0 +1,55 @@
+name: Runtime Core
+
+on:
+  push:
+    branches:
+      - architecture/knowledge-core
+      - feat/model-admission-operator-path
+    paths:
+      - "components/autonomous-worker-framework/**"
+      - "components/worker-lab/**"
+      - "config/portable-source-manifest.json"
+      - "docs/CURRENT_STATE.md"
+      - "docs/MODEL_ADMISSION_WORKPLAN.md"
+      - "docs/OPERATIONS.md"
+      - "tests/**"
+      - "tools/verify_portable_source.py"
+      - ".github/workflows/runtime-core.yml"
+  pull_request:
+    paths:
+      - "components/autonomous-worker-framework/**"
+      - "components/worker-lab/**"
+      - "config/portable-source-manifest.json"
+      - "tests/**"
+      - "tools/verify_portable_source.py"
+      - ".github/workflows/runtime-core.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deterministic test dependencies
+        run: python -m pip install "pytest>=8,<10"
+
+      - name: Verify portable source identity
+        run: python tools/verify_portable_source.py
+
+      - name: Run repository contract tests
+        run: python -m pytest -q tests
+
+      - name: Run Worker Lab tests
+        working-directory: components/worker-lab
+        run: python -m pytest -q
+
+      - name: Run Autonomous Worker Framework tests
+        working-directory: components/autonomous-worker-framework
+        run: python -m pytest -q

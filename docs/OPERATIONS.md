@@ -29,7 +29,28 @@ Provider installation observation records the actual host/Python/harness/provide
 
 There is no default capability probe runner. Do not perform real capability qualification during reconstruction unless separately authorized.
 
+Provider installation observation is an explicit operation and may contact the
+named provider endpoint. Run it only when that host/provider is available for ACL:
+
+```text
+python -m worker_lab.cli --root <lab-root> observe-provider-installation \
+  --model <exact-model-name> \
+  --base-url <provider-base-url> \
+  --provider-executable <provider-executable>
+```
+
+This records installation facts only. It neither proves capability nor grants
+execution authority. Capability qualification currently requires an explicitly
+supplied service probe runner; there is intentionally no normal CLI command that
+can silently supply one.
+
 After qualification, create a Provider Binding for the exact model/configuration and sealed runtime settings. Qualification and binding still do not authorize a task.
+
+```text
+python -m worker_lab.cli --root <lab-root> create-provider-binding \
+  <binding-id> \
+  --qualification-digest sha256:<digest>
+```
 
 ## 4. Prepare a V3 invocation
 
@@ -70,4 +91,6 @@ Local Model Bench is advisory and separate from runtime authority. Benchmark a m
 
 ## Current stop condition
 
-Task 9 is the remaining deterministic reconstruction acceptance gate. Until it passes and the user separately authorizes a supervised run, do not perform real model execution or persistent activation.
+Reconstruction Tasks 1–9 are complete. Model-admission preparation is active,
+but real provider qualification and model execution remain stopped until the
+user separately authorizes a supervised run.
