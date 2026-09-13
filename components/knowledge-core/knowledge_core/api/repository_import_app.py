@@ -16,6 +16,7 @@ from knowledge_core.api.repository_import_schemas import (
 from knowledge_core.application.repository_import import RepositoryImportKnowledgeKernel
 from knowledge_core.application.repository_source import RepositorySourceReader
 from knowledge_core.artifacts.store import LocalArtifactStore
+from knowledge_core.authority.retrieval import RetrievalAuthorityEvaluator
 
 
 SessionFactory = Callable[[], Session]
@@ -26,17 +27,22 @@ def create_repository_import_app(
     session_factory: SessionFactory,
     artifact_store: LocalArtifactStore,
     source_readers: Mapping[str, RepositorySourceReader],
+    retrieval_authority_evaluator: RetrievalAuthorityEvaluator | None = None,
 ):
     """Create an explicitly import-capable Knowledge Core service.
 
     The ordinary create_app() remains retrieval/resource only. Repository access
-    exists only when the host injects governed readers into this factory.
+    exists only when the host injects governed readers into this factory. Retrieval
+    remains fail-closed unless the trusted host also injects an Authority evaluator.
     """
 
-    app = create_app(
-        session_factory=session_factory,
-        artifact_store=artifact_store,
-    )
+    app_kwargs = {
+        "session_factory": session_factory,
+        "artifact_store": artifact_store,
+    }
+    if retrieval_authority_evaluator is not None:
+        app_kwargs["retrieval_authority_evaluator"] = retrieval_authority_evaluator
+    app = create_app(**app_kwargs)
 
     def get_import_kernel():
         session = session_factory()
