@@ -19,7 +19,9 @@ class ProjectionDisposition(StrEnum):
 class ProjectionValidationState(StrEnum):
     UNVALIDATED = "unvalidated"
     VALIDATED = "validated"
+    INCOMPLETE = "incomplete"
     REJECTED = "rejected"
+    QUARANTINED = "quarantined"
 
 
 class ProjectionAttemptReuseError(KnowledgeInvariantError):

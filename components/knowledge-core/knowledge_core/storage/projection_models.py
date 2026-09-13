@@ -18,7 +18,7 @@ class ProjectionAttempt(Base):
             name="ck_projection_attempt_disposition",
         ),
         CheckConstraint(
-            "validation_state IN ('unvalidated','validated','rejected')",
+            "validation_state IN ('unvalidated','validated','incomplete','rejected','quarantined')",
             name="ck_projection_attempt_validation_state",
         ),
         Index(
