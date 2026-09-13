@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,8 @@ from tools.consumer_profile import PROFILE_VERSION
 from tools.dispatch_adapter import (
     BoundProviderExecutor,
     DispatchAdapterError,
+    PROVIDER_RUNTIME_ENVELOPE_SCHEMA,
+    execute_pydantic_ollama_workspace_write,
     execute_workspace_write,
 )
 from tools.worker_runtime import WorkerExecution
@@ -229,6 +232,81 @@ def executor(binding, binding_digest, seen, root: Path):
     )
 
 
+def provider_runtime_envelope(raw: bytes):
+    dispatch = json.loads(raw)
+    binding = dispatch["provider_binding"]
+    settings = dispatch["runtime_settings"]
+    observation = {
+        "schema_version": "worker-lab-provider-installation-observation:v2",
+        "candidate_id": binding["qualification_candidate_id"],
+        "candidate_version": binding["qualification_candidate_version"],
+        "candidate_digest": binding["qualification_candidate_digest"],
+        "tool_surface_id": binding["tool_surface_id"],
+        "host_platform": "Windows",
+        "host_architecture": "AMD64",
+        "python_version": "3.12.10",
+        "python_executable": sys.executable,
+        "python_sha256": DIGEST_A,
+        "harness_distribution": "pydantic-ai-slim",
+        "harness_version": "2.40.0",
+        "harness_tree_digest": DIGEST_A,
+        "provider_kind": binding["provider_kind"],
+        "provider_endpoint": "http://127.0.0.1:11434",
+        "provider_executable": "C:\\Program Files\\Ollama\\ollama.exe",
+        "provider_executable_sha256": DIGEST_B,
+        "provider_cli_version": "ollama version 0.33.3",
+        "provider_api_version": "0.33.3",
+        "model_name": binding["model_name"],
+        "model_digest": binding["model_digest"],
+        "model_metadata_digest": binding["model_metadata_digest"],
+        "model_context_tokens": settings["requested_context_tokens"],
+        "model_capabilities": ["tools"],
+    }
+    observation_digest = canonical_digest({
+        "schema_version": "worker-lab-provider-installation-observation-identity:v2",
+        "observation": observation,
+    })
+    qualification = {
+        "schema_version": "worker-lab-provider-capability-qualification:v2",
+        "qualification_version": 2,
+        "installation_observation_digest": observation_digest,
+        "candidate_id": observation["candidate_id"],
+        "candidate_version": observation["candidate_version"],
+        "candidate_digest": observation["candidate_digest"],
+        "runtime_requirement_profile_id": binding["runtime_requirement_profile_id"],
+        "runtime_requirement_digest": binding["runtime_requirement_digest"],
+        "provider_adapter_id": binding["provider_adapter_id"],
+        "tool_surface_id": binding["tool_surface_id"],
+        "provider_kind": binding["provider_kind"],
+        "model_name": binding["model_name"],
+        "model_digest": binding["model_digest"],
+        "model_metadata_digest": binding["model_metadata_digest"],
+        "runtime_settings_profile_id": settings["profile_id"],
+        "runtime_settings_digest": binding["runtime_settings_digest"],
+        "requested_context_tokens": settings["requested_context_tokens"],
+        "effective_context_tokens": settings["requested_context_tokens"],
+        "tool_fixture_id": "acl-bounded-file-tool-probe:v1",
+        "tool_evidence_digest": DIGEST_C,
+        "context_fixture_id": "acl-context-retention-probe:v1",
+        "context_evidence_digest": DIGEST_D,
+        "capability_qualified": True,
+    }
+    binding["host_provider_qualification_digest"] = canonical_digest({
+        "schema_version": "worker-lab-provider-capability-qualification-identity:v2",
+        "qualification": qualification,
+    })
+    dispatch["invocation"]["provider_binding_digest"] = canonical_digest({
+        "schema_version": "worker-lab-provider-binding-identity:v1",
+        "binding": binding,
+    })
+    return canonical_json({
+        "schema_version": PROVIDER_RUNTIME_ENVELOPE_SCHEMA,
+        "dispatch_request": dispatch,
+        "installation_observation": observation,
+        "capability_qualification": qualification,
+    }).encode("utf-8")
+
+
 def test_workspace_write_uses_exact_injected_provider_and_returns_candidate_evidence(tmp_path):
     root, base_commit = repo(tmp_path)
     framework = tmp_path / "framework"
@@ -250,6 +328,59 @@ def test_workspace_write_uses_exact_injected_provider_and_returns_candidate_evid
     assert value["changed_paths"] == ["target.py"]
     assert value["validation_stages"] == [{"test_id": "T001", "outcome": "pass"}]
     assert git(root, "rev-parse", "HEAD") == base_commit
+
+
+def test_qualified_runtime_envelope_executes_only_the_exact_bounded_provider(tmp_path):
+    root, base_commit = repo(tmp_path)
+    framework = tmp_path / "framework"
+    framework.mkdir()
+    raw, *_ = request(root, base_commit)
+    calls = []
+
+    def agent_runner(request, binding, settings, tools):
+        calls.append((request, binding, settings))
+        current = json.loads(tools.read_file("target.py"))
+        tools.write_file("target.py", "VALUE = 2\n", current["sha256"])
+        return "changed target.py through bounded tools"
+
+    response = execute_pydantic_ollama_workspace_write(
+        provider_runtime_envelope(raw),
+        workspace_root=root,
+        framework_root=framework,
+        agent_runner=agent_runner,
+    )
+    value = json.loads(response)
+    assert len(calls) == 1
+    assert calls[0][1].model_name == "fixture-model"
+    assert calls[0][1].provider_endpoint == "http://127.0.0.1:11434"
+    assert value["changed_paths"] == ["target.py"]
+    assert value["validation_stages"] == [{"test_id": "T001", "outcome": "pass"}]
+
+
+def test_runtime_envelope_rejects_model_substitution_before_agent_execution(tmp_path):
+    root, base_commit = repo(tmp_path)
+    framework = tmp_path / "framework"
+    framework.mkdir()
+    raw, *_ = request(root, base_commit)
+    envelope = json.loads(provider_runtime_envelope(raw))
+    envelope["installation_observation"]["model_name"] = "substituted-model"
+    called = False
+
+    def agent_runner(*_):
+        nonlocal called
+        called = True
+        return "never"
+
+    with pytest.raises(DispatchAdapterError) as error:
+        execute_pydantic_ollama_workspace_write(
+            canonical_json(envelope).encode("utf-8"),
+            workspace_root=root,
+            framework_root=framework,
+            agent_runner=agent_runner,
+        )
+    assert error.value.code == "DISPATCH_QUALIFICATION_MISMATCH"
+    assert called is False
+    assert git(root, "status", "--porcelain") == ""
 
 
 def test_no_executor_means_no_fallback_and_no_workspace_mutation(tmp_path):

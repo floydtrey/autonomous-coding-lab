@@ -73,6 +73,13 @@ Authorization requires the exact prepared invocation identity and controller ide
 
 The normal CLI constructs no provider runner. Therefore source verification, doctor, preparation, and authorization do not silently start a model/provider. Missing runner/provider/custody evidence fails closed.
 
+The MA-2 composition is an application-service construction boundary, not a
+normal CLI default. An operator must explicitly name the state root, protected
+framework root, Provider Binding identity and digest, clock, and contained
+runner. The production construction revalidates the durable qualification chain,
+installed executable/harness bytes, and portable source identity before starting
+the fixed framework adapter command under Windows Job Object custody.
+
 ## 6. Candidate review and evidence
 
 A provider/framework success response is not acceptance. Worker Lab reruns protected tests and independently observes capability-specific workspace evidence before producing Result V3 and promoting an attempt to candidate state.

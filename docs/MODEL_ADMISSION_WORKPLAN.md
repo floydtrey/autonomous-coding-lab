@@ -1,6 +1,6 @@
 # ACL Model Admission Workplan
 
-**Status:** Active — MA-1 accepted; MA-2 next
+**Status:** Active — MA-1 accepted; MA-2 candidate in validation
 
 **Last updated:** 2026-09-13
 
@@ -100,6 +100,14 @@ non-executing service remains safe when no runner is supplied.
 **Gate:** end-to-end deterministic tests use an injected fake model runner and
 prove exact identity, custody, changed-path, sealed-test, and candidate evidence.
 
+**Candidate:** the Worker Lab composition now loads and cross-checks one durable
+observation, qualification, and Provider Binding chain; rechecks protected source
+and installed runtime identity before launch; constructs one fixed isolated
+framework command; and delegates process custody to a kill-on-close Windows Job
+Object runner. The framework accepts a canonical evidence envelope, reconstructs
+one exact Pydantic/Ollama bounded-file executor, and has no provider-selection or
+fallback path. Hosted Windows acceptance is pending.
+
 ### MA-3 — Disposable coding-worker packet
 
 Add one current V3 curriculum, exercise, context manifest, and protected test
@@ -144,11 +152,10 @@ model selection but does not replace ACL qualification.
 
 ## Resume point
 
-**MA-1 is accepted. Resume at MA-2.** Compose the existing Worker Lab V3
-dispatch boundary, framework dispatch adapter, bounded-file provider executor,
-and Windows Job custody behind one explicit operator construction. Preserve the
-no-default provider/model/binding/runner rule and prove the path with an injected
-fake model runner before adding any real-provider command.
+**MA-2 candidate validation is next.** Verify portable source identity, then run
+the repository, Worker Lab, and Autonomous Worker Framework suites on hosted
+Windows. Repair any failure without invoking a local provider. After exact-head
+acceptance, record the commit/run evidence here and resume at MA-3.
 
 Before continuing, verify the working branch and read this file plus
 `docs/CURRENT_STATE.md`. Do not begin MA-5 while the Local Model Bench campaign

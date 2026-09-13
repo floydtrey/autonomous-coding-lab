@@ -14,6 +14,13 @@ record. MA-1 is accepted at implementation commit `500a6b5`: it adds durable
 provider observation and qualification records, Provider Binding operations,
 and a Windows runtime-core CI lane. Execution remains disabled.
 
+MA-2 is now an unaccepted candidate. It composes one exact observation →
+qualification → Provider Binding chain into the provider-neutral framework
+adapter, the bounded-file Pydantic/Ollama executor, and Windows Job Object
+custody. Its tests inject a fake model only at the final provider seam. The
+normal CLI still supplies no dispatch runner, and no real provider command has
+been added.
+
 GitHub Actions run `34756466201` accepted the exact implementation commit on
 Windows with portable source identity `MATCH` for all three components, 12
 repository contract tests passed, 333 Worker Lab tests passed with the one known
@@ -49,9 +56,9 @@ It binds source/component bytes only. It intentionally excludes operating system
 
 Accepted component identities remain:
 
-- Autonomous Worker Framework: 8-file closure at `sha256:edac32b728348d6a2e2c7521d1c846e5021fe6e40f33db70e7df625d1ca584c5`;
+- Autonomous Worker Framework: 8-file closure at `sha256:7c4d0893cccf6cd9a87f1b72718010a485ce8d8b0a066ecd68b6144ca738c473`;
 - Local Model Bench: 10-file production tree at `sha256:139331ea42c914575d1119125a702ac5de2129b9bedc235bfc189700e8265afc`;
-- Worker Lab: 30-file production tree at `sha256:1bfa65ddb6aed63c2581c1888331ebc6ad1aa670d2cefcf93bc5bb6e6c077b40`.
+- Worker Lab: 31-file production tree at `sha256:78eade4883d80f25cc72fcd378862852e963b46f638c2e023ccb3887a6c1e7e3`.
 
 ## Provider qualification separation
 

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
 from tests.test_cli import write_authority_fixture
 from tests.test_controller_task_packet import build_controller_task_packet, kc_response
-from tests.test_provider_binding import qualification
+from tests.provider_capability_fixture import capability_qualification, installation_observation
 from worker_lab.application_service import WorkerLabApplicationService
 from worker_lab.attempt_store import AttemptStore
 from worker_lab.canonical import canonical_json
@@ -24,6 +25,11 @@ from worker_lab.process_custody import (
     transition_custody,
 )
 from worker_lab.provider_binding import ProviderBindingStore, create_provider_binding
+from worker_lab.provider_records import (
+    ProviderCapabilityQualificationStore,
+    ProviderInstallationObservationStore,
+)
+from worker_lab.runtime_composition import compose_pydantic_ollama_workspace_runner
 from worker_lab.storage import AtomicRecordStore
 from worker_lab.windows_job import workspace_content_digest
 
@@ -34,6 +40,13 @@ DIGEST_C = "sha256:" + "c" * 64
 ABSENCE_DIGEST = "sha256:" + "f" * 64
 BACKEND_ID = "fixture-containment:v1"
 CONTROLLER = "trusted-controller"
+FRAMEWORK_ROOT = Path(__file__).resolve().parents[2] / "autonomous-worker-framework"
+sys.path.insert(0, str(FRAMEWORK_ROOT))
+from tools.dispatch_adapter import execute_pydantic_ollama_workspace_write
+
+
+def qualification():
+    return capability_qualification()
 
 
 class FixtureCustodyBackend:
@@ -358,6 +371,108 @@ def test_v3_fake_workspace_dispatch_reaches_independently_reviewable_candidate(t
 
     review = service.review_candidate(dispatched["identity"]).to_dict()
     assert review["schema_version"] == "worker-lab-service-candidate-review:v2"
+
+
+def test_explicit_runtime_composition_reaches_candidate_with_fake_model_runner(tmp_path: Path) -> None:
+    lab, target = write_authority_fixture(tmp_path)
+    state = lab / "state"
+    observed = ProviderInstallationObservationStore(state).create(installation_observation())
+    qualified = ProviderCapabilityQualificationStore(state).create(
+        capability_qualification(installation_observation_digest=observed.digest())
+    )
+    binding = create_provider_binding("BINDING-COMPOSED-0001", qualified)
+    ProviderBindingStore(state).create(binding)
+    model_calls = []
+    commands = []
+
+    def contained_factory(store, *, invocation, timeout_seconds, workspace_path, now):
+        assert timeout_seconds == 900
+
+        def contained(command, envelope):
+            commands.append(command)
+            _success_custody(invocation, workspace_path, store)
+
+            def fake_model(request, runtime_binding, settings, tools):
+                model_calls.append((request, runtime_binding, settings))
+                model_file = json.loads(tools.read_file("record_ledger/models.py"))
+                test_file = json.loads(tools.read_file("tests/test_models.py"))
+                tools.write_file(
+                    "record_ledger/models.py",
+                    "# changed by composed fake model\n",
+                    model_file["sha256"],
+                )
+                tools.write_file(
+                    "tests/test_models.py",
+                    "VALUE = 2\n",
+                    test_file["sha256"],
+                )
+                return "changed the exact authorized files"
+
+            return execute_pydantic_ollama_workspace_write(
+                envelope,
+                workspace_root=workspace_path,
+                framework_root=FRAMEWORK_ROOT,
+                agent_runner=fake_model,
+            )
+
+        return contained
+
+    runner = compose_pydantic_ollama_workspace_runner(
+        state.resolve(),
+        FRAMEWORK_ROOT.resolve(),
+        binding_id=binding.binding_id,
+        binding_digest=binding.digest(),
+        now=lambda: "2026-09-11T08:00:01Z",
+        contained_runner_factory=contained_factory,
+        runtime_identity_verifier=lambda observation: None,
+    )
+    workspace_root = tmp_path / "workspaces"
+    workspace_root.mkdir()
+    service = WorkerLabApplicationService(
+        lab,
+        clock=lambda: "2026-09-11T08:00:00Z",
+        workspace_dispatch_runner=runner,
+        sealed_test_executor=lambda definition, workspace: 0,
+    )
+    attempt_id = service.create_attempt("record-model", 1, target).identity
+    service.prepare_workspace(attempt_id, target, workspace_root)
+    attempt = AttemptStore(state).read(attempt_id)
+    packet = build_controller_task_packet(
+        attempt,
+        controller_identity=CONTROLLER,
+        user_request="Implement only the sealed composed task.",
+        kc_search_response=kc_response(),
+    )
+    prepared = service.prepare_invocation(
+        attempt_id,
+        workspace_root,
+        packet.to_json(),
+        logical_target_id="target:record-model",
+        provider_binding_id=binding.binding_id,
+        provider_binding_digest=binding.digest(),
+    )
+    service.authorize_invocation(
+        prepared.identity,
+        prepared.immutable_identity_digest,
+        CONTROLLER,
+    )
+    candidate = service.dispatch_invocation(
+        prepared.identity,
+        prepared.immutable_identity_digest,
+        CONTROLLER,
+        workspace_root,
+    )
+    assert candidate.record["state"] == "CANDIDATE"
+    assert len(model_calls) == 1
+    assert model_calls[0][1].model_name == observed.model_name
+    assert commands[0][0] == observed.python_executable
+    assert commands[0][1:4] == ("-I", "-B", str(FRAMEWORK_ROOT / "tools/dispatch_adapter.py"))
+    review = service.review_candidate(candidate.identity)
+    assert review.result.record["containment_outcome"] == "absence-verified"
+    assert review.result.record["source_evidence"]["changed_paths"] == [
+        "record_ledger/models.py",
+        "tests/test_models.py",
+    ]
     assert review["changed_paths"] == list(invocation.writable_paths)
     assert review["candidate_content_digest"] == DIGEST_C
     assert all(stage["outcome"] == "pass" for stage in review["validation_stages"])
