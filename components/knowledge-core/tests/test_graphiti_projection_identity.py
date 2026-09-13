@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -11,16 +10,15 @@ from knowledge_core.authority.retrieval import (
     RetrievalAuthorityOperation,
     RetrievalAuthorityRequest,
 )
-from knowledge_core.domain.projection_adapter import ProjectionSourceSegment
-from knowledge_core.integrations.graphiti import (
-    GraphitiLocalConfig,
-    graphiti_episode_uuid,
-    graphiti_partition_key,
+from knowledge_core.domain.projection_adapter import (
+    ProjectionProviderSourceBinding,
+    ProjectionSourceSegment,
 )
+from knowledge_core.integrations.graphiti import GraphitiLocalConfig, graphiti_partition_key
 
 
-def _segment(**changes) -> ProjectionSourceSegment:
-    base = ProjectionSourceSegment(
+def _segment() -> ProjectionSourceSegment:
+    return ProjectionSourceSegment(
         generation_id=uuid4(),
         resource_version_ref=uuid4(),
         source_revision_id=42,
@@ -40,7 +38,6 @@ def _segment(**changes) -> ProjectionSourceSegment:
         reference_time=datetime(2026, 9, 13, tzinfo=timezone.utc),
         body="Alpha fact.",
     )
-    return replace(base, **changes)
 
 
 def test_live_graph_modules_import_without_installing_optional_graphiti_dependency():
@@ -78,32 +75,20 @@ def test_graphiti_partition_is_stable_and_rotates_with_scope_or_generation_profi
     assert all(ch.islower() or ch.isdigit() or ch == "_" for ch in first)
 
 
-def test_graphiti_episode_identity_binds_exact_slice_but_not_incidental_generation_field():
+def test_provider_source_binding_is_explicit_operational_evidence_not_segment_identity():
     segment = _segment()
-    kwargs = {
-        "namespace_key": "kc:acl",
-        "scope_key": "project:alpha",
-        "projection_profile_id": "sr2-generation:one",
-    }
-    original = graphiti_episode_uuid(segment=segment, **kwargs)
-    same_exact_slice_reconstructed = graphiti_episode_uuid(
-        segment=replace(segment, generation_id=uuid4()),
-        **kwargs,
-    )
-    changed_slice = graphiti_episode_uuid(
-        segment=replace(segment, source_slice_sha256="b" * 64),
-        **kwargs,
-    )
-    changed_profile = graphiti_episode_uuid(
-        segment=segment,
-        namespace_key="kc:acl",
-        scope_key="project:alpha",
-        projection_profile_id="sr2-generation:two",
+    binding = ProjectionProviderSourceBinding(
+        resource_version_ref=segment.resource_version_ref,
+        source_revision_id=segment.source_revision_id,
+        segment_key=segment.segment_key,
+        source_slice_sha256=segment.source_slice_sha256,
+        provider_partition_key="kc_deadbeef",
+        provider_source_id="provider-minted-episode-id",
     )
 
-    assert original == same_exact_slice_reconstructed
-    assert original != changed_slice
-    assert original != changed_profile
+    assert binding.resource_version_ref == segment.resource_version_ref
+    assert binding.segment_key == segment.segment_key
+    assert binding.provider_source_id == "provider-minted-episode-id"
 
 
 def test_graphiti_behavior_digest_excludes_secrets_but_binds_behavior():

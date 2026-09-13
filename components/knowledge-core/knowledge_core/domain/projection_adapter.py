@@ -67,6 +67,18 @@ class ProjectionAdapterRequest:
 
 
 @dataclass(frozen=True)
+class ProjectionProviderSourceBinding:
+    """Operational evidence binding one exact KC segment to one provider source ID."""
+
+    resource_version_ref: UUID
+    source_revision_id: int
+    segment_key: str
+    source_slice_sha256: str
+    provider_partition_key: str
+    provider_source_id: str
+
+
+@dataclass(frozen=True)
 class ProjectionAdapterReceipt:
     disposition: ProjectionDisposition
     warnings: tuple[str, ...] = ()
@@ -74,6 +86,7 @@ class ProjectionAdapterReceipt:
     episode_count: int = 0
     node_count: int = 0
     edge_count: int = 0
+    source_bindings: tuple[ProjectionProviderSourceBinding, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -121,16 +134,6 @@ class ProjectionAdapter(Protocol):
     def partition_key(
         self,
         *,
-        namespace_key: str,
-        scope_key: str,
-        projection_profile_id: str,
-    ) -> str:
-        ...
-
-    def source_correlation_key(
-        self,
-        *,
-        segment: ProjectionSourceSegment,
         namespace_key: str,
         scope_key: str,
         projection_profile_id: str,

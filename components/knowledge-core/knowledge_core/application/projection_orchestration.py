@@ -21,10 +21,12 @@ from knowledge_core.domain.projection_adapter import (
     ProjectionAmbiguousRetryError,
     ProjectionExecutionResult,
     ProjectionPlan,
+    ProjectionProviderSourceBinding,
     ProjectionSourceSegment,
 )
 from knowledge_core.domain.projection_evidence import ProjectionDisposition
 from knowledge_core.storage.projection_models import ProjectionAttempt
+from knowledge_core.storage.projection_source_models import ProjectionSourceBindingRecord
 from knowledge_core.storage.repository_import_models import RepositoryImportReceipt
 from knowledge_core.storage.resource_models import ResourceVersion
 from knowledge_core.storage.section_retrieval_models import (
@@ -259,6 +261,108 @@ class ProjectionOrchestrationKnowledgeKernel(ProjectionValidationKnowledgeKernel
             )
         return plan
 
+    def read_projection_source_bindings(
+        self,
+        attempt_id: UUID,
+    ) -> tuple[ProjectionProviderSourceBinding, ...]:
+        rows = self.session.scalars(
+            select(ProjectionSourceBindingRecord)
+            .where(ProjectionSourceBindingRecord.attempt_id == attempt_id)
+            .order_by(
+                ProjectionSourceBindingRecord.resource_version_ref,
+                ProjectionSourceBindingRecord.segment_key,
+            )
+        ).all()
+        return tuple(
+            ProjectionProviderSourceBinding(
+                resource_version_ref=row.resource_version_ref,
+                source_revision_id=int(row.source_revision_id),
+                segment_key=row.segment_key,
+                source_slice_sha256=row.source_slice_sha256,
+                provider_partition_key=row.provider_partition_key,
+                provider_source_id=row.provider_source_id,
+            )
+            for row in rows
+        )
+
+    def _validate_and_stage_source_bindings(
+        self,
+        *,
+        attempt_id: UUID,
+        plan: ProjectionPlan,
+        receipt: ProjectionAdapterReceipt,
+        expected_partition: str,
+    ) -> None:
+        expected = {
+            (
+                segment.resource_version_ref,
+                segment.segment_key,
+                segment.source_slice_sha256,
+            ): segment
+            for segment in plan.segments
+        }
+        if len(expected) != len(plan.segments):
+            raise KnowledgeInvariantError("projection plan contains duplicate exact segment identities")
+
+        staged: list[ProjectionProviderSourceBinding] = []
+        seen_segment_keys: set[tuple[UUID, str, str]] = set()
+        seen_provider_ids: set[str] = set()
+        for binding in receipt.source_bindings:
+            provider_source_id = binding.provider_source_id.strip()
+            provider_partition_key = binding.provider_partition_key.strip()
+            if not provider_source_id or not provider_partition_key:
+                raise KnowledgeInvariantError("projection provider source bindings must be non-empty")
+            if provider_partition_key != expected_partition:
+                raise KnowledgeInvariantError(
+                    "projection provider source binding was returned for the wrong physical partition"
+                )
+            key = (
+                binding.resource_version_ref,
+                binding.segment_key,
+                binding.source_slice_sha256,
+            )
+            segment = expected.get(key)
+            if segment is None:
+                raise KnowledgeInvariantError(
+                    "projection provider source binding does not match a planned canonical segment"
+                )
+            if binding.source_revision_id != segment.source_revision_id:
+                raise KnowledgeInvariantError(
+                    "projection provider source binding changed the canonical source revision"
+                )
+            if key in seen_segment_keys:
+                raise KnowledgeInvariantError(
+                    "projection adapter returned duplicate provider bindings for one canonical segment"
+                )
+            if provider_source_id in seen_provider_ids:
+                raise KnowledgeInvariantError(
+                    "projection adapter reused one provider source ID for multiple canonical segments"
+                )
+            seen_segment_keys.add(key)
+            seen_provider_ids.add(provider_source_id)
+            staged.append(binding)
+
+        if receipt.disposition is ProjectionDisposition.SUCCEEDED and seen_segment_keys != set(expected):
+            missing = len(set(expected) - seen_segment_keys)
+            raise KnowledgeInvariantError(
+                f"successful projection receipt is missing {missing} canonical segment binding(s)"
+            )
+
+        captured_at = self._now()
+        for binding in staged:
+            self.session.add(
+                ProjectionSourceBindingRecord(
+                    attempt_id=attempt_id,
+                    resource_version_ref=binding.resource_version_ref,
+                    source_revision_id=binding.source_revision_id,
+                    segment_key=binding.segment_key,
+                    source_slice_sha256=binding.source_slice_sha256,
+                    provider_partition_key=binding.provider_partition_key,
+                    provider_source_id=binding.provider_source_id,
+                    captured_at=captured_at,
+                )
+            )
+
     async def execute_sr2_projection(
         self,
         *,
@@ -323,12 +427,23 @@ class ProjectionOrchestrationKnowledgeKernel(ProjectionValidationKnowledgeKernel
                 replayed=False,
             )
 
+        expected_partition = adapter.partition_key(
+            namespace_key=namespace_key,
+            scope_key=scope_key,
+            projection_profile_id=plan.profile_id,
+        )
         try:
             receipt = await adapter.project(
                 ProjectionAdapterRequest(attempt=attempt, segments=plan.segments)
             )
             if receipt.disposition is ProjectionDisposition.PENDING:
                 raise KnowledgeInvariantError("projection adapter cannot return a pending receipt")
+            self._validate_and_stage_source_bindings(
+                attempt_id=attempt_id,
+                plan=plan,
+                receipt=receipt,
+                expected_partition=expected_partition,
+            )
         except Exception as exc:
             settled = self.settle_projection_attempt(
                 attempt_id=attempt_id,

@@ -7,13 +7,13 @@ from importlib.metadata import PackageNotFoundError, version
 import json
 import logging
 from typing import Any
-from uuid import UUID, uuid5
 
 from knowledge_core.domain.assertions import KnowledgeInvariantError
 from knowledge_core.domain.projection_adapter import (
     ProjectionAdapterDescriptor,
     ProjectionAdapterReceipt,
     ProjectionAdapterRequest,
+    ProjectionProviderSourceBinding,
     ProjectionSearchHit,
     ProjectionSourceSegment,
 )
@@ -29,7 +29,6 @@ from knowledge_core.domain.projection_validation import (
 
 _EXPECTED_GRAPHITI_VERSION = "0.30.2"
 _ADAPTER_VERSION = "1"
-_EPISODE_NAMESPACE = UUID("f2279702-34b6-5f3c-8ca0-421d9a0df4cb")
 _INTEGRITY_WARNING_FRAGMENTS = (
     "Target entity not found in nodes for edge relation",
     "Source entity not found in nodes for edge relation",
@@ -38,6 +37,7 @@ _VALIDATION_RULESET = {
     "id": "kc-graphiti-live-v1",
     "checks": [
         "attempt-contract",
+        "source-binding-contract",
         "projection-integrity-warnings",
         "source-episodes-present",
         "namespace-search-isolation",
@@ -78,29 +78,6 @@ def graphiti_partition_key(
         f"{namespace_key}\x00{scope_key}\x00{projection_profile_id}".encode("utf-8")
     ).hexdigest()
     return f"kc_{digest[:28]}"
-
-
-def graphiti_episode_uuid(
-    *,
-    segment: ProjectionSourceSegment,
-    namespace_key: str,
-    scope_key: str,
-    projection_profile_id: str,
-) -> str:
-    partition = graphiti_partition_key(
-        namespace_key=namespace_key,
-        scope_key=scope_key,
-        projection_profile_id=projection_profile_id,
-    )
-    identity = "\x00".join(
-        (
-            partition,
-            str(segment.resource_version_ref).lower(),
-            segment.segment_key,
-            segment.source_slice_sha256,
-        )
-    )
-    return str(uuid5(_EPISODE_NAMESPACE, identity))
 
 
 @dataclass(frozen=True)
@@ -254,21 +231,6 @@ class GraphitiProjectionAdapter:
             projection_profile_id=projection_profile_id,
         )
 
-    def source_correlation_key(
-        self,
-        *,
-        segment: ProjectionSourceSegment,
-        namespace_key: str,
-        scope_key: str,
-        projection_profile_id: str,
-    ) -> str:
-        return graphiti_episode_uuid(
-            segment=segment,
-            namespace_key=namespace_key,
-            scope_key=scope_key,
-            projection_profile_id=projection_profile_id,
-        )
-
     def _build_graphiti(self, *, partition_key: str):
         _require_graphiti_version()
         from graphiti_core import Graphiti
@@ -329,15 +291,13 @@ class GraphitiProjectionAdapter:
         episode_count = 0
         node_count = 0
         edge_count = 0
+        bindings: list[ProjectionProviderSourceBinding] = []
         try:
             await _await_graphiti_driver_initialization(graphiti)
             for segment in request.segments:
-                episode_uuid = self.source_correlation_key(
-                    segment=segment,
-                    namespace_key=request.attempt.namespace_key,
-                    scope_key=request.attempt.scope_key,
-                    projection_profile_id=request.attempt.profile_id,
-                )
+                # Graphiti 0.30.2 treats add_episode(uuid=...) as lookup/update of an
+                # existing episode. Let Graphiti mint its provider ID, then persist
+                # the returned ID as KC operational correlation evidence.
                 result = await graphiti.add_episode(
                     name=f"kc:{segment.segment_key}",
                     episode_body=segment.body,
@@ -345,7 +305,19 @@ class GraphitiProjectionAdapter:
                     source_description="Knowledge Core governed SR-2 canonical segment",
                     reference_time=segment.reference_time,
                     group_id=partition,
-                    uuid=episode_uuid,
+                )
+                provider_source_id = str(result.episode.uuid).strip()
+                if not provider_source_id:
+                    raise KnowledgeInvariantError("Graphiti returned an empty episode UUID")
+                bindings.append(
+                    ProjectionProviderSourceBinding(
+                        resource_version_ref=segment.resource_version_ref,
+                        source_revision_id=segment.source_revision_id,
+                        segment_key=segment.segment_key,
+                        source_slice_sha256=segment.source_slice_sha256,
+                        provider_partition_key=partition,
+                        provider_source_id=provider_source_id,
+                    )
                 )
                 episode_count += 1
                 node_count += len(result.nodes)
@@ -372,6 +344,7 @@ class GraphitiProjectionAdapter:
             episode_count=episode_count,
             node_count=node_count,
             edge_count=edge_count,
+            source_bindings=tuple(bindings),
         )
 
     async def search(
@@ -431,7 +404,7 @@ class GraphitiProjectionAdapter:
         try:
             await _await_graphiti_driver_initialization(graphiti)
             episodes = await EpisodicNode.get_by_uuids(graphiti.driver, list(source_keys))
-            return frozenset(episode.uuid for episode in episodes)
+            return frozenset(str(episode.uuid) for episode in episodes)
         finally:
             await graphiti.close()
 
@@ -444,6 +417,7 @@ class GraphitiProjectionValidator:
         *,
         adapter: GraphitiProjectionAdapter,
         segments: tuple[ProjectionSourceSegment, ...],
+        source_bindings: tuple[ProjectionProviderSourceBinding, ...],
         namespace_key: str,
         scope_key: str,
         projection_profile_id: str,
@@ -451,6 +425,7 @@ class GraphitiProjectionValidator:
     ):
         self.adapter = adapter
         self.segments = segments
+        self.source_bindings = source_bindings
         self.namespace_key = namespace_key.strip()
         self.scope_key = scope_key.strip()
         self.projection_profile_id = projection_profile_id.strip()
@@ -476,19 +451,28 @@ class GraphitiProjectionValidator:
 
     @property
     def config_digest(self) -> str:
-        expected_keys = sorted(
-            self.adapter.source_correlation_key(
-                segment=segment,
-                namespace_key=self.namespace_key,
-                scope_key=self.scope_key,
-                projection_profile_id=self.projection_profile_id,
-            )
-            for segment in self.segments
+        bindings = sorted(
+            (
+                {
+                    "resource_version_ref": str(binding.resource_version_ref),
+                    "source_revision_id": binding.source_revision_id,
+                    "segment_key": binding.segment_key,
+                    "source_slice_sha256": binding.source_slice_sha256,
+                    "provider_partition_key": binding.provider_partition_key,
+                    "provider_source_id": binding.provider_source_id,
+                }
+                for binding in self.source_bindings
+            ),
+            key=lambda item: (
+                item["resource_version_ref"],
+                item["segment_key"],
+                item["provider_source_id"],
+            ),
         )
         return _canonical_digest(
             {
                 "adapter_config_digest": self.adapter.descriptor.config_digest,
-                "expected_source_keys": expected_keys,
+                "bindings": bindings,
                 "namespace_key": self.namespace_key,
                 "probe_query": self.probe_query,
                 "projection_profile_id": self.projection_profile_id,
@@ -508,6 +492,11 @@ class GraphitiProjectionValidator:
     async def _validate_async(self, attempt) -> ProjectionValidationReport:
         checks: list[ProjectionValidationCheck] = []
         descriptor = self.adapter.descriptor
+        expected_partition = self.adapter.partition_key(
+            namespace_key=self.namespace_key,
+            scope_key=self.scope_key,
+            projection_profile_id=self.projection_profile_id,
+        )
         contract_ok = (
             attempt.backend_identity == descriptor.backend_identity
             and attempt.backend_version == descriptor.backend_version
@@ -535,6 +524,55 @@ class GraphitiProjectionValidator:
             )
         )
 
+        expected_segments = {
+            (
+                segment.resource_version_ref,
+                segment.source_revision_id,
+                segment.segment_key,
+                segment.source_slice_sha256,
+            )
+            for segment in self.segments
+        }
+        binding_segments = {
+            (
+                binding.resource_version_ref,
+                binding.source_revision_id,
+                binding.segment_key,
+                binding.source_slice_sha256,
+            )
+            for binding in self.source_bindings
+        }
+        provider_ids = [binding.provider_source_id for binding in self.source_bindings]
+        wrong_binding_partitions = sorted(
+            binding.provider_source_id
+            for binding in self.source_bindings
+            if binding.provider_partition_key != expected_partition
+        )
+        binding_contract_ok = (
+            bool(expected_segments)
+            and len(self.source_bindings) == len(expected_segments)
+            and binding_segments == expected_segments
+            and len(set(provider_ids)) == len(provider_ids)
+            and all(provider_id.strip() for provider_id in provider_ids)
+            and not wrong_binding_partitions
+        )
+        checks.append(
+            ProjectionValidationCheck(
+                check_code="source-binding-contract",
+                outcome=(
+                    ProjectionCheckOutcome.PASSED
+                    if binding_contract_ok
+                    else ProjectionCheckOutcome.FAILED
+                ),
+                evidence={
+                    "expected_segment_count": len(expected_segments),
+                    "binding_count": len(self.source_bindings),
+                    "unique_provider_source_count": len(set(provider_ids)),
+                    "wrong_partition_provider_source_ids": wrong_binding_partitions,
+                },
+            )
+        )
+
         integrity_warnings = [
             warning
             for warning in attempt.warnings
@@ -552,34 +590,25 @@ class GraphitiProjectionValidator:
             )
         )
 
-        expected_keys = tuple(
-            self.adapter.source_correlation_key(
-                segment=segment,
-                namespace_key=self.namespace_key,
-                scope_key=self.scope_key,
-                projection_profile_id=self.projection_profile_id,
-            )
-            for segment in self.segments
-        )
         observed_keys = await self.adapter.existing_source_keys(
-            source_keys=expected_keys,
+            source_keys=tuple(provider_ids),
             namespace_key=self.namespace_key,
             scope_key=self.scope_key,
             projection_profile_id=self.projection_profile_id,
         )
-        missing_keys = sorted(set(expected_keys) - set(observed_keys))
+        missing_keys = sorted(set(provider_ids) - set(observed_keys))
         checks.append(
             ProjectionValidationCheck(
                 check_code="source-episodes-present",
                 outcome=(
                     ProjectionCheckOutcome.PASSED
-                    if not missing_keys and bool(expected_keys)
+                    if binding_contract_ok and not missing_keys
                     else ProjectionCheckOutcome.FAILED
                 ),
                 evidence={
-                    "expected_count": len(expected_keys),
+                    "expected_count": len(provider_ids),
                     "observed_count": len(observed_keys),
-                    "missing_source_keys": missing_keys,
+                    "missing_provider_source_ids": missing_keys,
                 },
             )
         )
@@ -590,11 +619,6 @@ class GraphitiProjectionValidator:
             scope_key=self.scope_key,
             projection_profile_id=self.projection_profile_id,
             limit=10,
-        )
-        expected_partition = self.adapter.partition_key(
-            namespace_key=self.namespace_key,
-            scope_key=self.scope_key,
-            projection_profile_id=self.projection_profile_id,
         )
         wrong_partition = [
             hit.provider_hit_id for hit in probe_hits if hit.partition_key != expected_partition
@@ -665,7 +689,9 @@ class GraphitiProjectionValidator:
         }
         if not failed_codes:
             outcome = ProjectionValidationOutcome.VALIDATED
-        elif failed_codes.intersection({"attempt-contract", "namespace-search-isolation"}):
+        elif failed_codes.intersection(
+            {"attempt-contract", "source-binding-contract", "namespace-search-isolation"}
+        ):
             outcome = ProjectionValidationOutcome.REJECTED
         else:
             outcome = ProjectionValidationOutcome.INCOMPLETE

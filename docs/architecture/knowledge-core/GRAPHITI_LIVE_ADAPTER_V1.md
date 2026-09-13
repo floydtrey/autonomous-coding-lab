@@ -12,6 +12,7 @@ current governed SR-2 canonical source
   -> Graphiti 0.30.2
   -> FalkorDB isolated physical graph
   -> Ollama qwen3.5 9B extraction + nomic embeddings
+  -> durable KC provider-source binding evidence
   -> durable KC projection disposition
   -> live deterministic projection validation
   -> Authority admission
@@ -64,18 +65,25 @@ The generation/profile component intentionally rotates the physical graph when K
 
 The live validator also queries a fresh sibling physical graph without writing a synthetic sentinel. Any result from that empty sibling scope is a namespace-isolation failure.
 
-## Stable source correlation
+## Provider-source correlation evidence
 
-Each projected SR-2 segment receives a deterministic Graphiti episode UUID derived from:
+Graphiti 0.30.2 treats `add_episode(uuid=...)` as lookup/update of an existing episode. KC therefore does **not** attempt to force a KC-derived UUID into Graphiti. Graphiti mints its normal provider episode UUID and returns it from `add_episode()`.
 
-- physical partition identity;
+For every projected canonical segment, KC persists a `kc_control.projection_source_binding` evidence row containing:
+
+- projection attempt ID;
 - exact canonical ResourceVersion ref;
+- canonical source revision ID;
 - SR-2 segment key;
-- exact source-slice SHA-256.
+- exact source-slice SHA-256;
+- physical provider partition key;
+- Graphiti-minted episode UUID.
 
-The UUID is provider correlation data, not durable KC semantic identity.
+These rows are operational correlation evidence. The Graphiti UUID is not a KC semantic identity and cannot confer trust by itself.
 
-Graphiti relationship search results carry their sourcing episode UUIDs. Trusted KC graph retrieval rejects a result unless **every** sourcing episode maps to a validated current projection attempt and then back to a currently serving exact KC segment. A graph hit with no source episodes, an unknown source episode, a stale ResourceVersion, a superseded segment, or the wrong partition is not returned as trusted context.
+A `SUCCEEDED` projection receipt is rejected/quarantined unless it contains exactly one provider-source binding for every planned canonical segment, with no reused provider source ID and no wrong physical partition.
+
+Graphiti relationship search results carry their sourcing episode UUIDs. Trusted KC graph retrieval rejects a result unless **every** sourcing episode maps through a validated current provider-source binding and then back to a currently serving exact KC segment. A graph hit with no source episodes, an unknown source episode, a stale ResourceVersion, a superseded segment, or the wrong partition is not returned as trusted context.
 
 ## Projection disposition
 
@@ -95,10 +103,11 @@ An exception after the durable attempt is opened settles the attempt `QUARANTINE
 A successful provider call is still `UNVALIDATED`. `GraphitiProjectionValidator` independently checks:
 
 1. attempt/backend/config/namespace/scope/profile contract;
-2. known projection-integrity warnings;
-3. presence of every expected source episode in the real Falkor graph;
-4. physical namespace isolation using a fresh sibling graph;
-5. source attribution on any probe-search results.
+2. exact durable provider-source binding coverage;
+3. known projection-integrity warnings;
+4. presence of every bound provider episode in the real Falkor graph;
+5. physical namespace isolation using a fresh sibling graph;
+6. source attribution on any probe-search results.
 
 Zero probe results do not make the projection untrustworthy by themselves. The host qualification gate separately requires at least one final **trusted** Graphiti result for the selected query before the end-to-end gate passes.
 
@@ -106,16 +115,17 @@ Zero probe results do not make the projection untrustworthy by themselves. The h
 
 `GraphProjectionRetrievalKnowledgeKernel.search_validated_projection()` evaluates `retrieval.search_graph` Authority before sending the query to Graphiti, the embedder, the reranker, or any other projection component. Graph search requires explicit namespace and scope.
 
-Only attempts matching the current SR-2 generation, exact adapter config, `SUCCEEDED` disposition, and `VALIDATED` validation state contribute correlation evidence. After the external search returns, KC re-checks that the current SR-2 generation did not change during the call.
+Only attempts matching the current SR-2 generation, exact adapter config, `SUCCEEDED` disposition, and `VALIDATED` validation state contribute provider-source bindings. After the external search returns, KC re-checks that the current SR-2 generation did not change during the call.
 
 The existing PostgreSQL lexical retrieval path remains independent and unchanged in this gate.
 
 ## Host qualification
 
-Install the optional live dependency from `components/knowledge-core`:
+Install the optional live dependency from `components/knowledge-core` and apply the new operational-evidence migration:
 
 ```powershell
 python -m pip install -e ".[test,graphiti]"
+python -m alembic upgrade head
 ```
 
 The tool uses the existing `KNOWLEDGE_CORE_DATABASE_URL` and an existing KC artifact root. It can enumerate the **real sources already in the current SR-2 generation** without touching Graphiti:
@@ -137,18 +147,19 @@ python tools\graphiti_host_phase.py `
 
 The tool exits non-zero if projection is incomplete/quarantined, validation is not `VALIDATED`, or the final Authority-gated correlated Graphiti search returns no trusted result.
 
-Exact replay uses the same deterministic attempt identity and does not rerun an already-settled projection. `--attempt-salt` exists only as an explicit recovery discriminator after prior evidence has been inspected; changing it creates a new projection attempt and must not be used casually.
+Exact replay uses the same deterministic KC attempt identity and does not rerun an already-settled projection. `--attempt-salt` exists only as an explicit recovery discriminator after prior evidence has been inspected; changing it creates a new projection attempt and must not be used casually because Graphiti will mint another provider episode for the reissued projection.
 
 ## Promotion gate
 
-Do **not** call this V1 accepted merely because repository CI passes. Repository CI can verify the provider-neutral contracts and deterministic identities without having the user's FalkorDB/Ollama services.
+Do **not** call this V1 accepted merely because repository CI passes. Repository CI can verify the provider-neutral contracts, migrations, and deterministic partition identity without having the user's FalkorDB/Ollama services.
 
 Promotion into the normal/public KC retrieval API requires a real-host PASS showing:
 
 - real Graphiti ingestion;
 - real isolated FalkorDB graph;
+- durable exact provider-source binding evidence;
 - no known integrity warning;
-- all expected episode correlations present;
+- all bound provider episodes present;
 - validation `VALIDATED`;
 - Authority admission before graph search;
 - at least one trusted graph result;

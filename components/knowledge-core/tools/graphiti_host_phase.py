@@ -316,9 +316,11 @@ def main() -> int:
             )
             return 3
 
+        source_bindings = kernel.read_projection_source_bindings(attempt_id)
         validator = GraphitiProjectionValidator(
             adapter=adapter,
             segments=plan.segments,
+            source_bindings=source_bindings,
             namespace_key=args.namespace,
             scope_key=args.scope,
             projection_profile_id=plan.profile_id,
@@ -349,6 +351,7 @@ def main() -> int:
                     "validation_outcome": validation.outcome.value,
                     "error_code": validation.error_code,
                     "error_detail": validation.error_detail,
+                    "source_bindings": [asdict(binding) for binding in source_bindings],
                     "checks": [asdict(check) for check in validation.checks],
                 }
             )
@@ -376,6 +379,8 @@ def main() -> int:
             "attempt_replayed": execution.replayed,
             "projection_disposition": attempt.disposition.value,
             "projection_warning_count": len(attempt.warnings),
+            "source_binding_count": len(source_bindings),
+            "source_bindings": [asdict(binding) for binding in source_bindings],
             "validation_id": str(validation_id),
             "validation_outcome": validation.outcome.value,
             "validation_checks": [asdict(check) for check in validation.checks],

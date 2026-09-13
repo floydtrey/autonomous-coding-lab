@@ -101,30 +101,60 @@ class GraphProjectionRetrievalKnowledgeKernel(ProjectionOrchestrationKnowledgeKe
                 results=(),
             )
 
-        correlation: dict[str, ProjectionSourceSegment] = {}
-        attempt_ids: list[UUID] = []
-        for row in rows:
-            plan = self.projection_plan_for_attempt(row.attempt_id)
-            attempt_ids.append(row.attempt_id)
-            for segment in plan.segments:
-                source_key = adapter.source_correlation_key(
-                    segment=segment,
-                    namespace_key=namespace_key,
-                    scope_key=scope_key,
-                    projection_profile_id=expected_profile_id,
-                )
-                existing = correlation.get(source_key)
-                if existing is not None and existing != segment:
-                    raise KnowledgeInvariantError(
-                        f"projection source correlation key collision: {source_key}"
-                    )
-                correlation[source_key] = segment
-
         expected_partition = adapter.partition_key(
             namespace_key=namespace_key,
             scope_key=scope_key,
             projection_profile_id=expected_profile_id,
         )
+        correlation: dict[str, ProjectionSourceSegment] = {}
+        attempt_ids: list[UUID] = []
+        for row in rows:
+            plan = self.projection_plan_for_attempt(row.attempt_id)
+            bindings = self.read_projection_source_bindings(row.attempt_id)
+            segment_by_exact_key = {
+                (
+                    segment.resource_version_ref,
+                    segment.source_revision_id,
+                    segment.segment_key,
+                    segment.source_slice_sha256,
+                ): segment
+                for segment in plan.segments
+            }
+            if len(bindings) != len(segment_by_exact_key):
+                raise KnowledgeInvariantError(
+                    f"validated projection attempt {row.attempt_id} lost provider source bindings"
+                )
+
+            attempt_ids.append(row.attempt_id)
+            matched_exact_keys: set[tuple[UUID, int, str, str]] = set()
+            for binding in bindings:
+                if binding.provider_partition_key != expected_partition:
+                    raise KnowledgeInvariantError(
+                        f"validated projection attempt {row.attempt_id} points at the wrong provider partition"
+                    )
+                exact_key = (
+                    binding.resource_version_ref,
+                    binding.source_revision_id,
+                    binding.segment_key,
+                    binding.source_slice_sha256,
+                )
+                segment = segment_by_exact_key.get(exact_key)
+                if segment is None:
+                    raise KnowledgeInvariantError(
+                        f"validated projection attempt {row.attempt_id} has an uncorrelated provider binding"
+                    )
+                matched_exact_keys.add(exact_key)
+                existing = correlation.get(binding.provider_source_id)
+                if existing is not None and existing != segment:
+                    raise KnowledgeInvariantError(
+                        "provider source ID collision maps one graph source to different KC segments"
+                    )
+                correlation[binding.provider_source_id] = segment
+            if matched_exact_keys != set(segment_by_exact_key):
+                raise KnowledgeInvariantError(
+                    f"validated projection attempt {row.attempt_id} does not cover every canonical segment"
+                )
+
         hits = await adapter.search(
             query=normalized_query,
             namespace_key=namespace_key,
@@ -156,7 +186,7 @@ class GraphProjectionRetrievalKnowledgeKernel(ProjectionOrchestrationKnowledgeKe
                 continue
 
             matched: list[ProjectionSourceSegment] = []
-            seen_segment_keys: set[str] = set()
+            seen_exact: set[tuple[UUID, str]] = set()
             eligible = True
             for source_key in hit.source_correlation_keys:
                 segment = correlation[source_key]
@@ -166,8 +196,9 @@ class GraphProjectionRetrievalKnowledgeKernel(ProjectionOrchestrationKnowledgeKe
                 if segment.effective_lifecycle_state == "superseded":
                     eligible = False
                     break
-                if segment.segment_key not in seen_segment_keys:
-                    seen_segment_keys.add(segment.segment_key)
+                exact = (segment.resource_version_ref, segment.segment_key)
+                if exact not in seen_exact:
+                    seen_exact.add(exact)
                     matched.append(segment)
             if not eligible or not matched:
                 continue
