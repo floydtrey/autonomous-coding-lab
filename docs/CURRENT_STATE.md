@@ -1,6 +1,7 @@
 # Current State
 
-**Branch:** `architecture/knowledge-core`  
+**Branch:** `feat/model-admission-operator-path`  
+**Base:** `architecture/knowledge-core` at `ee241be`  
 **Reconstruction status:** Tasks 1–9 complete; deterministic reconstruction accepted  
 **Execution authority:** `DISABLED`
 
@@ -8,11 +9,16 @@
 
 ## Active model-admission preparation
 
-Post-reconstruction work has begun on `feat/model-admission-operator-path`.
 `docs/MODEL_ADMISSION_WORKPLAN.md` is the active implementation and handoff
-record. An MA-1 candidate now adds durable provider observation and qualification
-records, Provider Binding operations, and a Windows runtime-core CI lane. Remote
-acceptance is pending. Execution remains disabled.
+record. MA-1 is accepted at implementation commit `500a6b5`: it adds durable
+provider observation and qualification records, Provider Binding operations,
+and a Windows runtime-core CI lane. Execution remains disabled.
+
+GitHub Actions run `34756466201` accepted the exact implementation commit on
+Windows with portable source identity `MATCH` for all three components, 12
+repository contract tests passed, 333 Worker Lab tests passed with the one known
+environment-dependent symlink skip, and 76 Autonomous Worker Framework tests
+passed.
 
 The user's Local Model Bench campaign is running on the intended host. ACL work
 must not contact Ollama, inspect its live model inventory, launch a model, or

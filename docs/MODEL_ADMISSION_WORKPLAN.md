@@ -1,6 +1,8 @@
 # ACL Model Admission Workplan
 
-**Status:** Active
+**Status:** Active — MA-1 accepted; MA-2 next
+
+**Last updated:** 2026-09-13
 
 **Source conversation:** Codex task — ACL model insertion readiness
 
@@ -76,6 +78,12 @@ an explicit input at the service boundary.
 **Gate:** deterministic service/CLI tests prove the record lifecycle with fake
 observers and fake probe evidence; no Ollama request occurs.
 
+**Accepted:** implementation commit `500a6b5`; GitHub Actions run
+`34756466201` passed portable source verification, 12 repository tests, 333
+Worker Lab tests (one known environment-dependent symlink skip), and 76
+Autonomous Worker Framework tests on Windows. No local provider/model request
+was made.
+
 ### MA-2 — Production runner composition
 
 Add one explicit operator composition that binds:
@@ -112,6 +120,10 @@ accepted commit and test evidence.
 **Gate:** GitHub Actions passes on the exact branch head while execution remains
 disabled.
 
+**Progress:** the Windows runtime-core workflow and MA-1 source identity update
+are accepted. This gate remains open because later MA-2/MA-3 behavior-bearing
+changes must update source identity and pass the same workflow.
+
 ### MA-5 — Supervised real-model vertical slice
 
 This stage waits until the benchmark no longer owns host resources and the user
@@ -132,11 +144,11 @@ model selection but does not replace ACL qualification.
 
 ## Resume point
 
-An **MA-1 candidate** is in progress on the working branch. It adds
-content-addressed observation/qualification storage, service operations, explicit
-observation and binding CLI commands, deterministic lifecycle tests, and a
-Windows runtime-core CI lane. The next step is remote CI acceptance, followed by
-an exact accepted-commit documentation checkpoint.
+**MA-1 is accepted. Resume at MA-2.** Compose the existing Worker Lab V3
+dispatch boundary, framework dispatch adapter, bounded-file provider executor,
+and Windows Job custody behind one explicit operator construction. Preserve the
+no-default provider/model/binding/runner rule and prove the path with an injected
+fake model runner before adding any real-provider command.
 
 Before continuing, verify the working branch and read this file plus
 `docs/CURRENT_STATE.md`. Do not begin MA-5 while the Local Model Bench campaign
