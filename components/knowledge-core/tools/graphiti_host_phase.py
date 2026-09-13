@@ -23,7 +23,7 @@ from knowledge_core.domain.generations import DerivedKind
 from knowledge_core.domain.projection_adapter import ProjectionAdapterExecutionError
 from knowledge_core.domain.projection_evidence import ProjectionDisposition
 from knowledge_core.domain.projection_validation import ProjectionValidationOutcome
-from knowledge_core.integrations.graphiti import (
+from knowledge_core_providers.graphiti import (
     GraphitiLocalConfig,
     GraphitiProjectionAdapter,
     GraphitiProjectionValidator,

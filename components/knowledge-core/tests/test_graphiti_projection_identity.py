@@ -14,7 +14,7 @@ from knowledge_core.domain.projection_adapter import (
     ProjectionProviderSourceBinding,
     ProjectionSourceSegment,
 )
-from knowledge_core.integrations.graphiti import GraphitiLocalConfig, graphiti_partition_key
+from knowledge_core_providers.graphiti import GraphitiLocalConfig, graphiti_partition_key
 
 
 def _segment() -> ProjectionSourceSegment:
