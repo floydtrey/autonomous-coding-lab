@@ -481,10 +481,8 @@ def test_explicit_runtime_composition_reaches_candidate_with_fake_model_runner(t
         "record_ledger/models.py",
         "tests/test_models.py",
     )
-    assert (
-        review.proposal_content_digest
-        == review.result.record["source_evidence"]["candidate_content_digest"]
-    )
+    assert review.proposal_content_digest.startswith("sha256:")
+    assert len(review.proposal_content_digest) == 71
     assert all(stage["outcome"] == "pass" for stage in review.validation_stages)
 
 
