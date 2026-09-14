@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -285,11 +286,14 @@ def _run_validation(
     root: Path, commands: Sequence[ValidationCommand], failure_code: str
 ) -> tuple[tuple[str, str], ...]:
     results: list[tuple[str, str]] = []
+    validation_environment = os.environ.copy()
+    validation_environment["PYTHONDONTWRITEBYTECODE"] = "1"
     for command in commands:
         try:
             process = subprocess.run(
                 command.argv,
                 cwd=root,
+                env=validation_environment,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",

@@ -1,10 +1,37 @@
 # Current State
 
-**Branch:** `architecture/knowledge-core`  
+**Branch:** `feat/model-admission-operator-path`  
+**Base:** `architecture/knowledge-core` at `ee241be`  
 **Reconstruction status:** Tasks 1–9 complete; deterministic reconstruction accepted  
 **Execution authority:** `DISABLED`
 
 `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` is the reconstruction acceptance record and post-reconstruction boundary. no actual provider/model execution occurs during reconstruction.
+
+## Active model-admission preparation
+
+`docs/MODEL_ADMISSION_WORKPLAN.md` is the active implementation and handoff
+record. MA-1 is accepted at implementation commit `500a6b5`: it adds durable
+provider observation and qualification records, Provider Binding operations,
+and a Windows runtime-core CI lane. Execution remains disabled.
+
+MA-2 is now an unaccepted candidate. It composes one exact observation →
+qualification → Provider Binding chain into the provider-neutral framework
+adapter, the bounded-file Pydantic/Ollama executor, and Windows Job Object
+custody. Its tests inject a fake model only at the final provider seam. The
+normal CLI still supplies no dispatch runner, and no real provider command has
+been added.
+
+GitHub Actions run `34756466201` accepted the exact implementation commit on
+Windows with portable source identity `MATCH` for all three components, 12
+repository contract tests passed, 333 Worker Lab tests passed with the one known
+environment-dependent symlink skip, and 76 Autonomous Worker Framework tests
+passed.
+
+The user's Local Model Bench campaign is running on the intended host. ACL work
+must not contact Ollama, inspect its live model inventory, launch a model, or
+read/write the active benchmark checkout until the user reports that campaign
+complete. Deterministic fake-provider tests and GitHub Actions are the current
+validation paths.
 
 ## Current runtime architecture
 
@@ -29,9 +56,9 @@ It binds source/component bytes only. It intentionally excludes operating system
 
 Accepted component identities remain:
 
-- Autonomous Worker Framework: 8-file closure at `sha256:edac32b728348d6a2e2c7521d1c846e5021fe6e40f33db70e7df625d1ca584c5`;
+- Autonomous Worker Framework: 8-file closure at `sha256:994fd3bae3728f2dcbcfae6c7331659a7fadd0ff12db47901d98498015946c25`;
 - Local Model Bench: 10-file production tree at `sha256:139331ea42c914575d1119125a702ac5de2129b9bedc235bfc189700e8265afc`;
-- Worker Lab: 29-file production tree at `sha256:08a13548f9e193c85ae1280a56386237e1c3903467eb6681602827340825ab96`.
+- Worker Lab: 31-file production tree at `sha256:78eade4883d80f25cc72fcd378862852e963b46f638c2e023ccb3887a6c1e7e3`.
 
 ## Provider qualification separation
 
@@ -39,7 +66,10 @@ Provider installation observation V2 records installed host/provider/model facts
 
 Provider Binding seals the exact capability-qualification digest, model identity, adapter/tool surface, runtime requirement, and runtime settings before Worker Lab authorization. Qualification evidence never activates ACL.
 
-There is no default capability-probe runner and the normal CLI does not inject a workspace dispatch runner.
+There is no default capability-probe runner and the normal CLI does not inject a
+workspace dispatch runner. Provider installation observation is an explicit CLI
+operation; capability qualification remains a service operation whose runner
+must be explicitly supplied.
 
 ## Task 9 deterministic reconstruction acceptance
 

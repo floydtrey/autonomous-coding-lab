@@ -12,6 +12,11 @@ This is the routing page for current ACL work.
 
 For source portability, read `docs/PORTABLE_SOURCE_IDENTITY.md`. For Controller/Knowledge Core handoff, read `docs/CONTROLLER_TASK_PACKET_V1.md`. For Git/repository boundaries, read `docs/REPOSITORY_COUPLING_INVENTORY.md`.
 
+For the active post-reconstruction path toward real model insertion, read
+`docs/MODEL_ADMISSION_WORKPLAN.md`. It is the current implementation sequence
+and chat-handoff/resume point for provider admission and the first supervised
+vertical slice.
+
 ## Component ownership
 
 - Worker Lab: protected authority, lifecycle, Provider Binding, dispatch preparation, independent acceptance.

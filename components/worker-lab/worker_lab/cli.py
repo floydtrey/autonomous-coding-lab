@@ -22,6 +22,7 @@ from .policy import (
 )
 from .storage import AtomicRecordStore
 from .test_catalog import CATALOG_SCHEMA, TestCatalog
+from .provider_qualification import DEFAULT_OLLAMA_BASE_URL, inspect_provider_installation
 
 
 LOADERS: dict[str, Callable[[Any], Any]] = {
@@ -82,6 +83,15 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("--provider-binding-id", required=True)
     command.add_argument("--provider-binding-digest", required=True)
     command.set_defaults(handler=_service_prepare_invocation)
+    command = commands.add_parser("observe-provider-installation")
+    command.add_argument("--model", required=True)
+    command.add_argument("--base-url", default=DEFAULT_OLLAMA_BASE_URL)
+    command.add_argument("--provider-executable", default="ollama")
+    command.set_defaults(handler=_service_observe_provider_installation)
+    command = commands.add_parser("create-provider-binding")
+    command.add_argument("binding_id")
+    command.add_argument("--qualification-digest", required=True)
+    command.set_defaults(handler=_service_create_provider_binding)
     command = commands.add_parser("authorize-invocation")
     command.add_argument("invocation_id")
     command.add_argument("--expected-identity-digest", required=True)
@@ -203,6 +213,26 @@ def _service_prepare_invocation(args: argparse.Namespace) -> str:
         logical_target_id=args.logical_target_id,
         provider_binding_id=args.provider_binding_id,
         provider_binding_digest=args.provider_binding_digest,
+    ).to_json()
+
+
+def _service_observe_provider_installation(args: argparse.Namespace) -> str:
+    service = WorkerLabApplicationService(
+        args.root.absolute(),
+        clock=_now,
+        provider_installation_observer=inspect_provider_installation,
+    )
+    return service.observe_provider_installation(
+        model=args.model,
+        base_url=args.base_url,
+        executable_name=args.provider_executable,
+    ).to_json()
+
+
+def _service_create_provider_binding(args: argparse.Namespace) -> str:
+    return _service(args).create_provider_binding(
+        args.binding_id,
+        args.qualification_digest,
     ).to_json()
 
 

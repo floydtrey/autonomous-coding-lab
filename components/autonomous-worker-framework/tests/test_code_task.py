@@ -76,6 +76,34 @@ def test_general_code_task_runs_in_workspace_write_and_validates(tmp_path):
     assert result.task_digest == contract.digest()
 
 
+def test_python_validation_cannot_add_bytecode_to_candidate(tmp_path):
+    root = _repo(tmp_path)
+    packet, contract = _contract(root)
+    python_validation = ValidationCommand(
+        "Import candidate",
+        ("python", "-c", "import tests.test_assets"),
+        10,
+    )
+    packet = replace(packet, full_validation=(python_validation,))
+    contract = replace(contract, quick_validation=(python_validation,))
+
+    def executor(request):
+        (root / "tests" / "test_assets.py").write_text("VALUE = 2\n", encoding="utf-8")
+        return WorkerExecution(("fake-provider",), 0, "implemented test", "")
+
+    result = run_code_task(
+        contract,
+        packet,
+        repo_root=root,
+        framework_repo=tmp_path / "framework",
+        profile=GENERIC_PROFILE,
+        executor=executor,
+    )
+
+    assert result.changed_paths == ("tests/test_assets.py",)
+    assert not (root / "tests" / "__pycache__").exists()
+
+
 def test_out_of_scope_worker_change_stops_before_validation(tmp_path):
     root = _repo(tmp_path)
     packet, contract = _contract(root)
