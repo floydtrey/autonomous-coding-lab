@@ -3,7 +3,7 @@
 **Authoritative KC status and restart point. Updated 2026-09-14.**
 Branch: `architecture/knowledge-core`. Documentation consolidation baseline:
 `2678e7666fbcba50b64d8839ea0592a8d992e916`.
-This planning update changes documentation only; it does not rerun qualification or promote a new implementation.
+Latest accepted KC Usable V1 checkpoint: `b9e708f2892f3a7303fa50ccadc64c26f5b9bf46`.
 
 ## Read order and authority
 
@@ -28,6 +28,7 @@ These are the only authoritative current KC documents. The component README and 
 | SR-2 segmentation and retrieval | Accepted audit-amended KC-D025/SR-1 implementation; G1–G22 independently green. |
 | SR-2 intended host | Accepted Windows/PostgreSQL restart/recovery, exact structural reconstruction, provenance, segment serving and replay. |
 | KC Consumer V1 / lexical API | Implemented exact segment-content serving with provenance. `POST /v1/retrieval/search` evaluates injected Authority before protected search. |
+| KC Usable V1 bootstrap access | **Task 1 accepted.** Configurable bind host defaults to `127.0.0.1`; shared API-key admission maps accepted front-door calls to fixed principal `local_owner`; only store/search/get-source/status operation classes are admitted. This facility is not yet attached to a public Usable V1 front-door route. |
 | Projection attempt and validation ledgers | Implemented durable, separate provider-attempt and independent validation evidence. Provider success alone is insufficient. |
 | Governed Graphiti backend | Accepted real-host governed-document projection, immutable build isolation, lifecycle validation and trusted canonical result correlation. |
 | Public graph consumer API | **Not exposed/promoted.** Trusted graph retrieval exists in the application kernel; the public retrieval route still performs lexical search. |
@@ -82,23 +83,33 @@ Graph failure or delay must not invalidate successfully stored canonical evidenc
 
 Work sequentially. Do not silently absorb later tasks into an earlier task.
 
-### Task 1 — bootstrap access contract
+### Task 1 — bootstrap access contract — ACCEPTED
 
-Implement only configurable service binding, initial `127.0.0.1`, shared-key authentication, explicit `local_owner` caller identity, and bounded semantic-operation admission while preserving the existing Authority seam.
+Accepted at implementation checkpoint `b9e708f2892f3a7303fa50ccadc64c26f5b9bf46`, with full Knowledge Core workflow [Actions 34877670577](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34877670577) green.
 
-**Accept when:** changing the bind address requires no KC domain/storage redesign; missing/invalid authentication is rejected before semantic operations; accepted calls carry `local_owner`; deterministic tests cover allowed and rejected calls.
+Implemented scope:
 
-**Stop:** no role hierarchy, policy language, user database, generalized ACL system, direct remote exposure, or standalone Authority service.
+- configurable `KNOWLEDGE_CORE_BIND_HOST`, defaulting to `127.0.0.1`;
+- bootstrap API key supplied through `X-Knowledge-Key`, with configuration sourced from `KNOWLEDGE_CORE_BOOTSTRAP_KEY`;
+- accepted bootstrap requests map to the fixed principal `local_owner`;
+- client-supplied `X-Knowledge-Caller` cannot replace/spoof the bootstrap principal;
+- the admitted operation set is limited to `kc.store`, `kc.search`, `kc.get_source`, and `kc.status`;
+- missing/invalid key is rejected before a semantic handler executes; authenticated but unadmitted operations are also rejected before execution;
+- no KC domain/storage code, migrations, manifests, Graphiti behavior, or existing retrieval Authority seam changed.
 
-**Current authorization:** Task 1 only. Checkpoint it before Task 2.
+The bootstrap facility is deliberately not attached to every existing low-level KC API route. Task 2 will attach it to the new bounded front door. This checkpoint is not a generalized Authority service or remote-exposure qualification.
 
-### Task 2 — `kc_store` front door
+The full existing workflow passed: fast semantic suite, PostgreSQL G1–G21, G22, RI-4 restart rehearsal, and SR-2 restart rehearsal.
+
+### Task 2 — `kc_store` front door — NEXT AUTHORIZED TASK
 
 Expose one simple store operation that accepts content plus minimal source/project metadata and translates it into the accepted Resource/ResourceVersion machinery. Consumers must not need internal revision IDs, hashes, generation IDs, or storage locations.
 
 **Accept when:** one plain-text request creates durable exact evidence; restart preserves it; replay remains consistent with KC identity/idempotency rules; content becomes available to accepted text retrieval; the response reports understandable canonical/text/graph state.
 
 **Stop:** storage must not require synchronous Graphiti/model execution.
+
+**Current authorization:** Task 2 only. Checkpoint it before Task 3.
 
 ### Task 3 — simple read surface
 
