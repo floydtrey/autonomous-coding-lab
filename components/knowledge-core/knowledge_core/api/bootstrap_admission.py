@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 import os
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Security
 from fastapi.security import APIKeyHeader
 
 from knowledge_core.api.bootstrap_contract import (
@@ -54,7 +54,9 @@ def bootstrap_principal_dependency(
     *,
     operation: BootstrapOperation,
 ):
-    async def dependency(supplied_key: str | None = _api_key_header) -> str:
+    async def dependency(
+        supplied_key: str | None = Security(_api_key_header),
+    ) -> str:
         return admission.admit(
             supplied_key=supplied_key,
             operation=operation,
