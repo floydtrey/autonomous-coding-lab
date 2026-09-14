@@ -10,6 +10,7 @@ from knowledge_core.domain.projection_evidence import (
     ProjectionAttemptSnapshot,
     ProjectionDisposition,
 )
+from knowledge_core.domain.projection_validation import ProjectionValidationRequirement
 
 
 class ProjectionAdapterExecutionError(KnowledgeInvariantError):
@@ -27,6 +28,7 @@ class ProjectionAdapterDescriptor:
     adapter_identity: str
     adapter_version: str | None
     config_digest: str
+    validation_requirement: ProjectionValidationRequirement | None = None
 
 
 @dataclass(frozen=True)
@@ -108,6 +110,23 @@ class ProjectionSearchHit:
 
 
 @dataclass(frozen=True)
+class ProjectionLifecycleEdge:
+    provider_edge_id: str
+    partition_key: str
+    source_correlation_keys: tuple[str, ...]
+    invalid_at: datetime | None
+    expired_at: datetime | None
+
+
+@dataclass(frozen=True)
+class ProjectionLifecycleInventory:
+    partition_key: str
+    complete: bool
+    edges: tuple[ProjectionLifecycleEdge, ...]
+    error: str | None = None
+
+
+@dataclass(frozen=True)
 class TrustedProjectionHit:
     provider_hit_id: str
     fact: str
@@ -162,4 +181,13 @@ class ProjectionAdapter(Protocol):
         scope_key: str,
         projection_profile_id: str,
     ) -> frozenset[str]:
+        ...
+
+    async def lifecycle_inventory(
+        self,
+        *,
+        namespace_key: str,
+        scope_key: str,
+        projection_profile_id: str,
+    ) -> ProjectionLifecycleInventory:
         ...

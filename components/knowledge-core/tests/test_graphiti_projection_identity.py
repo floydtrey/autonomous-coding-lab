@@ -15,14 +15,22 @@ from knowledge_core.authority.retrieval import (
     RetrievalAuthorityRequest,
 )
 from knowledge_core.domain.projection_adapter import (
+    ProjectionLifecycleEdge,
+    ProjectionLifecycleInventory,
     ProjectionProviderSourceBinding,
     ProjectionSourceSegment,
+)
+from knowledge_core.domain.projection_evidence import ProjectionDisposition
+from knowledge_core.domain.projection_validation import (
+    ProjectionCheckOutcome,
+    ProjectionValidationOutcome,
 )
 from knowledge_core.domain.assertions import KnowledgeInvariantError
 from knowledge_core_providers import graphiti as graphiti_provider
 from knowledge_core_providers.graphiti import (
     GraphitiLocalConfig,
     GraphitiProjectionAdapter,
+    GraphitiProjectionValidator,
     _resolve_governed_document_edges,
     graphiti_partition_key,
 )
@@ -327,6 +335,167 @@ def test_governed_edge_resolution_does_not_revive_retired_exact_match():
     assert new == [extracted]
     assert retired.invalid_at == datetime(2025, 1, 1, tzinfo=timezone.utc)
     assert retired.expired_at == datetime(2025, 1, 2, tzinfo=timezone.utc)
+
+
+class _LifecycleValidationAdapter:
+    def __init__(self, inventory: ProjectionLifecycleInventory):
+        self._descriptor = GraphitiProjectionAdapter().descriptor
+        self._inventory = inventory
+
+    @property
+    def descriptor(self):
+        return self._descriptor
+
+    def partition_key(self, *, namespace_key, scope_key, projection_profile_id):
+        return graphiti_partition_key(
+            namespace_key=namespace_key,
+            scope_key=scope_key,
+            projection_profile_id=projection_profile_id,
+        )
+
+    async def existing_source_keys(self, *, source_keys, **kwargs):
+        return frozenset(source_keys)
+
+    async def lifecycle_inventory(self, **kwargs):
+        return self._inventory
+
+    async def search(self, **kwargs):
+        return ()
+
+
+def _validate_lifecycle_inventory(inventory: ProjectionLifecycleInventory):
+    segment = _segment()
+    namespace_key = "kc:acl"
+    scope_key = "project:alpha"
+    profile_id = "sr2-generation:one"
+    partition = graphiti_partition_key(
+        namespace_key=namespace_key,
+        scope_key=scope_key,
+        projection_profile_id=profile_id,
+    )
+    binding = ProjectionProviderSourceBinding(
+        resource_version_ref=segment.resource_version_ref,
+        source_revision_id=segment.source_revision_id,
+        segment_key=segment.segment_key,
+        source_slice_sha256=segment.source_slice_sha256,
+        provider_partition_key=partition,
+        provider_source_id="episode-current",
+    )
+    adapter = _LifecycleValidationAdapter(inventory)
+    validator = GraphitiProjectionValidator(
+        adapter=adapter,
+        segments=(segment,),
+        source_bindings=(binding,),
+        namespace_key=namespace_key,
+        scope_key=scope_key,
+        projection_profile_id=profile_id,
+        probe_query="accepted boundary",
+    )
+    report = validator.validate(
+        SimpleNamespace(
+            attempt_id=uuid4(),
+            backend_identity=adapter.descriptor.backend_identity,
+            backend_version=adapter.descriptor.backend_version,
+            config_digest=adapter.descriptor.config_digest,
+            namespace_key=namespace_key,
+            scope_key=scope_key,
+            profile_id=profile_id,
+            warnings=(),
+            disposition=ProjectionDisposition.SUCCEEDED,
+        )
+    )
+    return adapter, validator, report
+
+
+def test_graphiti_validator_requires_complete_active_lifecycle_inventory():
+    partition = graphiti_partition_key(
+        namespace_key="kc:acl",
+        scope_key="project:alpha",
+        projection_profile_id="sr2-generation:one",
+    )
+    adapter, validator, report = _validate_lifecycle_inventory(
+        ProjectionLifecycleInventory(
+            partition_key=partition,
+            complete=True,
+            edges=(
+                ProjectionLifecycleEdge(
+                    provider_edge_id="edge-current",
+                    partition_key=partition,
+                    source_correlation_keys=("episode-current",),
+                    invalid_at=None,
+                    expired_at=None,
+                ),
+            ),
+        )
+    )
+
+    assert report.outcome is ProjectionValidationOutcome.VALIDATED
+    lifecycle_check = next(
+        check for check in report.checks if check.check_code == "governed-lifecycle-inventory"
+    )
+    assert lifecycle_check.outcome is ProjectionCheckOutcome.PASSED
+    assert lifecycle_check.evidence["edge_count"] == 1
+    assert lifecycle_check.evidence["inventory_digest"].startswith("sha256:")
+    requirement = adapter.descriptor.validation_requirement
+    assert requirement is not None
+    assert validator.descriptor.validator_identity == requirement.validator_identity
+    assert validator.descriptor.validator_version == requirement.validator_version
+    assert validator.descriptor.ruleset_id == requirement.ruleset_id
+    assert validator.descriptor.ruleset_digest == requirement.ruleset_digest
+
+
+@pytest.mark.parametrize(
+    ("inventory", "expected_outcome", "expected_check_outcome"),
+    (
+        (
+            ProjectionLifecycleInventory(
+                partition_key=graphiti_partition_key(
+                    namespace_key="kc:acl",
+                    scope_key="project:alpha",
+                    projection_profile_id="sr2-generation:one",
+                ),
+                complete=True,
+                edges=(
+                    ProjectionLifecycleEdge(
+                        provider_edge_id="edge-retired",
+                        partition_key=graphiti_partition_key(
+                            namespace_key="kc:acl",
+                            scope_key="project:alpha",
+                            projection_profile_id="sr2-generation:one",
+                        ),
+                        source_correlation_keys=("episode-current",),
+                        invalid_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                        expired_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+                    ),
+                ),
+            ),
+            ProjectionValidationOutcome.REJECTED,
+            ProjectionCheckOutcome.FAILED,
+        ),
+        (
+            ProjectionLifecycleInventory(
+                partition_key="kc_unavailable",
+                complete=False,
+                edges=(),
+                error="provider inventory unavailable",
+            ),
+            ProjectionValidationOutcome.QUARANTINED,
+            ProjectionCheckOutcome.INDETERMINATE,
+        ),
+    ),
+)
+def test_graphiti_validator_rejects_retirement_and_quarantines_missing_inventory(
+    inventory,
+    expected_outcome,
+    expected_check_outcome,
+):
+    _, _, report = _validate_lifecycle_inventory(inventory)
+
+    assert report.outcome is expected_outcome
+    lifecycle_check = next(
+        check for check in report.checks if check.check_code == "governed-lifecycle-inventory"
+    )
+    assert lifecycle_check.outcome is expected_check_outcome
 
 
 def test_graph_authority_request_requires_explicit_namespace_and_scope():

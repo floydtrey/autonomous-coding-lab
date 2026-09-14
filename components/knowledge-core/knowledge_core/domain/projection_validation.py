@@ -41,6 +41,14 @@ class ProjectionValidatorDescriptor:
 
 
 @dataclass(frozen=True)
+class ProjectionValidationRequirement:
+    validator_identity: str
+    validator_version: str
+    ruleset_id: str
+    ruleset_digest: str
+
+
+@dataclass(frozen=True)
 class ProjectionValidationCheck:
     check_code: str
     outcome: ProjectionCheckOutcome

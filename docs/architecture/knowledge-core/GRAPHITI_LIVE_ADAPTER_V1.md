@@ -112,8 +112,11 @@ A successful provider call is still `UNVALIDATED`. `GraphitiProjectionValidator`
 2. exact durable provider-source binding coverage;
 3. known projection-integrity warnings;
 4. presence of every bound provider episode in the real Falkor graph;
-5. physical namespace isolation using a fresh sibling graph;
-6. source attribution on any probe-search results.
+5. a complete digest-bound inventory of every relationship edge in the candidate partition, with zero `invalid_at`/`expired_at` values and no missing, unknown, or wrong-partition source attribution;
+6. physical namespace isolation using a fresh sibling graph;
+7. source attribution on any probe-search results.
+
+The lifecycle inventory check is part of `kc-graphiti-governed-document-v2`. An incomplete inventory is indeterminate and quarantines validation; any retirement or attribution violation rejects it. The adapter declares this exact validator/ruleset requirement, and trusted retrieval requires a matching durable `validated` record rather than accepting the attempt's validation summary alone. Older validation records remain historical evidence but do not satisfy this admission rule.
 
 Zero probe results do not make the projection untrustworthy by themselves. The host qualification gate separately requires at least one final **trusted** Graphiti result for the selected query before the end-to-end gate passes.
 

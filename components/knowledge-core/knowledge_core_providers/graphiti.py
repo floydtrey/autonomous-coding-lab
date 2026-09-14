@@ -13,6 +13,8 @@ from knowledge_core.domain.projection_adapter import (
     ProjectionAdapterDescriptor,
     ProjectionAdapterReceipt,
     ProjectionAdapterRequest,
+    ProjectionLifecycleEdge,
+    ProjectionLifecycleInventory,
     ProjectionProviderSourceBinding,
     ProjectionSearchHit,
     ProjectionSourceSegment,
@@ -23,6 +25,7 @@ from knowledge_core.domain.projection_validation import (
     ProjectionValidationCheck,
     ProjectionValidationOutcome,
     ProjectionValidationReport,
+    ProjectionValidationRequirement,
     ProjectionValidatorDescriptor,
 )
 
@@ -35,12 +38,13 @@ _INTEGRITY_WARNING_FRAGMENTS = (
     "Source entity not found in nodes for edge relation",
 )
 _VALIDATION_RULESET = {
-    "id": "kc-graphiti-live-v1",
+    "id": "kc-graphiti-governed-document-v2",
     "checks": [
         "attempt-contract",
         "source-binding-contract",
         "projection-integrity-warnings",
         "source-episodes-present",
+        "governed-lifecycle-inventory",
         "namespace-search-isolation",
         "search-source-attribution",
     ],
@@ -48,6 +52,12 @@ _VALIDATION_RULESET = {
 _VALIDATION_RULESET_DIGEST = "sha256:" + sha256(
     json.dumps(_VALIDATION_RULESET, sort_keys=True, separators=(",", ":")).encode("utf-8")
 ).hexdigest()
+_VALIDATION_REQUIREMENT = ProjectionValidationRequirement(
+    validator_identity="kc-graphiti-live-validator",
+    validator_version="2",
+    ruleset_id=_VALIDATION_RULESET["id"],
+    ruleset_digest=_VALIDATION_RULESET_DIGEST,
+)
 
 
 def _canonical_digest(payload: dict[str, object]) -> str:
@@ -356,6 +366,7 @@ class GraphitiProjectionAdapter:
             adapter_identity="kc-graphiti-falkordb-ollama",
             adapter_version=_ADAPTER_VERSION,
             config_digest=self.config.behavioral_digest(),
+            validation_requirement=_VALIDATION_REQUIREMENT,
         )
 
     def partition_key(
@@ -551,6 +562,63 @@ class GraphitiProjectionAdapter:
         finally:
             await graphiti.close()
 
+    async def lifecycle_inventory(
+        self,
+        *,
+        namespace_key: str,
+        scope_key: str,
+        projection_profile_id: str,
+    ) -> ProjectionLifecycleInventory:
+        from graphiti_core.edges import EntityEdge
+        from graphiti_core.errors import GroupsEdgesNotFoundError
+
+        partition = self.partition_key(
+            namespace_key=namespace_key,
+            scope_key=scope_key,
+            projection_profile_id=projection_profile_id,
+        )
+        graphiti = self._build_graphiti(partition_key=partition)
+        try:
+            await _await_graphiti_driver_initialization(graphiti)
+            try:
+                edges = await EntityEdge.get_by_group_ids(
+                    graphiti.driver,
+                    [partition],
+                )
+            except GroupsEdgesNotFoundError:
+                edges = []
+            inventory_edges = tuple(
+                sorted(
+                    (
+                        ProjectionLifecycleEdge(
+                            provider_edge_id=str(edge.uuid),
+                            partition_key=str(edge.group_id),
+                            source_correlation_keys=tuple(
+                                sorted(str(source_id) for source_id in (edge.episodes or ()))
+                            ),
+                            invalid_at=edge.invalid_at,
+                            expired_at=edge.expired_at,
+                        )
+                        for edge in edges
+                    ),
+                    key=lambda edge: edge.provider_edge_id,
+                )
+            )
+            return ProjectionLifecycleInventory(
+                partition_key=partition,
+                complete=True,
+                edges=inventory_edges,
+            )
+        except Exception as exc:
+            return ProjectionLifecycleInventory(
+                partition_key=partition,
+                complete=False,
+                edges=(),
+                error=f"{type(exc).__name__}: {exc}",
+            )
+        finally:
+            await graphiti.close()
+
 
 class GraphitiProjectionValidator:
     """Deterministic validator backed by live Graphiti/FalkorDB observations."""
@@ -586,10 +654,10 @@ class GraphitiProjectionValidator:
     @property
     def descriptor(self) -> ProjectionValidatorDescriptor:
         return ProjectionValidatorDescriptor(
-            validator_identity="kc-graphiti-live-validator",
-            validator_version="1",
-            ruleset_id=_VALIDATION_RULESET["id"],
-            ruleset_digest=_VALIDATION_RULESET_DIGEST,
+            validator_identity=_VALIDATION_REQUIREMENT.validator_identity,
+            validator_version=_VALIDATION_REQUIREMENT.validator_version,
+            ruleset_id=_VALIDATION_REQUIREMENT.ruleset_id,
+            ruleset_digest=_VALIDATION_REQUIREMENT.ruleset_digest,
         )
 
     @property
@@ -756,6 +824,92 @@ class GraphitiProjectionValidator:
             )
         )
 
+        lifecycle_inventory = await self.adapter.lifecycle_inventory(
+            namespace_key=self.namespace_key,
+            scope_key=self.scope_key,
+            projection_profile_id=self.projection_profile_id,
+        )
+        inventory_payload = [
+            {
+                "provider_edge_id": edge.provider_edge_id,
+                "partition_key": edge.partition_key,
+                "source_correlation_keys": list(edge.source_correlation_keys),
+                "invalid_at": edge.invalid_at.isoformat() if edge.invalid_at else None,
+                "expired_at": edge.expired_at.isoformat() if edge.expired_at else None,
+            }
+            for edge in lifecycle_inventory.edges
+        ]
+        inventory_digest = _canonical_digest({"edges": inventory_payload})
+        lifecycle_outcome = (
+            ProjectionCheckOutcome.PASSED
+            if lifecycle_inventory.complete
+            else ProjectionCheckOutcome.INDETERMINATE
+        )
+        retired_edge_ids = sorted(
+            edge.provider_edge_id
+            for edge in lifecycle_inventory.edges
+            if edge.invalid_at is not None or edge.expired_at is not None
+        )
+        wrong_partition_edge_ids = sorted(
+            edge.provider_edge_id
+            for edge in lifecycle_inventory.edges
+            if edge.partition_key != expected_partition
+        )
+        missing_attribution_edge_ids = sorted(
+            edge.provider_edge_id
+            for edge in lifecycle_inventory.edges
+            if not edge.source_correlation_keys
+        )
+        multi_source_edge_ids = sorted(
+            edge.provider_edge_id
+            for edge in lifecycle_inventory.edges
+            if len(edge.source_correlation_keys) > 1
+        )
+        provider_id_set = set(provider_ids)
+        unknown_source_edge_ids = sorted(
+            edge.provider_edge_id
+            for edge in lifecycle_inventory.edges
+            if any(
+                source_id not in provider_id_set
+                for source_id in edge.source_correlation_keys
+            )
+        )
+        if lifecycle_inventory.complete and (
+            lifecycle_inventory.partition_key != expected_partition
+            or retired_edge_ids
+            or wrong_partition_edge_ids
+            or missing_attribution_edge_ids
+            or unknown_source_edge_ids
+        ):
+            lifecycle_outcome = ProjectionCheckOutcome.FAILED
+        checks.append(
+            ProjectionValidationCheck(
+                check_code="governed-lifecycle-inventory",
+                outcome=lifecycle_outcome,
+                evidence={
+                    "complete": lifecycle_inventory.complete,
+                    "error": lifecycle_inventory.error,
+                    "expected_partition": expected_partition,
+                    "observed_partition": lifecycle_inventory.partition_key,
+                    "edge_count": len(lifecycle_inventory.edges),
+                    "source_contribution_count": sum(
+                        len(edge.source_correlation_keys)
+                        for edge in lifecycle_inventory.edges
+                    ),
+                    "inventory_digest": inventory_digest,
+                    "retired_edge_ids": retired_edge_ids,
+                    "wrong_partition_edge_ids": wrong_partition_edge_ids,
+                    "missing_attribution_edge_ids": missing_attribution_edge_ids,
+                    "multi_source_edge_ids": multi_source_edge_ids,
+                    "unknown_source_edge_ids": unknown_source_edge_ids,
+                },
+                detail=(
+                    "Governed document validation requires a complete edge inventory with "
+                    "zero provider-controlled retirement and exact current source attribution."
+                ),
+            )
+        )
+
         probe_hits = await self.adapter.search(
             query=self.probe_query,
             namespace_key=self.namespace_key,
@@ -825,6 +979,12 @@ class GraphitiProjectionValidator:
             )
         )
 
+        if any(
+            check.outcome is ProjectionCheckOutcome.INDETERMINATE for check in checks
+        ):
+            outcome = ProjectionValidationOutcome.QUARANTINED
+            return ProjectionValidationReport(outcome=outcome, checks=tuple(checks))
+
         failed_codes = {
             check.check_code
             for check in checks
@@ -833,7 +993,12 @@ class GraphitiProjectionValidator:
         if not failed_codes:
             outcome = ProjectionValidationOutcome.VALIDATED
         elif failed_codes.intersection(
-            {"attempt-contract", "source-binding-contract", "namespace-search-isolation"}
+            {
+                "attempt-contract",
+                "source-binding-contract",
+                "governed-lifecycle-inventory",
+                "namespace-search-isolation",
+            }
         ):
             outcome = ProjectionValidationOutcome.REJECTED
         else:

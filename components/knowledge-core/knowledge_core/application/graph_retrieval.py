@@ -91,6 +91,15 @@ class GraphProjectionRetrievalKnowledgeKernel(ProjectionOrchestrationKnowledgeKe
             )
             .order_by(ProjectionAttempt.started_at, ProjectionAttempt.attempt_id)
         ).all()
+        if descriptor.validation_requirement is not None:
+            rows = [
+                row
+                for row in rows
+                if self.projection_satisfies_validation_requirement(
+                    attempt_id=row.attempt_id,
+                    requirement=descriptor.validation_requirement,
+                )
+            ]
         if not rows:
             return TrustedProjectionSearchSnapshot(
                 query=normalized_query,

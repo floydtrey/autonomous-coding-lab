@@ -17,6 +17,7 @@ from knowledge_core.domain.projection_validation import (
     ProjectionValidationCheck,
     ProjectionValidationOutcome,
     ProjectionValidationReport,
+    ProjectionValidationRequirement,
     ProjectionValidationReuseError,
     ProjectionValidationStateError,
     ProjectionValidatorDescriptor,
@@ -132,6 +133,20 @@ def test_validated_projection_requires_all_checks_and_preserves_canonical_revisi
             assert validation.checks[0].evidence_digest
             assert validation.checks[0].evidence == {"matched": 1}
             assert kernel.current_revision() == canonical_revision
+            requirement = ProjectionValidationRequirement(
+                validator_identity=validator.descriptor.validator_identity,
+                validator_version=validator.descriptor.validator_version or "",
+                ruleset_id=validator.descriptor.ruleset_id or "",
+                ruleset_digest=validator.descriptor.ruleset_digest or "",
+            )
+            assert kernel.projection_satisfies_validation_requirement(
+                attempt_id=attempt.attempt_id,
+                requirement=requirement,
+            )
+            assert not kernel.projection_satisfies_validation_requirement(
+                attempt_id=attempt.attempt_id,
+                requirement=replace(requirement, ruleset_id="governed-lifecycle-v2"),
+            )
 
             with pytest.raises(ProjectionValidationStateError):
                 kernel.validate_projection_attempt(

@@ -20,6 +20,7 @@ from knowledge_core.domain.projection_validation import (
     ProjectionValidationCheckSnapshot,
     ProjectionValidationOutcome,
     ProjectionValidationReport,
+    ProjectionValidationRequirement,
     ProjectionValidationReuseError,
     ProjectionValidationSnapshot,
     ProjectionValidationStateError,
@@ -181,6 +182,31 @@ class ProjectionValidationKnowledgeKernel(ProjectionEvidenceKnowledgeKernel):
                 )
                 for check in check_rows
             ),
+        )
+
+    def projection_satisfies_validation_requirement(
+        self,
+        *,
+        attempt_id: UUID,
+        requirement: ProjectionValidationRequirement,
+    ) -> bool:
+        return (
+            self.session.scalar(
+                select(ProjectionValidationRecord.validation_id)
+                .where(
+                    ProjectionValidationRecord.attempt_id == attempt_id,
+                    ProjectionValidationRecord.validator_identity
+                    == requirement.validator_identity,
+                    ProjectionValidationRecord.validator_version
+                    == requirement.validator_version,
+                    ProjectionValidationRecord.ruleset_id == requirement.ruleset_id,
+                    ProjectionValidationRecord.ruleset_digest == requirement.ruleset_digest,
+                    ProjectionValidationRecord.outcome
+                    == ProjectionValidationOutcome.VALIDATED.value,
+                )
+                .limit(1)
+            )
+            is not None
         )
 
     def validate_projection_attempt(
