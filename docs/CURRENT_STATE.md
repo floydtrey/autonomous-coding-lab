@@ -56,7 +56,7 @@ It binds source/component bytes only. It intentionally excludes operating system
 
 Accepted component identities remain:
 
-- Autonomous Worker Framework: 8-file closure at `sha256:d059fcbea67fc1a94203bf42a7a4a0699ab291c2827b58a0d2cc4137ae7e4d73`;
+- Autonomous Worker Framework: 8-file closure at `sha256:994fd3bae3728f2dcbcfae6c7331659a7fadd0ff12db47901d98498015946c25`;
 - Local Model Bench: 10-file production tree at `sha256:139331ea42c914575d1119125a702ac5de2129b9bedc235bfc189700e8265afc`;
 - Worker Lab: 31-file production tree at `sha256:78eade4883d80f25cc72fcd378862852e963b46f638c2e023ccb3887a6c1e7e3`.
 
