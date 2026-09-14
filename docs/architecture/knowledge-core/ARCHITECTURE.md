@@ -1,6 +1,6 @@
 # Knowledge Core — Architecture and Contracts
 
-**Authoritative current KC invariants.** Read [CURRENT_STATE.md](CURRENT_STATE.md) for implementation/acceptance status and [OPERATIONS.md](OPERATIONS.md) for evidence and operating procedures. This consolidation carries forward accepted decisions; it introduces no new runtime behavior.
+**Authoritative current KC invariants.** Read [CURRENT_STATE.md](CURRENT_STATE.md) for implementation/acceptance status and [OPERATIONS.md](OPERATIONS.md) for evidence and operating procedures. This consolidation carries forward accepted decisions; later sections explicitly distinguish accepted implementation from authorized corrective design.
 
 ## Ownership and trust
 
@@ -40,13 +40,84 @@ Accepted deployment requirements include distinct least-privilege service identi
 
 Python 3.12+, FastAPI/Pydantic and versioned HTTP/JSON are the implementation baseline. Exact physical schema is defined by committed models/migrations, not the archived preimplementation schema candidate.
 
+## Source-neutral governed knowledge boundary — Task 2 corrective contract
+
+This section defines the authorized correction discovered during the 2026-09-14 Task 2 source-model audit. It is a **target contract, not yet an accepted implementation**. Historical repository/SR-2/Graphiti qualifications retain their exact original scope and must not be relabeled as qualification of this new source-neutral model.
+
+The canonical Resource/ResourceVersion/artifact foundation is already source-neutral. The current governed retrieval implementation is not: repository/Git assumptions are embedded in governed observation shape, source selection, durable lineage foreign keys, generation publication, lexical serving/public schemas, graph plan reconstruction/reference time and some downstream consumer evidence schemas.
+
+The correction is to generalize the governed evidence and source-set boundary **above canonical ResourceVersion and below derived retrieval**, while keeping repository verification strongly source-specific.
+
+### Distinct identities and evidence meanings
+
+The generic contract must keep these meanings separate:
+
+1. **Resource** — KC-owned logical canonical object.
+2. **ResourceVersion** — exact canonical content/bytes identity for one Resource.
+3. **Governed source identity** — logical external/origin item represented with typed producer/source kind, origin scope/account/workspace as applicable, container/collection identity, and item identity. Source identity must not be inferred from content hash alone.
+4. **Observation/admission evidence** — immutable evidence that a producer submitted/captured a specific ResourceVersion in a specific source context, with producer-specific proof and relevant times. Re-observation of the same bytes is not automatically the same observation.
+5. **Governance decision/state** — lifecycle/classification/ranking inputs accepted by KC. Producer claims are evidence until admitted; they are not an independent source of authority.
+6. **Governed retrieval snapshot** — immutable, digest-bound selection of exact observations/versions plus policy inputs, exclusions/retentions and predecessor state used to build one complete serving corpus.
+7. **Project/context membership** — separate association from source origin identity. One source may be relevant to multiple projects; project must not be smuggled into a renamed repository key.
+
+Captured/origin locators and current display/navigation locators are also distinct where needed. Typed Git paths, URLs, mailbox locators, file paths and other source-specific locator evidence are valid; no one locator type becomes universal identity.
+
+### Source-specific proof remains source-specific
+
+Repository import remains a verified Git producer. Its exact commit/path/blob proof, configured readers, path safety, manifest chain, continuity/retirement rules, Git object identity and receipt/replay semantics stay inside the repository producer boundary. Do not fabricate repository names, commits, paths, blob hashes or manifests for notes, chats, files, email, benchmark evidence or Vera observations.
+
+Other producers may later establish different typed proof. A direct local note can rely on authenticated submission plus canonical byte custody; email/chat/file/benchmark producers will require their own source identities and capture evidence. Task 2 uses small future-source-shaped fixtures to challenge the contract but does not implement those connectors.
+
+### Observation identity and time
+
+One ResourceVersion may participate in multiple observations or governance contexts. A→B→A content reuse remains valid without collapsing the later A observation into the earlier one. Repeated capture, replay, reclassification and a new intentional identical submission are distinct cases and require explicit semantics.
+
+Where applicable, keep separate:
+
+- source event time;
+- source revision time;
+- KC observation/capture/admission time;
+- derived-provider reference-time policy.
+
+Repository receipt/import time is not a universal event clock. Any time that changes derived semantic behavior must be bound into the appropriate versioned snapshot/config/evidence rather than silently reinterpreting historical attempts.
+
+### Complete-corpus snapshot and publication
+
+KC retains one-current-generation fencing for TEXT. Therefore a producer must not publish only its own contribution and displace other current sources.
+
+The generic path is:
+
+```text
+source-specific producer proof
+        -> canonical Resource / ResourceVersion
+        -> generic governed observation/admission
+        -> complete immutable governed retrieval snapshot
+        -> deterministic SR-2 candidate
+        -> validation
+        -> atomic one-current-generation publication
+```
+
+A new or changed producer contribution is applied to the intended current corpus and publishes a complete replacement snapshot. Snapshot/predecessor checking must prevent concurrent or sequential producers from losing each other's updates or resurrecting excluded/restricted sources. Failed candidate publication leaves the previous current generation serving; already committed canonical evidence remains durable and may report derived text state as pending/failed.
+
+Canonical revision highwater alone is insufficient to order governance-only changes. Snapshot identity/predecessor semantics must cover metadata-only governance changes as well as new bytes.
+
+### Versioning and historical compatibility
+
+Existing repository manifests, observations, digests, SR-2 lineage serializers, migrations, accepted generations, Graphiti attempts and qualification evidence retain their original meaning. Do not rewrite applied migrations or change old digest interpretation. Source-neutral semantics receive new versioned durable contracts/digests and explicit legacy mappings where needed.
+
+The current public repository import has both RF-2 and SR-2 publication paths sharing the global TEXT slot. Task 2 must deliberately migrate or constrain legacy writers so an old RF-2 publication cannot silently replace an intended current SR-2 generation.
+
+Existing repository-shaped public/ACL evidence contracts require an explicit compatibility/versioning boundary. Never satisfy them for non-Git sources by fabricating repository metadata.
+
 ## Governed repository import
 
-Stable identity is `(source_repository_key, source_document_key) -> Resource`. A path/commit is bounded source evidence, not logical identity. A changed path does not independently authorize a new document or retirement.
+Stable repository identity is `(source_repository_key, source_document_key) -> Resource`. A path/commit is bounded Git-source evidence, not logical canonical identity. A changed path does not independently authorize a new document or retirement.
 
 The importer verifies manifest-listed exact commit/path/blob objects through trusted configured repository readers before canonical writes; clients do not supply roots/credentials or request recursive discovery. Receipts and immutable source observations retain the manifest chain, plan/source evidence, classification and resulting generation. No unlisted content is authorized by a pilot manifest.
 
 ResourceVersion is content-addressed within one logical Resource: unseen bytes create a version; A → B → A reuses the original A version. The later observation/receipt/generation records the new event. Source lifecycle, classification and authority are governed metadata, never inferred from recency, names, paths or prose.
+
+This accepted repository contract remains valid as Git-adapter behavior. Task 2 makes it one producer of source-neutral governed evidence instead of the definition of every downstream governed source.
 
 ## SR-2 structure, lifecycle and publication — KC-D025
 
@@ -65,7 +136,9 @@ Markdown uses ATX headings (0–3 leading spaces, 1–6 `#`, then space/tab or e
 
 The structural profile uses `soft_target_bytes=16384`, `hard_max_bytes=32768`. Oversized blocks split only at legal whole-line boundaries outside indivisible fences: prefer the blank-line boundary closest to soft target (lower offset breaks ties), otherwise the greatest legal boundary within hard max. Emit the final suffix whole when within hard max. An indivisible line/fenced region with no legal boundary fails closed. No tokenizer or model participates.
 
-Each segment retains its ordinal/key, kind, base-block ordinal, part index/count, heading path, exact byte/line coordinates and source-slice SHA-256. Candidate generations stay non-serving until complete. Existing RF-2 serving continues until a complete SR-2 generation publishes; no partial cutover or mixed-generation retrieval is permitted.
+Each segment retains its ordinal/key, kind, base-block ordinal, part index/count, heading path, exact byte/line coordinates and source-slice SHA-256. Candidate generations stay non-serving until complete. Existing serving continues until a complete replacement generation publishes; no partial cutover or mixed-generation retrieval is permitted.
+
+The segmentation/lifecycle algorithms are reusable and remain accepted. The current implementation around them still reconstructs repository-specific governed source sets and lineage. Task 2 generalizes source selection, lineage and publication without weakening deterministic segmentation, canonical artifact integrity or the one-current-generation fence.
 
 ### Lifecycle rules
 
@@ -81,9 +154,9 @@ The detailed accepted [SR-1 specification](legacy/SECTION_RETRIEVAL_SR1.md) and 
 
 The composed [public API](../../../components/knowledge-core/knowledge_core/api/app.py) exposes `POST /v1/retrieval/search` with `query`, `limit` (1–50, default 10) and `include_superseded` (default false). `X-Knowledge-Caller` is required. The trusted host must inject a retrieval Authority evaluator; the header alone is not authorization. Missing caller returns 400, denied retrieval is nondisclosing 404, and unavailable Authority returns 503 before protected search.
 
-PostgreSQL performs lexical matching and deterministic ranking against the current eligible generation. Score is neither truth nor authority. The [response schema](../../../components/knowledge-core/knowledge_core/api/retrieval_schemas.py) carries generation/config and structural/projection profile identities, exact Resource/ResourceVersion references and digest, source observations and lifecycle. Segment results include exact content, byte/line coordinates, heading metadata and slice digest. Artifact integrity and parent eligibility are rechecked when content is served.
+PostgreSQL performs lexical matching and deterministic ranking against the current eligible generation. Score is neither truth nor authority. The current [response schema](../../../components/knowledge-core/knowledge_core/api/retrieval_schemas.py) carries generation/config and structural/projection profile identities, exact Resource/ResourceVersion references and digest, but its segment provenance is repository-shaped. Task 2 must introduce an explicit source-neutral evidence/version compatibility boundary before non-Git sources are served; repository fields must not be fabricated for notes. Artifact integrity and parent eligibility remain rechecked when content is served.
 
-KC Consumer V1 exact segment evidence feeds the [Controller Task Packet V1](../../CONTROLLER_TASK_PACKET_V1.md) boundary. Retrieval remains informational and cannot choose providers, authorize tools/files or accept worker results. General context assembly and MindsHub-specific tools are future work.
+KC Consumer V1 exact segment evidence feeds the [Controller Task Packet V1](../../CONTROLLER_TASK_PACKET_V1.md) boundary. Retrieval remains informational and cannot choose providers, authorize tools/files or accept worker results. General context assembly and MindsHub-specific tools are future work. Repository-shaped ACL evidence compatibility is not authority to force generic KC sources back into repository semantics.
 
 ## Graphiti derived projection and trust admission
 
@@ -109,8 +182,10 @@ The complete digest-bound edge inventory must have no retirement or invalid sour
 
 [GraphProjectionRetrievalKnowledgeKernel.search_validated_projection()](../../../components/knowledge-core/knowledge_core/application/graph_retrieval.py) evaluates `retrieval.search_graph` Authority **before** sending the query to any graph/embedder/reranker. Explicit namespace/scope, current generation, exact config, successful disposition and complete matching validation are required. Search stays within each immutable build; every sourcing episode on every accepted hit must map through that build's binding to an eligible exact canonical segment. Unknown, stale, superseded, unattributed or wrong-partition hits are rejected. KC rechecks current generation after external search.
 
+The projection attempt/source-binding/validation ledger is substantially source-neutral and should be preserved. The current projection-plan input and reference-time reconstruction are repository-shaped; Task 4, after generic text ingestion is accepted, will generalize those inputs and qualify mixed-source projection without weakening existing validation. New TEXT generations continue to make earlier graph attempts ineligible unless a future cross-generation reuse contract is separately proven and qualified.
+
 This kernel path is implemented and has bounded host acceptance. The public HTTP retrieval route remains lexical. Neither direct database access nor raw Graphiti access is an accepted substitute for the future governed graph consumer interface.
 
 ## Contract maintenance
 
-Preserve the accepted KC-D001–KC-D025 invariants. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2 or Graphiti work.
+Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2 or Graphiti work, and historical acceptance must not be overstated as qualification of the new source-neutral Task 2 contract.
