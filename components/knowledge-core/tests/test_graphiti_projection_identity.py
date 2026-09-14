@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import builtins
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -14,7 +16,13 @@ from knowledge_core.domain.projection_adapter import (
     ProjectionProviderSourceBinding,
     ProjectionSourceSegment,
 )
-from knowledge_core_providers.graphiti import GraphitiLocalConfig, graphiti_partition_key
+from knowledge_core.domain.assertions import KnowledgeInvariantError
+from knowledge_core_providers import graphiti as graphiti_provider
+from knowledge_core_providers.graphiti import (
+    GraphitiLocalConfig,
+    GraphitiProjectionAdapter,
+    graphiti_partition_key,
+)
 
 
 def _segment() -> ProjectionSourceSegment:
@@ -108,9 +116,75 @@ def test_graphiti_behavior_digest_excludes_secrets_but_binds_behavior():
         ollama_api_key="key-b",
         llm_model="another-qualified-model",
     )
+    temperature_change = GraphitiLocalConfig(temperature=1.0)
+    policy_change = GraphitiLocalConfig(projection_policy="governed-document-v2")
 
     assert first.behavioral_digest() == secret_change.behavioral_digest()
     assert first.behavioral_digest() != model_change.behavioral_digest()
+    assert first.behavioral_digest() != temperature_change.behavioral_digest()
+    assert first.behavioral_digest() != policy_change.behavioral_digest()
+
+
+def test_default_graphiti_config_uses_governed_document_policy_at_temperature_zero():
+    config = GraphitiLocalConfig()
+
+    assert config.projection_policy == "governed-document-v1"
+    assert config.temperature == 0.0
+
+
+def test_graphiti_adapter_rejects_unsupported_projection_policy():
+    with pytest.raises(KnowledgeInvariantError, match="unsupported Graphiti projection policy"):
+        GraphitiProjectionAdapter(
+            GraphitiLocalConfig(projection_policy="graphiti-semantic-defaults")
+        )
+
+
+def test_constructed_graphiti_client_receives_temperature_zero(monkeypatch):
+    class FakeLLMConfig:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    class FakeComponent:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    class FakeGraphiti(FakeComponent):
+        pass
+
+    real_import = builtins.__import__
+    fake_imports = {
+        "graphiti_core": SimpleNamespace(Graphiti=FakeGraphiti),
+        "graphiti_core.cross_encoder.openai_reranker_client": SimpleNamespace(
+            OpenAIRerankerClient=FakeComponent
+        ),
+        "graphiti_core.driver.falkordb_driver": SimpleNamespace(FalkorDriver=FakeComponent),
+        "graphiti_core.embedder.openai": SimpleNamespace(
+            OpenAIEmbedder=FakeComponent,
+            OpenAIEmbedderConfig=FakeComponent,
+        ),
+        "graphiti_core.llm_client.config": SimpleNamespace(LLMConfig=FakeLLMConfig),
+    }
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name in fake_imports:
+            return fake_imports[name]
+        return real_import(name, globals, locals, fromlist, level)
+
+    def fake_client(config, *, max_tokens, structured_output_mode):
+        return SimpleNamespace(
+            config=config,
+            client=object(),
+            max_tokens=max_tokens,
+            structured_output_mode=structured_output_mode,
+        )
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    monkeypatch.setattr(graphiti_provider, "_require_graphiti_version", lambda: None)
+    monkeypatch.setattr(graphiti_provider, "_reasoning_disabled_client", fake_client)
+
+    graphiti = GraphitiProjectionAdapter()._build_graphiti(partition_key="kc_test")
+
+    assert graphiti.llm_client.config.temperature == 0.0
 
 
 def test_graph_authority_request_requires_explicit_namespace_and_scope():

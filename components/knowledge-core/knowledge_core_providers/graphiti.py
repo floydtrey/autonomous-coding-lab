@@ -29,6 +29,7 @@ from knowledge_core.domain.projection_validation import (
 
 _EXPECTED_GRAPHITI_VERSION = "0.30.2"
 _ADAPTER_VERSION = "1"
+_GOVERNED_DOCUMENT_POLICY = "governed-document-v1"
 _INTEGRITY_WARNING_FRAGMENTS = (
     "Target entity not found in nodes for edge relation",
     "Source entity not found in nodes for edge relation",
@@ -90,10 +91,12 @@ class GraphitiLocalConfig:
     ollama_api_key: str = "ollama"
     llm_model: str = "graphiti-qwen35-9b-32k"
     llm_max_tokens: int = 12288
+    temperature: float = 0.0
     embed_model: str = "nomic-embed-text:latest"
     embed_dim: int = 768
     structured_output_mode: str = "json_schema"
     reasoning_effort: str = "none"
+    projection_policy: str = _GOVERNED_DOCUMENT_POLICY
 
     def behavioral_digest(self) -> str:
         # Secrets are intentionally absent. This digest binds behavior-bearing
@@ -110,8 +113,10 @@ class GraphitiLocalConfig:
                 "llm_max_tokens": self.llm_max_tokens,
                 "llm_model": self.llm_model,
                 "ollama_base_url": self.ollama_base_url,
+                "projection_policy": self.projection_policy,
                 "reasoning_effort": self.reasoning_effort,
                 "structured_output_mode": self.structured_output_mode,
+                "temperature": self.temperature,
             }
         )
 
@@ -199,6 +204,11 @@ class GraphitiProjectionAdapter:
 
     def __init__(self, config: GraphitiLocalConfig | None = None):
         self.config = config or GraphitiLocalConfig()
+        if self.config.projection_policy != _GOVERNED_DOCUMENT_POLICY:
+            raise KnowledgeInvariantError(
+                "unsupported Graphiti projection policy: "
+                f"{self.config.projection_policy!r}; expected {_GOVERNED_DOCUMENT_POLICY!r}"
+            )
         if self.config.reasoning_effort != "none":
             raise KnowledgeInvariantError(
                 "the qualified local Graphiti profile requires reasoning_effort='none'"
@@ -244,6 +254,7 @@ class GraphitiProjectionAdapter:
             model=self.config.llm_model,
             small_model=self.config.llm_model,
             base_url=self.config.ollama_base_url,
+            temperature=self.config.temperature,
             max_tokens=self.config.llm_max_tokens,
         )
         llm_client = _reasoning_disabled_client(

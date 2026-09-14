@@ -32,12 +32,16 @@ The live adapter defaults to the already-proven host profile:
 - Ollama OpenAI-compatible endpoint `http://localhost:11434/v1`
 - LLM alias `graphiti-qwen35-9b-32k`
 - maximum generation allowance `12288`
+- governed projection policy `governed-document-v1`
+- explicit LLM temperature `0.0`
 - `reasoning_effort="none"`
 - native `json_schema` structured output
 - embedding model `nomic-embed-text:latest`
 - embedding dimension `768`
 
 The adapter contains the reasoning-disabled `OpenAIGenericClient` specialization. Upstream Graphiti source is not patched.
+
+The policy identity and temperature are configuration-bound and included in the adapter behavioral digest used by qualification evidence. Unknown policy identities fail closed rather than inheriting Graphiti semantic defaults.
 
 ## Source boundary
 
