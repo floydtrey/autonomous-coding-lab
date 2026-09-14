@@ -780,7 +780,7 @@ def _controller_task_packet(prompt: str, invocation: Mapping[str, Any]) -> Mappi
     for item in evidence:
         if not isinstance(item, Mapping):
             raise DispatchAdapterError("DISPATCH_PROMPT_INVALID", "Controller Task Packet evidence is invalid")
-        _text(item.get("content"), "knowledge evidence content", allow_newlines=True)
+        _evidence_content(item.get("content"))
         for name in ("repository", "source_path", "source_version", "segment_key", "generation_id"):
             _text(item.get(name), f"knowledge evidence {name}")
     if not user_request:
@@ -932,6 +932,22 @@ def _text(value: Any, name: str, *, allow_newlines: bool = False) -> str:
         raise DispatchAdapterError("DISPATCH_FIELDS_INVALID", f"{name} is invalid")
     if not allow_newlines and ("\r" in value or "\n" in value):
         raise DispatchAdapterError("DISPATCH_FIELDS_INVALID", f"{name} is invalid")
+    return value
+
+
+def _evidence_content(value: Any) -> str:
+    if not isinstance(value, str) or not value.strip() or "\x00" in value:
+        raise DispatchAdapterError(
+            "DISPATCH_FIELDS_INVALID",
+            "knowledge evidence content is invalid",
+        )
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise DispatchAdapterError(
+            "DISPATCH_FIELDS_INVALID",
+            "knowledge evidence content is not UTF-8",
+        ) from exc
     return value
 
 

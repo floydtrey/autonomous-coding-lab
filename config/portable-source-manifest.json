@@ -16,7 +16,7 @@
         "tools/worker_result.py",
         "tools/worker_runtime.py"
       ],
-      "digest": "sha256:7c4d0893cccf6cd9a87f1b72718010a485ce8d8b0a066ecd68b6144ca738c473"
+      "digest": "sha256:d059fcbea67fc1a94203bf42a7a4a0699ab291c2827b58a0d2cc4137ae7e4d73"
     },
     "local-model-bench": {
       "root": "components/local-model-bench",
