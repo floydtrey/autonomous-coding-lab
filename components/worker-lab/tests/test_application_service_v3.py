@@ -398,12 +398,16 @@ def test_explicit_runtime_composition_reaches_candidate_with_fake_model_runner(t
                 test_file = json.loads(tools.read_file("tests/test_models.py"))
                 tools.write_file(
                     "record_ledger/models.py",
-                    "# changed by composed fake model\n",
+                    "VALUE = 2\n",
                     model_file["sha256"],
                 )
                 tools.write_file(
                     "tests/test_models.py",
-                    "VALUE = 2\n",
+                    (
+                        "from record_ledger.models import VALUE\n\n\n"
+                        "def test_value_is_two():\n"
+                        "    assert VALUE == 2\n"
+                    ),
                     test_file["sha256"],
                 )
                 return "changed the exact authorized files"
