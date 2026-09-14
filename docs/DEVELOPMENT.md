@@ -35,9 +35,9 @@ Do not use a broad field rename to hide responsibility ambiguity; move the fact 
 
 ## Documentation
 
-Current operating truth belongs in the root documents linked by `README.md`. Git history is historical documentation. Do not create a second legacy operating tree.
+Current ACL operating truth belongs in the root documents linked by `README.md`; root `docs/CURRENT_STATE.md` controls ACL runtime status. Do not create a second legacy operating tree.
 
-Research under `docs/research/` must be clearly treated as advisory evidence. Knowledge Core architecture/evidence under `docs/architecture/knowledge-core/` remains current for that component, but root `docs/CURRENT_STATE.md` controls ACL runtime status.
+For KC, maintain only [current state](architecture/knowledge-core/CURRENT_STATE.md), [architecture](architecture/knowledge-core/ARCHITECTURE.md), and [operations/evidence](architecture/knowledge-core/OPERATIONS.md) as authoritative current guidance. `docs/architecture/knowledge-core/legacy/` is a frozen evidence archive, not another operating tree. Preserve historical evidence and pinned manifests; update current guidance at each checkpoint. Research under `docs/research/` remains advisory evidence.
 
 ## Git workspace mechanics
 

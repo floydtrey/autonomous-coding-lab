@@ -6,6 +6,10 @@
 
 `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md` is the reconstruction acceptance record and post-reconstruction boundary. no actual provider/model execution occurs during reconstruction.
 
+## Knowledge Core routing
+
+KC status is maintained separately in [its current state](architecture/knowledge-core/CURRENT_STATE.md), followed by [architecture](architecture/knowledge-core/ARCHITECTURE.md) and [operations/evidence](architecture/knowledge-core/OPERATIONS.md). Historical KC documents are archived under `docs/architecture/knowledge-core/legacy/`; their old next-task prose does not govern current work. KC acceptance does not change the ACL execution status above.
+
 ## Current runtime architecture
 
 ACL has one active runtime architecture:

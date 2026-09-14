@@ -12,6 +12,8 @@ Before modifying the current runtime, read:
 4. the governing architecture/plan named by `CURRENT_STATE.md`
 5. only the component files required by the bounded task
 
+For Knowledge Core work, the component read order is `docs/architecture/knowledge-core/CURRENT_STATE.md`, `ARCHITECTURE.md`, then `OPERATIONS.md` in that directory. These are the only current KC authorities. `docs/architecture/knowledge-core/legacy/` is frozen historical evidence, not current instructions; consult individual records only as needed.
+
 Do not load all research or historical Git material by default. Git history is the archive. `docs/research/` is advisory evidence and is read only when the task explicitly needs it.
 
 ## Authority

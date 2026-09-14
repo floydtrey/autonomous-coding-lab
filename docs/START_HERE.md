@@ -43,6 +43,6 @@ The next permitted stage, when separately authorized, is actual host/provider qu
 
 ## Research and Knowledge Core docs
 
-`docs/research/` is non-authoritative research/reference material. `docs/architecture/knowledge-core/` contains accepted Knowledge Core design/evidence; its retrieval output remains informational to Worker Lab.
+`docs/research/` is non-authoritative research/reference material. For Knowledge Core, read [current state](architecture/knowledge-core/CURRENT_STATE.md), [architecture](architecture/knowledge-core/ARCHITECTURE.md), then [operations/evidence](architecture/knowledge-core/OPERATIONS.md). These three documents govern current KC work; its retrieval output remains informational to Worker Lab.
 
-Git history is the historical archive. There is no active `docs/legacy/` documentation tree.
+`docs/architecture/knowledge-core/legacy/` preserves historical KC documents and accepted evidence outside the default read order. Its old status and next-task prose are not current guidance. Git history remains intact; there is no second legacy runtime to resume.

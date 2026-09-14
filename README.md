@@ -46,7 +46,7 @@ Operational references:
 - `docs/REPOSITORY_COUPLING_INVENTORY.md`
 - `docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md`
 
-Knowledge Core design/evidence lives under `docs/architecture/knowledge-core/`. Research under `docs/research/` is evidence/reference material, not runtime authority.
+For Knowledge Core, read [current state](docs/architecture/knowledge-core/CURRENT_STATE.md), [architecture](docs/architecture/knowledge-core/ARCHITECTURE.md), then [operations/evidence](docs/architecture/knowledge-core/OPERATIONS.md). These are its three authoritative current documents. `docs/architecture/knowledge-core/legacy/` preserves historical evidence outside the default read order. Research under `docs/research/` is evidence/reference material, not runtime authority.
 
 ## Reconstruction status
 
