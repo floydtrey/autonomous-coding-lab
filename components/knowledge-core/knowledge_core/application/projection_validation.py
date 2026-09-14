@@ -190,10 +190,9 @@ class ProjectionValidationKnowledgeKernel(ProjectionEvidenceKnowledgeKernel):
         attempt_id: UUID,
         requirement: ProjectionValidationRequirement,
     ) -> bool:
-        return (
-            self.session.scalar(
-                select(ProjectionValidationRecord.validation_id)
-                .where(
+        validation_ids = tuple(
+            self.session.scalars(
+                select(ProjectionValidationRecord.validation_id).where(
                     ProjectionValidationRecord.attempt_id == attempt_id,
                     ProjectionValidationRecord.validator_identity
                     == requirement.validator_identity,
@@ -204,9 +203,30 @@ class ProjectionValidationKnowledgeKernel(ProjectionEvidenceKnowledgeKernel):
                     ProjectionValidationRecord.outcome
                     == ProjectionValidationOutcome.VALIDATED.value,
                 )
-                .limit(1)
-            )
-            is not None
+            ).all()
+        )
+        if not validation_ids:
+            return False
+
+        required_codes = {code.strip() for code in requirement.required_check_codes}
+        if "" in required_codes or len(required_codes) != len(
+            requirement.required_check_codes
+        ):
+            return False
+        if not required_codes:
+            return True
+
+        observed_by_validation = {validation_id: set() for validation_id in validation_ids}
+        for validation_id, check_code in self.session.execute(
+            select(
+                ProjectionValidationCheckRecord.validation_id,
+                ProjectionValidationCheckRecord.check_code,
+            ).where(ProjectionValidationCheckRecord.validation_id.in_(validation_ids))
+        ):
+            observed_by_validation[validation_id].add(check_code)
+        return any(
+            required_codes.issubset(observed_codes)
+            for observed_codes in observed_by_validation.values()
         )
 
     def validate_projection_attempt(

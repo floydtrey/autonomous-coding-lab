@@ -46,6 +46,7 @@ class ProjectionValidationRequirement:
     validator_version: str
     ruleset_id: str
     ruleset_digest: str
+    required_check_codes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

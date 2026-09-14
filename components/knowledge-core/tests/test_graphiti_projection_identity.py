@@ -351,6 +351,93 @@ class _FakeEdge:
     fact_embedding: list[float] | None = None
 
 
+@pytest.mark.parametrize(
+    ("earlier_fact", "later_fact"),
+    (
+        (
+            "SR-2 structures, lineage, profiles, and search projections are related "
+            "to the G1-G21 qualification map.",
+            "SR2-G1 through SR2-G22 in the amended SR-1 contract remain the final "
+            "acceptance requirements.",
+        ),
+        (
+            "While SR2-G1 through SR2-G21 are independently qualified, SR2-G22 "
+            "remains outstanding.",
+            "The G1-G21 prerequisite has been satisfied and checkpointed, enabling "
+            "the next SR-2 task SR2-G22.",
+        ),
+    ),
+)
+@pytest.mark.parametrize("reverse_chronology", (False, True))
+def test_supplied_compatible_claims_survive_forced_false_contradiction_paths(
+    earlier_fact,
+    later_fact,
+    reverse_chronology,
+):
+    class _FalseContradictionJudge:
+        calls = 0
+
+        async def generate_response(self, *args, **kwargs):
+            self.calls += 1
+            return {"duplicate_facts": [], "contradicted_facts": [0]}
+
+    existing_fact, extracted_fact = (
+        (later_fact, earlier_fact) if reverse_chronology else (earlier_fact, later_fact)
+    )
+    existing = _FakeEdge(
+        uuid="edge-existing",
+        group_id="kc_test",
+        source_node_uuid="sr2",
+        target_node_uuid="acceptance",
+        name="HAS_ACCEPTANCE_STATE",
+        fact=existing_fact,
+        episodes=["episode-existing"],
+    )
+    extracted = _FakeEdge(
+        uuid="edge-extracted",
+        group_id="kc_test",
+        source_node_uuid="sr2",
+        target_node_uuid="acceptance",
+        name="HAS_ACCEPTANCE_STATE",
+        fact=extracted_fact,
+        episodes=["episode-extracted"],
+        invalid_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        expired_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+    )
+    judge = _FalseContradictionJudge()
+
+    async def get_between_nodes(*args):
+        return [existing]
+
+    async def embed_edges(*args):
+        return None
+
+    resolved, invalidated, new = asyncio.run(
+        _resolve_governed_document_edges(
+            clients=SimpleNamespace(
+                driver=object(),
+                embedder=object(),
+                llm_client=judge,
+            ),
+            extracted_edges=[extracted],
+            episode=SimpleNamespace(uuid="episode-extracted"),
+            get_between_nodes=get_between_nodes,
+            embed_edges=embed_edges,
+        )
+    )
+
+    assert resolved == [extracted]
+    assert invalidated == []
+    assert new == [extracted]
+    assert judge.calls == 0
+    assert existing.episodes == ["episode-existing"]
+    assert extracted.episodes == ["episode-extracted"]
+    assert existing.invalid_at is None
+    assert existing.expired_at is None
+    assert extracted.invalid_at is None
+    assert extracted.expired_at is None
+
+
 def test_governed_edge_resolution_is_exact_and_preserves_source_contributions():
     existing = _FakeEdge(
         uuid="edge-existing",
@@ -593,6 +680,10 @@ def test_graphiti_validator_requires_complete_active_lifecycle_inventory():
     assert validator.descriptor.validator_version == requirement.validator_version
     assert validator.descriptor.ruleset_id == requirement.ruleset_id
     assert validator.descriptor.ruleset_digest == requirement.ruleset_digest
+    assert "governed-lifecycle-inventory" in requirement.required_check_codes
+    assert set(requirement.required_check_codes) == {
+        check.check_code for check in report.checks
+    }
 
 
 @pytest.mark.parametrize(

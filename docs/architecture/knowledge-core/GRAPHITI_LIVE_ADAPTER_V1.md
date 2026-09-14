@@ -119,7 +119,7 @@ A successful provider call is still `UNVALIDATED`. `GraphitiProjectionValidator`
 6. physical namespace isolation using a fresh sibling graph;
 7. source attribution on any probe-search results.
 
-The lifecycle inventory check is part of `kc-graphiti-governed-document-v3`. An incomplete inventory is indeterminate and quarantines validation; any retirement, build-partition, or attribution violation rejects it. The adapter declares this exact validator/ruleset requirement, and trusted retrieval requires a matching durable `validated` record rather than accepting the attempt's validation summary alone. Older validation records remain historical evidence but do not satisfy this admission rule.
+The lifecycle inventory check is part of `kc-graphiti-governed-document-v3`. An incomplete inventory is indeterminate and quarantines validation; any retirement, build-partition, or attribution violation rejects it. The adapter declares this exact validator/ruleset requirement and its complete required check-code set. Trusted retrieval verifies that a matching durable `validated` record contains every required check row rather than accepting the attempt's validation summary or a claimed ruleset identity alone. Older validation records remain historical evidence but do not satisfy this admission rule.
 
 Zero probe results do not make the projection untrustworthy by themselves. The host qualification gate separately requires at least one final **trusted** Graphiti result for the selected query before the end-to-end gate passes.
 
@@ -130,6 +130,18 @@ Zero probe results do not make the projection untrustworthy by themselves. The h
 Only attempts matching the current SR-2 generation, exact adapter config, `SUCCEEDED` disposition, and `VALIDATED` validation state contribute provider-source bindings. KC searches each accepted attempt through its own immutable build partition and correlates hits only through bindings from that same build. After the external search returns, KC re-checks that the current SR-2 generation did not change during the call.
 
 The existing PostgreSQL lexical retrieval path remains independent and unchanged in this gate.
+
+## Deterministic boundary qualification
+
+Before any real-model qualification, the repository test gate covers the accepted failure matrix:
+
+- both observed false-contradiction examples in forward and reverse chronology, with the semantic judge forced to return a wrong contradiction if called;
+- model-supplied `invalid_at` and `expired_at` values, conservative exact duplicate consolidation, independent provenance, and retired-edge non-revival;
+- complete lifecycle inventory, forbidden retirement, unavailable inventory, and omission of a ruleset-required check;
+- canonical SR-2 lifecycle projection and anti-resurrection behavior;
+- attempt replay, changed configuration evidence, per-attempt build rotation, and refusal to append to a used graph.
+
+These checks establish the deterministic boundary. They do not substitute for the separate one-run real-host qualification below.
 
 ## Host qualification
 

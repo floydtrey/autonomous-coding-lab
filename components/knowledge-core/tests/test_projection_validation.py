@@ -138,6 +138,7 @@ def test_validated_projection_requires_all_checks_and_preserves_canonical_revisi
                 validator_version=validator.descriptor.validator_version or "",
                 ruleset_id=validator.descriptor.ruleset_id or "",
                 ruleset_digest=validator.descriptor.ruleset_digest or "",
+                required_check_codes=("source-correlation", "namespace-isolation"),
             )
             assert kernel.projection_satisfies_validation_requirement(
                 attempt_id=attempt.attempt_id,
@@ -146,6 +147,17 @@ def test_validated_projection_requires_all_checks_and_preserves_canonical_revisi
             assert not kernel.projection_satisfies_validation_requirement(
                 attempt_id=attempt.attempt_id,
                 requirement=replace(requirement, ruleset_id="governed-lifecycle-v2"),
+            )
+            assert not kernel.projection_satisfies_validation_requirement(
+                attempt_id=attempt.attempt_id,
+                requirement=replace(
+                    requirement,
+                    required_check_codes=(
+                        "source-correlation",
+                        "namespace-isolation",
+                        "governed-lifecycle-inventory",
+                    ),
+                ),
             )
 
             with pytest.raises(ProjectionValidationStateError):

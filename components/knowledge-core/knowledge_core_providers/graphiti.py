@@ -58,6 +58,7 @@ _VALIDATION_REQUIREMENT = ProjectionValidationRequirement(
     validator_version="3",
     ruleset_id=_VALIDATION_RULESET["id"],
     ruleset_digest=_VALIDATION_RULESET_DIGEST,
+    required_check_codes=tuple(_VALIDATION_RULESET["checks"]),
 )
 
 
