@@ -1,9 +1,9 @@
 # Knowledge Core — Current State
 
 **Authoritative KC status and restart point. Updated 2026-09-14.**
-Branch: `architecture/knowledge-core`. Reviewed implementation/documentation baseline:
-`d9966e2cfc89b62d7597aee9af085e31e8732878`.
-This consolidation changes documentation only; it does not rerun qualification or promote a new implementation.
+Branch: `architecture/knowledge-core`. Documentation consolidation baseline:
+`2678e7666fbcba50b64d8839ea0592a8d992e916`.
+This planning update changes documentation only; it does not rerun qualification or promote a new implementation.
 
 ## Read order and authority
 
@@ -52,13 +52,87 @@ This closes the governed-document semantic invalidation/provider-controlled reti
 
 The accepted fixture was an already-governed canonical version of `docs/architecture/knowledge-core/CURRENT_STATE.md`. The replacement page you are reading is new documentation, not those 17 segments. The pre-consolidation page is preserved [in the archive](legacy/CURRENT_STATE.md), and earlier versions remain in Git; exact replay must use the existing canonical artifacts/generation and recorded source identities.
 
-## Next bounded work
+## KC Usable V1 — current objective
 
-The next architectural task is to define the smallest governed graph consumer interface, then implement and qualify that boundary before connecting Mason/MindsHub. Preserve Authority-first admission, explicit namespace/scope, validated current-build selection, and exact canonical provenance. Use the existing lexical/segment consumer as the established reference.
+The next phase is to make KC useful enough to preserve and retrieve project context before expanding its infrastructure further.
 
-This is a direction for subsequent authorized work, not a claim that a public graph endpoint, MindsHub tool, import queue, GPU scheduler, or context assembler already exists. No new implementation or host/model run is authorized by this documentation update.
+**Usable V1 goal:** a local consumer can store governed information, retrieve it in a fresh session, inspect exact canonical source evidence, and later use validated Graphiti retrieval without direct access to PostgreSQL, the artifact store, or FalkorDB.
 
-Do not restart fresh SR-2 implementation, reopen completed G22/host gates solely because an old handoff says they are pending, or continue optimizing accepted Graphiti qualification without a concrete consumer need. The rejected SR-2 prototype `2c48a0e73c560fad62028776f375c94162e138be` remains abandoned and must not be reused for implementation or test design.
+Bootstrap choices are intentionally replaceable. The initial service address is configurable and starts at `127.0.0.1`; localhost is a deployment choice, not a permanent architecture rule. Initial access uses shared-key authentication and the bootstrap principal `local_owner`. The existing Authority seam remains intact, but a generalized Authority service is deferred until broader consumers, permissions, remote access, or an observed policy problem justifies it. If the bootstrap authority becomes insufficient, stop and separate Authority rather than extending ad-hoc permissions.
+
+Initial consumer operations are limited to:
+
+```text
+kc_store
+kc_search
+kc_get_source
+kc_status
+```
+
+Graph maintenance is separate. Normal storage must not require a large model or immediate Graphiti projection:
+
+```text
+store -> canonical Resource/ResourceVersion -> governed text retrieval
+      -> graph pending -> explicit Graphiti sync -> validation -> trusted graph
+```
+
+Graph failure or delay must not invalidate successfully stored canonical evidence or otherwise valid text retrieval.
+
+## Bounded task sequence
+
+Work sequentially. Do not silently absorb later tasks into an earlier task.
+
+### Task 1 — bootstrap access contract
+
+Implement only configurable service binding, initial `127.0.0.1`, shared-key authentication, explicit `local_owner` caller identity, and bounded semantic-operation admission while preserving the existing Authority seam.
+
+**Accept when:** changing the bind address requires no KC domain/storage redesign; missing/invalid authentication is rejected before semantic operations; accepted calls carry `local_owner`; deterministic tests cover allowed and rejected calls.
+
+**Stop:** no role hierarchy, policy language, user database, generalized ACL system, direct remote exposure, or standalone Authority service.
+
+**Current authorization:** Task 1 only. Checkpoint it before Task 2.
+
+### Task 2 — `kc_store` front door
+
+Expose one simple store operation that accepts content plus minimal source/project metadata and translates it into the accepted Resource/ResourceVersion machinery. Consumers must not need internal revision IDs, hashes, generation IDs, or storage locations.
+
+**Accept when:** one plain-text request creates durable exact evidence; restart preserves it; replay remains consistent with KC identity/idempotency rules; content becomes available to accepted text retrieval; the response reports understandable canonical/text/graph state.
+
+**Stop:** storage must not require synchronous Graphiti/model execution.
+
+### Task 3 — simple read surface
+
+Expose `kc_search`, `kc_get_source`, and `kc_status`, initially using the accepted lexical/SR-2 path where appropriate.
+
+**Accept when:** a fresh client retrieves newly stored information and follows the result to exact canonical evidence without knowing KC database/storage internals.
+
+**Usability milestone:** store `Mason is my local MindsHub worker model`, start a fresh session, ask `What is Mason?`, and receive the fact plus exact KC provenance.
+
+### Task 4 — separate Graphiti synchronization
+
+Add an explicit bounded sync for eligible canonical/text material. New knowledge may remain graph-pending without blocking storage.
+
+**Accept when:** a bounded batch projects successfully through existing immutable-build isolation and independent validation; failed/interrupted graph work leaves canonical/text retrieval usable; only validated builds enter trusted graph retrieval; at least one graph result resolves to exact KC evidence.
+
+**Stop:** no permanent scheduler, generalized queue/workflow platform, or GPU/model orchestrator unless explicit batching proves insufficient.
+
+### Task 5 — Mason / MindsHub tools
+
+Expose only `kc_store`, `kc_search`, `kc_get_source`, and `kc_status` to Mason through the governed front door. Keep Graphiti synchronization operator-controlled initially.
+
+**Accept when:** a fresh Mason session can store/retrieve KC context and answer a stored project question without direct database, artifact-store, FalkorDB, or Graphiti mutation access.
+
+### Task 6 — dogfood KC on KC
+
+Ingest the authoritative KC context and selected active project knowledge and use normal retrieval during project work.
+
+**Accept when:** KC provides enough context to resume bounded work without loading large historical handoffs. If actual use exposes retrieval weakness, improve that demonstrated weakness. If access control proves inadequate, separate Authority. Do not pre-build either problem.
+
+## Explicitly deferred from Usable V1
+
+Do not expand this phase into generalized Authority, multiple roles, direct remote KC exposure, Vera/ACL permission systems, continuous Graphiti processing, model/GPU scheduling infrastructure, broad automatic account/web ingestion, complex UI/workflow infrastructure, destructive autonomous maintenance, or arbitrary provider/database access.
+
+The goal is the smallest safe path from infrastructure project to useful knowledge tool. KC should then help preserve the context needed to finish KC, ACL, Vera, and related projects.
 
 ## Documentation and graph context
 
