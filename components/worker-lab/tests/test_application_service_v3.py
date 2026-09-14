@@ -477,9 +477,12 @@ def test_explicit_runtime_composition_reaches_candidate_with_fake_model_runner(t
         "record_ledger/models.py",
         "tests/test_models.py",
     ]
-    assert review["changed_paths"] == list(invocation.writable_paths)
-    assert review["candidate_content_digest"] == DIGEST_C
-    assert all(stage["outcome"] == "pass" for stage in review["validation_stages"])
+    assert review.changed_paths == invocation.writable_paths
+    assert (
+        review.proposal_content_digest
+        == review.result.record["source_evidence"]["candidate_content_digest"]
+    )
+    assert all(stage["outcome"] == "pass" for stage in review.validation_stages)
 
 
 def test_v3_independent_sealed_test_failure_rejects_worker_claimed_success(tmp_path: Path) -> None:
