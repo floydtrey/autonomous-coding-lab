@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import builtins
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from uuid import UUID, uuid4
@@ -21,6 +23,7 @@ from knowledge_core_providers import graphiti as graphiti_provider
 from knowledge_core_providers.graphiti import (
     GraphitiLocalConfig,
     GraphitiProjectionAdapter,
+    _resolve_governed_document_edges,
     graphiti_partition_key,
 )
 
@@ -185,6 +188,145 @@ def test_constructed_graphiti_client_receives_temperature_zero(monkeypatch):
     graphiti = GraphitiProjectionAdapter()._build_graphiti(partition_key="kc_test")
 
     assert graphiti.llm_client.config.temperature == 0.0
+    assert type(graphiti).__name__ == "GovernedDocumentGraphiti"
+
+
+@dataclass
+class _FakeEdge:
+    uuid: str
+    group_id: str
+    source_node_uuid: str
+    target_node_uuid: str
+    name: str
+    fact: str
+    episodes: list[str] = field(default_factory=list)
+    invalid_at: datetime | None = None
+    expired_at: datetime | None = None
+    valid_at: datetime | None = None
+    fact_embedding: list[float] | None = None
+
+
+def test_governed_edge_resolution_is_exact_and_preserves_source_contributions():
+    existing = _FakeEdge(
+        uuid="edge-existing",
+        group_id="kc_test",
+        source_node_uuid="source",
+        target_node_uuid="target",
+        name="DOCUMENTS",
+        fact="The policy documents the accepted boundary.",
+        episodes=["episode-old"],
+    )
+    duplicate = _FakeEdge(
+        uuid="edge-new-duplicate",
+        group_id="kc_test",
+        source_node_uuid="source",
+        target_node_uuid="target",
+        name="documents",
+        fact="  The policy documents   the accepted boundary. ",
+        episodes=["episode-new"],
+        invalid_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        expired_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+    )
+    repeated_in_episode = _FakeEdge(
+        uuid="edge-new-repeated",
+        group_id="kc_test",
+        source_node_uuid="source",
+        target_node_uuid="target",
+        name="DOCUMENTS",
+        fact="The policy documents the accepted boundary.",
+        episodes=["episode-second-source"],
+    )
+    compatible_paraphrase = _FakeEdge(
+        uuid="edge-compatible",
+        group_id="kc_test",
+        source_node_uuid="source",
+        target_node_uuid="target",
+        name="HAS_ACCEPTANCE_STATE",
+        fact=(
+            "The G1-G21 prerequisite has been satisfied and checkpointed, "
+            "enabling the next SR-2 task SR2-G22."
+        ),
+        episodes=["episode-new"],
+        invalid_at=datetime(2026, 1, 3, tzinfo=timezone.utc),
+        expired_at=datetime(2026, 1, 4, tzinfo=timezone.utc),
+    )
+    embedded: list[_FakeEdge] = []
+
+    async def get_between_nodes(driver, source_node_uuid, target_node_uuid):
+        assert driver == "driver"
+        assert (source_node_uuid, target_node_uuid) == ("source", "target")
+        return [existing]
+
+    async def embed_edges(embedder, edges):
+        assert embedder == "embedder"
+        embedded.extend(edges)
+
+    resolved, invalidated, new = asyncio.run(
+        _resolve_governed_document_edges(
+            clients=SimpleNamespace(
+                driver="driver",
+                embedder="embedder",
+                llm_client=pytest.fail,
+            ),
+            extracted_edges=[duplicate, repeated_in_episode, compatible_paraphrase],
+            episode=SimpleNamespace(uuid="episode-new"),
+            get_between_nodes=get_between_nodes,
+            embed_edges=embed_edges,
+        )
+    )
+
+    assert resolved == [existing, compatible_paraphrase]
+    assert invalidated == []
+    assert new == [compatible_paraphrase]
+    assert existing.episodes == ["episode-new", "episode-old", "episode-second-source"]
+    assert compatible_paraphrase.invalid_at is None
+    assert compatible_paraphrase.expired_at is None
+    assert embedded == resolved
+
+
+def test_governed_edge_resolution_does_not_revive_retired_exact_match():
+    retired = _FakeEdge(
+        uuid="edge-retired",
+        group_id="kc_test",
+        source_node_uuid="source",
+        target_node_uuid="target",
+        name="DOCUMENTS",
+        fact="The policy documents the accepted boundary.",
+        episodes=["episode-retired"],
+        invalid_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
+        expired_at=datetime(2025, 1, 2, tzinfo=timezone.utc),
+    )
+    extracted = _FakeEdge(
+        uuid="edge-new",
+        group_id="kc_test",
+        source_node_uuid="source",
+        target_node_uuid="target",
+        name="DOCUMENTS",
+        fact="The policy documents the accepted boundary.",
+        episodes=["episode-current"],
+    )
+
+    async def get_between_nodes(*args):
+        return [retired]
+
+    async def embed_edges(*args):
+        return None
+
+    resolved, invalidated, new = asyncio.run(
+        _resolve_governed_document_edges(
+            clients=SimpleNamespace(driver=object(), embedder=object()),
+            extracted_edges=[extracted],
+            episode=SimpleNamespace(uuid="episode-current"),
+            get_between_nodes=get_between_nodes,
+            embed_edges=embed_edges,
+        )
+    )
+
+    assert resolved == [extracted]
+    assert invalidated == []
+    assert new == [extracted]
+    assert retired.invalid_at == datetime(2025, 1, 1, tzinfo=timezone.utc)
+    assert retired.expired_at == datetime(2025, 1, 2, tzinfo=timezone.utc)
 
 
 def test_graph_authority_request_requires_explicit_namespace_and_scope():

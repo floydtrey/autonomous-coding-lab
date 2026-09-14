@@ -191,6 +191,136 @@ def _reasoning_disabled_client(llm_config, *, max_tokens: int, structured_output
     )
 
 
+def _normalize_governed_edge_text(value: str) -> str:
+    return " ".join(value.casefold().split())
+
+
+def _governed_edge_identity(edge: Any) -> tuple[str, str, str, str, str]:
+    return (
+        str(edge.group_id),
+        str(edge.source_node_uuid),
+        str(edge.target_node_uuid),
+        _normalize_governed_edge_text(str(edge.name)),
+        _normalize_governed_edge_text(str(edge.fact)),
+    )
+
+
+async def _resolve_governed_document_edges(
+    *,
+    clients: Any,
+    extracted_edges: list[Any],
+    episode: Any,
+    get_between_nodes: Any | None = None,
+    embed_edges: Any | None = None,
+) -> tuple[list[Any], list[Any], list[Any]]:
+    """Resolve document edges without semantic dedupe or lifecycle decisions."""
+    if get_between_nodes is None or embed_edges is None:
+        from graphiti_core.edges import EntityEdge, create_entity_edge_embeddings
+
+        get_between_nodes = get_between_nodes or EntityEdge.get_between_nodes
+        embed_edges = embed_edges or create_entity_edge_embeddings
+
+    deduplicated: dict[tuple[str, str, str, str, str], Any] = {}
+    for edge in extracted_edges:
+        # Model-extracted dates can describe source content, but they cannot retire
+        # governed document facts or make a newly projected fact arrive retired.
+        edge.invalid_at = None
+        edge.expired_at = None
+        edge.episodes = sorted(set(edge.episodes).union({str(episode.uuid)}))
+        identity = _governed_edge_identity(edge)
+        retained = deduplicated.get(identity)
+        if retained is None:
+            deduplicated[identity] = edge
+        else:
+            retained.episodes = sorted(set(retained.episodes).union(edge.episodes))
+
+    candidate_edges = list(deduplicated.values())
+    existing_by_edge = await asyncio.gather(
+        *(
+            get_between_nodes(
+                clients.driver,
+                edge.source_node_uuid,
+                edge.target_node_uuid,
+            )
+            for edge in candidate_edges
+        )
+    )
+
+    resolved_edges: list[Any] = []
+    new_edges: list[Any] = []
+    for edge, existing_edges in zip(candidate_edges, existing_by_edge, strict=True):
+        identity = _governed_edge_identity(edge)
+        exact_active_matches = sorted(
+            (
+                existing
+                for existing in existing_edges
+                if _governed_edge_identity(existing) == identity
+                and existing.invalid_at is None
+                and existing.expired_at is None
+            ),
+            key=lambda existing: str(existing.uuid),
+        )
+        if exact_active_matches:
+            resolved = exact_active_matches[0]
+            resolved.episodes = sorted(
+                set(edge.episodes).union(
+                    episode_id
+                    for match in exact_active_matches
+                    for episode_id in match.episodes
+                )
+            )
+            resolved_edges.append(resolved)
+        else:
+            resolved_edges.append(edge)
+            new_edges.append(edge)
+
+    await embed_edges(clients.embedder, resolved_edges)
+    # The ordinary Graphiti path returns model-selected invalidated edges in the
+    # second position. Governed documents never authorize such mutations.
+    return resolved_edges, [], new_edges
+
+
+def _governed_document_graphiti_type(graphiti_type: type[Any]) -> type[Any]:
+    class GovernedDocumentGraphiti(graphiti_type):
+        async def _extract_and_resolve_edges(
+            self,
+            episode,
+            extracted_nodes,
+            previous_episodes,
+            edge_type_map,
+            group_id,
+            edge_types,
+            nodes,
+            uuid_map,
+            custom_extraction_instructions=None,
+            clients=None,
+        ):
+            from graphiti_core.utils.bulk_utils import resolve_edge_pointers
+            from graphiti_core.utils.maintenance.edge_operations import extract_edges
+
+            clients = clients or self.clients
+            episodes = episode if isinstance(episode, list) else [episode]
+            extracted_edges = await extract_edges(
+                clients,
+                episode,
+                extracted_nodes,
+                previous_episodes,
+                edge_type_map,
+                group_id,
+                edge_types,
+                custom_extraction_instructions,
+            )
+            edges = resolve_edge_pointers(extracted_edges, uuid_map)
+            return await _resolve_governed_document_edges(
+                clients=clients,
+                extracted_edges=edges,
+                episode=episodes[0],
+            )
+
+    GovernedDocumentGraphiti.__name__ = "GovernedDocumentGraphiti"
+    return GovernedDocumentGraphiti
+
+
 async def _await_graphiti_driver_initialization(graphiti) -> None:
     task = getattr(graphiti.driver, "_init_task", None)
     if task is not None:
@@ -248,6 +378,8 @@ class GraphitiProjectionAdapter:
         from graphiti_core.driver.falkordb_driver import FalkorDriver
         from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
         from graphiti_core.llm_client.config import LLMConfig
+
+        Graphiti = _governed_document_graphiti_type(Graphiti)
 
         llm_config = LLMConfig(
             api_key=self.config.ollama_api_key,

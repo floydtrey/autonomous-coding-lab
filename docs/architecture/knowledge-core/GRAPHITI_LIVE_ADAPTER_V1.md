@@ -43,6 +43,8 @@ The adapter contains the reasoning-disabled `OpenAIGenericClient` specialization
 
 The policy identity and temperature are configuration-bound and included in the adapter behavioral digest used by qualification evidence. Unknown policy identities fail closed rather than inheriting Graphiti semantic defaults.
 
+For `governed-document-v1`, edge resolution is conservative and deterministic. It consolidates only case/whitespace-normalized exact facts with the same partition, endpoints, and relation, while preserving every active contributing episode ID. Paraphrases and merely similar facts remain separate. The governed path does not call Graphiti's semantic duplicate/contradiction judge, does not submit broad invalidation searches, and clears model-derived `invalid_at` or `expired_at` values before any edge write. Existing retired edges are never revived or reused as active duplicates. KC canonical lifecycle/version state remains the only basis for retirement.
+
 ## Source boundary
 
 Graphiti projection can only be built from resource versions that are governed sources of the **current accepted SR-2 text generation**. Before any external call, KC re-reads the immutable artifact and verifies:
