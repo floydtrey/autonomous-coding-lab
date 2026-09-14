@@ -25,14 +25,14 @@ These are the only authoritative current KC documents. The component README and 
 | Kernel V1 and PostgreSQL | Accepted canonical history, identities, exact source provenance, idempotency, concurrency and serving fences. |
 | Governed repository import | Accepted bounded exact-object import, stable document identity, governed observations and persistence/recovery. |
 | RF-2 lexical retrieval | Accepted whole-document PostgreSQL baseline retained beneath the segment transition. |
-| SR-2 segmentation and retrieval | Accepted audit-amended KC-D025/SR-1 implementation; G1–G22 independently green. |
+| SR-2 segmentation and retrieval | Accepted audit-amended KC-D025/SR-1 implementation; G1–G22 independently green. Current implementation remains repository-coupled in its governed-source lineage and publication path; Task 2 corrects that without invalidating historical acceptance evidence. |
 | SR-2 intended host | Accepted Windows/PostgreSQL restart/recovery, exact structural reconstruction, provenance, segment serving and replay. |
-| KC Consumer V1 / lexical API | Implemented exact segment-content serving with provenance. `POST /v1/retrieval/search` evaluates injected Authority before protected search. |
+| KC Consumer V1 / lexical API | Implemented exact segment-content serving with provenance. `POST /v1/retrieval/search` evaluates injected Authority before protected search. Current response provenance is repository-shaped and will receive a source-neutral version/compatibility boundary during Task 2. |
 | KC Usable V1 bootstrap access | **Task 1 accepted.** Configurable bind host defaults to `127.0.0.1`; shared API-key admission maps accepted front-door calls to fixed principal `local_owner`; only store/search/get-source/status operation classes are admitted. This facility is not yet attached to a public Usable V1 front-door route. |
 | Projection attempt and validation ledgers | Implemented durable, separate provider-attempt and independent validation evidence. Provider success alone is insufficient. |
-| Governed Graphiti backend | Accepted real-host governed-document projection, immutable build isolation, lifecycle validation and trusted canonical result correlation. |
+| Governed Graphiti backend | Accepted real-host governed-document projection, immutable build isolation, lifecycle validation and trusted canonical result correlation. Its current plan input is still repository-shaped; generic mixed-source graph input is deferred until after source-neutral text ingestion works. |
 | Public graph consumer API | **Not exposed/promoted.** Trusted graph retrieval exists in the application kernel; the public retrieval route still performs lexical search. |
-| ACL consumer boundary | Governed segment evidence can enter Controller Task Packet V1 as informational context; execution remains disabled. |
+| ACL consumer boundary | Governed segment evidence can enter Controller Task Packet V1 as informational context; execution remains disabled. Current ACL evidence schema is repository-shaped and is not being generalized in Task 2 unless required for compatibility. |
 | Mason / MindsHub | Integration not implemented in this checkout. |
 | Vera | Future consumer work. |
 
@@ -79,6 +79,30 @@ store -> canonical Resource/ResourceVersion -> governed text retrieval
 
 Graph failure or delay must not invalidate successfully stored canonical evidence or otherwise valid text retrieval.
 
+## Task 2 source-model audit checkpoint — 2026-09-14
+
+A read-only independent audit at checkpoint `f6f049f54789381ffa581ca9b28930a4d98ee450` confirmed that canonical Resource/ResourceVersion/artifact storage is already largely source-neutral, while the governed SR-2 retrieval path is not. Repository/Git assumptions currently leak into governed source selection, durable foreign keys, generation construction/publication, lexical serving/public schemas, Graphiti plan reconstruction/reference time, and downstream ACL evidence schemas.
+
+The correction is **not** to weaken repository verification or replace canonical identity. Repository import remains a strongly verified Git-specific producer. The missing boundary is a source-neutral governed-source model between canonical ResourceVersion evidence and derived retrieval.
+
+The corrected model must keep these meanings distinct:
+
+1. **Resource** — KC logical canonical object.
+2. **ResourceVersion** — exact canonical bytes/content identity.
+3. **Governed source identity** — logical origin item with typed producer/origin/container/item identity; project is not source identity.
+4. **Observation/admission evidence** — a specific capture/submission of an exact ResourceVersion with producer proof and relevant times.
+5. **Governance decision/state** — lifecycle/classification/rank inputs admitted by KC; source claims are evidence, not authority by themselves.
+6. **Governed retrieval snapshot** — immutable complete selected corpus and policy inputs used to build one serving generation.
+7. **Project/context membership** — separate from origin identity and permitted to associate one source with multiple projects.
+
+Time semantics must also remain distinct where available: source event time, source revision time, KC observation/admission time, and any derived-provider reference-time policy. Import/publication time must not silently become universal event time.
+
+SR-2 retains one-current-generation fencing. Therefore independent producers must not publish partial source subsets that displace other current knowledge. Task 2 must assemble and atomically publish a **complete governed corpus snapshot**, with predecessor/snapshot checking so concurrent or sequential producers cannot erase each other's contributions or resurrect excluded sources.
+
+Historical repository manifests, observations, digests, accepted generations, migrations, and qualification records retain their original meaning. New generic semantics require versioned new evidence/contracts; do not relabel historical evidence as if it qualified the source-neutral model.
+
+The old public RF-2 repository-import publication path shares the same global TEXT generation slot and must be deliberately constrained or migrated during Task 2 so it cannot later replace an accepted SR-2 current generation unexpectedly.
+
 ## Bounded task sequence
 
 Work sequentially. Do not silently absorb later tasks into an earlier task.
@@ -101,19 +125,63 @@ The bootstrap facility is deliberately not attached to every existing low-level 
 
 The full existing workflow passed: fast semantic suite, PostgreSQL G1–G21, G22, RI-4 restart rehearsal, and SR-2 restart rehearsal.
 
-### Task 2 — `kc_store` front door — NEXT AUTHORIZED TASK
+### Task 2 — source-neutral governed ingestion + `kc_store` — NEXT AUTHORIZED TASK
 
-Expose one simple store operation that accepts content plus minimal source/project metadata and translates it into the accepted Resource/ResourceVersion machinery. Consumers must not need internal revision IDs, hashes, generation IDs, or storage locations.
+Task 2 is no longer treated as a single endpoint change. The audit showed that a correct direct-note front door first requires removal of repository-specific assumptions from the generic governed retrieval path. Execute only the bounded slice explicitly authorized below.
 
-**Accept when:** one plain-text request creates durable exact evidence; restart preserves it; replay remains consistent with KC identity/idempotency rules; content becomes available to accepted text retrieval; the response reports understandable canonical/text/graph state.
+#### Task 2A — freeze the generic governed-source contract — NEXT AUTHORIZED SLICE
 
-**Stop:** storage must not require synchronous Graphiti/model execution.
+Define the smallest typed/versioned contract and acceptance cases for governed source identity, observations/admission, project/context membership, relevant times, governance inputs, complete retrieval snapshots, and observation cardinality.
 
-**Current authorization:** Task 2 only. Checkpoint it before Task 3.
+Challenge the contract with repository + direct-note cases and small chat/email/benchmark-shaped fixtures so obvious future source requirements are not accidentally encoded as Git semantics. Do not implement every connector.
+
+**Accept when:** the contract clearly separates canonical content identity, logical source identity, observation identity, governance state, project membership, and retrieval snapshot identity; repository proof remains source-specific; complete-corpus publication/predecessor behavior is specified; no serving behavior or migrations change.
+
+**Stop:** no database migration, SR-2 serving change, Graphiti generalization, new connector, or public route in 2A.
+
+#### Task 2B — generic durable evidence + legacy mapping
+
+Add the source-neutral durable evidence/snapshot layer and new versioned digests. Preserve all existing repository evidence. Deterministically map eligible Git evidence into the generic layer with explicit legacy references; serving remains unchanged.
+
+**Accept when:** reconstruction/replay of mapped repository evidence is deterministic, historical records are untouched, failed/pending/quarantined evidence does not become serving-eligible, and direct-note-shaped evidence can exist without fake repository fields.
+
+#### Task 2C — repository import becomes a verified producer
+
+Keep exact commit/path/blob verification, configured readers, manifests, continuity/retirement policy and receipt semantics inside the repository adapter. Translate accepted repository evidence into the generic governed-source layer.
+
+**Accept when:** existing repository guarantees remain intact and repository-specific proof no longer defines the downstream generic contract. Reconcile both legacy RF-2 and SR-2 publication writers so neither can silently replace the intended current TEXT mode.
+
+#### Task 2D — source-neutral SR-2 selection, lineage and publication
+
+Make SR-2 consume generic governed observations/snapshots instead of repository foreign keys/manifests. Preserve canonical artifact verification, deterministic segmentation, lifecycle monotonicity, exact lineage and one-current-generation fencing.
+
+Publish complete mixed-source corpus snapshots atomically with expected-predecessor checks.
+
+**Accept when:** repository-only behavior remains equivalent, mixed-source candidate construction is deterministic, no producer can accidentally drop another producer's current contribution, failed publication leaves the previous current generation serving, and no fake Git proof is required for non-Git sources.
+
+#### Task 2E — direct-note producer + `kc_store`
+
+Build the first non-Git producer using authenticated local submission. Reuse canonical Resource/ResourceVersion storage and the generic governed-source layer. Attach the Task 1 bootstrap admission to the bounded `kc_store` front door.
+
+Consumers provide useful content/source/project metadata and idempotency context, not internal revisions, generation IDs, hashes, artifact locations, or repository-shaped fields.
+
+**Accept when:** a plain-text note creates exact durable canonical evidence, retry/idempotency is correct, restart preserves it, repository knowledge and the note are both present in the complete SR-2 corpus, and the response reports understandable canonical/text/graph state. If derived publication fails after canonical storage, keep the canonical note and previous valid text generation; report text pending/failed rather than destroying evidence.
+
+**Stop:** no synchronous Graphiti/model execution.
+
+#### Task 2F — source-neutral lexical evidence contract and Task 2 qualification
+
+Version or otherwise explicitly bound the lexical response/evidence contract so non-Git provenance is represented honestly. Preserve a deliberate compatibility path for repository-only consumers; never fabricate repository fields for notes.
+
+Run deterministic/restart/mixed-corpus/idempotency/privacy/publication-failure qualification appropriate to the changed boundary and update the authoritative checkpoint docs.
+
+**Accept when:** direct-note and repository evidence are jointly searchable through the accepted text generation after restart/replay, exact canonical provenance is available, restrictions remain dominant, old accepted historical evidence retains its original interpretation, and the full required KC workflow is green.
+
+**Current authorization:** Task 2A only. Checkpoint it before 2B.
 
 ### Task 3 — simple read surface
 
-Expose `kc_search`, `kc_get_source`, and `kc_status`, initially using the accepted lexical/SR-2 path where appropriate.
+Expose the Usable V1 `kc_search`, `kc_get_source`, and `kc_status` front-door operations using the source-neutral lexical evidence contract produced by Task 2.
 
 **Accept when:** a fresh client retrieves newly stored information and follows the result to exact canonical evidence without knowing KC database/storage internals.
 
@@ -121,11 +189,11 @@ Expose `kc_search`, `kc_get_source`, and `kc_status`, initially using the accept
 
 ### Task 4 — separate Graphiti synchronization
 
-Add an explicit bounded sync for eligible canonical/text material. New knowledge may remain graph-pending without blocking storage.
+Generalize graph plan input/reference-time semantics only as required for generic governed SR-2 sources, then add an explicit bounded sync for eligible canonical/text material. Preserve the accepted projection ledger, immutable-build isolation, required validation checks, Authority-first trusted retrieval and exact canonical correlations. New knowledge may remain graph-pending without blocking storage.
 
-**Accept when:** a bounded batch projects successfully through existing immutable-build isolation and independent validation; failed/interrupted graph work leaves canonical/text retrieval usable; only validated builds enter trusted graph retrieval; at least one graph result resolves to exact KC evidence.
+**Accept when:** a bounded mixed-source batch projects successfully through independent validation; failed/interrupted graph work leaves canonical/text retrieval usable; only validated builds enter trusted graph retrieval; at least one graph result resolves to exact generic KC evidence.
 
-**Stop:** no permanent scheduler, generalized queue/workflow platform, or GPU/model orchestrator unless explicit batching proves insufficient.
+**Stop:** no permanent scheduler, generalized queue/workflow platform, cross-generation graph reuse, or GPU/model orchestrator unless separately justified and qualified.
 
 ### Task 5 — Mason / MindsHub tools
 
@@ -142,6 +210,8 @@ Ingest the authoritative KC context and selected active project knowledge and us
 ## Explicitly deferred from Usable V1
 
 Do not expand this phase into generalized Authority, multiple roles, direct remote KC exposure, Vera/ACL permission systems, continuous Graphiti processing, model/GPU scheduling infrastructure, broad automatic account/web ingestion, complex UI/workflow infrastructure, destructive autonomous maintenance, or arbitrary provider/database access.
+
+The source-neutral contract may use small chat/email/file/benchmark-shaped fixtures to prevent obvious source-model mistakes, but Task 2 does **not** implement those connectors. Binary/PDF/MIME extraction, assistant-summary derivation, broad multi-project policy, and cross-generation graph reuse remain future bounded work unless a concrete Task 2 acceptance dependency requires them.
 
 The goal is the smallest safe path from infrastructure project to useful knowledge tool. KC should then help preserve the context needed to finish KC, ACL, Vera, and related projects.
 
