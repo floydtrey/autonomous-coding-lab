@@ -25,6 +25,23 @@ The older RF-2 exact-corpus pilot deliberately skips when current checkout bytes
 
 For documentation-only changes, verify scope, links/read order, unchanged evidence blobs, manifest pins and non-document bytes. Do not run models, mutate an existing canonical corpus, or rerun completed host acceptance merely to reorganize prose. For behavior changes, run relevant deterministic gates and any separately authorized host qualification required by the changed boundary.
 
+## KC Usable V1 bootstrap operator boundary
+
+Task 1 provides a replaceable bootstrap admission facility for the future Usable V1 front door. It is not a deployed standalone Authority service and is not attached to every existing low-level KC route.
+
+Current bootstrap configuration names are:
+
+| Setting | Current meaning |
+|---|---|
+| `KNOWLEDGE_CORE_BIND_HOST` | Listener/deployment host selection for the future front-door host. Defaults to `127.0.0.1`; this is configuration, not a permanent architecture invariant. |
+| `KNOWLEDGE_CORE_BOOTSTRAP_KEY` | Required shared bootstrap API key. Keep the actual value outside source control, prompts, and KC knowledge content. |
+| `X-Knowledge-Key` | Request header carrying the bootstrap API key. |
+| `local_owner` | Fixed bootstrap principal emitted after successful admission. It is not the final multi-principal Authority design. |
+
+The admitted operation classes are `kc.store`, `kc.search`, `kc.get_source`, and `kc.status`. Caller-supplied `X-Knowledge-Caller` does not override the bootstrap principal. The existing retrieval Authority evaluator remains a separate downstream seam.
+
+Task 2 may compose this facility with the new `kc_store` front-door route. Do not use Task 1 as justification to expose arbitrary entity/assertion/resource CRUD, raw SQL, database credentials, artifact-store authority, FalkorDB credentials, or direct Graphiti mutation.
+
 ## Graphiti operator boundary
 
 The optional dependency is installed with `python -m pip install -e ".[test,graphiti]"`. The adapter pins `graphiti-core[falkordb]==0.30.2`. Use an explicitly chosen existing KC database/artifact root with current governed SR-2 sources; apply needed migrations only within the authorized environment.
@@ -57,7 +74,7 @@ A host PASS requires successful projection, complete independent validation, Aut
 
 ## Accepted evidence
 
-These are preserved checkpoint records, not new test results from this documentation update. All linked historical files retain their exact pre-consolidation Git blob bytes. Their old next-task prose is historical; current scope is in [CURRENT_STATE.md](CURRENT_STATE.md).
+These are recorded acceptance checkpoints. Linked historical files retain their exact pre-consolidation Git blob bytes; their old next-task prose is historical. Current scope and restart instructions are in [CURRENT_STATE.md](CURRENT_STATE.md).
 
 | Boundary | Exact checkpoint / evidence | Accepted scope |
 |---|---|---|
@@ -70,6 +87,7 @@ These are preserved checkpoint records, not new test results from this documenta
 | SR-2 G22 | `c75a6be2e832bdc29fda0e4a6eab7de28da90668`; [record](legacy/SR2_G22_QUALIFICATION.md); [Actions 34462565404](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34462565404) | Tiny three-document pinned pilot; G1–G22 accepted. |
 | SR-2 intended host | `c3bfac41eb3a1787d5b770274370b5e59f082eb4`; [record](legacy/SR2_INTENDED_HOST_QUALIFICATION.md); [supporting CI 34475309465](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34475309465) | Windows run 2026-09-10: restart/recovery, segment serving, artifact/structure/profile/provenance integrity and replay. |
 | Governed Graphiti | `6376419e369ea9ecfe58a19fa233bbfca90ad703`; [accepted 2026-09-14 record](legacy/GRAPHITI_GOVERNED_QUALIFICATION_2026-09-14.md) | 17 segments, 17 bindings, 7 checks, 10 attributed results, zero integrity/lifecycle anomalies. |
+| KC Usable V1 Task 1 | `b9e708f2892f3a7303fa50ccadc64c26f5b9bf46`; [Actions 34877670577](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34877670577) | Bootstrap bind configuration, shared-key admission, fixed `local_owner`, bounded operation classes, spoof-resistant principal mapping, and deterministic request rejection. Full existing KC workflow green. Not a full Authority service or remote-exposure qualification. |
 
 The SR-2 intended-host record locates raw JSON at the historical host path `C:\Users\floyd\AppData\Local\KnowledgeCore\sr2-host-qualification-01\SR2_HOST_QUALIFICATION_EVIDENCE.json`. That raw dump is not committed and was not newly inspected during consolidation. The same record excludes machine reboot, backup/restore and production deployment claims.
 
