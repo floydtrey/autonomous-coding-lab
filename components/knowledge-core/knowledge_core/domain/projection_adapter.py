@@ -156,6 +156,8 @@ class ProjectionAdapter(Protocol):
         namespace_key: str,
         scope_key: str,
         projection_profile_id: str,
+        projection_attempt_id: UUID,
+        adapter_config_digest: str,
     ) -> str:
         ...
 
@@ -169,6 +171,8 @@ class ProjectionAdapter(Protocol):
         namespace_key: str,
         scope_key: str,
         projection_profile_id: str,
+        projection_attempt_id: UUID,
+        adapter_config_digest: str,
         limit: int,
     ) -> tuple[ProjectionSearchHit, ...]:
         ...
@@ -180,6 +184,8 @@ class ProjectionAdapter(Protocol):
         namespace_key: str,
         scope_key: str,
         projection_profile_id: str,
+        projection_attempt_id: UUID,
+        adapter_config_digest: str,
     ) -> frozenset[str]:
         ...
 
@@ -189,5 +195,7 @@ class ProjectionAdapter(Protocol):
         namespace_key: str,
         scope_key: str,
         projection_profile_id: str,
+        projection_attempt_id: UUID,
+        adapter_config_digest: str,
     ) -> ProjectionLifecycleInventory:
         ...

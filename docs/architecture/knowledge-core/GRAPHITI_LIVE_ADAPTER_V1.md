@@ -64,10 +64,13 @@ The projection attempt stores exact ResourceVersion refs and canonical revision 
 Logical `namespace_key` and `scope_key` remain KC-owned policy/correlation fields. The Graphiti adapter derives a FalkorDB physical graph name from:
 
 ```text
-SHA-256(namespace_key || scope_key || current SR-2 projection_profile_id)
+SHA-256(namespace_key || scope_key || current SR-2 projection_profile_id
+        || projection_attempt_id || adapter_config_digest)
 ```
 
-The generation/profile component intentionally rotates the physical graph when KC publishes a new SR-2 generation. Old derived graph state can remain present without being searched by the new generation. This prevents a stale provider episode from silently becoming current graph context.
+Every projection attempt therefore receives a fresh candidate build even when it uses the same canonical generation. A generation or adapter-behavior change also rotates the physical graph. Before the first episode write, the adapter verifies that the candidate graph contains no nodes and fails closed if it has already been used. Exact KC replay never calls the provider again, and a new attempt cannot append to or mutate a previously validated build.
+
+Old derived graph state can remain present without being searched as part of another build. Validation and trusted retrieval recompute each attempt's exact build partition from durable KC attempt evidence and require every provider-source binding and graph result to match it.
 
 The live validator also queries a fresh sibling physical graph without writing a synthetic sentinel. Any result from that empty sibling scope is a namespace-isolation failure.
 
@@ -116,7 +119,7 @@ A successful provider call is still `UNVALIDATED`. `GraphitiProjectionValidator`
 6. physical namespace isolation using a fresh sibling graph;
 7. source attribution on any probe-search results.
 
-The lifecycle inventory check is part of `kc-graphiti-governed-document-v2`. An incomplete inventory is indeterminate and quarantines validation; any retirement or attribution violation rejects it. The adapter declares this exact validator/ruleset requirement, and trusted retrieval requires a matching durable `validated` record rather than accepting the attempt's validation summary alone. Older validation records remain historical evidence but do not satisfy this admission rule.
+The lifecycle inventory check is part of `kc-graphiti-governed-document-v3`. An incomplete inventory is indeterminate and quarantines validation; any retirement, build-partition, or attribution violation rejects it. The adapter declares this exact validator/ruleset requirement, and trusted retrieval requires a matching durable `validated` record rather than accepting the attempt's validation summary alone. Older validation records remain historical evidence but do not satisfy this admission rule.
 
 Zero probe results do not make the projection untrustworthy by themselves. The host qualification gate separately requires at least one final **trusted** Graphiti result for the selected query before the end-to-end gate passes.
 
@@ -124,7 +127,7 @@ Zero probe results do not make the projection untrustworthy by themselves. The h
 
 `GraphProjectionRetrievalKnowledgeKernel.search_validated_projection()` evaluates `retrieval.search_graph` Authority before sending the query to Graphiti, the embedder, the reranker, or any other projection component. Graph search requires explicit namespace and scope.
 
-Only attempts matching the current SR-2 generation, exact adapter config, `SUCCEEDED` disposition, and `VALIDATED` validation state contribute provider-source bindings. After the external search returns, KC re-checks that the current SR-2 generation did not change during the call.
+Only attempts matching the current SR-2 generation, exact adapter config, `SUCCEEDED` disposition, and `VALIDATED` validation state contribute provider-source bindings. KC searches each accepted attempt through its own immutable build partition and correlates hits only through bindings from that same build. After the external search returns, KC re-checks that the current SR-2 generation did not change during the call.
 
 The existing PostgreSQL lexical retrieval path remains independent and unchanged in this gate.
 
@@ -156,7 +159,7 @@ python tools\graphiti_host_phase.py `
 
 The tool exits non-zero if projection is incomplete/quarantined, validation is not `VALIDATED`, or the final Authority-gated correlated Graphiti search returns no trusted result.
 
-Exact replay uses the same deterministic KC attempt identity and does not rerun an already-settled projection. `--attempt-salt` exists only as an explicit recovery discriminator after prior evidence has been inspected; changing it creates a new projection attempt and must not be used casually because Graphiti will mint another provider episode for the reissued projection.
+Exact replay uses the same deterministic KC attempt identity and does not rerun an already-settled projection. `--attempt-salt` exists only as an explicit recovery discriminator after prior evidence has been inspected; changing it creates a new projection attempt in a new physical graph and must not be used casually because Graphiti will mint another provider episode for the reissued projection.
 
 ## Promotion gate
 

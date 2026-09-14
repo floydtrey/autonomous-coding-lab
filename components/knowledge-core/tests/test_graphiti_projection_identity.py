@@ -15,6 +15,7 @@ from knowledge_core.authority.retrieval import (
     RetrievalAuthorityRequest,
 )
 from knowledge_core.domain.projection_adapter import (
+    ProjectionAdapterRequest,
     ProjectionLifecycleEdge,
     ProjectionLifecycleInventory,
     ProjectionProviderSourceBinding,
@@ -31,9 +32,15 @@ from knowledge_core_providers.graphiti import (
     GraphitiLocalConfig,
     GraphitiProjectionAdapter,
     GraphitiProjectionValidator,
+    _require_empty_graphiti_partition,
     _resolve_governed_document_edges,
     graphiti_partition_key,
 )
+
+
+_ATTEMPT_ID = UUID("00000000-0000-0000-0000-000000000001")
+_OTHER_ATTEMPT_ID = UUID("00000000-0000-0000-0000-000000000002")
+_ADAPTER_CONFIG_DIGEST = GraphitiLocalConfig().behavioral_digest()
 
 
 def _segment() -> ProjectionSourceSegment:
@@ -65,32 +72,56 @@ def test_live_graph_modules_import_without_installing_optional_graphiti_dependen
     assert GraphProjectionRetrievalKnowledgeKernel.__name__ == "GraphProjectionRetrievalKnowledgeKernel"
 
 
-def test_graphiti_partition_is_stable_and_rotates_with_scope_or_generation_profile():
+def test_graphiti_partition_is_stable_and_rotates_with_build_identity():
     first = graphiti_partition_key(
         namespace_key="kc:acl",
         scope_key="project:alpha",
         projection_profile_id="sr2-generation:one",
+        projection_attempt_id=_ATTEMPT_ID,
+        adapter_config_digest=_ADAPTER_CONFIG_DIGEST,
     )
     replay = graphiti_partition_key(
         namespace_key="kc:acl",
         scope_key="project:alpha",
         projection_profile_id="sr2-generation:one",
+        projection_attempt_id=_ATTEMPT_ID,
+        adapter_config_digest=_ADAPTER_CONFIG_DIGEST,
     )
     changed_scope = graphiti_partition_key(
         namespace_key="kc:acl",
         scope_key="project:beta",
         projection_profile_id="sr2-generation:one",
+        projection_attempt_id=_ATTEMPT_ID,
+        adapter_config_digest=_ADAPTER_CONFIG_DIGEST,
     )
     changed_profile = graphiti_partition_key(
         namespace_key="kc:acl",
         scope_key="project:alpha",
         projection_profile_id="sr2-generation:two",
+        projection_attempt_id=_ATTEMPT_ID,
+        adapter_config_digest=_ADAPTER_CONFIG_DIGEST,
+    )
+    changed_attempt = graphiti_partition_key(
+        namespace_key="kc:acl",
+        scope_key="project:alpha",
+        projection_profile_id="sr2-generation:one",
+        projection_attempt_id=_OTHER_ATTEMPT_ID,
+        adapter_config_digest=_ADAPTER_CONFIG_DIGEST,
+    )
+    changed_config = graphiti_partition_key(
+        namespace_key="kc:acl",
+        scope_key="project:alpha",
+        projection_profile_id="sr2-generation:one",
+        projection_attempt_id=_ATTEMPT_ID,
+        adapter_config_digest="sha256:" + "f" * 64,
     )
 
     assert first == replay
     assert first.startswith("kc_")
     assert first != changed_scope
     assert first != changed_profile
+    assert first != changed_attempt
+    assert first != changed_config
     assert all(ch.islower() or ch.isdigit() or ch == "_" for ch in first)
 
 
@@ -111,6 +142,112 @@ def test_provider_source_binding_keeps_opaque_provider_id_as_evidence_only():
     # KC must not silently reinterpret provider-owned identifiers as KC UUID identity.
     with pytest.raises(ValueError):
         UUID(binding.provider_source_id)
+
+
+def test_graphiti_partition_requires_adapter_config_identity():
+    with pytest.raises(KnowledgeInvariantError):
+        graphiti_partition_key(
+            namespace_key="kc:acl",
+            scope_key="project:alpha",
+            projection_profile_id="sr2-generation:one",
+            projection_attempt_id=_ATTEMPT_ID,
+            adapter_config_digest=" ",
+        )
+
+
+def test_graphiti_partition_rejects_subsequent_ingestion():
+    class _Driver:
+        def __init__(self, records):
+            self.records = records
+
+        async def execute_query(self, query):
+            assert query == "MATCH (node) RETURN node LIMIT 1"
+            return self.records, (), None
+
+    asyncio.run(
+        _require_empty_graphiti_partition(
+            SimpleNamespace(driver=_Driver([])),
+            partition_key="kc_fresh",
+        )
+    )
+    with pytest.raises(KnowledgeInvariantError, match="refusing further ingestion"):
+        asyncio.run(
+            _require_empty_graphiti_partition(
+                SimpleNamespace(driver=_Driver([{"node": object()}])),
+                partition_key="kc_accepted",
+            )
+        )
+
+
+def test_graphiti_adapter_checks_build_is_empty_before_episode_write(monkeypatch):
+    real_import = builtins.__import__
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "graphiti_core.nodes":
+            return SimpleNamespace(EpisodeType=SimpleNamespace(text="text"))
+        return real_import(name, globals, locals, fromlist, level)
+
+    class _Driver:
+        _init_task = None
+
+        async def execute_query(self, query):
+            return [{"node": object()}], ("node",), None
+
+    class _Graphiti:
+        def __init__(self):
+            self.driver = _Driver()
+            self.add_called = False
+            self.closed = False
+
+        async def build_indices_and_constraints(self):
+            return None
+
+        async def add_episode(self, **kwargs):
+            self.add_called = True
+            raise AssertionError("episode write must not run for a used build")
+
+        async def close(self):
+            self.closed = True
+
+    adapter = GraphitiProjectionAdapter()
+    graphiti = _Graphiti()
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    monkeypatch.setattr(adapter, "_build_graphiti", lambda **kwargs: graphiti)
+    attempt = SimpleNamespace(
+        attempt_id=_ATTEMPT_ID,
+        namespace_key="kc:acl",
+        scope_key="project:alpha",
+        profile_id="sr2-generation:one",
+        config_digest=adapter.descriptor.config_digest,
+    )
+
+    with pytest.raises(KnowledgeInvariantError, match="refusing further ingestion"):
+        asyncio.run(
+            adapter.project(
+                ProjectionAdapterRequest(attempt=attempt, segments=(_segment(),))
+            )
+        )
+
+    assert graphiti.add_called is False
+    assert graphiti.closed is True
+
+
+def test_graphiti_adapter_rejects_attempt_from_another_config():
+    adapter = GraphitiProjectionAdapter()
+    attempt = SimpleNamespace(
+        attempt_id=_ATTEMPT_ID,
+        namespace_key="kc:acl",
+        scope_key="project:alpha",
+        profile_id="sr2-generation:one",
+        config_digest="sha256:" + "f" * 64,
+    )
+
+    with pytest.raises(KnowledgeInvariantError, match="does not match the active adapter"):
+        asyncio.run(
+            adapter.project(
+                ProjectionAdapterRequest(attempt=attempt, segments=(_segment(),))
+            )
+        )
 
 
 def test_graphiti_behavior_digest_excludes_secrets_but_binds_behavior():
@@ -346,11 +483,21 @@ class _LifecycleValidationAdapter:
     def descriptor(self):
         return self._descriptor
 
-    def partition_key(self, *, namespace_key, scope_key, projection_profile_id):
+    def partition_key(
+        self,
+        *,
+        namespace_key,
+        scope_key,
+        projection_profile_id,
+        projection_attempt_id,
+        adapter_config_digest,
+    ):
         return graphiti_partition_key(
             namespace_key=namespace_key,
             scope_key=scope_key,
             projection_profile_id=projection_profile_id,
+            projection_attempt_id=projection_attempt_id,
+            adapter_config_digest=adapter_config_digest,
         )
 
     async def existing_source_keys(self, *, source_keys, **kwargs):
@@ -372,6 +519,8 @@ def _validate_lifecycle_inventory(inventory: ProjectionLifecycleInventory):
         namespace_key=namespace_key,
         scope_key=scope_key,
         projection_profile_id=profile_id,
+        projection_attempt_id=_ATTEMPT_ID,
+        adapter_config_digest=_ADAPTER_CONFIG_DIGEST,
     )
     binding = ProjectionProviderSourceBinding(
         resource_version_ref=segment.resource_version_ref,
@@ -393,7 +542,7 @@ def _validate_lifecycle_inventory(inventory: ProjectionLifecycleInventory):
     )
     report = validator.validate(
         SimpleNamespace(
-            attempt_id=uuid4(),
+            attempt_id=_ATTEMPT_ID,
             backend_identity=adapter.descriptor.backend_identity,
             backend_version=adapter.descriptor.backend_version,
             config_digest=adapter.descriptor.config_digest,
@@ -412,6 +561,8 @@ def test_graphiti_validator_requires_complete_active_lifecycle_inventory():
         namespace_key="kc:acl",
         scope_key="project:alpha",
         projection_profile_id="sr2-generation:one",
+        projection_attempt_id=_ATTEMPT_ID,
+        adapter_config_digest=_ADAPTER_CONFIG_DIGEST,
     )
     adapter, validator, report = _validate_lifecycle_inventory(
         ProjectionLifecycleInventory(
@@ -453,6 +604,8 @@ def test_graphiti_validator_requires_complete_active_lifecycle_inventory():
                     namespace_key="kc:acl",
                     scope_key="project:alpha",
                     projection_profile_id="sr2-generation:one",
+                    projection_attempt_id=_ATTEMPT_ID,
+                    adapter_config_digest=_ADAPTER_CONFIG_DIGEST,
                 ),
                 complete=True,
                 edges=(
@@ -462,6 +615,8 @@ def test_graphiti_validator_requires_complete_active_lifecycle_inventory():
                             namespace_key="kc:acl",
                             scope_key="project:alpha",
                             projection_profile_id="sr2-generation:one",
+                            projection_attempt_id=_ATTEMPT_ID,
+                            adapter_config_digest=_ADAPTER_CONFIG_DIGEST,
                         ),
                         source_correlation_keys=("episode-current",),
                         invalid_at=datetime(2026, 1, 1, tzinfo=timezone.utc),

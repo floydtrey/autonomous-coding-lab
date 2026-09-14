@@ -7,6 +7,7 @@ from importlib.metadata import PackageNotFoundError, version
 import json
 import logging
 from typing import Any
+from uuid import UUID
 
 from knowledge_core.domain.assertions import KnowledgeInvariantError
 from knowledge_core.domain.projection_adapter import (
@@ -31,14 +32,14 @@ from knowledge_core.domain.projection_validation import (
 
 
 _EXPECTED_GRAPHITI_VERSION = "0.30.2"
-_ADAPTER_VERSION = "1"
+_ADAPTER_VERSION = "2"
 _GOVERNED_DOCUMENT_POLICY = "governed-document-v1"
 _INTEGRITY_WARNING_FRAGMENTS = (
     "Target entity not found in nodes for edge relation",
     "Source entity not found in nodes for edge relation",
 )
 _VALIDATION_RULESET = {
-    "id": "kc-graphiti-governed-document-v2",
+    "id": "kc-graphiti-governed-document-v3",
     "checks": [
         "attempt-contract",
         "source-binding-contract",
@@ -54,7 +55,7 @@ _VALIDATION_RULESET_DIGEST = "sha256:" + sha256(
 ).hexdigest()
 _VALIDATION_REQUIREMENT = ProjectionValidationRequirement(
     validator_identity="kc-graphiti-live-validator",
-    validator_version="2",
+    validator_version="3",
     ruleset_id=_VALIDATION_RULESET["id"],
     ruleset_digest=_VALIDATION_RULESET_DIGEST,
 )
@@ -77,16 +78,29 @@ def graphiti_partition_key(
     namespace_key: str,
     scope_key: str,
     projection_profile_id: str,
+    projection_attempt_id: UUID,
+    adapter_config_digest: str,
 ) -> str:
     namespace_key = namespace_key.strip()
     scope_key = scope_key.strip()
     projection_profile_id = projection_profile_id.strip()
-    if not namespace_key or not scope_key or not projection_profile_id:
+    adapter_config_digest = adapter_config_digest.strip()
+    if (
+        not namespace_key
+        or not scope_key
+        or not projection_profile_id
+        or not isinstance(projection_attempt_id, UUID)
+        or not adapter_config_digest
+    ):
         raise KnowledgeInvariantError(
-            "Graphiti partition identity requires namespace, scope, and projection profile"
+            "Graphiti build identity requires namespace, scope, projection profile, "
+            "attempt ID, and adapter config digest"
         )
     digest = sha256(
-        f"{namespace_key}\x00{scope_key}\x00{projection_profile_id}".encode("utf-8")
+        (
+            f"{namespace_key}\x00{scope_key}\x00{projection_profile_id}\x00"
+            f"{projection_attempt_id}\x00{adapter_config_digest}"
+        ).encode("utf-8")
     ).hexdigest()
     return f"kc_{digest[:28]}"
 
@@ -339,6 +353,16 @@ async def _await_graphiti_driver_initialization(graphiti) -> None:
         await graphiti.build_indices_and_constraints()
 
 
+async def _require_empty_graphiti_partition(graphiti, *, partition_key: str) -> None:
+    records, _, _ = await graphiti.driver.execute_query(
+        "MATCH (node) RETURN node LIMIT 1"
+    )
+    if records:
+        raise KnowledgeInvariantError(
+            f"Graphiti projection build {partition_key!r} is not empty; refusing further ingestion"
+        )
+
+
 class GraphitiProjectionAdapter:
     """Real Graphiti 0.30.2 / FalkorDB / Ollama adapter for governed SR-2 segments."""
 
@@ -375,11 +399,15 @@ class GraphitiProjectionAdapter:
         namespace_key: str,
         scope_key: str,
         projection_profile_id: str,
+        projection_attempt_id: UUID,
+        adapter_config_digest: str,
     ) -> str:
         return graphiti_partition_key(
             namespace_key=namespace_key,
             scope_key=scope_key,
             projection_profile_id=projection_profile_id,
+            projection_attempt_id=projection_attempt_id,
+            adapter_config_digest=adapter_config_digest,
         )
 
     def _build_graphiti(self, *, partition_key: str):
@@ -429,14 +457,22 @@ class GraphitiProjectionAdapter:
         )
 
     async def project(self, request: ProjectionAdapterRequest) -> ProjectionAdapterReceipt:
-        from graphiti_core.nodes import EpisodeType
-
         if request.attempt.profile_id is None:
             raise KnowledgeInvariantError("Graphiti projection requires a projection profile identity")
+        if request.attempt.config_digest is None:
+            raise KnowledgeInvariantError("Graphiti projection requires an adapter config digest")
+        if request.attempt.config_digest != self.descriptor.config_digest:
+            raise KnowledgeInvariantError(
+                "Graphiti projection attempt config does not match the active adapter"
+            )
+        from graphiti_core.nodes import EpisodeType
+
         partition = self.partition_key(
             namespace_key=request.attempt.namespace_key,
             scope_key=request.attempt.scope_key,
             projection_profile_id=request.attempt.profile_id,
+            projection_attempt_id=request.attempt.attempt_id,
+            adapter_config_digest=request.attempt.config_digest,
         )
         graphiti = self._build_graphiti(partition_key=partition)
         capture = _WarningCapture()
@@ -448,6 +484,7 @@ class GraphitiProjectionAdapter:
         bindings: list[ProjectionProviderSourceBinding] = []
         try:
             await _await_graphiti_driver_initialization(graphiti)
+            await _require_empty_graphiti_partition(graphiti, partition_key=partition)
             for segment in request.segments:
                 # Graphiti 0.30.2 treats add_episode(uuid=...) as lookup/update of an
                 # existing episode. Let Graphiti mint its provider ID, then persist
@@ -508,12 +545,16 @@ class GraphitiProjectionAdapter:
         namespace_key: str,
         scope_key: str,
         projection_profile_id: str,
+        projection_attempt_id: UUID,
+        adapter_config_digest: str,
         limit: int,
     ) -> tuple[ProjectionSearchHit, ...]:
         partition = self.partition_key(
             namespace_key=namespace_key,
             scope_key=scope_key,
             projection_profile_id=projection_profile_id,
+            projection_attempt_id=projection_attempt_id,
+            adapter_config_digest=adapter_config_digest,
         )
         graphiti = self._build_graphiti(partition_key=partition)
         try:
@@ -544,6 +585,8 @@ class GraphitiProjectionAdapter:
         namespace_key: str,
         scope_key: str,
         projection_profile_id: str,
+        projection_attempt_id: UUID,
+        adapter_config_digest: str,
     ) -> frozenset[str]:
         if not source_keys:
             return frozenset()
@@ -553,6 +596,8 @@ class GraphitiProjectionAdapter:
             namespace_key=namespace_key,
             scope_key=scope_key,
             projection_profile_id=projection_profile_id,
+            projection_attempt_id=projection_attempt_id,
+            adapter_config_digest=adapter_config_digest,
         )
         graphiti = self._build_graphiti(partition_key=partition)
         try:
@@ -568,6 +613,8 @@ class GraphitiProjectionAdapter:
         namespace_key: str,
         scope_key: str,
         projection_profile_id: str,
+        projection_attempt_id: UUID,
+        adapter_config_digest: str,
     ) -> ProjectionLifecycleInventory:
         from graphiti_core.edges import EntityEdge
         from graphiti_core.errors import GroupsEdgesNotFoundError
@@ -576,6 +623,8 @@ class GraphitiProjectionAdapter:
             namespace_key=namespace_key,
             scope_key=scope_key,
             projection_profile_id=projection_profile_id,
+            projection_attempt_id=projection_attempt_id,
+            adapter_config_digest=adapter_config_digest,
         )
         graphiti = self._build_graphiti(partition_key=partition)
         try:
@@ -707,6 +756,8 @@ class GraphitiProjectionValidator:
             namespace_key=self.namespace_key,
             scope_key=self.scope_key,
             projection_profile_id=self.projection_profile_id,
+            projection_attempt_id=attempt.attempt_id,
+            adapter_config_digest=descriptor.config_digest,
         )
         contract_ok = (
             attempt.backend_identity == descriptor.backend_identity
@@ -806,6 +857,8 @@ class GraphitiProjectionValidator:
             namespace_key=self.namespace_key,
             scope_key=self.scope_key,
             projection_profile_id=self.projection_profile_id,
+            projection_attempt_id=attempt.attempt_id,
+            adapter_config_digest=descriptor.config_digest,
         )
         missing_keys = sorted(set(provider_ids) - set(observed_keys))
         checks.append(
@@ -828,6 +881,8 @@ class GraphitiProjectionValidator:
             namespace_key=self.namespace_key,
             scope_key=self.scope_key,
             projection_profile_id=self.projection_profile_id,
+            projection_attempt_id=attempt.attempt_id,
+            adapter_config_digest=descriptor.config_digest,
         )
         inventory_payload = [
             {
@@ -915,6 +970,8 @@ class GraphitiProjectionValidator:
             namespace_key=self.namespace_key,
             scope_key=self.scope_key,
             projection_profile_id=self.projection_profile_id,
+            projection_attempt_id=attempt.attempt_id,
+            adapter_config_digest=descriptor.config_digest,
             limit=10,
         )
         wrong_partition = [
@@ -929,6 +986,8 @@ class GraphitiProjectionValidator:
             namespace_key=self.namespace_key,
             scope_key=isolation_scope,
             projection_profile_id=self.projection_profile_id,
+            projection_attempt_id=attempt.attempt_id,
+            adapter_config_digest=descriptor.config_digest,
             limit=10,
         )
         checks.append(
@@ -947,6 +1006,8 @@ class GraphitiProjectionValidator:
                         namespace_key=self.namespace_key,
                         scope_key=isolation_scope,
                         projection_profile_id=self.projection_profile_id,
+                        projection_attempt_id=attempt.attempt_id,
+                        adapter_config_digest=descriptor.config_digest,
                     ),
                 },
             )

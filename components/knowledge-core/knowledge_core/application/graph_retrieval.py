@@ -110,14 +110,17 @@ class GraphProjectionRetrievalKnowledgeKernel(ProjectionOrchestrationKnowledgeKe
                 results=(),
             )
 
-        expected_partition = adapter.partition_key(
-            namespace_key=namespace_key,
-            scope_key=scope_key,
-            projection_profile_id=expected_profile_id,
-        )
-        correlation: dict[str, ProjectionSourceSegment] = {}
+        build_correlations: dict[str, dict[str, ProjectionSourceSegment]] = {}
+        build_rows: list[tuple[ProjectionAttempt, str]] = []
         attempt_ids: list[UUID] = []
         for row in rows:
+            expected_partition = adapter.partition_key(
+                namespace_key=namespace_key,
+                scope_key=scope_key,
+                projection_profile_id=expected_profile_id,
+                projection_attempt_id=row.attempt_id,
+                adapter_config_digest=descriptor.config_digest,
+            )
             plan = self.projection_plan_for_attempt(row.attempt_id)
             bindings = self.read_projection_source_bindings(row.attempt_id)
             segment_by_exact_key = {
@@ -135,6 +138,7 @@ class GraphProjectionRetrievalKnowledgeKernel(ProjectionOrchestrationKnowledgeKe
                 )
 
             attempt_ids.append(row.attempt_id)
+            correlation: dict[str, ProjectionSourceSegment] = {}
             matched_exact_keys: set[tuple[UUID, int, str, str]] = set()
             for binding in bindings:
                 if binding.provider_partition_key != expected_partition:
@@ -163,14 +167,21 @@ class GraphProjectionRetrievalKnowledgeKernel(ProjectionOrchestrationKnowledgeKe
                 raise KnowledgeInvariantError(
                     f"validated projection attempt {row.attempt_id} does not cover every canonical segment"
                 )
+            build_correlations[expected_partition] = correlation
+            build_rows.append((row, expected_partition))
 
-        hits = await adapter.search(
-            query=normalized_query,
-            namespace_key=namespace_key,
-            scope_key=scope_key,
-            projection_profile_id=expected_profile_id,
-            limit=limit,
-        )
+        build_hits = []
+        for row, expected_partition in build_rows:
+            hits = await adapter.search(
+                query=normalized_query,
+                namespace_key=namespace_key,
+                scope_key=scope_key,
+                projection_profile_id=expected_profile_id,
+                projection_attempt_id=row.attempt_id,
+                adapter_config_digest=descriptor.config_digest,
+                limit=limit,
+            )
+            build_hits.append((expected_partition, hits))
 
         # The graph call can take seconds. Re-check the accepted generation after
         # the external boundary so a concurrent SR-2 publication cannot make stale
@@ -183,44 +194,53 @@ class GraphProjectionRetrievalKnowledgeKernel(ProjectionOrchestrationKnowledgeKe
             )
 
         trusted: list[TrustedProjectionHit] = []
-        for hit in hits:
-            if hit.partition_key != expected_partition:
-                continue
-            # A merged graph fact can carry multiple sourcing episodes. Trust the
-            # fact only when *every* provider source maps to a currently validated,
-            # currently serving KC source. One unknown contributor rejects the hit.
-            if not hit.source_correlation_keys:
-                continue
-            if any(source_key not in correlation for source_key in hit.source_correlation_keys):
-                continue
+        for expected_partition, hits in build_hits:
+            correlation = build_correlations[expected_partition]
+            for hit in hits:
+                if hit.partition_key != expected_partition:
+                    continue
+                # A merged graph fact can carry multiple sourcing episodes. Trust the
+                # fact only when *every* provider source maps through the same immutable
+                # build to a currently serving KC source.
+                if not hit.source_correlation_keys:
+                    continue
+                if any(
+                    source_key not in correlation
+                    for source_key in hit.source_correlation_keys
+                ):
+                    continue
 
-            matched: list[ProjectionSourceSegment] = []
-            seen_exact: set[tuple[UUID, str]] = set()
-            eligible = True
-            for source_key in hit.source_correlation_keys:
-                segment = correlation[source_key]
-                if not self.resource_version_serving_eligible(segment.resource_version_ref):
-                    eligible = False
-                    break
-                if segment.effective_lifecycle_state == "superseded":
-                    eligible = False
-                    break
-                exact = (segment.resource_version_ref, segment.segment_key)
-                if exact not in seen_exact:
-                    seen_exact.add(exact)
-                    matched.append(segment)
-            if not eligible or not matched:
-                continue
+                matched: list[ProjectionSourceSegment] = []
+                seen_exact: set[tuple[UUID, str]] = set()
+                eligible = True
+                for source_key in hit.source_correlation_keys:
+                    segment = correlation[source_key]
+                    if not self.resource_version_serving_eligible(
+                        segment.resource_version_ref
+                    ):
+                        eligible = False
+                        break
+                    if segment.effective_lifecycle_state == "superseded":
+                        eligible = False
+                        break
+                    exact = (segment.resource_version_ref, segment.segment_key)
+                    if exact not in seen_exact:
+                        seen_exact.add(exact)
+                        matched.append(segment)
+                if not eligible or not matched:
+                    continue
 
-            trusted.append(
-                TrustedProjectionHit(
-                    provider_hit_id=hit.provider_hit_id,
-                    fact=hit.fact,
-                    valid_at=hit.valid_at,
-                    invalid_at=hit.invalid_at,
-                    sources=tuple(matched),
+                trusted.append(
+                    TrustedProjectionHit(
+                        provider_hit_id=hit.provider_hit_id,
+                        fact=hit.fact,
+                        valid_at=hit.valid_at,
+                        invalid_at=hit.invalid_at,
+                        sources=tuple(matched),
+                    )
                 )
-            )
+                if len(trusted) >= limit:
+                    break
             if len(trusted) >= limit:
                 break
 

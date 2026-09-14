@@ -390,6 +390,8 @@ def main() -> int:
                 namespace_key=args.namespace,
                 scope_key=args.scope,
                 projection_profile_id=plan.profile_id,
+                projection_attempt_id=attempt.attempt_id,
+                adapter_config_digest=adapter.descriptor.config_digest,
             ),
             "generation_id": str(plan.generation_id),
             "projected_source_paths": list(args.source_path),

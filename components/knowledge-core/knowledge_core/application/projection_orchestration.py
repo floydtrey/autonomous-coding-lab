@@ -431,6 +431,8 @@ class ProjectionOrchestrationKnowledgeKernel(ProjectionValidationKnowledgeKernel
             namespace_key=namespace_key,
             scope_key=scope_key,
             projection_profile_id=plan.profile_id,
+            projection_attempt_id=attempt.attempt_id,
+            adapter_config_digest=descriptor.config_digest,
         )
         try:
             receipt = await adapter.project(
