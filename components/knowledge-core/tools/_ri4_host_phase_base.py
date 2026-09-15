@@ -20,6 +20,7 @@ from knowledge_core.storage.repository_import_models import (
 )
 from knowledge_core.storage.resource_models import Resource, ResourceLocator, ResourceVersion
 from knowledge_core.storage.retrieval_models import ResourceTextSearch
+from knowledge_core.storage.section_retrieval_models import ResourceSegmentTextSearch
 
 
 _CALLER = {"X-Knowledge-Caller": "ri4-host-qualification"}
@@ -33,9 +34,32 @@ def _count(session, model) -> int:
     return int(session.scalar(select(func.count()).select_from(model)) or 0)
 
 
+def _searchable_source_count(session) -> tuple[int, str]:
+    """Return a mode-neutral count of source versions represented for text search.
+
+    Historical RI-4 evidence used one RF-2 ResourceTextSearch row per source version.
+    The live repository producer now publishes SR-2 segments, which may create many
+    segment rows for one source. Keep the restart/replay harness focused on the same
+    logical invariant (searchable source-version coverage) without requiring the old
+    RF-2 physical table shape.
+    """
+
+    rf2_rows = _count(session, ResourceTextSearch)
+    if rf2_rows:
+        return rf2_rows, "rf2-resource-version"
+    sr2_sources = int(
+        session.scalar(
+            select(func.count(func.distinct(ResourceSegmentTextSearch.resource_version_ref)))
+        )
+        or 0
+    )
+    return sr2_sources, "sr2-segment"
+
+
 def _snapshot(sessions, artifacts: LocalArtifactStore, manifest_digest: str) -> dict:
     session = sessions()
     try:
+        search_rows, search_storage_mode = _searchable_source_count(session)
         counts = {
             "bindings": _count(session, RepositoryDocumentBinding),
             "receipts": _count(session, RepositoryImportReceipt),
@@ -44,7 +68,7 @@ def _snapshot(sessions, artifacts: LocalArtifactStore, manifest_digest: str) -> 
             "resource_versions": _count(session, ResourceVersion),
             "locators": _count(session, ResourceLocator),
             "generations": _count(session, DerivedGeneration),
-            "search_rows": _count(session, ResourceTextSearch),
+            "search_rows": search_rows,
         }
         observations = session.scalars(
             select(RepositorySourceObservation)
@@ -70,7 +94,11 @@ def _snapshot(sessions, artifacts: LocalArtifactStore, manifest_digest: str) -> 
                     "artifact_verified": True,
                 }
             )
-        return {"counts": counts, "provenance": provenance}
+        return {
+            "counts": counts,
+            "search_storage_mode": search_storage_mode,
+            "provenance": provenance,
+        }
     finally:
         session.close()
 
