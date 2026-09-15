@@ -133,6 +133,10 @@ class GovernedSourceEvidenceKnowledgeKernel:
                     observation_digest=observation.digest,
                 )
             )
+            # There is intentionally no ORM relationship between the generic
+            # observation and its evidence rows. Flush the parent explicitly so
+            # PostgreSQL can enforce the child foreign key deterministically.
+            self.session.flush()
             for ordinal, evidence in enumerate(observation.evidence):
                 self.session.add(
                     GovernedSourceEvidenceRecord(
@@ -218,6 +222,25 @@ class GovernedSourceEvidenceKnowledgeKernel:
                 raise KnowledgeInvariantError(
                     "governed snapshot member does not match persisted observation/decision evidence"
                 )
+
+        for exclusion in snapshot.exclusions:
+            binding = self.session.get(
+                GovernedSourceBindingRecord,
+                exclusion.source_identity_digest,
+            )
+            if binding is None:
+                raise KnowledgeInvariantError(
+                    "governed snapshot exclusion references an unknown source identity"
+                )
+            if exclusion.observation_id is not None:
+                observation = self.load_observation(exclusion.observation_id)
+                if (
+                    observation.binding.source_identity.digest
+                    != exclusion.source_identity_digest
+                ):
+                    raise KnowledgeInvariantError(
+                        "governed snapshot exclusion observation belongs to another source identity"
+                    )
 
         self.session.add(
             GovernedRetrievalSnapshotRecord(
@@ -347,8 +370,12 @@ class GovernedSourceEvidenceKnowledgeKernel:
         if row is None:
             raise KnowledgeInvariantError(f"unknown governed snapshot: {snapshot_digest}")
         member_rows = self.session.scalars(
-            select(GovernedSnapshotMemberRecord).where(
-                GovernedSnapshotMemberRecord.snapshot_digest == snapshot_digest
+            select(GovernedSnapshotMemberRecord)
+            .where(GovernedSnapshotMemberRecord.snapshot_digest == snapshot_digest)
+            .order_by(
+                GovernedSnapshotMemberRecord.source_identity_digest,
+                GovernedSnapshotMemberRecord.observation_id,
+                GovernedSnapshotMemberRecord.decision_id,
             )
         ).all()
         project_rows = self.session.scalars(
@@ -411,17 +438,6 @@ class GovernedSourceEvidenceKnowledgeKernel:
         self,
         governing_manifest_digest: str,
     ) -> GovernedRetrievalSnapshot:
-        existing_map = self.session.get(
-            LegacyRepositorySnapshotMap,
-            governing_manifest_digest,
-        )
-        if existing_map is not None:
-            if existing_map.mapping_version != LEGACY_REPOSITORY_MAPPING_VERSION:
-                raise KnowledgeInvariantError(
-                    "legacy repository snapshot mapping uses an unexpected version"
-                )
-            return self.load_snapshot(existing_map.snapshot_digest)
-
         receipt = self.session.get(
             RepositoryImportReceipt,
             governing_manifest_digest,
@@ -432,6 +448,17 @@ class GovernedSourceEvidenceKnowledgeKernel:
             raise KnowledgeInvariantError(
                 "only settled legacy repository receipts can map into governed evidence"
             )
+
+        existing_map = self.session.get(
+            LegacyRepositorySnapshotMap,
+            governing_manifest_digest,
+        )
+        if existing_map is not None:
+            if existing_map.mapping_version != LEGACY_REPOSITORY_MAPPING_VERSION:
+                raise KnowledgeInvariantError(
+                    "legacy repository snapshot mapping uses an unexpected version"
+                )
+            return self.load_snapshot(existing_map.snapshot_digest)
 
         predecessor_snapshot_digest = None
         if receipt.previous_manifest_digest is not None:
@@ -559,17 +586,6 @@ class GovernedSourceEvidenceKnowledgeKernel:
         self,
         row: RepositorySourceObservation,
     ) -> GovernedSourceObservation:
-        mapping = self.session.get(
-            LegacyRepositoryObservationMap,
-            row.observation_id,
-        )
-        if mapping is not None:
-            if mapping.mapping_version != LEGACY_REPOSITORY_MAPPING_VERSION:
-                raise KnowledgeInvariantError(
-                    "legacy repository observation mapping uses an unexpected version"
-                )
-            return self.load_observation(mapping.generic_observation_id)
-
         receipt = self.session.get(RepositoryImportReceipt, row.manifest_digest)
         if receipt is None or receipt.status != "settled":
             raise KnowledgeInvariantError(
@@ -580,11 +596,12 @@ class GovernedSourceEvidenceKnowledgeKernel:
             source_document_key=row.source_document_key,
         )
         capture_digest = _legacy_capture_evidence_digest(row)
-        observation = GovernedSourceObservation(
-            observation_id=uuid5(
-                LEGACY_REPOSITORY_OBSERVATION_NAMESPACE,
-                str(row.observation_id),
-            ),
+        generic_observation_id = uuid5(
+            LEGACY_REPOSITORY_OBSERVATION_NAMESPACE,
+            str(row.observation_id),
+        )
+        expected_observation = GovernedSourceObservation(
+            observation_id=generic_observation_id,
             binding=GovernedSourceBinding(
                 source_identity=identity,
                 resource_ref=row.resource_ref,
@@ -603,18 +620,43 @@ class GovernedSourceEvidenceKnowledgeKernel:
             source_event_time=None,
             source_revision_time=None,
         )
-        self.persist_observation(observation)
+
+        mapping = self.session.get(
+            LegacyRepositoryObservationMap,
+            row.observation_id,
+        )
+        if mapping is not None:
+            if mapping.mapping_version != LEGACY_REPOSITORY_MAPPING_VERSION:
+                raise KnowledgeInvariantError(
+                    "legacy repository observation mapping uses an unexpected version"
+                )
+            if (
+                mapping.generic_observation_id != generic_observation_id
+                or mapping.source_identity_digest != identity.digest
+                or mapping.capture_evidence_digest != capture_digest
+            ):
+                raise KnowledgeInvariantError(
+                    "legacy repository observation mapping no longer matches immutable source evidence"
+                )
+            loaded = self.load_observation(mapping.generic_observation_id)
+            if loaded != expected_observation:
+                raise KnowledgeInvariantError(
+                    "mapped governed observation no longer reconstructs from legacy evidence"
+                )
+            return loaded
+
+        self.persist_observation(expected_observation)
         self.session.add(
             LegacyRepositoryObservationMap(
                 legacy_observation_id=row.observation_id,
-                generic_observation_id=observation.observation_id,
+                generic_observation_id=expected_observation.observation_id,
                 source_identity_digest=identity.digest,
                 capture_evidence_digest=capture_digest,
                 mapping_version=LEGACY_REPOSITORY_MAPPING_VERSION,
             )
         )
         self.session.flush()
-        return observation
+        return expected_observation
 
     def _legacy_retirement_exclusions(
         self,
