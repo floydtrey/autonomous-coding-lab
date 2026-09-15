@@ -32,10 +32,11 @@ class TextIndexSource:
 class SegmentRetrievalProvenance:
     """Exact lexical evidence for one SR-2 segment.
 
-    ``provenance_contract_version`` makes the legacy repository-only evidence shape
-    explicit. Source-neutral generations populate the governed observation/decision/
-    snapshot fields and only populate repository fields when an exact compatibility
-    mapping exists. Non-Git sources therefore never need fabricated Git metadata.
+    ``governed_observation_id`` is retained as the pre-2F repository compatibility
+    field: repository-backed V2 results keep exposing the verified legacy repository
+    observation there. ``governed_source_observation_id`` is the unambiguous generic
+    observation ID for source-neutral consumers. For non-repository sources, where no
+    legacy observation exists, both identify the generic observation.
     """
 
     provenance_contract_version: str
@@ -61,8 +62,7 @@ class SegmentRetrievalProvenance:
     effective_lifecycle_state: RetrievalLifecycleState
     effective_control_provenance: tuple[dict[str, object], ...]
 
-    # Source-neutral governed evidence (V2). These are intentionally nullable for
-    # accepted historical pre-2D SR-2 generations.
+    governed_source_observation_id: UUID | None = None
     governed_observation_digest: str | None = None
     governed_decision_id: UUID | None = None
     governed_decision_digest: str | None = None
@@ -83,8 +83,6 @@ class SegmentRetrievalProvenance:
     governance_rationale: str | None = None
     governance_decided_at: datetime | None = None
 
-    # Explicit legacy/repository compatibility projection. These fields remain
-    # available for repository consumers but are null for non-Git sources.
     legacy_repository_observation_id: UUID | None = None
     governing_manifest_digest: str | None = None
     projection_snapshot_digest: str | None = None
