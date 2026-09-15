@@ -3,6 +3,7 @@ from __future__ import annotations
 from hashlib import sha1
 import os
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -175,29 +176,32 @@ def test_section_repository_import_settles_generic_snapshot_with_sr2_generation(
     manifest = _manifest(manifest_id="A", commit=commit, content=content)
 
     importer, session, _sessions = _importer(task2c_engine, tmp_path, reader)
-    receipt = _apply(importer, manifest)
-    assert receipt.status == "settled"
-    assert receipt.resulting_text_generation_id is not None
-    assert _current_text_generation_id(session) == receipt.resulting_text_generation_id
-    assert (
-        session.get(TextGenerationProfile, receipt.resulting_text_generation_id)
-        is not None
-    )
+    try:
+        receipt = _apply(importer, manifest)
+        assert receipt.status == "settled"
+        assert receipt.resulting_text_generation_id is not None
+        assert _current_text_generation_id(session) == receipt.resulting_text_generation_id
+        assert (
+            session.get(TextGenerationProfile, receipt.resulting_text_generation_id)
+            is not None
+        )
 
-    mapping = session.get(LegacyRepositorySnapshotMap, receipt.manifest_digest)
-    assert mapping is not None
-    snapshot = GovernedSourceEvidenceKnowledgeKernel(session).load_snapshot(
-        mapping.snapshot_digest
-    )
-    assert len(snapshot.members) == 1
-    assert len(snapshot.exclusions) == 0
+        mapping = session.get(LegacyRepositorySnapshotMap, receipt.manifest_digest)
+        assert mapping is not None
+        snapshot = GovernedSourceEvidenceKnowledgeKernel(session).load_snapshot(
+            mapping.snapshot_digest
+        )
+        assert len(snapshot.members) == 1
+        assert len(snapshot.exclusions) == 0
 
-    replay = _apply(importer, manifest)
-    assert replay.manifest_digest == receipt.manifest_digest
-    assert replay.resulting_text_generation_id == receipt.resulting_text_generation_id
-    replay_mapping = session.get(LegacyRepositorySnapshotMap, receipt.manifest_digest)
-    assert replay_mapping.snapshot_digest == mapping.snapshot_digest
-    session.close()
+        replay = _apply(importer, manifest)
+        assert replay.manifest_digest == receipt.manifest_digest
+        assert replay.resulting_text_generation_id == receipt.resulting_text_generation_id
+        replay_mapping = session.get(LegacyRepositorySnapshotMap, receipt.manifest_digest)
+        assert replay_mapping is not None
+        assert replay_mapping.snapshot_digest == mapping.snapshot_digest
+    finally:
+        session.close()
 
 
 @pytest.mark.postgresql
@@ -214,42 +218,44 @@ def test_generic_mapping_failure_rolls_back_sr2_publication(
     reader.put(commit_b, "alpha.md", content_b)
 
     importer, session, _sessions = _importer(task2c_engine, tmp_path, reader)
-    manifest_a = _manifest(manifest_id="A", commit=commit_a, content=content_a)
-    receipt_a = _apply(importer, manifest_a)
-    current_a = _current_text_generation_id(session)
-    assert current_a == receipt_a.resulting_text_generation_id
+    try:
+        manifest_a = _manifest(manifest_id="A", commit=commit_a, content=content_a)
+        receipt_a = _apply(importer, manifest_a)
+        current_a = _current_text_generation_id(session)
+        assert current_a == receipt_a.resulting_text_generation_id
 
-    manifest_b = _manifest(
-        manifest_id="B",
-        commit=commit_b,
-        content=content_b,
-        previous=receipt_a.manifest_digest,
-    )
-    plan_b = importer.plan_repository_import(manifest_b)
-    original = GovernedSourceEvidenceKnowledgeKernel.map_settled_repository_receipt
-
-    def fail_current_mapping(self, governing_manifest_digest: str):
-        if governing_manifest_digest == plan_b.manifest_digest:
-            raise RuntimeError("injected generic evidence failure")
-        return original(self, governing_manifest_digest)
-
-    monkeypatch.setattr(
-        GovernedSourceEvidenceKnowledgeKernel,
-        "map_settled_repository_receipt",
-        fail_current_mapping,
-    )
-    with pytest.raises(RuntimeError, match="generic evidence failure"):
-        importer.apply_repository_import(
-            manifest=manifest_b,
-            expected_plan_digest=plan_b.plan_digest,
+        manifest_b = _manifest(
+            manifest_id="B",
+            commit=commit_b,
+            content=content_b,
+            previous=receipt_a.manifest_digest,
         )
+        plan_b = importer.plan_repository_import(manifest_b)
+        original = GovernedSourceEvidenceKnowledgeKernel.map_settled_repository_receipt
 
-    assert _current_text_generation_id(session) == current_a
-    failed = session.get(RepositoryImportReceipt, plan_b.manifest_digest)
-    assert failed is not None
-    assert failed.status == "failed"
-    assert session.get(LegacyRepositorySnapshotMap, plan_b.manifest_digest) is None
-    session.close()
+        def fail_current_mapping(self, governing_manifest_digest: str):
+            if governing_manifest_digest == plan_b.manifest_digest:
+                raise RuntimeError("injected generic evidence failure")
+            return original(self, governing_manifest_digest)
+
+        monkeypatch.setattr(
+            GovernedSourceEvidenceKnowledgeKernel,
+            "map_settled_repository_receipt",
+            fail_current_mapping,
+        )
+        with pytest.raises(RuntimeError, match="generic evidence failure"):
+            importer.apply_repository_import(
+                manifest=manifest_b,
+                expected_plan_digest=plan_b.plan_digest,
+            )
+
+        assert _current_text_generation_id(session) == current_a
+        failed = session.get(RepositoryImportReceipt, plan_b.manifest_digest)
+        assert failed is not None
+        assert failed.status == "failed"
+        assert session.get(LegacyRepositorySnapshotMap, plan_b.manifest_digest) is None
+    finally:
+        session.close()
 
 
 @pytest.mark.postgresql
@@ -288,9 +294,12 @@ def test_repository_import_http_service_uses_sr2_producer_and_generic_evidence(
         body = applied.json()
 
     session = sessions()
-    generation_id = body["resulting_text_generation_id"]
-    assert generation_id is not None
-    assert session.get(TextGenerationProfile, generation_id) is not None
-    assert session.get(LegacyRepositorySnapshotMap, body["manifest_digest"]) is not None
-    assert _current_text_generation_id(session) == generation_id
-    session.close()
+    try:
+        generation_id = body["resulting_text_generation_id"]
+        assert generation_id is not None
+        generation_ref = UUID(generation_id)
+        assert session.get(TextGenerationProfile, generation_ref) is not None
+        assert session.get(LegacyRepositorySnapshotMap, body["manifest_digest"]) is not None
+        assert _current_text_generation_id(session) == generation_ref
+    finally:
+        session.close()
