@@ -113,12 +113,16 @@ def test_projection_snapshot_digest_rejects_noncanonical_manifest_digest(field):
         )
 
 
-def test_text_generation_source_model_is_minimal_refined_lineage_shape():
+def test_text_generation_source_model_has_v2_generic_and_v1_compatibility_lineage():
     table = TextGenerationSource.__table__
     assert table.schema == "kc_derived"
     assert list(table.columns.keys()) == [
         "generation_id",
         "resource_version_ref",
+        "governed_observation_id",
+        "governed_decision_id",
+        "governing_snapshot_digest",
+        "governed_projection_digest",
         "source_observation_id",
         "governing_manifest_digest",
         "projection_snapshot_digest",
@@ -140,7 +144,7 @@ def _require_postgres_engine() -> Engine:
 
 
 @pytest.mark.postgresql
-def test_sr2_g9_projection_lineage_migration_has_exact_foreign_keys():
+def test_sr2_g9_projection_lineage_migration_has_exact_v2_foreign_keys():
     engine = _require_postgres_engine()
     try:
         inspector = inspect(engine)
@@ -158,12 +162,24 @@ def test_sr2_g9_projection_lineage_migration_has_exact_foreign_keys():
         assert set(columns) == {
             "generation_id",
             "resource_version_ref",
+            "governed_observation_id",
+            "governed_decision_id",
+            "governing_snapshot_digest",
+            "governed_projection_digest",
             "source_observation_id",
             "governing_manifest_digest",
             "projection_snapshot_digest",
         }
-        assert columns["projection_snapshot_digest"]["nullable"] is False
+        assert columns["governed_observation_id"]["nullable"] is True
+        assert columns["governed_decision_id"]["nullable"] is True
+        assert columns["governing_snapshot_digest"]["nullable"] is True
+        assert columns["governed_projection_digest"]["nullable"] is True
+        assert columns["source_observation_id"]["nullable"] is True
+        assert columns["governing_manifest_digest"]["nullable"] is True
+        assert columns["projection_snapshot_digest"]["nullable"] is True
         assert getattr(columns["projection_snapshot_digest"]["type"], "length", None) == 71
+        assert getattr(columns["governing_snapshot_digest"]["type"], "length", None) == 71
+        assert getattr(columns["governed_projection_digest"]["type"], "length", None) == 71
 
         primary_key = inspector.get_pk_constraint(
             "text_generation_source",
@@ -198,6 +214,24 @@ def test_sr2_g9_projection_lineage_migration_has_exact_foreign_keys():
                 "kc",
                 "resource_version",
                 ("ref_id",),
+            ),
+            (
+                ("governed_observation_id",),
+                "kc_control",
+                "governed_source_observation",
+                ("observation_id",),
+            ),
+            (
+                ("governed_decision_id",),
+                "kc_control",
+                "governed_source_decision",
+                ("decision_id",),
+            ),
+            (
+                ("governing_snapshot_digest",),
+                "kc_control",
+                "governed_retrieval_snapshot",
+                ("snapshot_digest",),
             ),
             (
                 ("source_observation_id",),
