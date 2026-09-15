@@ -4,6 +4,10 @@ from uuid import UUID, uuid5
 
 from sqlalchemy.orm import Session
 
+from knowledge_core.application.governed_snapshot_policy import (
+    COMPLETE_CORPUS_SELECTION_POLICY_ID,
+    validate_complete_snapshot,
+)
 from knowledge_core.application.governed_source_evidence import (
     GovernedSourceEvidenceKnowledgeKernel,
     LEGACY_REPOSITORY_MAPPING_VERSION,
@@ -39,7 +43,6 @@ from knowledge_core.storage.repository_import_models import (
 
 
 REPOSITORY_PRODUCER_MAPPING_VERSION = "kc-repository-governed-producer-v2"
-COMPLETE_CORPUS_SELECTION_POLICY_ID = "kc-complete-corpus-selection-v1"
 _REPOSITORY_DECISION_NAMESPACE = UUID("c8390259-ed22-5e7e-a7ac-62f61d71cdcf")
 
 
@@ -153,7 +156,7 @@ class RepositoryGovernedProducerKnowledgeKernel:
             exclusions=tuple(exclusions),
             predecessor_snapshot_digest=expected_predecessor_snapshot_digest,
         )
-        self._validate_complete_snapshot(snapshot)
+        validate_complete_snapshot(snapshot)
         self.evidence.persist_snapshot(snapshot)
         self.session.add(
             LegacyRepositorySnapshotMap(
@@ -357,15 +360,3 @@ class RepositoryGovernedProducerKnowledgeKernel:
                 "repository observation is not backed by an eligible receipt"
             )
         return receipt
-
-    @staticmethod
-    def _validate_complete_snapshot(snapshot: GovernedRetrievalSnapshot) -> None:
-        member_identities = {item.source_identity_digest for item in snapshot.members}
-        exclusion_identities = {
-            item.source_identity_digest for item in snapshot.exclusions
-        }
-        overlap = member_identities & exclusion_identities
-        if overlap:
-            raise KnowledgeInvariantError(
-                "complete governed snapshot both selects and excludes a source identity"
-            )

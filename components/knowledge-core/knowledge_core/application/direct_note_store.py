@@ -6,17 +6,18 @@ from hashlib import sha256
 import json
 from uuid import UUID, uuid5
 
+from knowledge_core.application.governed_snapshot_policy import (
+    COMPLETE_CORPUS_SELECTION_POLICY_ID,
+    validate_complete_snapshot,
+)
 from knowledge_core.application.governed_source_evidence import (
     GovernedSourceEvidenceKnowledgeKernel,
 )
 from knowledge_core.application.operations import _request_digest
-from knowledge_core.application.repository_governed_producer import (
-    COMPLETE_CORPUS_SELECTION_POLICY_ID,
-    RepositoryGovernedProducerKnowledgeKernel,
-)
 from knowledge_core.application.resource_service import ResourceServiceKnowledgeKernel
 from knowledge_core.application.resources import ResourceKnowledgeKernel
 from knowledge_core.application.section_publication_v2 import (
+    PublicationPredecessorConflictError,
     SourceNeutralSectionPublicationKnowledgeKernel,
 )
 from knowledge_core.domain.assertions import KnowledgeInvariantError
@@ -139,6 +140,10 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
         project = project_key.strip()
         if not project:
             raise KnowledgeInvariantError("direct note project must be non-blank")
+        if len(project) > 255:
+            raise KnowledgeInvariantError(
+                "direct note project must be at most 255 characters"
+            )
         effective_source_id = (
             source_id.strip()
             if source_id is not None and source_id.strip()
@@ -343,6 +348,7 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
             else None
         )
 
+        prior_project_keys: tuple[str, ...] = ()
         if predecessor is not None:
             current_member = next(
                 (
@@ -353,6 +359,7 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 None,
             )
             if current_member is not None:
+                prior_project_keys = current_member.project_keys
                 if (
                     current_member.observation_id == canonical.observation_id
                     and current_member.decision_id == canonical.decision_id
@@ -396,11 +403,14 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 for exclusion in predecessor.exclusions
                 if exclusion.source_identity_digest != canonical.source_identity_digest
             )
+        merged_project_keys = tuple(
+            sorted(set(prior_project_keys) | {canonical.project_key})
+        )
         members.append(
             GovernedSnapshotMember.from_selection(
                 observation=observation,
                 decision=decision,
-                project_keys=(canonical.project_key,),
+                project_keys=merged_project_keys,
             )
         )
         snapshot = GovernedRetrievalSnapshot(
@@ -410,7 +420,7 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
             exclusions=tuple(exclusions),
             predecessor_snapshot_digest=predecessor_digest,
         )
-        RepositoryGovernedProducerKnowledgeKernel._validate_complete_snapshot(snapshot)
+        validate_complete_snapshot(snapshot)
         evidence.persist_snapshot(snapshot)
         # Persist the complete source selection independently of the derived build.
         # A later build failure must not erase canonical or governance evidence.
@@ -430,7 +440,7 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 generation_id=current.generation_id,
                 snapshot_digest=snapshot.digest,
             )
-        except KnowledgeInvariantError as exc:
+        except PublicationPredecessorConflictError as exc:
             self.session.rollback()
             return DirectNotePublicationResult(
                 text_state="pending",
