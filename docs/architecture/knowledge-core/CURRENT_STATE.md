@@ -3,7 +3,7 @@
 **Authoritative KC status and restart point. Updated 2026-09-14.**
 Branch: `architecture/knowledge-core`. Documentation consolidation baseline:
 `2678e7666fbcba50b64d8839ea0592a8d992e916`.
-Latest accepted KC Usable V1 checkpoint: `6910e9abba320e272b34b0528846f289d3d8eb14`.
+Latest accepted KC Usable V1 checkpoint: `30d1ec2ce13ae8c95afc4ac2b9d54d959f36b3bd`.
 
 ## Read order and authority
 
@@ -23,14 +23,15 @@ These are the only authoritative current KC documents. The component README and 
 | Area | Current boundary |
 |---|---|
 | Kernel V1 and PostgreSQL | Accepted canonical history, identities, exact source provenance, idempotency, concurrency and serving fences. |
-| Governed repository import | Accepted bounded exact-object import, stable document identity, governed observations and persistence/recovery. |
-| RF-2 lexical retrieval | Accepted whole-document PostgreSQL baseline retained beneath the segment transition. |
-| SR-2 segmentation and retrieval | Accepted audit-amended KC-D025/SR-1 implementation; G1–G22 independently green. Current implementation remains repository-coupled in its governed-source lineage and publication path; Task 2 corrects that without invalidating historical acceptance evidence. |
+| Governed repository import | Accepted bounded exact-object import, stable document identity, governed observations and persistence/recovery. The live repository-import API now uses the SR-2 producer and materializes source-neutral governed evidence at settlement. |
+| RF-2 lexical retrieval | Accepted whole-document PostgreSQL baseline retained for historical qualification/reconstruction. A central publication fence prevents RF-2 from replacing an established SR-2 current TEXT generation. |
+| SR-2 segmentation and retrieval | Accepted audit-amended KC-D025/SR-1 implementation; G1–G22 independently green. Task 2C moved the live repository producer and generic-evidence settlement onto SR-2, but SR-2 source selection, durable lineage and serving provenance are still repository-shaped and are Task 2D work. |
 | SR-2 intended host | Accepted Windows/PostgreSQL restart/recovery, exact structural reconstruction, provenance, segment serving and replay. |
 | KC Consumer V1 / lexical API | Implemented exact segment-content serving with provenance. `POST /v1/retrieval/search` evaluates injected Authority before protected search. Current response provenance is repository-shaped and will receive a source-neutral version/compatibility boundary during Task 2. |
 | KC Usable V1 bootstrap access | **Task 1 accepted.** Configurable bind host defaults to `127.0.0.1`; shared API-key admission maps accepted front-door calls to fixed principal `local_owner`; only store/search/get-source/status operation classes are admitted. This facility is not yet attached to a public Usable V1 front-door route. |
 | Source-neutral governed-source contract | **Task 2A accepted.** Typed/versioned pure-domain contract separates logical source identity, canonical Resource/ResourceVersion identity, immutable observations, governance decisions, project membership and complete retrieval snapshots without changing storage or serving. |
-| Source-neutral governed evidence persistence | **Task 2B accepted.** Durable binding/observation/evidence/decision/snapshot records plus deterministic legacy repository mapping are implemented behind migration `0016_governed_source_evidence.py`. Generic persistence remains additive and does not yet drive SR-2 serving/publication. |
+| Source-neutral governed evidence persistence | **Task 2B accepted.** Durable binding/observation/evidence/decision/snapshot records plus deterministic legacy repository mapping are implemented behind migration `0016_governed_source_evidence.py`. |
+| Repository producer integration | **Task 2C accepted.** The live repository producer publishes SR-2, settles matching generic governed evidence, fails closed if that mapping cannot complete, and cannot be silently downgraded by the legacy RF-2 writer. |
 | Projection attempt and validation ledgers | Implemented durable, separate provider-attempt and independent validation evidence. Provider success alone is insufficient. |
 | Governed Graphiti backend | Accepted real-host governed-document projection, immutable build isolation, lifecycle validation and trusted canonical result correlation. Its current plan input is still repository-shaped; generic mixed-source graph input is deferred until after source-neutral text ingestion works. |
 | Public graph consumer API | **Not exposed/promoted.** Trusted graph retrieval exists in the application kernel; the public retrieval route still performs lexical search. |
@@ -103,7 +104,7 @@ SR-2 retains one-current-generation fencing. Therefore independent producers mus
 
 Historical repository manifests, observations, digests, accepted generations, migrations, and qualification records retain their original meaning. New generic semantics require versioned new evidence/contracts; do not relabel historical evidence as if it qualified the source-neutral model.
 
-The old public RF-2 repository-import publication path shares the same global TEXT generation slot and must be deliberately constrained or migrated during Task 2 so it cannot later replace an accepted SR-2 current generation unexpectedly.
+The legacy RF-2 importer remains available for historical qualification/reconstruction from an empty/RF-2 state, but Task 2C added a generation fence that prevents it from replacing an established SR-2 current TEXT generation.
 
 ## Bounded task sequence
 
@@ -163,17 +164,27 @@ Implemented scope:
 - generic direct-note-shaped evidence persists and reconstructs without repository key, commit, path, blob SHA or manifest fields;
 - applying and failed repository receipts are rejected from legacy-to-generic mapping;
 - replay does not create duplicate generic evidence or alter the existing current TEXT generation;
-- semantic equality now follows the 2A identity rules: evidence/project/member ordering is canonicalized and snapshot record creation time does not make an otherwise identical semantic snapshot unequal.
+- semantic equality follows the 2A identity rules: evidence/project/member ordering is canonicalized and snapshot record creation time does not make an otherwise identical semantic snapshot unequal.
 
-2B is deliberately additive. Existing repository import does not yet write through the generic evidence path, SR-2 serving/publication does not read it, no public route was added, and Graphiti behavior was unchanged. Historical repository rows and accepted evidence retain their original semantics.
+At the 2B checkpoint, the generic layer was deliberately additive and did not yet drive repository publication or serving. Task 2C subsequently connected the live repository producer to that accepted evidence layer without changing historical repository evidence semantics.
 
-#### Task 2C — repository import becomes a verified producer — NEXT AUTHORIZED SLICE
+#### Task 2C — repository import becomes a verified producer — ACCEPTED
 
-Keep exact commit/path/blob verification, configured readers, manifests, continuity/retirement policy and receipt semantics inside the repository adapter. Translate accepted repository evidence into the generic governed-source layer.
+Accepted at implementation checkpoint `30d1ec2ce13ae8c95afc4ac2b9d54d959f36b3bd`, with full Knowledge Core workflow [Actions 34927229037](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34927229037) green.
 
-**Accept when:** existing repository guarantees remain intact and repository-specific proof no longer defines the downstream generic contract. Reconcile both legacy RF-2 and SR-2 publication writers so neither can silently replace the intended current TEXT mode.
+Implemented scope:
 
-#### Task 2D — source-neutral SR-2 selection, lineage and publication
+- the import-capable HTTP service now instantiates `SectionRepositoryImportKnowledgeKernel`, so the live repository path publishes SR-2 rather than the historical RF-2 whole-document mode;
+- SR-2 publication materializes the governing repository receipt chain into the source-neutral governed-evidence layer before the publication transaction is committed;
+- predecessor generic evidence is established before publication mutates current generation state;
+- if generic evidence settlement fails, the new publication rolls back, the prior current TEXT generation remains serving, the failed receipt remains failure evidence, and no accepted generic snapshot is created for that failed publication;
+- accepted replay preserves the same SR-2 generation and the same generic snapshot mapping;
+- the central generation start fence rejects RF-2 publication when current TEXT is already SR-2, while retaining RF-2 historical qualification/reconstruction from an empty or RF-2 state;
+- the current RI-3/RI-4 restart rehearsals no longer require the obsolete RF-2 `ResourceTextSearch` physical row shape; they continue to verify exact repository provenance, canonical/artifact integrity, serving, lifecycle behavior, restart recovery and exact replay. Historical RI-3/RI-4 acceptance records retain their original meaning.
+
+2C does **not** make SR-2 source-neutral downstream. `resolve_governed_projection_sources`, SR-2 generation lineage/storage and lexical serving provenance remain repository-shaped. No non-Git producer, `kc_store`, generic lexical response contract or Graphiti generalization was implemented.
+
+#### Task 2D — source-neutral SR-2 selection, lineage and publication — NEXT AUTHORIZED SLICE
 
 Make SR-2 consume generic governed observations/snapshots instead of repository foreign keys/manifests. Preserve canonical artifact verification, deterministic segmentation, lifecycle monotonicity, exact lineage and one-current-generation fencing.
 
@@ -199,7 +210,7 @@ Run deterministic/restart/mixed-corpus/idempotency/privacy/publication-failure q
 
 **Accept when:** direct-note and repository evidence are jointly searchable through the accepted text generation after restart/replay, exact canonical provenance is available, restrictions remain dominant, old accepted historical evidence retains its original interpretation, and the full required KC workflow is green.
 
-**Current authorization:** Task 2C only. Checkpoint it before 2D.
+**Current authorization:** Task 2D only. Checkpoint it before 2E.
 
 ### Task 3 — simple read surface
 
