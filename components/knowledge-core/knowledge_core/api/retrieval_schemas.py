@@ -48,6 +48,7 @@ class SegmentRetrievalProvenanceResponse(BaseModel):
     effective_lifecycle_state: RetrievalLifecycleState
     effective_control_provenance: list[dict[str, object]]
 
+    governed_source_observation_id: UUID | None = None
     governed_observation_digest: str | None = None
     governed_decision_id: UUID | None = None
     governed_decision_digest: str | None = None
@@ -140,6 +141,9 @@ def retrieval_response_from_domain(item) -> RetrievalSearchResponse:
                 effective_lifecycle_state=segment.effective_lifecycle_state,
                 effective_control_provenance=list(
                     segment.effective_control_provenance
+                ),
+                governed_source_observation_id=(
+                    segment.governed_source_observation_id
                 ),
                 governed_observation_digest=segment.governed_observation_digest,
                 governed_decision_id=segment.governed_decision_id,
