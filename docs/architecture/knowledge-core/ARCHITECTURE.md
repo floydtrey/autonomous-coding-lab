@@ -173,9 +173,9 @@ Canonical Resource/ResourceVersion bytes and governed observation/decision evide
 
 The store response reports `canonical_state="stored"`, `graph_state="pending"`, exact Resource/ResourceVersion IDs and SHA-256, plus text generation/snapshot state. `text_state="indexed"` describes successful derived publication; after Task 2F, a note included in the accepted current SR-2 generation is also searchable through the accepted lexical read contract. The store response itself does not claim that a particular query was executed.
 
-## Lexical service and consumer contract
+## Lexical service and Usable V1 consumer-read contract
 
-The composed [public API](../../../components/knowledge-core/knowledge_core/api/app.py) exposes `POST /v1/retrieval/search` with `query`, `limit` (1–50, default 10) and `include_superseded` (default false). `X-Knowledge-Caller` is required. The trusted host must inject a retrieval Authority evaluator; the header alone is not authorization. Missing caller returns 400, denied retrieval is nondisclosing 404, and unavailable Authority returns 503 before protected search.
+The composed [public API](../../../components/knowledge-core/knowledge_core/api/app.py) retains `POST /v1/retrieval/search` as the Authority-first semantic search route. It accepts `query`, `limit` (1–50, default 10) and `include_superseded` (default false). `X-Knowledge-Caller` is required and the trusted host must inject a retrieval Authority evaluator; the header alone is not authorization. Missing caller returns 400, denied retrieval is nondisclosing 404, and unavailable Authority returns 503 before protected search.
 
 PostgreSQL performs lexical matching and deterministic ranking against the current eligible generation. Score is neither truth nor authority. The response carries generation/config and structural/projection profile identities, exact Resource/ResourceVersion references/digests, and `evidence_contract_version="kc-lexical-evidence-v2"`.
 
@@ -185,7 +185,15 @@ Source-neutral segment provenance includes source identity, project memberships,
 
 Historical pre-2D SR-2 generations retain explicit `repository-sr2-v1` provenance rather than being relabeled. Current source-neutral generations use `governed-source-sr2-v2`. Existing repository consumers retain the `governed_observation_id` compatibility alias described above, while new generic consumers should use `governed_source_observation_id` when they need the generic observation identity.
 
-KC Consumer V1 exact segment evidence feeds the [Controller Task Packet V1](../../CONTROLLER_TASK_PACKET_V1.md) boundary. Retrieval remains informational and cannot choose providers, authorize tools/files or accept worker results. General context assembly and MindsHub-specific front-door tools remain future work. Repository-shaped ACL evidence compatibility is not authority to force generic KC sources back into repository semantics.
+Task 3 adds the bounded local Usable V1 front door only when the trusted host explicitly supplies `BootstrapAdmission`:
+
+- `POST /v1/kc/search` requires `X-Knowledge-Key`, admits operation `kc.search`, maps success to fixed principal `local_owner`, and reuses the exact same accepted lexical search/evidence path. It does not maintain a second index or retrieval definition. If the host also supplies the separate retrieval Authority evaluator, that evaluator is an additional fail-closed policy layer for bootstrap search.
+- `POST /v1/kc/get-source` requires `X-Knowledge-Key`, admits `kc.get_source`, and accepts an exact `resource_version_ref`. It serves only a ResourceVersion referenced by the current TEXT generation and still serving-eligible. For SR-2 it first revalidates the current generation/profile and generic-or-legacy lineage mode, then reads the full immutable artifact, verifies stored byte size and SHA-256, requires strict UTF-8, and returns the exact canonical source bytes as text. Unknown, non-current or restricted refs are nondisclosing 404. Artifact keys/backends, filesystem paths, database URLs and raw SQL do not cross this contract.
+- `GET /v1/kc/status` requires `X-Knowledge-Key`, admits `kc.status`, and reports bounded canonical/text readiness only: canonical revision, text state (`empty` or `ready`), current text generation/source revision highwater/source count, retrieval mode, lineage mode, evidence-contract version and generation-config digest. It does not claim graph readiness or expose storage/provider credentials.
+
+These bootstrap read routes are absent when bootstrap admission is not configured. Operation admission remains independently scoped, so a contract allowing only status cannot search or fetch source. Task 3 does not make arbitrary historical ResourceVersions addressable, weaken privacy fences, expose a generic CRUD API, or replace the separate Authority architecture.
+
+KC Consumer V1 exact segment evidence feeds the [Controller Task Packet V1](../../CONTROLLER_TASK_PACKET_V1.md) boundary. Retrieval remains informational and cannot choose providers, authorize tools/files or accept worker results. Mason/MindsHub tooling remains Task 5; Task 3 only establishes the stable local service operations that such a consumer may later call.
 
 ## Graphiti derived projection and trust admission
 
@@ -213,8 +221,8 @@ The complete digest-bound edge inventory must have no retirement or invalid sour
 
 The projection attempt/source-binding/validation ledger is substantially source-neutral and should be preserved. The current projection-plan input and reference-time reconstruction are repository-shaped; Task 4 will generalize those inputs only as required for generic governed SR-2 sources and will qualify mixed-source projection without weakening existing validation. New TEXT generations continue to make earlier graph attempts ineligible unless a future cross-generation reuse contract is separately proven and qualified.
 
-This kernel path is implemented and has bounded host acceptance. The public HTTP retrieval route remains lexical. Neither direct database access nor raw Graphiti access is an accepted substitute for the future governed graph consumer interface.
+This kernel path is implemented and has bounded host acceptance. The public/front-door consumer routes remain lexical/canonical in Task 3. Neither direct database access nor raw Graphiti access is an accepted substitute for the future governed graph consumer interface.
 
 ## Contract maintenance
 
-Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2, source-neutral Task 2, or Graphiti work, and historical acceptance must not be overstated as qualification of later behavior.
+Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2, source-neutral Task 2, Task 3 read-surface, or Graphiti work, and historical acceptance must not be overstated as qualification of later behavior.

@@ -17,6 +17,15 @@ class RetrievalLifecycleState(StrEnum):
     SUPERSEDED = "superseded"
 
 
+class TextReadinessState(StrEnum):
+    EMPTY = "empty"
+    READY = "ready"
+
+
+class KnowledgeSourceUnavailableError(LookupError):
+    """The requested canonical source is not available through the current read surface."""
+
+
 @dataclass(frozen=True)
 class TextIndexSource:
     resource_version_ref: UUID
@@ -123,3 +132,37 @@ class RetrievalSearchSnapshot:
     structural_profile_digest: str | None = None
     projection_profile_id: str | None = None
     projection_profile_digest: str | None = None
+
+
+@dataclass(frozen=True)
+class CurrentSourceSnapshot:
+    """Exact full canonical text source reachable from the current TEXT generation."""
+
+    generation_id: UUID
+    source_revision_highwater: int
+    retrieval_mode: str
+    lineage_mode: str
+    evidence_contract_version: str
+    generation_config_digest: str | None
+    resource_ref: UUID
+    resource_version_ref: UUID
+    content_digest_algo: str
+    content_digest: str
+    byte_size: int
+    media_type: str | None
+    content: str
+
+
+@dataclass(frozen=True)
+class RetrievalStatusSnapshot:
+    """Bounded Usable V1 status without storage/backend implementation details."""
+
+    canonical_revision: int
+    text_state: TextReadinessState
+    text_generation_id: UUID | None
+    text_source_revision_highwater: int | None
+    text_source_count: int
+    retrieval_mode: str | None
+    lineage_mode: str | None
+    evidence_contract_version: str
+    generation_config_digest: str | None
