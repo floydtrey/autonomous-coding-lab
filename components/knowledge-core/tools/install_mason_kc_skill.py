@@ -5,6 +5,7 @@ from getpass import getpass
 import json
 import os
 from pathlib import Path
+import shutil
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
@@ -12,6 +13,7 @@ from urllib.request import Request, urlopen
 
 _SKILL_LABEL = "knowledge-core"
 _SKILL_DISPLAY_NAME = "Knowledge Core"
+_PROJECT_BRIDGE_RELATIVE = Path("knowledge-core-tools") / "mason_kc_bridge.py"
 
 
 def _require_loopback_url(value: str, *, name: str) -> str:
@@ -61,7 +63,45 @@ def _request_json(method: str, url: str, payload: dict | None = None):
     return json.loads(raw) if raw else {}
 
 
-def _register_skill(cowork_url: str, instructions: str) -> dict:
+def _normalized_path(value: str | Path) -> str:
+    path = Path(value).expanduser()
+    try:
+        path = path.resolve()
+    except OSError:
+        path = path.absolute()
+    return os.path.normcase(os.path.normpath(str(path)))
+
+
+def _resolve_cowork_project_name(cowork_url: str, project_dir: Path) -> str:
+    projects = _request_json("GET", f"{cowork_url}/api/v1/projects/")
+    if not isinstance(projects, list):
+        raise SystemExit("Cowork returned an invalid project list")
+
+    expected = _normalized_path(project_dir)
+    for project in projects:
+        if not isinstance(project, dict) or not project.get("path"):
+            continue
+        if _normalized_path(str(project["path"])) != expected:
+            continue
+        name = str(project.get("name") or "").strip()
+        if not name:
+            raise SystemExit("Cowork project matched the folder but has no project name")
+        return name
+
+    raise SystemExit(
+        "Cowork has not registered the requested project folder. Open/adopt the "
+        f"project in Cowork first: {project_dir}"
+    )
+
+
+def _install_project_bridge(project_dir: Path, source_bridge: Path) -> Path:
+    target = project_dir / _PROJECT_BRIDGE_RELATIVE
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source_bridge, target)
+    return target
+
+
+def _register_skill(cowork_url: str, instructions: str, project_name: str) -> dict:
     collection_url = f"{cowork_url}/api/v1/skills/"
     skills = _request_json("GET", collection_url)
     if isinstance(skills, dict):
@@ -78,11 +118,21 @@ def _register_skill(cowork_url: str, instructions: str) -> dict:
                 existing = item
                 break
 
+    project_names: set[str] = {project_name}
+    if existing and isinstance(existing.get("projects"), list):
+        project_names.update(
+            str(value).strip()
+            for value in existing["projects"]
+            if str(value).strip()
+        )
+
     payload = {
         "label": _SKILL_LABEL,
         "name": _SKILL_DISPLAY_NAME,
         "description": "Retrieve and store governed durable project knowledge through local Knowledge Core.",
         "instructions": instructions,
+        "enabled": True,
+        "projects": sorted(project_names),
     }
     if existing and existing.get("id"):
         return _request_json(
@@ -114,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"project directory does not exist: {project_dir}")
     cowork_url = _require_loopback_url(args.cowork_url, name="Cowork URL")
     kc_url = _require_loopback_url(args.knowledge_core_url, name="Knowledge Core URL")
+    project_name = _resolve_cowork_project_name(cowork_url, project_dir)
 
     key = os.environ.get("KNOWLEDGE_CORE_BOOTSTRAP_KEY", "")
     if not key:
@@ -131,24 +182,29 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     tool_dir = Path(__file__).resolve().parent
-    bridge_path = (tool_dir / "mason_kc_bridge.py").resolve()
+    source_bridge = (tool_dir / "mason_kc_bridge.py").resolve()
+    bridge_path = _install_project_bridge(project_dir, source_bridge)
+
     template_path = (
         tool_dir.parent / "integrations" / "mindshub" / "KNOWLEDGE_CORE_SKILL.md"
     ).resolve()
+    relative_bridge = _PROJECT_BRIDGE_RELATIVE.as_posix()
     instructions = template_path.read_text(encoding="utf-8").replace(
-        "{{BRIDGE_PATH}}", str(bridge_path)
+        "{{BRIDGE_PATH}}", relative_bridge
     )
-    skill = _register_skill(cowork_url, instructions)
+    skill = _register_skill(cowork_url, instructions, project_name)
 
     print(
         json.dumps(
             {
                 "status": "configured",
                 "project_dir": str(project_dir),
+                "cowork_project_name": project_name,
                 "workspace_env": str(env_path),
                 "knowledge_core_url": kc_url,
                 "cowork_url": cowork_url,
                 "bridge_path": str(bridge_path),
+                "bridge_relative_path": relative_bridge,
                 "skill": skill,
                 "restart_required": True,
             },
