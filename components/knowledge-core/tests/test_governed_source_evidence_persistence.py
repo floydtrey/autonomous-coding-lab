@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from hashlib import sha1
 import os
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from sqlalchemy import func, inspect, select
@@ -31,6 +31,7 @@ from knowledge_core.domain.governed_sources import (
 from knowledge_core.domain.repository_import import RepositorySourceProof
 from knowledge_core.domain.retrieval import RetrievalLifecycleState
 from knowledge_core.storage.database import create_database_engine, create_session_factory
+from knowledge_core.storage.generation_models import DerivedGeneration
 from knowledge_core.storage.governed_source_models import (
     GovernedRetrievalSnapshotRecord,
     GovernedSnapshotExclusionRecord,
@@ -173,6 +174,15 @@ def _apply(kernel: RepositoryImportKnowledgeKernel, manifest: dict):
         expected_plan_digest=plan.plan_digest,
     )
     return receipt
+
+
+def _current_text_generation_id(session) -> UUID | None:
+    return session.scalar(
+        select(DerivedGeneration.generation_id).where(
+            DerivedGeneration.derived_kind == DerivedKind.TEXT.value,
+            DerivedGeneration.status == "current",
+        )
+    )
 
 
 @pytest.mark.postgresql
@@ -345,7 +355,7 @@ def test_settled_repository_chain_maps_deterministically_without_changing_servin
         ),
     )
 
-    current_before = repository.current_generation(derived_kind=DerivedKind.TEXT)
+    current_before = _current_text_generation_id(session)
     assert current_before is not None
     legacy_alpha_before = session.get(
         RepositorySourceObservation,
@@ -372,9 +382,9 @@ def test_settled_repository_chain_maps_deterministically_without_changing_servin
     assert len(snapshot_b.exclusions) == 1
     assert snapshot_b.predecessor_snapshot_digest is not None
 
-    current_after = repository.current_generation(derived_kind=DerivedKind.TEXT)
+    current_after = _current_text_generation_id(session)
     assert current_after is not None
-    assert current_after.generation_id == current_before.generation_id
+    assert current_after == current_before
 
     legacy_alpha_after = session.get(
         RepositorySourceObservation,
@@ -514,5 +524,10 @@ def test_unsettled_repository_receipt_cannot_map_into_generic_snapshot(
         mapper.map_settled_repository_receipt(manifest_digest)
 
     assert session.get(LegacyRepositorySnapshotMap, manifest_digest) is None
-    assert session.scalar(select(func.count()).select_from(GovernedRetrievalSnapshotRecord)) == 0
+    assert (
+        session.scalar(
+            select(func.count()).select_from(GovernedRetrievalSnapshotRecord)
+        )
+        == 0
+    )
     session.close()
