@@ -10,6 +10,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from knowledge_core.api.app import create_app
+from knowledge_core.application.governed_snapshot_selection import (
+    resolve_governed_snapshot_sources,
+)
 from knowledge_core.application.governed_source_selection import (
     resolve_governed_projection_sources,
 )
@@ -18,7 +21,9 @@ from knowledge_core.application.repository_source import GitRepositorySourceRead
 from knowledge_core.application.section_generation import (
     SR2_SEGMENT_MODEL_IDENTITY,
     SR2_SEGMENT_MODEL_VERSION,
-    segment_generation_config_digest,
+)
+from knowledge_core.application.section_generation_v2 import (
+    source_neutral_segment_generation_config_digest,
 )
 from knowledge_core.application.section_repository_import import (
     SectionRepositoryImportKnowledgeKernel,
@@ -31,6 +36,7 @@ from knowledge_core.artifacts.store import LocalArtifactStore
 from knowledge_core.domain.generations import DerivedKind
 from knowledge_core.storage.database import create_database_engine, create_session_factory
 from knowledge_core.storage.generation_models import DerivedGeneration
+from knowledge_core.storage.governed_source_models import LegacyRepositorySnapshotMap
 from knowledge_core.storage.repository_import_models import (
     RepositoryDocumentBinding,
     RepositoryImportReceipt,
@@ -176,7 +182,7 @@ def _snapshot(
         expected_projection = RetrievalProjectionProfile(
             structural_profile_digest=DEFAULT_SECTION_SEGMENTATION_PROFILE.digest
         )
-        expected_config_digest = segment_generation_config_digest()
+        expected_config_digest = source_neutral_segment_generation_config_digest()
         expected_profile = {
             "structural_profile_id": DEFAULT_SECTION_SEGMENTATION_PROFILE.profile_id,
             "structural_profile_digest": DEFAULT_SECTION_SEGMENTATION_PROFILE.digest,
@@ -192,7 +198,9 @@ def _snapshot(
             "generation_config_digest": profile.generation_config_digest,
         }
         if actual_profile != expected_profile:
-            raise AssertionError("current SR-2 generation profile identity is not the accepted default")
+            raise AssertionError(
+                "current SR-2 generation profile identity is not the source-neutral default"
+            )
         if current.config_digest != expected_config_digest:
             raise AssertionError("current SR-2 generation config digest is not recoverable")
 
@@ -208,6 +216,26 @@ def _snapshot(
         }
         if set(selected_by_key) != set(manifest_by_key):
             raise AssertionError("governed SR-2 source selection differs from pinned manifest")
+
+        snapshot_map = session.get(LegacyRepositorySnapshotMap, manifest_digest)
+        if snapshot_map is None:
+            raise AssertionError(
+                "current repository generation is missing its governed snapshot mapping"
+            )
+        generic_selected = resolve_governed_snapshot_sources(
+            session,
+            governing_snapshot_digest=snapshot_map.snapshot_digest,
+        )
+        generic_by_version = {
+            source.observation.resource_version_ref: source
+            for source in generic_selected
+        }
+        if set(generic_by_version) != {
+            source.observation.resource_version_ref for source in selected
+        }:
+            raise AssertionError(
+                "source-neutral SR-2 selection differs from repository compatibility selection"
+            )
 
         provenance = []
         total_segments = 0
@@ -250,6 +278,26 @@ def _snapshot(
             if lineage.projection_snapshot_digest != source.projection_snapshot_digest:
                 raise AssertionError("SR-2 lineage projection digest is not reproducible")
 
+            generic_source = generic_by_version.get(observation.resource_version_ref)
+            if generic_source is None:
+                raise AssertionError("SR-2 lineage lost source-neutral governed selection")
+            if lineage.governed_observation_id != generic_source.observation.observation_id:
+                raise AssertionError(
+                    "SR-2 lineage does not bind the exact generic governed observation"
+                )
+            if lineage.governed_decision_id != generic_source.decision.decision_id:
+                raise AssertionError(
+                    "SR-2 lineage does not bind the exact generic governance decision"
+                )
+            if lineage.governing_snapshot_digest != snapshot_map.snapshot_digest:
+                raise AssertionError(
+                    "SR-2 lineage does not bind the complete governed snapshot"
+                )
+            if lineage.governed_projection_digest != generic_source.projection_digest:
+                raise AssertionError(
+                    "SR-2 generic projection digest is not reproducible"
+                )
+
             rows = session.scalars(
                 select(ResourceSegmentTextSearch)
                 .where(
@@ -291,6 +339,10 @@ def _snapshot(
                     "artifact_verified": True,
                     "governing_manifest_digest": lineage.governing_manifest_digest,
                     "projection_snapshot_digest": lineage.projection_snapshot_digest,
+                    "governed_observation_id": str(lineage.governed_observation_id),
+                    "governed_decision_id": str(lineage.governed_decision_id),
+                    "governing_snapshot_digest": lineage.governing_snapshot_digest,
+                    "governed_projection_digest": lineage.governed_projection_digest,
                     "segment_count": len(rows),
                     "segments": [_structural_row_snapshot(row) for row in rows],
                 }
@@ -320,6 +372,7 @@ def _snapshot(
                 "model_version": current.model_version,
                 "config_digest": current.config_digest,
                 "profile": actual_profile,
+                "governing_snapshot_digest": snapshot_map.snapshot_digest,
             },
             "provenance": provenance,
         }
