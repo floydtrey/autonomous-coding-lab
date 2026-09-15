@@ -156,7 +156,11 @@ def test_ri3_persistent_operational_import_survives_process_restart_and_replay(
         assert initial_snapshot["counts"]["observations"] == 3
         assert initial_snapshot["counts"]["resources"] == 3
         assert initial_snapshot["counts"]["resource_versions"] == 3
-        assert initial_snapshot["counts"]["search_rows"] == 3
+        # `search_rows` is the historical RF-2 ResourceTextSearch table count.
+        # The live repository API now publishes SR-2, so RI-3 restart/replay must
+        # prove serving and canonical persistence without requiring that obsolete
+        # derived storage shape. The original RI-3 acceptance remains preserved at
+        # its historical checkpoint.
         assert len(initial_snapshot["provenance"]) == 3
         for row in initial_snapshot["provenance"]:
             expected = _EXPECTED_PATHS[row["path"]]
