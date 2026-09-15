@@ -135,9 +135,12 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
         content_digest = sha256(content_bytes).hexdigest()
 
         # The accepted resource semantic profile predates Usable V1 and is reused
-        # here deliberately. Bootstrap it outside the idempotent store operation so
-        # profile setup is not conflated with user evidence identity.
-        foundation = ResourceKnowledgeKernel.bootstrap_resource_test_profile(self)
+        # deliberately. Bootstrap it outside the user operation so profile setup is
+        # not conflated with direct-note idempotency or source identity.
+        foundation = ResourceKnowledgeKernel(
+            self.session,
+            artifact_store=self.artifact_store,
+        ).bootstrap_resource_test_profile()
         observation_id = uuid5(
             _DIRECT_NOTE_OBSERVATION_NAMESPACE,
             f"{caller_principal_ref}:{operation_id}",
