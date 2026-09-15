@@ -154,3 +154,10 @@ def test_skill_template_never_contains_a_secret_and_names_only_kc_operations():
         assert operation in text
     assert "graphiti_sync" not in text
     assert "sql_query" not in text
+
+
+def test_installer_does_not_assume_legacy_fixed_cowork_port():
+    path = Path(__file__).resolve().parents[1] / "tools" / "install_mason_kc_skill.py"
+    text = path.read_text(encoding="utf-8")
+    assert 'default="http://127.0.0.1:26866"' not in text
+    assert '"--cowork-url",\n        required=True' in text
