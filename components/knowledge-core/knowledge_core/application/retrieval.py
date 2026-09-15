@@ -7,6 +7,10 @@ from uuid import UUID
 from sqlalchemy import and_, case, delete, func, insert, literal_column, or_, select
 
 from knowledge_core.application.generations import GenerationKnowledgeKernel
+from knowledge_core.application.governed_snapshot_selection import (
+    GovernedSnapshotProjectionSource,
+    resolve_governed_snapshot_sources,
+)
 from knowledge_core.application.resource_service import ResourceServiceKnowledgeKernel
 from knowledge_core.application.section_generation import (
     SR2_SEGMENT_MODEL_IDENTITY,
@@ -15,6 +19,8 @@ from knowledge_core.application.section_generation import (
 from knowledge_core.domain.assertions import KnowledgeInvariantError
 from knowledge_core.domain.generations import DerivedKind, GenerationSnapshot
 from knowledge_core.domain.retrieval import (
+    LEGACY_REPOSITORY_SR2_PROVENANCE_VERSION,
+    SOURCE_NEUTRAL_SR2_PROVENANCE_VERSION,
     RetrievalHit,
     RetrievalLifecycleState,
     RetrievalSearchSnapshot,
@@ -368,6 +374,313 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
             generation_config_digest=current.config_digest,
         )
 
+    def _resolve_sr2_lineage(
+        self,
+        *,
+        current: GenerationSnapshot,
+    ) -> tuple[str, dict[UUID, GovernedSnapshotProjectionSource]]:
+        """Validate the whole current SR-2 source set before serving any result."""
+
+        rows = tuple(
+            self.session.scalars(
+                select(TextGenerationSource).where(
+                    TextGenerationSource.generation_id == current.generation_id
+                )
+            ).all()
+        )
+        if not rows:
+            segment_count = self.session.scalar(
+                select(func.count()).select_from(ResourceSegmentTextSearch).where(
+                    ResourceSegmentTextSearch.generation_id == current.generation_id
+                )
+            )
+            if int(segment_count or 0) != 0:
+                raise KnowledgeInvariantError(
+                    "current SR-2 generation has segments without source lineage"
+                )
+            return "source-neutral", {}
+
+        generic_fields = (
+            "governed_observation_id",
+            "governed_decision_id",
+            "governing_snapshot_digest",
+            "governed_projection_digest",
+        )
+        complete_generic = [
+            all(getattr(row, field) is not None for field in generic_fields)
+            for row in rows
+        ]
+        any_generic = any(
+            getattr(row, field) is not None
+            for row in rows
+            for field in generic_fields
+        )
+
+        if all(complete_generic):
+            snapshot_digests = {row.governing_snapshot_digest for row in rows}
+            if len(snapshot_digests) != 1:
+                raise KnowledgeInvariantError(
+                    "current SR-2 generation references multiple governed snapshots"
+                )
+            snapshot_digest = next(iter(snapshot_digests))
+            if snapshot_digest is None:
+                raise KnowledgeInvariantError(
+                    "current SR-2 generation lost its governed snapshot identity"
+                )
+            sources = resolve_governed_snapshot_sources(
+                self.session,
+                governing_snapshot_digest=snapshot_digest,
+            )
+            by_version = {
+                source.member.resource_version_ref: source for source in sources
+            }
+            row_refs = {row.resource_version_ref for row in rows}
+            if len(by_version) != len(sources) or set(by_version) != row_refs:
+                raise KnowledgeInvariantError(
+                    "current SR-2 generation source set does not match governed snapshot"
+                )
+            generation_refs = {item.source_ref for item in current.sources}
+            if generation_refs != row_refs:
+                raise KnowledgeInvariantError(
+                    "current SR-2 canonical generation-source set does not match governed lineage"
+                )
+
+            for row in rows:
+                source = by_version[row.resource_version_ref]
+                compat = source.repository_compatibility
+                expected = {
+                    "governed_observation_id": source.observation.observation_id,
+                    "governed_decision_id": source.decision.decision_id,
+                    "governing_snapshot_digest": source.snapshot_digest,
+                    "governed_projection_digest": source.projection_digest,
+                    "source_observation_id": (
+                        compat.legacy_observation_id if compat is not None else None
+                    ),
+                    "governing_manifest_digest": (
+                        compat.governing_manifest_digest if compat is not None else None
+                    ),
+                    "projection_snapshot_digest": (
+                        compat.projection_snapshot_digest if compat is not None else None
+                    ),
+                }
+                for field, value in expected.items():
+                    if getattr(row, field) != value:
+                        raise KnowledgeInvariantError(
+                            f"current SR-2 governed lineage mismatch: {field}"
+                        )
+                version = self.session.get(ResourceVersion, row.resource_version_ref)
+                if (
+                    version is None
+                    or version.resource_ref_id != source.member.resource_ref
+                    or source.observation.resource_version_ref != version.ref_id
+                ):
+                    raise KnowledgeInvariantError(
+                        "current SR-2 governed source no longer matches canonical ResourceVersion"
+                    )
+            return "source-neutral", by_version
+
+        if any_generic:
+            raise KnowledgeInvariantError(
+                "current SR-2 generation has partial or mixed source-neutral lineage"
+            )
+
+        legacy_fields = (
+            "source_observation_id",
+            "governing_manifest_digest",
+            "projection_snapshot_digest",
+        )
+        for row in rows:
+            if any(getattr(row, field) is None for field in legacy_fields):
+                raise KnowledgeInvariantError(
+                    "historical SR-2 generation has incomplete repository lineage"
+                )
+        return "legacy-repository", {}
+
+    @staticmethod
+    def _validate_generic_segment_source(
+        *,
+        search_row: ResourceSegmentTextSearch,
+        source: GovernedSnapshotProjectionSource,
+    ) -> None:
+        decision = source.decision
+        compat = source.repository_compatibility
+        expected = {
+            "authority_rank": decision.authority_rank,
+            "parent_lifecycle_state": decision.retrieval_lifecycle.value,
+            "repository": compat.repository_locator if compat is not None else None,
+            "source_repository_key": (
+                compat.source_repository_key if compat is not None else None
+            ),
+            "source_document_key": (
+                compat.source_document_key if compat is not None else None
+            ),
+            "source_path": compat.source_path if compat is not None else None,
+            "source_version": compat.source_version if compat is not None else None,
+        }
+        for field, value in expected.items():
+            if getattr(search_row, field) != value:
+                raise KnowledgeInvariantError(
+                    f"current SR-2 segment/source evidence mismatch: {field}"
+                )
+
+    def _generic_segment_provenance(
+        self,
+        *,
+        search_row: ResourceSegmentTextSearch,
+        source: GovernedSnapshotProjectionSource,
+        effective: RetrievalLifecycleState,
+    ) -> SegmentRetrievalProvenance:
+        observation = source.observation
+        decision = source.decision
+        identity = observation.binding.source_identity
+        compat = source.repository_compatibility
+        return SegmentRetrievalProvenance(
+            provenance_contract_version=SOURCE_NEUTRAL_SR2_PROVENANCE_VERSION,
+            governed_observation_id=observation.observation_id,
+            source_classification=decision.classification,
+            segment_key=search_row.segment_key,
+            segment_ordinal=int(search_row.segment_ordinal),
+            structural_kind=search_row.structural_kind,
+            base_block_ordinal=int(search_row.base_block_ordinal),
+            part_index=int(search_row.part_index),
+            part_count=int(search_row.part_count),
+            source_byte_start=int(search_row.source_byte_start),
+            source_byte_end=int(search_row.source_byte_end),
+            source_line_start=int(search_row.source_line_start),
+            source_line_end=int(search_row.source_line_end),
+            source_slice_sha256=search_row.source_slice_sha256,
+            heading_path=tuple(search_row.heading_path),
+            parent_lifecycle_state=RetrievalLifecycleState(
+                search_row.parent_lifecycle_state
+            ),
+            declared_lifecycle_state=(
+                RetrievalLifecycleState(search_row.declared_lifecycle_state)
+                if search_row.declared_lifecycle_state is not None
+                else None
+            ),
+            declaration_source_line=(
+                int(search_row.declaration_source_line)
+                if search_row.declaration_source_line is not None
+                else None
+            ),
+            declaration_byte_start=(
+                int(search_row.declaration_byte_start)
+                if search_row.declaration_byte_start is not None
+                else None
+            ),
+            declaration_byte_end=(
+                int(search_row.declaration_byte_end)
+                if search_row.declaration_byte_end is not None
+                else None
+            ),
+            effective_lifecycle_state=effective,
+            effective_control_provenance=tuple(
+                search_row.effective_control_provenance
+            ),
+            governed_observation_digest=observation.digest,
+            governed_decision_id=decision.decision_id,
+            governed_decision_digest=decision.digest,
+            governing_snapshot_digest=source.snapshot_digest,
+            governed_projection_digest=source.projection_digest,
+            source_identity_digest=identity.digest,
+            source_kind=identity.source_kind,
+            origin_scope=identity.origin_scope,
+            collection_key=identity.collection_key,
+            item_key=identity.item_key,
+            project_keys=source.member.project_keys,
+            producer_id=observation.producer_id,
+            producer_version=observation.producer_version,
+            source_observed_at=observation.observed_at,
+            source_event_time=observation.source_event_time,
+            source_revision_time=observation.source_revision_time,
+            governance_policy_id=decision.policy_id,
+            governance_rationale=decision.rationale,
+            governance_decided_at=decision.decided_at,
+            legacy_repository_observation_id=(
+                compat.legacy_observation_id if compat is not None else None
+            ),
+            governing_manifest_digest=(
+                compat.governing_manifest_digest if compat is not None else None
+            ),
+            projection_snapshot_digest=(
+                compat.projection_snapshot_digest if compat is not None else None
+            ),
+            source_repository_key=(
+                compat.source_repository_key if compat is not None else None
+            ),
+            source_document_key=(
+                compat.source_document_key if compat is not None else None
+            ),
+        )
+
+    @staticmethod
+    def _legacy_segment_provenance(
+        *,
+        search_row: ResourceSegmentTextSearch,
+        lineage: TextGenerationSource,
+        observation: RepositorySourceObservation,
+        effective: RetrievalLifecycleState,
+    ) -> SegmentRetrievalProvenance:
+        if (
+            lineage.source_observation_id != observation.observation_id
+            or lineage.governing_manifest_digest != observation.manifest_digest
+            or observation.resource_version_ref != search_row.resource_version_ref
+            or observation.source_repository_key != search_row.source_repository_key
+            or observation.source_document_key != search_row.source_document_key
+        ):
+            raise KnowledgeInvariantError(
+                "historical SR-2 repository lineage no longer matches segment evidence"
+            )
+        return SegmentRetrievalProvenance(
+            provenance_contract_version=LEGACY_REPOSITORY_SR2_PROVENANCE_VERSION,
+            governed_observation_id=observation.observation_id,
+            source_classification=observation.classification,
+            segment_key=search_row.segment_key,
+            segment_ordinal=int(search_row.segment_ordinal),
+            structural_kind=search_row.structural_kind,
+            base_block_ordinal=int(search_row.base_block_ordinal),
+            part_index=int(search_row.part_index),
+            part_count=int(search_row.part_count),
+            source_byte_start=int(search_row.source_byte_start),
+            source_byte_end=int(search_row.source_byte_end),
+            source_line_start=int(search_row.source_line_start),
+            source_line_end=int(search_row.source_line_end),
+            source_slice_sha256=search_row.source_slice_sha256,
+            heading_path=tuple(search_row.heading_path),
+            parent_lifecycle_state=RetrievalLifecycleState(
+                search_row.parent_lifecycle_state
+            ),
+            declared_lifecycle_state=(
+                RetrievalLifecycleState(search_row.declared_lifecycle_state)
+                if search_row.declared_lifecycle_state is not None
+                else None
+            ),
+            declaration_source_line=(
+                int(search_row.declaration_source_line)
+                if search_row.declaration_source_line is not None
+                else None
+            ),
+            declaration_byte_start=(
+                int(search_row.declaration_byte_start)
+                if search_row.declaration_byte_start is not None
+                else None
+            ),
+            declaration_byte_end=(
+                int(search_row.declaration_byte_end)
+                if search_row.declaration_byte_end is not None
+                else None
+            ),
+            effective_lifecycle_state=effective,
+            effective_control_provenance=tuple(
+                search_row.effective_control_provenance
+            ),
+            legacy_repository_observation_id=observation.observation_id,
+            governing_manifest_digest=lineage.governing_manifest_digest,
+            projection_snapshot_digest=lineage.projection_snapshot_digest,
+            source_repository_key=search_row.source_repository_key,
+            source_document_key=search_row.source_document_key,
+        )
+
     def _search_segment_text(
         self,
         *,
@@ -386,6 +699,8 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 "current SR-2 generation config/profile identity mismatch"
             )
 
+        lineage_mode, generic_sources = self._resolve_sr2_lineage(current=current)
+
         tsquery = func.websearch_to_tsquery(_ENGLISH_REGCONFIG, query)
         lexical_score = func.ts_rank_cd(
             ResourceSegmentTextSearch.search_vector,
@@ -402,7 +717,6 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 ResourceSegmentTextSearch,
                 ResourceVersion,
                 TextGenerationSource,
-                RepositorySourceObservation,
                 lexical_score,
             )
             .join(
@@ -418,11 +732,6 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
                     TextGenerationSource.resource_version_ref
                     == ResourceSegmentTextSearch.resource_version_ref,
                 ),
-            )
-            .join(
-                RepositorySourceObservation,
-                RepositorySourceObservation.observation_id
-                == TextGenerationSource.source_observation_id,
             )
             .where(
                 ResourceSegmentTextSearch.generation_id == current.generation_id,
@@ -446,9 +755,7 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
 
         hits: list[RetrievalHit] = []
         artifact_cache: dict[UUID, bytes] = {}
-        for search_row, version, lineage, observation, score in self.session.execute(
-            statement
-        ):
+        for search_row, version, lineage, score in self.session.execute(statement):
             # The privacy/access fence is authoritative even if stale segment rows
             # survive or are maliciously reintroduced after eager reconciliation.
             if not self.resource_version_serving_eligible(version.ref_id):
@@ -461,53 +768,44 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
             effective = RetrievalLifecycleState(
                 search_row.effective_lifecycle_state
             )
-            segment = SegmentRetrievalProvenance(
-                governed_observation_id=lineage.source_observation_id,
-                governing_manifest_digest=lineage.governing_manifest_digest,
-                projection_snapshot_digest=lineage.projection_snapshot_digest,
-                source_repository_key=search_row.source_repository_key,
-                source_document_key=search_row.source_document_key,
-                source_classification=observation.classification,
-                segment_key=search_row.segment_key,
-                segment_ordinal=int(search_row.segment_ordinal),
-                structural_kind=search_row.structural_kind,
-                base_block_ordinal=int(search_row.base_block_ordinal),
-                part_index=int(search_row.part_index),
-                part_count=int(search_row.part_count),
-                source_byte_start=int(search_row.source_byte_start),
-                source_byte_end=int(search_row.source_byte_end),
-                source_line_start=int(search_row.source_line_start),
-                source_line_end=int(search_row.source_line_end),
-                source_slice_sha256=search_row.source_slice_sha256,
-                heading_path=tuple(search_row.heading_path),
-                parent_lifecycle_state=RetrievalLifecycleState(
-                    search_row.parent_lifecycle_state
-                ),
-                declared_lifecycle_state=(
-                    RetrievalLifecycleState(search_row.declared_lifecycle_state)
-                    if search_row.declared_lifecycle_state is not None
-                    else None
-                ),
-                declaration_source_line=(
-                    int(search_row.declaration_source_line)
-                    if search_row.declaration_source_line is not None
-                    else None
-                ),
-                declaration_byte_start=(
-                    int(search_row.declaration_byte_start)
-                    if search_row.declaration_byte_start is not None
-                    else None
-                ),
-                declaration_byte_end=(
-                    int(search_row.declaration_byte_end)
-                    if search_row.declaration_byte_end is not None
-                    else None
-                ),
-                effective_lifecycle_state=effective,
-                effective_control_provenance=tuple(
-                    search_row.effective_control_provenance
-                ),
-            )
+
+            if lineage_mode == "source-neutral":
+                source = generic_sources.get(version.ref_id)
+                if source is None:
+                    raise KnowledgeInvariantError(
+                        "current SR-2 segment has no governed snapshot source"
+                    )
+                self._validate_generic_segment_source(
+                    search_row=search_row,
+                    source=source,
+                )
+                segment = self._generic_segment_provenance(
+                    search_row=search_row,
+                    source=source,
+                    effective=effective,
+                )
+                observed_at = source.observation.observed_at
+            else:
+                if lineage.source_observation_id is None:
+                    raise KnowledgeInvariantError(
+                        "historical SR-2 segment lost repository observation lineage"
+                    )
+                observation = self.session.get(
+                    RepositorySourceObservation,
+                    lineage.source_observation_id,
+                )
+                if observation is None:
+                    raise KnowledgeInvariantError(
+                        "historical SR-2 lineage references a missing repository observation"
+                    )
+                segment = self._legacy_segment_provenance(
+                    search_row=search_row,
+                    lineage=lineage,
+                    observation=observation,
+                    effective=effective,
+                )
+                observed_at = None
+
             hits.append(
                 RetrievalHit(
                     resource_ref=version.resource_ref_id,
@@ -522,7 +820,7 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
                     repository=search_row.repository,
                     source_path=search_row.source_path,
                     source_version=search_row.source_version,
-                    observed_at=None,
+                    observed_at=observed_at,
                     lexical_score=float(score),
                     content=content,
                     segment=segment,
