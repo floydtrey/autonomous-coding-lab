@@ -11,6 +11,7 @@ from knowledge_core.storage.models import Base
 from knowledge_core.storage import control_models as _control_models  # noqa: F401
 from knowledge_core.storage import deletion_models as _deletion_models  # noqa: F401
 from knowledge_core.storage import generation_models as _generation_models  # noqa: F401
+from knowledge_core.storage import governed_source_models as _governed_source_models  # noqa: F401
 from knowledge_core.storage import identity_models as _identity_models  # noqa: F401
 from knowledge_core.storage import repository_import_models as _repository_import_models  # noqa: F401
 from knowledge_core.storage import resource_models as _resource_models  # noqa: F401
