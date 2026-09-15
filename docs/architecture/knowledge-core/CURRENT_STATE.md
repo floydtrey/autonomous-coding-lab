@@ -4,7 +4,7 @@
 Branch: `architecture/knowledge-core`. Documentation consolidation baseline:
 `2678e7666fbcba50b64d8839ea0592a8d992e916`.
 Latest accepted KC Usable V1 implementation checkpoint:
-`f48200f50ee1c2652e32b56592f6ad86fe83c898`.
+`5f6cdef96c9d4fcd36db8821df9c0156148080ae`.
 
 ## Read order and authority
 
@@ -26,20 +26,21 @@ These are the only authoritative current KC documents. [legacy/](legacy/README.m
 | Governed repository import | Accepted bounded exact-object import, stable document identity, governed observations and persistence/recovery. Repository import remains a strongly verified Git producer while downstream governed evidence/publication/retrieval is source-neutral. |
 | RF-2 lexical retrieval | Accepted whole-document PostgreSQL baseline retained for historical qualification/reconstruction. A central fence prevents RF-2 from replacing an established SR-2 current TEXT generation. |
 | SR-2 segmentation/publication | Accepted KC-D025/SR-1 implementation; G1–G22 green. Task 2D made live SR-2 selection/lineage/publication consume complete source-neutral governed snapshots. |
-| SR-2 intended host | Accepted Windows/PostgreSQL restart/recovery, structural reconstruction, provenance, segment serving and replay. Current CI restart rehearsals remain green through Task 2F. |
-| KC Consumer V1 / lexical API | **Task 2F accepted.** `POST /v1/retrieval/search` serves mixed repository + direct-note SR-2 generations using `kc-lexical-evidence-v2`, validates the complete source-neutral lineage before serving, preserves explicit historical/repository compatibility, and never fabricates Git metadata for non-Git sources. |
+| SR-2 intended host | Accepted Windows/PostgreSQL restart/recovery, structural reconstruction, provenance, segment serving and replay. Current CI restart rehearsals remain green through Task 3. |
+| KC Consumer V1 / lexical API | Task 2F accepted. `POST /v1/retrieval/search` remains the Authority-first semantic search route over `kc-lexical-evidence-v2`; mixed repository + direct-note evidence is source-neutral and exact. |
 | KC Usable V1 bootstrap access | Task 1 accepted. Bind host remains configurable/default `127.0.0.1`; shared-key admission maps accepted bootstrap calls to fixed principal `local_owner`. This is replaceable bootstrap policy, not final Authority or permanent topology. |
 | Source-neutral governed-source contract | Task 2A accepted. Logical source identity, Resource/ResourceVersion identity, immutable observations, governance decisions, project membership and complete retrieval snapshots are separate. |
 | Source-neutral governed evidence persistence | Task 2B accepted behind migration `0016_governed_source_evidence.py`. |
 | Repository producer integration | Task 2C accepted. Repository import produces matching generic governed evidence and cannot be silently downgraded by the legacy RF-2 writer. |
 | Source-neutral SR-2 publication | Task 2D accepted behind migration `0017_sr2_source_neutral_lineage.py`; generic observation/decision/snapshot lineage is authoritative and repository fields are nullable compatibility provenance. |
 | Direct-note `kc_store` front door | Task 2E + 2E.1 accepted. Authenticated `user_note` submissions create exact canonical evidence, merge into the complete corpus, preserve project memberships across same-source updates, classify retryable predecessor races separately from permanent derived failures, and retain canonical data if derived publication fails. |
-| Task 2 source-neutral ingestion/read boundary | **ACCEPTED through 2F.** Direct notes and repository evidence can coexist in one current generation and are publicly searchable through exact generic provenance after reconstruction/restart. |
+| Task 2 source-neutral ingestion/read boundary | Accepted through 2F. Direct notes and repository evidence coexist in one current generation and are searchable through exact generic provenance after reconstruction/restart. |
+| **Usable V1 simple read surface** | **Task 3 accepted.** With explicit `BootstrapAdmission`, `POST /v1/kc/search`, `POST /v1/kc/get-source`, and `GET /v1/kc/status` provide shared-key local reads as `local_owner`. Search reuses the accepted Task 2 lexical evidence contract; source follow-through is limited to current-generation, serving-eligible exact ResourceVersions and revalidates immutable byte size/SHA-256; status exposes bounded canonical/text readiness without storage internals. |
 | Projection attempt and validation ledgers | Implemented durable, separate provider-attempt and independent validation evidence. Provider success alone is insufficient. |
 | Governed Graphiti backend | Accepted historical governed-document projection, immutable build isolation, lifecycle validation and trusted canonical result correlation. Its current plan input/reference-time path is still repository-shaped; mixed-source graph generalization is Task 4. |
-| Public graph consumer API | Not exposed/promoted. Trusted graph retrieval exists in the application kernel; the public retrieval route remains lexical. |
+| Public graph consumer API | Not exposed/promoted. Trusted graph retrieval exists in the application kernel; public front-door reads remain lexical. |
 | ACL consumer boundary | Governed segment evidence can enter Controller Task Packet V1 as informational context; execution remains disabled. Existing repository-shaped ACL compatibility does not redefine generic KC identity. |
-| Mason / MindsHub | Integration not implemented in this checkout. Task 5 is planned after Task 3/4. |
+| Mason / MindsHub | Integration not implemented in this checkout. Task 5 is planned after Task 4. |
 | Vera | Future consumer work. |
 
 Acceptance applies to recorded checkpoints and bounded scenarios. It is not a claim of production deployment, comprehensive answer quality, machine reboot/backup qualification, or fresh qualification of every future file. Exact records are indexed in [OPERATIONS.md](OPERATIONS.md#accepted-evidence).
@@ -61,9 +62,11 @@ This accepted graph result predates the source-neutral Task 2 changes. It remain
 
 **Usable V1 goal:** a local consumer can store governed information, retrieve it in a fresh session, inspect exact canonical source evidence, and later use validated Graphiti retrieval without direct access to PostgreSQL, the artifact store, or FalkorDB.
 
+The store/search/source/status portion of that goal is now accepted through Task 3. The remaining Usable V1 work is explicit mixed-source Graphiti synchronization/validation, then Mason tooling and dogfooding.
+
 Bootstrap choices are intentionally replaceable. The initial service address is configurable and starts at `127.0.0.1`; localhost is a deployment choice, not a permanent architecture rule. Initial access uses shared-key authentication and bootstrap principal `local_owner`. The existing Authority seam remains intact; generalized Authority is deferred until broader consumers, permissions, remote access, or a demonstrated policy problem requires it.
 
-Initial consumer operations remain:
+Accepted local consumer operations are:
 
 ```text
 kc_store
@@ -72,7 +75,7 @@ kc_get_source
 kc_status
 ```
 
-Graph maintenance is separate:
+Graph maintenance remains separate:
 
 ```text
 store -> canonical Resource/ResourceVersion -> governed text retrieval
@@ -157,41 +160,36 @@ Accepted corrections: generic snapshot policy ownership, retryable predecessor-c
 
 Implementation checkpoint `f48200f50ee1c2652e32b56592f6ad86fe83c898`; full Knowledge Core workflow [Actions 34936164155](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34936164155) green.
 
+Accepted: `kc-lexical-evidence-v2`, `governed-source-sr2-v2`, mixed repository+note search, exact generic provenance, explicit repository compatibility, complete-generation lineage validation before serving, artifact/slice/eligibility rechecks, restriction dominance, lineage-tamper fail-closed behavior, and concurrent store convergence. Historical pre-2D SR-2 retains explicit repository evidence semantics.
+
+### Task 3 — simple read surface — ACCEPTED
+
+Implementation checkpoint `5f6cdef96c9d4fcd36db8821df9c0156148080ae`; full Knowledge Core workflow [Actions 34937735966](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34937735966) green on the unchanged rerun after one transient RI-4 host-harness migration startup failure.
+
 Implemented and qualified:
 
-- `RetrievalSearchSnapshot` / public response explicitly advertises `evidence_contract_version="kc-lexical-evidence-v2"`;
-- current V2 SR-2 results use `provenance_contract_version="governed-source-sr2-v2"` and expose generic source identity, generic observation and digest, governance decision and digest, governing snapshot, projection digest, projects, producer metadata, source times, governance policy/rationale/time and exact segment geometry/lifecycle;
-- non-Git notes return null repository/path/version/manifest compatibility fields; no repository evidence is fabricated;
-- repository results preserve exact compatibility fields and accepted G22 behavior. `governed_observation_id` remains the legacy repository-observation compatibility alias where applicable, while `governed_source_observation_id` exposes the true generic observation ID;
-- historical pre-2D SR-2 retains explicit repository provenance mode rather than being relabeled V2;
-- the reader validates the complete current V2 source set against the governing generic snapshot, TextGenerationSource rows, canonical generation sources and ResourceVersions before serving any matching result; partial/mixed/tampered lineage fails closed;
-- served content is reconstructed from exact canonical artifact byte ranges and slice SHA-256 and parent Resource/ResourceVersion eligibility is rechecked at serve time;
-- public mixed repository + direct-note search works from the same accepted current generation and still works after application/session reconstruction;
-- direct-note restriction remains dominant: restricted note results disappear while unrelated repository results remain serving;
-- focused tamper testing proves a modified generic projection digest is rejected before serving;
-- deterministic concurrent public `kc_store` qualification forces two writers against the same predecessor: one publishes, one reports retryable `pending`, exact replay of the loser retains canonical Resource/Version identity, then publishes a complete generation containing both notes;
-- existing 2E/2E.1 tests continue to cover changed-idempotency-key rejection, canonical durability on publication failure and retry recovery;
-- migrations, fast suite, PostgreSQL suite, pinned G22, RI-4 restart rehearsal and full SR-2 restart/replay rehearsal all pass.
+- with explicit `BootstrapAdmission`, `POST /v1/kc/search`, `POST /v1/kc/get-source`, and `GET /v1/kc/status` are exposed; without bootstrap admission they are absent;
+- all three require `X-Knowledge-Key` and use their existing Task 1 operation classes, mapping successful admission to fixed principal `local_owner`;
+- `kc_search` reuses the accepted Task 2 lexical reader and `kc-lexical-evidence-v2`; it does not create a second search/index path. If the trusted host also supplies the separate retrieval Authority evaluator, that evaluator remains an additional fail-closed policy layer for bootstrap search;
+- `kc_get_source` accepts a ResourceVersion reference returned by search and only serves it when it belongs to the current TEXT generation and remains serving-eligible. It revalidates the current SR-2 contract, reads the exact immutable artifact, checks byte size and SHA-256, requires strict UTF-8, and exposes no artifact path/backend or database internals;
+- unknown, non-current, or restricted source requests return nondisclosing 404 rather than becoming a UUID-based bypass around serving fences;
+- `kc_status` reports bounded canonical/text readiness (`empty` or `ready`), current text generation/highwater/source count, retrieval mode, lineage mode, evidence-contract version and generation-config digest without claiming graph readiness or exposing storage credentials;
+- operation scoping is enforced independently: a bootstrap contract admitting only `kc.status` receives 403 for search/source and 200 for status;
+- the usability milestone is achieved in qualification: store `Mason is my local MindsHub worker model`, reconstruct the application/client boundary, ask `What is Mason?` through `kc_search`, receive the fact with exact generic provenance, then follow its ResourceVersion through `kc_get_source` and verify exact content/SHA-256;
+- privacy restriction remains dominant across both `kc_search` and `kc_get_source` after application reconstruction;
+- migrations, fast suite, PostgreSQL suite including focused Task 3 tests, pinned G22, RI-4 restart rehearsal, and SR-2 restart/replay rehearsal pass. The first workflow attempt reached RI-4 after all prior gates passed but its isolated temporary-host `alembic upgrade head` subprocess exited before the harness surfaced stderr; rerunning the identical job without code changes passed RI-4 and every remaining gate, so no compatibility patch was made.
 
-Task 2F does **not** add Graphiti mixed-source planning, new producer connectors, generalized Authority, or the Task 3 bootstrap read tools.
+Task 3 does **not** add Graphiti synchronization, Mason/MindsHub tools, new source connectors, generalized Authority, remote exposure, or a new database migration.
 
-### Task 3 — simple read surface — NEXT AUTHORIZED SLICE
-
-Expose the Usable V1 `kc_search`, `kc_get_source`, and `kc_status` front-door operations using the accepted source-neutral lexical evidence contract from Task 2. Do not make Mason integration part of Task 3.
-
-**Accept when:** a fresh authenticated local client retrieves newly stored information and follows a result to exact canonical evidence without knowing KC database/storage internals.
-
-**Usability milestone:** store `Mason is my local MindsHub worker model`, start a fresh session, ask `What is Mason?`, and receive the fact plus exact KC provenance.
-
-**Current authorization:** Task 3 only. Checkpoint before Task 4.
-
-### Task 4 — separate Graphiti synchronization
+### Task 4 — separate Graphiti synchronization — NEXT AUTHORIZED SLICE
 
 Generalize graph plan input/reference-time semantics only as required for generic governed SR-2 sources, then add an explicit bounded sync for eligible canonical/text material. Preserve the accepted projection ledger, immutable-build isolation, required validation checks, Authority-first trusted retrieval and exact canonical correlations. New knowledge may remain graph-pending without blocking storage.
 
 **Accept when:** a bounded mixed-source batch projects successfully through independent validation; failed/interrupted graph work leaves canonical/text retrieval usable; only validated builds enter trusted graph retrieval; at least one graph result resolves to exact generic KC evidence.
 
 **Stop:** no permanent scheduler, generalized queue/workflow platform, cross-generation graph reuse, or GPU/model orchestrator unless separately justified and qualified.
+
+**Current authorization:** Task 4 only. Checkpoint before Task 5.
 
 ### Task 5 — Mason / MindsHub tools
 
