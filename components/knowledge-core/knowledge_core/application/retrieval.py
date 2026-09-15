@@ -534,9 +534,14 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
         decision = source.decision
         identity = observation.binding.source_identity
         compat = source.repository_compatibility
+        compatibility_observation_id = (
+            compat.legacy_observation_id
+            if compat is not None
+            else observation.observation_id
+        )
         return SegmentRetrievalProvenance(
             provenance_contract_version=SOURCE_NEUTRAL_SR2_PROVENANCE_VERSION,
-            governed_observation_id=observation.observation_id,
+            governed_observation_id=compatibility_observation_id,
             source_classification=decision.classification,
             segment_key=search_row.segment_key,
             segment_ordinal=int(search_row.segment_ordinal),
@@ -577,6 +582,7 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
             effective_control_provenance=tuple(
                 search_row.effective_control_provenance
             ),
+            governed_source_observation_id=observation.observation_id,
             governed_observation_digest=observation.digest,
             governed_decision_id=decision.decision_id,
             governed_decision_digest=decision.digest,
@@ -756,8 +762,6 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
         hits: list[RetrievalHit] = []
         artifact_cache: dict[UUID, bytes] = {}
         for search_row, version, lineage, score in self.session.execute(statement):
-            # The privacy/access fence is authoritative even if stale segment rows
-            # survive or are maliciously reintroduced after eager reconciliation.
             if not self.resource_version_serving_eligible(version.ref_id):
                 continue
             content = self._load_verified_segment_content(
