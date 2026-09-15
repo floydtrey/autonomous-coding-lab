@@ -44,19 +44,23 @@ Task 2 may compose this facility with the new `kc_store` front-door route. Do no
 
 ## Task 2 source-neutral evidence boundary
 
-Task 2A freezes only the pure-domain governed-source contract. The accepted types live in `knowledge_core/domain/governed_sources.py`; they do not yet imply durable tables, serving behavior, a repository adapter migration, `kc_store`, or Graphiti support.
+Task 2A froze the pure-domain governed-source contract in `knowledge_core/domain/governed_sources.py`. Task 2B then added a durable source-neutral evidence layer and deterministic legacy repository mapping without changing SR-2 serving/publication.
 
-The contract separates source identity, source-to-Resource binding, producer evidence, immutable observation/admission, KC governance decision, project membership and complete retrieval snapshot identity. Snapshot digest identity binds predecessor, selection policy, selected/excluded evidence and governance, but excludes snapshot record creation time so exact replay of an otherwise identical snapshot remains stable.
+The contract separates source identity, source-to-Resource binding, producer evidence, immutable observation/admission, KC governance decision, project membership and complete retrieval snapshot identity. Snapshot semantic identity binds predecessor, selection policy, selected/excluded evidence and governance, but excludes snapshot record creation time. Evidence, project-membership and snapshot-member ordering are canonicalized so persistence/replay equality follows those semantic rules rather than incidental insertion order.
 
-Future Task 2 work must preserve these operating rules:
+Task 2B durable state is introduced by migration `0016_governed_source_evidence.py` and includes source-neutral binding, observation, producer-evidence, governance-decision, retrieval-snapshot, snapshot-member, project-membership and exclusion records. Separate legacy mapping records preserve explicit correlation back to existing repository observations, governing selections and receipts rather than mutating historical RI evidence.
+
+Current operating rules:
 
 - repository-specific commit/path/blob/manifest verification remains inside the repository producer;
-- new durable source-neutral evidence receives new versioned schema/digest semantics rather than changing historical evidence interpretation;
+- new durable source-neutral evidence uses new versioned schema/digest semantics rather than changing historical evidence interpretation;
 - project membership does not become source identity;
 - re-observation of the same ResourceVersion remains distinct evidence;
 - one observation cannot be current in one snapshot under competing governance decisions;
-- complete-corpus snapshots, not producer-local subsets, feed the one-current TEXT publication boundary;
-- Task 2B changes durable evidence/mapping only and must not change SR-2 serving/publication or expose the front door.
+- complete-corpus snapshots, not producer-local subsets, must feed the future one-current TEXT publication boundary;
+- only settled legacy repository receipts are eligible for the 2B legacy mapper; applying/failed receipts are rejected;
+- 2B generic persistence and mapping are additive only: they do not drive SR-2 serving/publication, expose `kc_store`, or alter Graphiti;
+- Task 2C is the next authorized slice and may make repository import produce the generic evidence, but it must preserve exact Git proof and existing repository guarantees.
 
 ## Graphiti operator boundary
 
@@ -105,6 +109,7 @@ These are recorded acceptance checkpoints. Linked historical files retain their 
 | Governed Graphiti | `6376419e369ea9ecfe58a19fa233bbfca90ad703`; [accepted 2026-09-14 record](legacy/GRAPHITI_GOVERNED_QUALIFICATION_2026-09-14.md) | 17 segments, 17 bindings, 7 checks, 10 attributed results, zero integrity/lifecycle anomalies. |
 | KC Usable V1 Task 1 | `b9e708f2892f3a7303fa50ccadc64c26f5b9bf46`; [Actions 34877670577](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34877670577) | Bootstrap bind configuration, shared-key admission, fixed `local_owner`, bounded operation classes, spoof-resistant principal mapping, and deterministic request rejection. Full existing KC workflow green. Not a full Authority service or remote-exposure qualification. |
 | KC Usable V1 Task 2A | `cbfecbfada73e1210ceae0185a31664bf073a479`; [Actions 34923452994](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34923452994) | Source-neutral governed-source pure-domain contract and adversarial Git/note/chat/email/benchmark-shaped fixtures. Full existing KC workflow green. No persistence, migration, serving, Graphiti or public-route behavior changed. |
+| KC Usable V1 Task 2B | `6910e9abba320e272b34b0528846f289d3d8eb14`; [Actions 34925025743](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34925025743) | Source-neutral durable evidence/snapshot persistence, migration `0016`, deterministic settled-repository legacy mapping, non-Git-shaped persistence, fail-closed non-settled mapping, replay stability and semantic-order normalization. Full existing KC workflow green. Serving/publication, repository producer wiring, Graphiti and public routes unchanged. |
 
 The SR-2 intended-host record locates raw JSON at the historical host path `C:\Users\floyd\AppData\Local\KnowledgeCore\sr2-host-qualification-01\SR2_HOST_QUALIFICATION_EVIDENCE.json`. That raw dump is not committed and was not newly inspected during consolidation. The same record excludes machine reboot, backup/restore and production deployment claims.
 
