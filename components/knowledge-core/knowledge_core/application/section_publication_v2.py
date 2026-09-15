@@ -26,6 +26,10 @@ from knowledge_core.storage.governed_source_models import LegacyRepositorySnapsh
 from knowledge_core.storage.section_retrieval_models import TextGenerationSource
 
 
+class PublicationPredecessorConflictError(KnowledgeInvariantError):
+    """Retryable conflict because the complete serving corpus advanced."""
+
+
 class SourceNeutralSectionPublicationKnowledgeKernel(
     SourceNeutralSectionGenerationKnowledgeKernel
 ):
@@ -130,7 +134,7 @@ class SourceNeutralSectionPublicationKnowledgeKernel(
             snapshot.predecessor_snapshot_digest
             != expected_predecessor_snapshot_digest
         ):
-            raise KnowledgeInvariantError(
+            raise PublicationPredecessorConflictError(
                 "governed snapshot predecessor does not match publication expectation"
             )
 
@@ -155,7 +159,7 @@ class SourceNeutralSectionPublicationKnowledgeKernel(
             generation_kernel.acquire_generation_publication_lock()
             actual_predecessor = self.current_serving_snapshot_digest()
             if actual_predecessor != expected_predecessor_snapshot_digest:
-                raise KnowledgeInvariantError(
+                raise PublicationPredecessorConflictError(
                     "serving governed snapshot changed before publication"
                 )
 
