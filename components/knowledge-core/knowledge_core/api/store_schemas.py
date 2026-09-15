@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 class KnowledgeStoreRequest(BaseModel):
     content: str
-    project: str
+    project: str = Field(max_length=255)
     source_type: Literal["user_note"] = "user_note"
     source_id: str | None = None
     source_event_time: datetime | None = None
