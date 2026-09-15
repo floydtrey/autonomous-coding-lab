@@ -139,7 +139,7 @@ def test_store_forces_user_note_and_deterministic_idempotency(monkeypatch):
     assert first["headers"]["Idempotency-key"] == second["headers"]["Idempotency-key"]
 
 
-def test_skill_template_never_contains_a_secret_and_names_only_kc_operations():
+def test_skill_template_is_procedure_body_and_fail_closed():
     path = (
         Path(__file__).resolve().parents[1]
         / "integrations"
@@ -148,12 +148,26 @@ def test_skill_template_never_contains_a_secret_and_names_only_kc_operations():
     )
     text = path.read_text(encoding="utf-8")
     assert "{{BRIDGE_PATH}}" in text
+    assert not text.startswith("---")
+    assert "not a tool named `knowledge-core`" in text
+    assert "Do not fall back to filesystem searches" in text
     assert "KNOWLEDGE_CORE_BOOTSTRAP_KEY" in text
     assert "Never print" in text
     for operation in ("kc_status", "kc_search", "kc_get_source", "kc_store"):
         assert operation in text
     assert "graphiti_sync" not in text
     assert "sql_query" not in text
+
+
+def test_project_bridge_is_stdlib_only_and_has_no_repo_import_dependency():
+    path = Path(__file__).resolve().parents[1] / "tools" / "mason_kc_bridge.py"
+    text = path.read_text(encoding="utf-8")
+    assert "from knowledge_core" not in text
+    assert "import knowledge_core" not in text
+    assert "KNOWLEDGE_CORE_BOOTSTRAP_KEY" in text
+    assert "127.0.0.1" in text
+    for operation in ("kc_status", "kc_search", "kc_get_source", "kc_store"):
+        assert operation in text
 
 
 def test_installer_does_not_assume_legacy_fixed_cowork_port():
