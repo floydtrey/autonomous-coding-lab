@@ -4,6 +4,9 @@ from uuid import UUID
 
 from sqlalchemy import select
 
+from knowledge_core.application.governed_source_evidence import (
+    GovernedSourceEvidenceKnowledgeKernel,
+)
 from knowledge_core.application.lifecycle_projection import RetrievalProjectionProfile
 from knowledge_core.application.section_generation import SectionGenerationKnowledgeKernel
 from knowledge_core.application.segmentation import (
@@ -59,7 +62,8 @@ class SectionPublicationKnowledgeKernel(SectionGenerationKnowledgeKernel):
     ) -> GenerationSnapshot:
         """Revalidate and atomically make one SR-2 text generation current.
 
-        If the governing RI-2 receipt is still ``applying``, its settlement and
+        If the governing RI-2 receipt is still ``applying``, its settlement,
+        source-neutral governed-evidence mapping, and
         ``resulting_text_generation_id`` are committed in the same transaction as
         generation promotion. A previously settled receipt can govern an explicit
         RF-2 -> SR-2 cutover without rewriting that historical receipt.
@@ -75,6 +79,16 @@ class SectionPublicationKnowledgeKernel(SectionGenerationKnowledgeKernel):
                 "governing repository receipt is not publishable"
             )
 
+        evidence_kernel = GovernedSourceEvidenceKnowledgeKernel(self.session)
+        # Map any historical predecessor before publication mutates generation
+        # state. That keeps the legacy-reconstruction bridge from committing a
+        # partially promoted current generation while recursively mapping history.
+        if receipt.previous_manifest_digest is not None:
+            evidence_kernel.map_settled_repository_receipt(
+                receipt.previous_manifest_digest
+            )
+            self.session.refresh(receipt)
+
         receipt_was_applying = receipt.status == "applying"
 
         generation = generation_kernel.read_generation(generation_id)
@@ -85,6 +99,9 @@ class SectionPublicationKnowledgeKernel(SectionGenerationKnowledgeKernel):
                 raise KnowledgeInvariantError(
                     "current SR-2 generation cannot be governed by an unsettled receipt"
                 )
+            evidence_kernel.map_settled_repository_receipt(
+                governing_manifest_digest
+            )
             return generation
         if generation.status is not GenerationStatus.BUILDING:
             raise KnowledgeInvariantError(
@@ -129,6 +146,15 @@ class SectionPublicationKnowledgeKernel(SectionGenerationKnowledgeKernel):
             # A settled historical receipt is immutable. It may point to the RF-2
             # generation that originally settled it; the SR-2 cutover is represented
             # by its own derived-generation lineage, not by rewriting that receipt.
+
+            # The 2B mapper deliberately reconstructs the generic evidence from the
+            # exact repository receipt/observation chain. At this point the current
+            # receipt is settled in the same SQLAlchemy transaction, so its final
+            # commit also commits the generation cutover. If mapping fails, the
+            # surrounding rollback restores the previous current TEXT generation.
+            evidence_kernel.map_settled_repository_receipt(
+                governing_manifest_digest
+            )
 
             self.session.flush()
             self._commit()
