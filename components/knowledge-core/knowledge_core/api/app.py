@@ -5,10 +5,20 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from knowledge_core.api._base_app import SessionFactory, create_app as _create_base_app
+from knowledge_core.api.bootstrap_admission import (
+    BootstrapAdmission,
+    bootstrap_principal_dependency,
+)
+from knowledge_core.api.bootstrap_contract import BootstrapOperation
 from knowledge_core.api.retrieval_schemas import (
     RetrievalSearchRequest,
     RetrievalSearchResponse,
     retrieval_response_from_domain,
+)
+from knowledge_core.api.store_schemas import KnowledgeStoreRequest, KnowledgeStoreResponse
+from knowledge_core.application.direct_note_store import (
+    DirectNoteStoreKnowledgeKernel,
+    direct_note_operation_id,
 )
 from knowledge_core.application.retrieval import RetrievalServiceKnowledgeKernel
 from knowledge_core.artifacts.store import LocalArtifactStore
@@ -23,6 +33,7 @@ from knowledge_core.authority.retrieval import (
 
 
 _RETRIEVAL_PATH = "/v1/retrieval/search"
+_STORE_PATH = "/v1/kc/store"
 
 
 def _remove_base_retrieval_route(app) -> None:
@@ -49,13 +60,14 @@ def create_app(
     session_factory: SessionFactory,
     artifact_store: LocalArtifactStore,
     retrieval_authority_evaluator: RetrievalAuthorityEvaluator | None = None,
+    bootstrap_admission: BootstrapAdmission | None = None,
 ):
-    """Compose the KC semantic API with a fail-closed retrieval Authority seam.
+    """Compose the KC semantic API with bounded trusted-host seams.
 
-    Other accepted semantic routes remain unchanged. Retrieval is replaced so the
-    caller identity is deterministically evaluated before any protected search
-    executes. The evaluator is intentionally injected by the trusted host and can
-    later be backed by the separate Authority service accepted by KC-D004.
+    Retrieval retains the fail-closed Authority seam. When a bootstrap admission
+    contract is explicitly supplied by the host, the Usable V1 ``kc_store`` front
+    door is also exposed and maps successful shared-key admission to ``local_owner``.
+    Existing low-level routes are not placed behind the bootstrap key.
     """
 
     app = _create_base_app(
@@ -68,6 +80,16 @@ def create_app(
         session: Session = session_factory()
         try:
             yield RetrievalServiceKnowledgeKernel(
+                session,
+                artifact_store=artifact_store,
+            )
+        finally:
+            session.close()
+
+    def get_store_kernel():
+        session: Session = session_factory()
+        try:
+            yield DirectNoteStoreKnowledgeKernel(
                 session,
                 artifact_store=artifact_store,
             )
@@ -136,5 +158,49 @@ def create_app(
                 include_superseded=body.include_superseded,
             )
         )
+
+    if bootstrap_admission is not None:
+        store_principal = bootstrap_principal_dependency(
+            bootstrap_admission,
+            operation=BootstrapOperation.STORE,
+        )
+
+        @app.post(
+            _STORE_PATH,
+            response_model=KnowledgeStoreResponse,
+            status_code=201,
+        )
+        def knowledge_store(
+            body: KnowledgeStoreRequest,
+            idempotency_key: str = Header(alias="Idempotency-Key"),
+            kernel: DirectNoteStoreKnowledgeKernel = Depends(get_store_kernel),
+            principal: str = Depends(store_principal),
+        ) -> KnowledgeStoreResponse:
+            try:
+                operation_id = direct_note_operation_id(
+                    principal_ref=principal,
+                    idempotency_key=idempotency_key,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            canonical = kernel.store_note_operation(
+                operation_id=operation_id,
+                caller_principal_ref=principal,
+                content=body.content,
+                project_key=body.project,
+                source_id=body.source_id,
+                source_event_time=body.source_event_time,
+            )
+            publication = kernel.publish_note_text(canonical)
+            return KnowledgeStoreResponse(
+                source_id=canonical.source_id,
+                resource_id=canonical.resource_ref,
+                version_id=canonical.resource_version_ref,
+                sha256=canonical.content_sha256,
+                text_state=publication.text_state,
+                text_generation_id=publication.generation_id,
+                text_snapshot_digest=publication.snapshot_digest,
+                text_error_code=publication.error_code,
+            )
 
     return app
