@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -133,6 +133,20 @@ class GovernedSourceObservation:
         _require_nonblank(self.producer_version, "producer_version")
         if not self.evidence:
             raise ValueError("governed source observation requires producer evidence")
+        object.__setattr__(
+            self,
+            "evidence",
+            tuple(
+                sorted(
+                    self.evidence,
+                    key=lambda item: (
+                        item.evidence_kind,
+                        item.evidence_ref,
+                        item.evidence_digest,
+                    ),
+                )
+            ),
+        )
         _canonical_time(self.observed_at, "observed_at")
         if self.source_event_time is not None:
             _canonical_time(self.source_event_time, "source_event_time")
@@ -236,6 +250,7 @@ class GovernedSnapshotMember:
             raise ValueError("project_keys must contain only non-blank values")
         if len(set(self.project_keys)) != len(self.project_keys):
             raise ValueError("project_keys must not contain duplicates")
+        object.__setattr__(self, "project_keys", tuple(sorted(self.project_keys)))
 
     @classmethod
     def from_selection(
@@ -300,7 +315,7 @@ class GovernedRetrievalSnapshot:
     """Complete immutable source selection used to build one retrieval corpus."""
 
     selection_policy_id: str
-    created_at: datetime
+    created_at: datetime = field(compare=False)
     members: tuple[GovernedSnapshotMember, ...]
     exclusions: tuple[GovernedSnapshotExclusion, ...] = ()
     predecessor_snapshot_digest: str | None = None
@@ -321,6 +336,34 @@ class GovernedRetrievalSnapshot:
         ]
         if len(set(member_keys)) != len(member_keys):
             raise ValueError("snapshot contains duplicate selected source observations")
+        object.__setattr__(
+            self,
+            "members",
+            tuple(
+                sorted(
+                    self.members,
+                    key=lambda item: (
+                        item.source_identity_digest,
+                        str(item.observation_id),
+                        str(item.decision_id),
+                    ),
+                )
+            ),
+        )
+        object.__setattr__(
+            self,
+            "exclusions",
+            tuple(
+                sorted(
+                    self.exclusions,
+                    key=lambda item: (
+                        item.source_identity_digest,
+                        str(item.observation_id),
+                        item.reason_code,
+                    ),
+                )
+            ),
+        )
 
     @property
     def canonical_payload(self) -> dict[str, object]:
