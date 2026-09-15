@@ -10,7 +10,8 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 
-_SKILL_NAME = "knowledge-core"
+_SKILL_LABEL = "knowledge-core"
+_SKILL_DISPLAY_NAME = "Knowledge Core"
 
 
 def _require_loopback_url(value: str, *, name: str) -> str:
@@ -61,31 +62,35 @@ def _request_json(method: str, url: str, payload: dict | None = None):
 
 
 def _register_skill(cowork_url: str, instructions: str) -> dict:
-    skills = _request_json("GET", f"{cowork_url}/api/v1/skills")
+    collection_url = f"{cowork_url}/api/v1/skills/"
+    skills = _request_json("GET", collection_url)
     if isinstance(skills, dict):
         items = skills.get("skills") or skills.get("items") or skills.get("data") or []
     else:
         items = skills
+
     existing = None
     if isinstance(items, list):
         for item in items:
-            if isinstance(item, dict) and item.get("name") == _SKILL_NAME:
+            if not isinstance(item, dict):
+                continue
+            if item.get("id") == _SKILL_LABEL or item.get("label") == _SKILL_LABEL:
                 existing = item
                 break
 
     payload = {
-        "name": _SKILL_NAME,
+        "label": _SKILL_LABEL,
+        "name": _SKILL_DISPLAY_NAME,
         "description": "Retrieve and store governed durable project knowledge through local Knowledge Core.",
         "instructions": instructions,
-        "tools": ["scratchpad"],
     }
     if existing and existing.get("id"):
         return _request_json(
-            "PATCH",
+            "PUT",
             f"{cowork_url}/api/v1/skills/{existing['id']}",
             payload,
         )
-    return _request_json("POST", f"{cowork_url}/api/v1/skills", payload)
+    return _request_json("POST", collection_url, payload)
 
 
 def main(argv: list[str] | None = None) -> int:
