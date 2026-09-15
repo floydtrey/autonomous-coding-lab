@@ -42,6 +42,22 @@ The admitted operation classes are `kc.store`, `kc.search`, `kc.get_source`, and
 
 Task 2 may compose this facility with the new `kc_store` front-door route. Do not use Task 1 as justification to expose arbitrary entity/assertion/resource CRUD, raw SQL, database credentials, artifact-store authority, FalkorDB credentials, or direct Graphiti mutation.
 
+## Task 2 source-neutral evidence boundary
+
+Task 2A freezes only the pure-domain governed-source contract. The accepted types live in `knowledge_core/domain/governed_sources.py`; they do not yet imply durable tables, serving behavior, a repository adapter migration, `kc_store`, or Graphiti support.
+
+The contract separates source identity, source-to-Resource binding, producer evidence, immutable observation/admission, KC governance decision, project membership and complete retrieval snapshot identity. Snapshot digest identity binds predecessor, selection policy, selected/excluded evidence and governance, but excludes snapshot record creation time so exact replay of an otherwise identical snapshot remains stable.
+
+Future Task 2 work must preserve these operating rules:
+
+- repository-specific commit/path/blob/manifest verification remains inside the repository producer;
+- new durable source-neutral evidence receives new versioned schema/digest semantics rather than changing historical evidence interpretation;
+- project membership does not become source identity;
+- re-observation of the same ResourceVersion remains distinct evidence;
+- one observation cannot be current in one snapshot under competing governance decisions;
+- complete-corpus snapshots, not producer-local subsets, feed the one-current TEXT publication boundary;
+- Task 2B changes durable evidence/mapping only and must not change SR-2 serving/publication or expose the front door.
+
 ## Graphiti operator boundary
 
 The optional dependency is installed with `python -m pip install -e ".[test,graphiti]"`. The adapter pins `graphiti-core[falkordb]==0.30.2`. Use an explicitly chosen existing KC database/artifact root with current governed SR-2 sources; apply needed migrations only within the authorized environment.
@@ -88,6 +104,7 @@ These are recorded acceptance checkpoints. Linked historical files retain their 
 | SR-2 intended host | `c3bfac41eb3a1787d5b770274370b5e59f082eb4`; [record](legacy/SR2_INTENDED_HOST_QUALIFICATION.md); [supporting CI 34475309465](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34475309465) | Windows run 2026-09-10: restart/recovery, segment serving, artifact/structure/profile/provenance integrity and replay. |
 | Governed Graphiti | `6376419e369ea9ecfe58a19fa233bbfca90ad703`; [accepted 2026-09-14 record](legacy/GRAPHITI_GOVERNED_QUALIFICATION_2026-09-14.md) | 17 segments, 17 bindings, 7 checks, 10 attributed results, zero integrity/lifecycle anomalies. |
 | KC Usable V1 Task 1 | `b9e708f2892f3a7303fa50ccadc64c26f5b9bf46`; [Actions 34877670577](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34877670577) | Bootstrap bind configuration, shared-key admission, fixed `local_owner`, bounded operation classes, spoof-resistant principal mapping, and deterministic request rejection. Full existing KC workflow green. Not a full Authority service or remote-exposure qualification. |
+| KC Usable V1 Task 2A | `cbfecbfada73e1210ceae0185a31664bf073a479`; [Actions 34923452994](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34923452994) | Source-neutral governed-source pure-domain contract and adversarial Git/note/chat/email/benchmark-shaped fixtures. Full existing KC workflow green. No persistence, migration, serving, Graphiti or public-route behavior changed. |
 
 The SR-2 intended-host record locates raw JSON at the historical host path `C:\Users\floyd\AppData\Local\KnowledgeCore\sr2-host-qualification-01\SR2_HOST_QUALIFICATION_EVIDENCE.json`. That raw dump is not committed and was not newly inspected during consolidation. The same record excludes machine reboot, backup/restore and production deployment claims.
 
