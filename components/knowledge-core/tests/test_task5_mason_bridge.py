@@ -58,6 +58,9 @@ def test_bridge_exposes_only_four_operations(monkeypatch):
         bridge.execute("sql_query", {})
     with pytest.raises(MasonKnowledgeCoreBridgeError, match="unsupported Knowledge Core operation"):
         bridge.execute("graphiti_sync", {})
+    for shortened in ("status", "search", "get_source", "store"):
+        with pytest.raises(MasonKnowledgeCoreBridgeError, match="unsupported Knowledge Core operation"):
+            bridge.execute(shortened, {})
 
 
 def test_task5_v1_requires_loopback_url():
@@ -151,6 +154,12 @@ def test_skill_template_is_procedure_body_and_fail_closed():
     assert not text.startswith("---")
     assert "not a tool named `knowledge-core`" in text
     assert "Do not fall back to filesystem searches" in text
+    assert "literal protocol identifiers" in text
+    assert "Never shorten, translate, alias, or remove the `kc_` prefix" in text
+    assert 'return _kc_exact("kc_status", {})' in text
+    assert 'return _kc_exact("kc_search", payload)' in text
+    assert 'return _kc_exact("kc_get_source", payload)' in text
+    assert 'return _kc_exact("kc_store", payload)' in text
     assert "KNOWLEDGE_CORE_BOOTSTRAP_KEY" in text
     assert "Never print" in text
     for operation in ("kc_status", "kc_search", "kc_get_source", "kc_store"):
