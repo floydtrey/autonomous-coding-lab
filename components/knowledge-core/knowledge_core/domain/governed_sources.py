@@ -237,6 +237,27 @@ class GovernedSnapshotMember:
         if len(set(self.project_keys)) != len(self.project_keys):
             raise ValueError("project_keys must not contain duplicates")
 
+    @classmethod
+    def from_selection(
+        cls,
+        *,
+        observation: GovernedSourceObservation,
+        decision: GovernedSourceDecision,
+        project_keys: tuple[str, ...] = (),
+    ) -> GovernedSnapshotMember:
+        if decision.observation_id != observation.observation_id:
+            raise ValueError("governance decision does not belong to selected observation")
+        return cls(
+            source_identity_digest=observation.binding.source_identity.digest,
+            resource_ref=observation.binding.resource_ref,
+            resource_version_ref=observation.resource_version_ref,
+            observation_id=observation.observation_id,
+            observation_digest=observation.digest,
+            decision_id=decision.decision_id,
+            decision_digest=decision.digest,
+            project_keys=project_keys,
+        )
+
     @property
     def canonical_payload(self) -> dict[str, object]:
         return {
@@ -296,8 +317,7 @@ class GovernedRetrievalSnapshot:
                 "predecessor_snapshot_digest",
             )
         member_keys = [
-            (item.source_identity_digest, item.observation_id, item.decision_id)
-            for item in self.members
+            (item.source_identity_digest, item.observation_id) for item in self.members
         ]
         if len(set(member_keys)) != len(member_keys):
             raise ValueError("snapshot contains duplicate selected source observations")
