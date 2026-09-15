@@ -10,17 +10,24 @@ from knowledge_core.api.bootstrap_admission import (
     bootstrap_principal_dependency,
 )
 from knowledge_core.api.bootstrap_contract import BootstrapOperation
+from knowledge_core.api.consumer_schemas import (
+    KnowledgeGetSourceRequest,
+    KnowledgeGetSourceResponse,
+    KnowledgeStatusResponse,
+    source_response_from_domain,
+    status_response_from_domain,
+)
 from knowledge_core.api.retrieval_schemas import (
     RetrievalSearchRequest,
     RetrievalSearchResponse,
     retrieval_response_from_domain,
 )
 from knowledge_core.api.store_schemas import KnowledgeStoreRequest, KnowledgeStoreResponse
+from knowledge_core.application.consumer_read import ConsumerReadKnowledgeKernel
 from knowledge_core.application.direct_note_store import (
     DirectNoteStoreKnowledgeKernel,
     direct_note_operation_id,
 )
-from knowledge_core.application.retrieval import RetrievalServiceKnowledgeKernel
 from knowledge_core.artifacts.store import LocalArtifactStore
 from knowledge_core.authority.retrieval import (
     RetrievalAuthorityDeniedError,
@@ -30,10 +37,14 @@ from knowledge_core.authority.retrieval import (
     RetrievalAuthorityUnavailableError,
     require_retrieval_authority,
 )
+from knowledge_core.domain.retrieval import KnowledgeSourceUnavailableError
 
 
 _RETRIEVAL_PATH = "/v1/retrieval/search"
 _STORE_PATH = "/v1/kc/store"
+_KC_SEARCH_PATH = "/v1/kc/search"
+_KC_GET_SOURCE_PATH = "/v1/kc/get-source"
+_KC_STATUS_PATH = "/v1/kc/status"
 
 
 def _remove_base_retrieval_route(app) -> None:
@@ -65,9 +76,10 @@ def create_app(
     """Compose the KC semantic API with bounded trusted-host seams.
 
     Retrieval retains the fail-closed Authority seam. When a bootstrap admission
-    contract is explicitly supplied by the host, the Usable V1 ``kc_store`` front
-    door is also exposed and maps successful shared-key admission to ``local_owner``.
-    Existing low-level routes are not placed behind the bootstrap key.
+    contract is explicitly supplied by the host, the Usable V1 ``kc_store``,
+    ``kc_search``, ``kc_get_source`` and ``kc_status`` front doors are exposed and
+    map successful shared-key admission to ``local_owner``. Existing low-level routes
+    are not placed behind the bootstrap key.
     """
 
     app = _create_base_app(
@@ -79,7 +91,7 @@ def create_app(
     def get_retrieval_kernel():
         session: Session = session_factory()
         try:
-            yield RetrievalServiceKnowledgeKernel(
+            yield ConsumerReadKnowledgeKernel(
                 session,
                 artifact_store=artifact_store,
             )
@@ -133,13 +145,23 @@ def create_app(
             },
         )
 
+    @app.exception_handler(KnowledgeSourceUnavailableError)
+    async def knowledge_source_unavailable_handler(
+        _request: Request,
+        _exc: KnowledgeSourceUnavailableError,
+    ):
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "knowledge item is unavailable"},
+        )
+
     @app.post(
         _RETRIEVAL_PATH,
         response_model=RetrievalSearchResponse,
     )
     def retrieval_search(
         body: RetrievalSearchRequest,
-        kernel: RetrievalServiceKnowledgeKernel = Depends(get_retrieval_kernel),
+        kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
         caller: str = Depends(caller_context),
     ) -> RetrievalSearchResponse:
         require_retrieval_authority(
@@ -163,6 +185,18 @@ def create_app(
         store_principal = bootstrap_principal_dependency(
             bootstrap_admission,
             operation=BootstrapOperation.STORE,
+        )
+        search_principal = bootstrap_principal_dependency(
+            bootstrap_admission,
+            operation=BootstrapOperation.SEARCH,
+        )
+        get_source_principal = bootstrap_principal_dependency(
+            bootstrap_admission,
+            operation=BootstrapOperation.GET_SOURCE,
+        )
+        status_principal = bootstrap_principal_dependency(
+            bootstrap_admission,
+            operation=BootstrapOperation.STATUS,
         )
 
         @app.post(
@@ -202,5 +236,60 @@ def create_app(
                 text_snapshot_digest=publication.snapshot_digest,
                 text_error_code=publication.error_code,
             )
+
+        @app.post(
+            _KC_SEARCH_PATH,
+            response_model=RetrievalSearchResponse,
+        )
+        def knowledge_search(
+            body: RetrievalSearchRequest,
+            kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
+            principal: str = Depends(search_principal),
+        ) -> RetrievalSearchResponse:
+            # Bootstrap admission is the bounded Usable V1 local-read authority. If a
+            # separate retrieval Authority evaluator is supplied by the trusted host,
+            # it remains an additional fail-closed policy layer for search.
+            if retrieval_authority_evaluator is not None:
+                require_retrieval_authority(
+                    retrieval_authority_evaluator,
+                    RetrievalAuthorityRequest(
+                        caller_principal_ref=principal,
+                        operation=RetrievalAuthorityOperation.SEARCH_TEXT,
+                        limit=body.limit,
+                        include_superseded=body.include_superseded,
+                    ),
+                )
+            return retrieval_response_from_domain(
+                kernel.search_text(
+                    query=body.query,
+                    limit=body.limit,
+                    include_superseded=body.include_superseded,
+                )
+            )
+
+        @app.post(
+            _KC_GET_SOURCE_PATH,
+            response_model=KnowledgeGetSourceResponse,
+        )
+        def knowledge_get_source(
+            body: KnowledgeGetSourceRequest,
+            kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
+            _principal: str = Depends(get_source_principal),
+        ) -> KnowledgeGetSourceResponse:
+            return source_response_from_domain(
+                kernel.read_current_source(
+                    resource_version_ref=body.resource_version_ref,
+                )
+            )
+
+        @app.get(
+            _KC_STATUS_PATH,
+            response_model=KnowledgeStatusResponse,
+        )
+        def knowledge_status(
+            kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
+            _principal: str = Depends(status_principal),
+        ) -> KnowledgeStatusResponse:
+            return status_response_from_domain(kernel.retrieval_status())
 
     return app
