@@ -3,7 +3,7 @@
 **Authoritative KC status and restart point. Updated 2026-09-14.**
 Branch: `architecture/knowledge-core`. Documentation consolidation baseline:
 `2678e7666fbcba50b64d8839ea0592a8d992e916`.
-Latest accepted KC Usable V1 checkpoint: `cbfecbfada73e1210ceae0185a31664bf073a479`.
+Latest accepted KC Usable V1 checkpoint: `6910e9abba320e272b34b0528846f289d3d8eb14`.
 
 ## Read order and authority
 
@@ -30,6 +30,7 @@ These are the only authoritative current KC documents. The component README and 
 | KC Consumer V1 / lexical API | Implemented exact segment-content serving with provenance. `POST /v1/retrieval/search` evaluates injected Authority before protected search. Current response provenance is repository-shaped and will receive a source-neutral version/compatibility boundary during Task 2. |
 | KC Usable V1 bootstrap access | **Task 1 accepted.** Configurable bind host defaults to `127.0.0.1`; shared API-key admission maps accepted front-door calls to fixed principal `local_owner`; only store/search/get-source/status operation classes are admitted. This facility is not yet attached to a public Usable V1 front-door route. |
 | Source-neutral governed-source contract | **Task 2A accepted.** Typed/versioned pure-domain contract separates logical source identity, canonical Resource/ResourceVersion identity, immutable observations, governance decisions, project membership and complete retrieval snapshots without changing storage or serving. |
+| Source-neutral governed evidence persistence | **Task 2B accepted.** Durable binding/observation/evidence/decision/snapshot records plus deterministic legacy repository mapping are implemented behind migration `0016_governed_source_evidence.py`. Generic persistence remains additive and does not yet drive SR-2 serving/publication. |
 | Projection attempt and validation ledgers | Implemented durable, separate provider-attempt and independent validation evidence. Provider success alone is insufficient. |
 | Governed Graphiti backend | Accepted real-host governed-document projection, immutable build isolation, lifecycle validation and trusted canonical result correlation. Its current plan input is still repository-shaped; generic mixed-source graph input is deferred until after source-neutral text ingestion works. |
 | Public graph consumer API | **Not exposed/promoted.** Trusted graph retrieval exists in the application kernel; the public retrieval route still performs lexical search. |
@@ -126,7 +127,7 @@ The bootstrap facility is deliberately not attached to every existing low-level 
 
 The full existing workflow passed: fast semantic suite, PostgreSQL G1–G21, G22, RI-4 restart rehearsal, and SR-2 restart rehearsal.
 
-### Task 2 — source-neutral governed ingestion + `kc_store` — NEXT AUTHORIZED TASK
+### Task 2 — source-neutral governed ingestion + `kc_store` — ACTIVE
 
 Task 2 is no longer treated as a single endpoint change. The audit showed that a correct direct-note front door first requires removal of repository-specific assumptions from the generic governed retrieval path. Execute only the bounded slice explicitly authorized below.
 
@@ -150,15 +151,23 @@ Snapshot membership is order-independent for digest identity, project membership
 
 No database model, migration, existing SR-2 serving/publication behavior, Graphiti contract, public route, repository manifest or historical evidence changed in 2A.
 
-#### Task 2B — generic durable evidence + legacy mapping — NEXT AUTHORIZED SLICE
+#### Task 2B — generic durable evidence + legacy mapping — ACCEPTED
 
-Add the source-neutral durable evidence/snapshot layer and new versioned digests. Preserve all existing repository evidence. Deterministically map eligible Git evidence into the generic layer with explicit legacy references; serving remains unchanged.
+Accepted at implementation checkpoint `6910e9abba320e272b34b0528846f289d3d8eb14`, with full Knowledge Core workflow [Actions 34925025743](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34925025743) green.
 
-**Accept when:** reconstruction/replay of mapped repository evidence is deterministic, historical records are untouched, failed/pending/quarantined evidence does not become serving-eligible, and direct-note-shaped evidence can exist without fake repository fields.
+Implemented scope:
 
-**Stop:** do not change SR-2 serving/publication, make repository import consume the new layer, expose `kc_store`, or generalize Graphiti in 2B.
+- migration `0016_governed_source_evidence.py` adds source-neutral durable records for source bindings, immutable observations and producer evidence, governance decisions, complete retrieval snapshots, project memberships and explicit exclusions;
+- separate legacy mapping records correlate settled repository observations/selection decisions/manifests to the new generic evidence without rewriting RI-2 history;
+- settled repository receipt chains map deterministically, including prior-version retention and explicit retirement exclusion;
+- generic direct-note-shaped evidence persists and reconstructs without repository key, commit, path, blob SHA or manifest fields;
+- applying and failed repository receipts are rejected from legacy-to-generic mapping;
+- replay does not create duplicate generic evidence or alter the existing current TEXT generation;
+- semantic equality now follows the 2A identity rules: evidence/project/member ordering is canonicalized and snapshot record creation time does not make an otherwise identical semantic snapshot unequal.
 
-#### Task 2C — repository import becomes a verified producer
+2B is deliberately additive. Existing repository import does not yet write through the generic evidence path, SR-2 serving/publication does not read it, no public route was added, and Graphiti behavior was unchanged. Historical repository rows and accepted evidence retain their original semantics.
+
+#### Task 2C — repository import becomes a verified producer — NEXT AUTHORIZED SLICE
 
 Keep exact commit/path/blob verification, configured readers, manifests, continuity/retirement policy and receipt semantics inside the repository adapter. Translate accepted repository evidence into the generic governed-source layer.
 
@@ -190,7 +199,7 @@ Run deterministic/restart/mixed-corpus/idempotency/privacy/publication-failure q
 
 **Accept when:** direct-note and repository evidence are jointly searchable through the accepted text generation after restart/replay, exact canonical provenance is available, restrictions remain dominant, old accepted historical evidence retains its original interpretation, and the full required KC workflow is green.
 
-**Current authorization:** Task 2B only. Checkpoint it before 2C.
+**Current authorization:** Task 2C only. Checkpoint it before 2D.
 
 ### Task 3 — simple read surface
 
