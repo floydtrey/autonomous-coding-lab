@@ -9,6 +9,7 @@ from uuid import UUID, uuid5
 from knowledge_core.application.governed_source_evidence import (
     GovernedSourceEvidenceKnowledgeKernel,
 )
+from knowledge_core.application.operations import _request_digest
 from knowledge_core.application.repository_governed_producer import (
     COMPLETE_CORPUS_SELECTION_POLICY_ID,
     RepositoryGovernedProducerKnowledgeKernel,
@@ -31,6 +32,7 @@ from knowledge_core.domain.governed_sources import (
 )
 from knowledge_core.domain.resources import ResourceLocatorKind
 from knowledge_core.domain.retrieval import RetrievalLifecycleState
+from knowledge_core.storage.control_models import Operation
 from knowledge_core.storage.governed_source_models import GovernedSourceBindingRecord
 
 
@@ -38,7 +40,10 @@ DIRECT_NOTE_PRODUCER_VERSION = "kc-direct-note-producer-v1"
 DIRECT_NOTE_GOVERNANCE_POLICY_ID = "kc-direct-note-governance-v1"
 DIRECT_NOTE_SOURCE_KIND = "local.user-note"
 DIRECT_NOTE_COLLECTION_KEY = "notes"
+_DIRECT_NOTE_OPERATION_CLASS = "kc.store.direct-note"
 _DIRECT_NOTE_OPERATION_NAMESPACE = UUID("936df86f-ef18-51a4-9870-1b78a2b18ac7")
+_DIRECT_NOTE_RESOURCE_OPERATION_NAMESPACE = UUID("6685392e-abce-585b-b38d-ff91b7980eea")
+_DIRECT_NOTE_INGEST_OPERATION_NAMESPACE = UUID("cfa459d6-a60e-5bdc-b98a-e54c89f20817")
 _DIRECT_NOTE_OBSERVATION_NAMESPACE = UUID("d6b3d705-09ea-558b-b6d7-af92e65ca1d2")
 _DIRECT_NOTE_DECISION_NAMESPACE = UUID("0ac4f289-35b1-5f64-bacb-bc9099cbf8a2")
 
@@ -105,6 +110,20 @@ def _submission_evidence_digest(
 class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
     """Task 2E canonical direct-note admission plus separate SR-2 publication."""
 
+    @staticmethod
+    def _replay_canonical_result(metadata: dict[str, object]) -> DirectNoteCanonicalStoreResult:
+        return DirectNoteCanonicalStoreResult(
+            source_id=str(metadata["source_id"]),
+            source_identity_digest=str(metadata["source_identity_digest"]),
+            resource_ref=UUID(str(metadata["resource_ref"])),
+            resource_version_ref=UUID(str(metadata["resource_version_ref"])),
+            observation_id=UUID(str(metadata["observation_id"])),
+            decision_id=UUID(str(metadata["decision_id"])),
+            project_key=str(metadata["project_key"]),
+            content_sha256=str(metadata["content_sha256"]),
+            observed_at=datetime.fromisoformat(str(metadata["observed_at"])),
+        )
+
     def store_note_operation(
         self,
         *,
@@ -133,14 +152,86 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
         )
         content_bytes = content.encode("utf-8")
         content_digest = sha256(content_bytes).hexdigest()
+        payload = {
+            "source_kind": DIRECT_NOTE_SOURCE_KIND,
+            "source_id": effective_source_id,
+            "source_identity_digest": identity.digest,
+            "project_key": project,
+            "content_sha256": content_digest,
+            "content_size": len(content_bytes),
+            "source_event_time": source_event_time,
+        }
 
-        # The accepted resource semantic profile predates Usable V1 and is reused
-        # deliberately. Bootstrap it outside the user operation so profile setup is
-        # not conflated with direct-note idempotency or source identity.
+        # Reject or replay a settled parent idempotency key before touching child
+        # canonical operations. A crash between child settlement and parent admission
+        # is safe because both child operation IDs are deterministic and replayable.
+        existing = self.session.get(Operation, operation_id)
+        if existing is not None:
+            request_digest = _request_digest(
+                {
+                    "operation_class": _DIRECT_NOTE_OPERATION_CLASS,
+                    "expected_revision": None,
+                    "payload": payload,
+                }
+            )
+            return self._validate_existing_operation(
+                operation=existing,
+                operation_class=_DIRECT_NOTE_OPERATION_CLASS,
+                caller_principal_ref=caller_principal_ref,
+                request_digest=request_digest,
+                replay=self._replay_canonical_result,
+            )
+
+        # Reuse the accepted Resource foundation. These bootstrap records are KC
+        # infrastructure, not part of the user's idempotency identity.
         foundation = ResourceKnowledgeKernel(
             self.session,
             artifact_store=self.artifact_store,
         ).bootstrap_resource_test_profile()
+
+        binding_row = self.session.get(
+            GovernedSourceBindingRecord,
+            identity.digest,
+        )
+        if binding_row is None:
+            resource_operation_id = uuid5(
+                _DIRECT_NOTE_RESOURCE_OPERATION_NAMESPACE,
+                identity.digest,
+            )
+            resource = self.create_resource_operation(
+                operation_id=resource_operation_id,
+                kind_revision_ref=foundation.artifact_kind_revision_ref,
+                caller_principal_ref=caller_principal_ref,
+            )
+            resource_ref = resource.resource_ref
+        else:
+            if (
+                binding_row.source_kind != identity.source_kind
+                or binding_row.origin_scope != identity.origin_scope
+                or binding_row.collection_key != identity.collection_key
+                or binding_row.item_key != identity.item_key
+            ):
+                raise KnowledgeInvariantError(
+                    "direct note source identity digest resolved to different source metadata"
+                )
+            resource_ref = binding_row.resource_ref
+            self._require_serving_resource(resource_ref)
+
+        ingest_operation_id = uuid5(
+            _DIRECT_NOTE_INGEST_OPERATION_NAMESPACE,
+            str(operation_id),
+        )
+        version = self.ingest_resource_version_operation(
+            operation_id=ingest_operation_id,
+            resource_ref=resource_ref,
+            content=content_bytes,
+            ingestion_kind_revision_ref=foundation.resource_ingestion_kind_revision_ref,
+            caller_principal_ref=caller_principal_ref,
+            media_type="text/plain",
+            locator_kind=ResourceLocatorKind.GOVERNED_OTHER,
+            locator_text=f"user-note:{effective_source_id}",
+        )
+
         observation_id = uuid5(
             _DIRECT_NOTE_OBSERVATION_NAMESPACE,
             f"{caller_principal_ref}:{operation_id}",
@@ -149,50 +240,8 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
             _DIRECT_NOTE_DECISION_NAMESPACE,
             f"{caller_principal_ref}:{operation_id}",
         )
-        payload = {
-            "source_kind": DIRECT_NOTE_SOURCE_KIND,
-            "source_id": effective_source_id,
-            "project_key": project,
-            "content_sha256": content_digest,
-            "content_size": len(content_bytes),
-            "source_event_time": source_event_time,
-        }
 
         def action() -> DirectNoteCanonicalStoreResult:
-            binding_row = self.session.get(
-                GovernedSourceBindingRecord,
-                identity.digest,
-            )
-            if binding_row is None:
-                resource = ResourceKnowledgeKernel.create_resource(
-                    self,
-                    kind_revision_ref=foundation.artifact_kind_revision_ref,
-                )
-                resource_ref = resource.resource_ref
-            else:
-                if (
-                    binding_row.source_kind != identity.source_kind
-                    or binding_row.origin_scope != identity.origin_scope
-                    or binding_row.collection_key != identity.collection_key
-                    or binding_row.item_key != identity.item_key
-                ):
-                    raise KnowledgeInvariantError(
-                        "direct note source identity digest resolved to different source metadata"
-                    )
-                resource_ref = binding_row.resource_ref
-                self._require_serving_resource(resource_ref)
-
-            version = ResourceKnowledgeKernel.ingest_resource_version(
-                self,
-                resource_ref=resource_ref,
-                content=content_bytes,
-                ingestion_kind_revision_ref=(
-                    foundation.resource_ingestion_kind_revision_ref
-                ),
-                media_type="text/plain",
-                locator_kind=ResourceLocatorKind.GOVERNED_OTHER,
-                locator_text=f"user-note:{effective_source_id}",
-            )
             observed_at = self._now()
             observation = GovernedSourceObservation(
                 observation_id=observation_id,
@@ -245,7 +294,7 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
 
         return self._execute_operation(
             operation_id=operation_id,
-            operation_class="kc.store.direct-note",
+            operation_class=_DIRECT_NOTE_OPERATION_CLASS,
             caller_principal_ref=caller_principal_ref,
             payload=payload,
             expected_revision=None,
@@ -261,20 +310,9 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 "content_sha256": result.content_sha256,
                 "observed_at": result.observed_at.isoformat(),
             },
-            replay=lambda metadata: DirectNoteCanonicalStoreResult(
-                source_id=str(metadata["source_id"]),
-                source_identity_digest=str(metadata["source_identity_digest"]),
-                resource_ref=UUID(str(metadata["resource_ref"])),
-                resource_version_ref=UUID(str(metadata["resource_version_ref"])),
-                observation_id=UUID(str(metadata["observation_id"])),
-                decision_id=UUID(str(metadata["decision_id"])),
-                project_key=str(metadata["project_key"]),
-                content_sha256=str(metadata["content_sha256"]),
-                observed_at=datetime.fromisoformat(str(metadata["observed_at"])),
-            ),
-            # A new authenticated observation of bytes already stored for the same
-            # logical note is legitimate evidence even if it creates no new
-            # canonical ResourceVersion revision.
+            replay=self._replay_canonical_result,
+            # Generic governed evidence is durable control/evidence but does not
+            # fabricate another canonical kc.revision for the logical parent call.
             allow_no_canonical_revision=True,
         )
 
