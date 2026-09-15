@@ -11,18 +11,22 @@ Use only these four bridge operations:
 - `kc_get_source`
 - `kc_store`
 
+These operation names are literal protocol identifiers. Pass them exactly as written. Never shorten, translate, alias, or remove the `kc_` prefix. In particular, `status`, `search`, `get_source`, and `store` are invalid operation names.
+
 The project-local bridge path is:
 
 `{{BRIDGE_PATH}}`
 
 Run it from the scratchpad with JSON on standard input. Anton's scratchpad working directory is the active project root, so this path is intentionally relative and stays inside the permitted workspace.
 
+Use explicit helpers so the protocol identifiers are not reconstructed from natural-language names:
+
 ```python
 import json, subprocess, sys
 
 KC_BRIDGE = r"{{BRIDGE_PATH}}"
 
-def kc(operation, payload=None):
+def _kc_exact(operation, payload=None):
     p = subprocess.run(
         [sys.executable, KC_BRIDGE, operation],
         input=json.dumps(payload or {}),
@@ -33,15 +37,39 @@ def kc(operation, payload=None):
     if p.returncode != 0:
         raise RuntimeError(p.stderr.strip() or "Knowledge Core bridge failed")
     return json.loads(p.stdout)
+
+
+def kc_status():
+    return _kc_exact("kc_status", {})
+
+
+def kc_search(payload):
+    return _kc_exact("kc_search", payload)
+
+
+def kc_get_source(payload):
+    return _kc_exact("kc_get_source", payload)
+
+
+def kc_store(payload):
+    return _kc_exact("kc_store", payload)
 ```
+
+Equivalent direct CLI form for status is exactly:
+
+```text
+python {{BRIDGE_PATH}} kc_status
+```
+
+with `{}` on standard input. Do not replace `kc_status` with `status`.
 
 ## Query workflow
 
 For a factual lookup:
 
-1. Call `kc_search` first.
+1. Call literal operation `kc_search` first.
 2. If no relevant result is returned, say Knowledge Core did not provide the answer. Do not search unrelated project files or infer from general knowledge unless the user separately asks you to.
-3. When an exact answer or verification is requested, call `kc_get_source` using the `resource_version_ref` returned by `kc_search`.
+3. When an exact answer or verification is requested, call literal operation `kc_get_source` using the `resource_version_ref` returned by `kc_search`.
 4. Answer from that canonical source.
 
 Example search input:
@@ -58,7 +86,7 @@ Example exact-source input:
 
 ## Status
 
-`kc_status` takes `{}`. Use it when KC readiness is uncertain. Do not claim graph readiness from this response.
+Literal operation `kc_status` takes `{}`. Use it when KC readiness is uncertain. Do not claim graph readiness from this response.
 
 ## Store
 
@@ -77,6 +105,7 @@ Store only when the user explicitly asks to remember/store something or when the
 ## Failure discipline and trust boundary
 
 - If the bridge cannot be run or returns an error, report that exact failure and stop the Knowledge Core attempt.
+- Do not reinterpret an unsupported-operation error as proof that a documented `kc_*` operation does not exist. Check the literal argument actually sent; if it was shortened or changed, retry once with the exact documented protocol identifier.
 - Do not fall back to filesystem searches, general knowledge, another memory system, or guessed answers unless the user explicitly asks for a fallback.
 - Never print, return, log, inspect, or ask the user to paste `KNOWLEDGE_CORE_BOOTSTRAP_KEY` into chat.
 - Never bypass the bridge with raw HTTP, SQL, filesystem reads of the KC artifact store, FalkorDB queries, or Graphiti calls.
