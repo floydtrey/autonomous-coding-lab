@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from knowledge_core.application.repository_governed_producer import (
+    RepositoryGovernedProducerKnowledgeKernel,
+)
 from knowledge_core.application.repository_import import (
     RepositoryImportKnowledgeKernel,
     _receipt_snapshot,
 )
-from knowledge_core.application.section_publication import SectionPublicationKnowledgeKernel
+from knowledge_core.application.section_publication_v2 import (
+    SourceNeutralSectionPublicationKnowledgeKernel,
+)
 from knowledge_core.domain.assertions import KnowledgeInvariantError
 from knowledge_core.domain.resources import ResourceLocatorKind
 from knowledge_core.storage.repository_import_models import (
@@ -14,13 +19,20 @@ from knowledge_core.storage.repository_import_models import (
 
 
 class SectionRepositoryImportKnowledgeKernel(RepositoryImportKnowledgeKernel):
-    """RI-2 canonical import with atomic SR-2 segment-generation publication."""
+    """Verified repository producer with source-neutral SR-2 publication."""
 
-    def _section_publication_kernel(self) -> SectionPublicationKnowledgeKernel:
-        return SectionPublicationKnowledgeKernel(
+    def _section_publication_kernel(
+        self,
+    ) -> SourceNeutralSectionPublicationKnowledgeKernel:
+        return SourceNeutralSectionPublicationKnowledgeKernel(
             self.session,
             artifact_store=self.artifact_store,
         )
+
+    def _repository_governed_producer(
+        self,
+    ) -> RepositoryGovernedProducerKnowledgeKernel:
+        return RepositoryGovernedProducerKnowledgeKernel(self.session)
 
     def apply_repository_import(
         self,
@@ -29,7 +41,7 @@ class SectionRepositoryImportKnowledgeKernel(RepositoryImportKnowledgeKernel):
         expected_plan_digest: str,
         before_publish_hook=None,
     ):
-        """Preserve RI-2 canonical writes; replace only the derived publish tail."""
+        """Preserve RI-2 verification while publishing one complete generic corpus."""
 
         plan = self.plan_repository_import(manifest)
         if plan.replay_receipt is not None:
@@ -117,28 +129,36 @@ class SectionRepositoryImportKnowledgeKernel(RepositoryImportKnowledgeKernel):
                 before_publish_hook()
 
             publication = self._section_publication_kernel()
-            publication.stale_unpublished_candidates_for_manifest(
-                governing_manifest_digest=plan.manifest_digest
+            expected_predecessor = publication.current_serving_snapshot_digest()
+            governed_snapshot = self._repository_governed_producer().prepare_complete_snapshot(
+                governing_manifest_digest=plan.manifest_digest,
+                expected_predecessor_snapshot_digest=expected_predecessor,
+            )
+            publication.stale_unpublished_candidates_for_snapshot(
+                governing_snapshot_digest=governed_snapshot.digest
             )
             candidate = publication.build_segment_generation_candidate(
-                governing_manifest_digest=plan.manifest_digest
+                governing_snapshot_digest=governed_snapshot.digest
             )
             publication.promote_segment_generation(
                 generation_id=candidate.generation_id,
-                governing_manifest_digest=plan.manifest_digest,
+                governing_snapshot_digest=governed_snapshot.digest,
+                expected_predecessor_snapshot_digest=expected_predecessor,
+                commit_transaction=False,
             )
+
             receipt = self.session.get(
                 RepositoryImportReceipt,
                 plan.manifest_digest,
             )
-            if (
-                receipt is None
-                or receipt.status != "settled"
-                or receipt.resulting_text_generation_id != candidate.generation_id
-            ):
+            if receipt is None or receipt.status != "applying":
                 raise KnowledgeInvariantError(
-                    "atomic SR-2 repository publication did not settle its receipt"
+                    "repository receipt changed before source-neutral settlement"
                 )
+            receipt.status = "settled"
+            receipt.resulting_text_generation_id = candidate.generation_id
+            receipt.settled_at = self._now()
+            self._commit()
             return _receipt_snapshot(receipt)
         except Exception:
             self.session.rollback()
