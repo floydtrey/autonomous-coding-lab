@@ -324,7 +324,7 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
                         derived_kind=DerivedKind.TEXT
                     )
                     return DirectNotePublicationResult(
-                        text_state="searchable",
+                        text_state="indexed",
                         generation_id=(
                             current.generation_id if current is not None else None
                         ),
@@ -388,7 +388,7 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 expected_predecessor_snapshot_digest=predecessor_digest,
             )
             return DirectNotePublicationResult(
-                text_state="searchable",
+                text_state="indexed",
                 generation_id=current.generation_id,
                 snapshot_digest=snapshot.digest,
             )
