@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 import pytest
@@ -66,6 +66,13 @@ def _decision(*, decision_id: UUID = DECISION) -> GovernedSourceDecision:
     )
 
 
+def _member() -> GovernedSnapshotMember:
+    return GovernedSnapshotMember.from_selection(
+        observation=_observation(),
+        decision=_decision(),
+    )
+
+
 def test_snapshot_member_factory_rejects_decision_for_another_observation():
     observation = _observation()
     mismatched = replace(_decision(), observation_id=OTHER_OBSERVATION)
@@ -94,3 +101,16 @@ def test_snapshot_rejects_same_observation_selected_under_two_decisions():
             created_at=T0,
             members=(first, second),
         )
+
+
+def test_snapshot_digest_replays_across_different_record_creation_times():
+    first = GovernedRetrievalSnapshot(
+        selection_policy_id="kc-complete-corpus-selection-v1",
+        created_at=T0,
+        members=(_member(),),
+    )
+    replay = replace(first, created_at=T0 + timedelta(days=7))
+
+    assert first.canonical_payload != replay.canonical_payload
+    assert first.digest_payload == replay.digest_payload
+    assert first.digest == replay.digest
