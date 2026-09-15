@@ -13,6 +13,9 @@ from knowledge_core.api.repository_import_app import create_repository_import_ap
 from knowledge_core.application.governed_source_evidence import (
     GovernedSourceEvidenceKnowledgeKernel,
 )
+from knowledge_core.application.repository_governed_producer import (
+    RepositoryGovernedProducerKnowledgeKernel,
+)
 from knowledge_core.application.repository_import import RepositoryImportKnowledgeKernel
 from knowledge_core.application.section_repository_import import (
     SectionRepositoryImportKnowledgeKernel,
@@ -66,25 +69,8 @@ class FakeRepositoryReader:
         )
 
 
-def _entry(content: bytes) -> dict:
-    return {
-        "source_document_key": "alpha",
-        "path": "alpha.md",
-        "git_blob_sha": _blob_sha(content),
-        "media_type": "text/markdown",
-        "classification": "approved",
-        "retrieval_lifecycle": "current",
-        "authority_rank": 10,
-        "rationale": "Task 2C repository producer qualification",
-    }
-
-
 def _manifest(
-    *,
-    manifest_id: str,
-    commit: str,
-    content: bytes,
-    previous: str | None = None,
+    *, manifest_id: str, commit: str, content: bytes, previous: str | None = None
 ) -> dict:
     return {
         "schema_version": 2,
@@ -94,7 +80,18 @@ def _manifest(
         "source_commit": commit,
         "previous_manifest_digest": previous,
         "history_policy": "retain_prior_versions_as_superseded",
-        "entries": [_entry(content)],
+        "entries": [
+            {
+                "source_document_key": "alpha",
+                "path": "alpha.md",
+                "git_blob_sha": _blob_sha(content),
+                "media_type": "text/markdown",
+                "classification": "approved",
+                "retrieval_lifecycle": "current",
+                "authority_rank": 10,
+                "rationale": "Task 2C repository producer qualification",
+            }
+        ],
         "retirements": [],
     }
 
@@ -112,12 +109,11 @@ def _require_postgres_engine():
 def _truncate_kernel_tables(engine) -> None:
     inspector = inspect(engine)
     preparer = engine.dialect.identifier_preparer
-    tables: list[str] = []
-    for schema in ("kc", "kc_control", "kc_derived"):
-        for table_name in inspector.get_table_names(schema=schema):
-            tables.append(
-                f"{preparer.quote_schema(schema)}.{preparer.quote(table_name)}"
-            )
+    tables = [
+        f"{preparer.quote_schema(schema)}.{preparer.quote(table_name)}"
+        for schema in ("kc", "kc_control", "kc_derived")
+        for table_name in inspector.get_table_names(schema=schema)
+    ]
     if not tables:
         raise AssertionError("Knowledge Core schemas are not migrated")
     with engine.begin() as connection:
@@ -148,7 +144,7 @@ def _importer(engine, tmp_path: Path, reader: FakeRepositoryReader):
     return importer, session, sessions
 
 
-def _apply(importer: SectionRepositoryImportKnowledgeKernel, manifest: dict):
+def _apply(importer, manifest: dict):
     plan = importer.plan_repository_import(manifest)
     return importer.apply_repository_import(
         manifest=manifest,
@@ -167,25 +163,22 @@ def _current_text_generation_id(session):
 
 @pytest.mark.postgresql
 def test_section_repository_import_settles_generic_snapshot_with_sr2_generation(
-    task2c_engine,
-    tmp_path: Path,
+    task2c_engine, tmp_path: Path
 ):
     reader = FakeRepositoryReader()
     commit = "a" * 40
     content = b"# Alpha\nproducer boundary apricot\n"
     reader.put(commit, "alpha.md", content)
-    manifest = _manifest(manifest_id="A", commit=commit, content=content)
-
     importer, session, _sessions = _importer(task2c_engine, tmp_path, reader)
     try:
-        receipt = _apply(importer, manifest)
+        receipt = _apply(
+            importer,
+            _manifest(manifest_id="A", commit=commit, content=content),
+        )
         assert receipt.status == "settled"
         assert receipt.resulting_text_generation_id is not None
         assert _current_text_generation_id(session) == receipt.resulting_text_generation_id
-        assert (
-            session.get(TextGenerationProfile, receipt.resulting_text_generation_id)
-            is not None
-        )
+        assert session.get(TextGenerationProfile, receipt.resulting_text_generation_id)
 
         mapping = session.get(LegacyRepositorySnapshotMap, receipt.manifest_digest)
         assert mapping is not None
@@ -195,7 +188,10 @@ def test_section_repository_import_settles_generic_snapshot_with_sr2_generation(
         assert len(snapshot.members) == 1
         assert len(snapshot.exclusions) == 0
 
-        replay = _apply(importer, manifest)
+        replay = _apply(
+            importer,
+            _manifest(manifest_id="A", commit=commit, content=content),
+        )
         assert replay.manifest_digest == receipt.manifest_digest
         assert replay.resulting_text_generation_id == receipt.resulting_text_generation_id
         replay_mapping = session.get(LegacyRepositorySnapshotMap, receipt.manifest_digest)
@@ -207,9 +203,7 @@ def test_section_repository_import_settles_generic_snapshot_with_sr2_generation(
 
 @pytest.mark.postgresql
 def test_generic_mapping_failure_rolls_back_sr2_publication(
-    task2c_engine,
-    tmp_path: Path,
-    monkeypatch,
+    task2c_engine, tmp_path: Path, monkeypatch
 ):
     reader = FakeRepositoryReader()
     commit_a, commit_b = "a" * 40, "b" * 40
@@ -217,11 +211,12 @@ def test_generic_mapping_failure_rolls_back_sr2_publication(
     content_b = b"# Alpha\nsecond candidate berry\n"
     reader.put(commit_a, "alpha.md", content_a)
     reader.put(commit_b, "alpha.md", content_b)
-
     importer, session, _sessions = _importer(task2c_engine, tmp_path, reader)
     try:
-        manifest_a = _manifest(manifest_id="A", commit=commit_a, content=content_a)
-        receipt_a = _apply(importer, manifest_a)
+        receipt_a = _apply(
+            importer,
+            _manifest(manifest_id="A", commit=commit_a, content=content_a),
+        )
         current_a = _current_text_generation_id(session)
         assert current_a == receipt_a.resulting_text_generation_id
 
@@ -232,16 +227,25 @@ def test_generic_mapping_failure_rolls_back_sr2_publication(
             previous=receipt_a.manifest_digest,
         )
         plan_b = importer.plan_repository_import(manifest_b)
-        original = GovernedSourceEvidenceKnowledgeKernel.map_settled_repository_receipt
+        original = RepositoryGovernedProducerKnowledgeKernel.prepare_complete_snapshot
 
-        def fail_current_mapping(self, governing_manifest_digest: str):
+        def fail_current_mapping(
+            self,
+            *,
+            governing_manifest_digest: str,
+            expected_predecessor_snapshot_digest: str | None,
+        ):
             if governing_manifest_digest == plan_b.manifest_digest:
                 raise RuntimeError("injected generic evidence failure")
-            return original(self, governing_manifest_digest)
+            return original(
+                self,
+                governing_manifest_digest=governing_manifest_digest,
+                expected_predecessor_snapshot_digest=expected_predecessor_snapshot_digest,
+            )
 
         monkeypatch.setattr(
-            GovernedSourceEvidenceKnowledgeKernel,
-            "map_settled_repository_receipt",
+            RepositoryGovernedProducerKnowledgeKernel,
+            "prepare_complete_snapshot",
             fail_current_mapping,
         )
         with pytest.raises(RuntimeError, match="generic evidence failure"):
@@ -261,8 +265,7 @@ def test_generic_mapping_failure_rolls_back_sr2_publication(
 
 @pytest.mark.postgresql
 def test_repository_import_http_service_uses_sr2_producer_and_generic_evidence(
-    task2c_engine,
-    tmp_path: Path,
+    task2c_engine, tmp_path: Path
 ):
     reader = FakeRepositoryReader()
     commit = "c" * 40
@@ -278,29 +281,22 @@ def test_repository_import_http_service_uses_sr2_producer_and_generic_evidence(
     )
     with TestClient(app) as client:
         planned = client.post(
-            "/v1/repository-import/plan",
-            headers=_CALLER,
-            json={"manifest": manifest},
+            "/v1/repository-import/plan", headers=_CALLER, json={"manifest": manifest}
         )
         assert planned.status_code == 200, planned.text
         applied = client.post(
             "/v1/repository-import/apply",
             headers=_CALLER,
-            json={
-                "manifest": manifest,
-                "plan_digest": planned.json()["plan_digest"],
-            },
+            json={"manifest": manifest, "plan_digest": planned.json()["plan_digest"]},
         )
         assert applied.status_code == 200, applied.text
         body = applied.json()
 
     session = sessions()
     try:
-        generation_id = body["resulting_text_generation_id"]
-        assert generation_id is not None
-        generation_ref = UUID(generation_id)
+        generation_ref = UUID(body["resulting_text_generation_id"])
         assert session.get(TextGenerationProfile, generation_ref) is not None
-        assert session.get(LegacyRepositorySnapshotMap, body["manifest_digest"]) is not None
+        assert session.get(LegacyRepositorySnapshotMap, body["manifest_digest"])
         assert _current_text_generation_id(session) == generation_ref
     finally:
         session.close()
@@ -308,8 +304,7 @@ def test_repository_import_http_service_uses_sr2_producer_and_generic_evidence(
 
 @pytest.mark.postgresql
 def test_legacy_rf2_importer_cannot_replace_established_sr2_current_generation(
-    task2c_engine,
-    tmp_path: Path,
+    task2c_engine, tmp_path: Path
 ):
     reader = FakeRepositoryReader()
     commit_a, commit_b = "d" * 40, "e" * 40
@@ -327,8 +322,10 @@ def test_legacy_rf2_importer_cannot_replace_established_sr2_current_generation(
             artifact_store=artifact_store,
             source_readers={"repo-task2c": reader},
         )
-        manifest_a = _manifest(manifest_id="SR2-A", commit=commit_a, content=content_a)
-        receipt_a = _apply(sr2, manifest_a)
+        receipt_a = _apply(
+            sr2,
+            _manifest(manifest_id="SR2-A", commit=commit_a, content=content_a),
+        )
         current_a = _current_text_generation_id(session)
         assert current_a == receipt_a.resulting_text_generation_id
         assert session.get(TextGenerationProfile, current_a) is not None
@@ -353,7 +350,6 @@ def test_legacy_rf2_importer_cannot_replace_established_sr2_current_generation(
                 manifest=manifest_b,
                 expected_plan_digest=plan_b.plan_digest,
             )
-
         assert _current_text_generation_id(session) == current_a
         failed = session.get(RepositoryImportReceipt, plan_b.manifest_digest)
         assert failed is not None
