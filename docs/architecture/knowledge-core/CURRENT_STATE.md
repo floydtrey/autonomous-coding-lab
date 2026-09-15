@@ -3,7 +3,7 @@
 **Authoritative KC status and restart point. Updated 2026-09-14.**
 Branch: `architecture/knowledge-core`. Documentation consolidation baseline:
 `2678e7666fbcba50b64d8839ea0592a8d992e916`.
-Latest accepted KC Usable V1 checkpoint: `b9e708f2892f3a7303fa50ccadc64c26f5b9bf46`.
+Latest accepted KC Usable V1 checkpoint: `cbfecbfada73e1210ceae0185a31664bf073a479`.
 
 ## Read order and authority
 
@@ -29,6 +29,7 @@ These are the only authoritative current KC documents. The component README and 
 | SR-2 intended host | Accepted Windows/PostgreSQL restart/recovery, exact structural reconstruction, provenance, segment serving and replay. |
 | KC Consumer V1 / lexical API | Implemented exact segment-content serving with provenance. `POST /v1/retrieval/search` evaluates injected Authority before protected search. Current response provenance is repository-shaped and will receive a source-neutral version/compatibility boundary during Task 2. |
 | KC Usable V1 bootstrap access | **Task 1 accepted.** Configurable bind host defaults to `127.0.0.1`; shared API-key admission maps accepted front-door calls to fixed principal `local_owner`; only store/search/get-source/status operation classes are admitted. This facility is not yet attached to a public Usable V1 front-door route. |
+| Source-neutral governed-source contract | **Task 2A accepted.** Typed/versioned pure-domain contract separates logical source identity, canonical Resource/ResourceVersion identity, immutable observations, governance decisions, project membership and complete retrieval snapshots without changing storage or serving. |
 | Projection attempt and validation ledgers | Implemented durable, separate provider-attempt and independent validation evidence. Provider success alone is insufficient. |
 | Governed Graphiti backend | Accepted real-host governed-document projection, immutable build isolation, lifecycle validation and trusted canonical result correlation. Its current plan input is still repository-shaped; generic mixed-source graph input is deferred until after source-neutral text ingestion works. |
 | Public graph consumer API | **Not exposed/promoted.** Trusted graph retrieval exists in the application kernel; the public retrieval route still performs lexical search. |
@@ -129,21 +130,33 @@ The full existing workflow passed: fast semantic suite, PostgreSQL G1–G21, G22
 
 Task 2 is no longer treated as a single endpoint change. The audit showed that a correct direct-note front door first requires removal of repository-specific assumptions from the generic governed retrieval path. Execute only the bounded slice explicitly authorized below.
 
-#### Task 2A — freeze the generic governed-source contract — NEXT AUTHORIZED SLICE
+#### Task 2A — freeze the generic governed-source contract — ACCEPTED
 
-Define the smallest typed/versioned contract and acceptance cases for governed source identity, observations/admission, project/context membership, relevant times, governance inputs, complete retrieval snapshots, and observation cardinality.
+Accepted at implementation checkpoint `cbfecbfada73e1210ceae0185a31664bf073a479`, with full Knowledge Core workflow [Actions 34923452994](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34923452994) green.
 
-Challenge the contract with repository + direct-note cases and small chat/email/benchmark-shaped fixtures so obvious future source requirements are not accidentally encoded as Git semantics. Do not implement every connector.
+The accepted pure-domain contract defines:
 
-**Accept when:** the contract clearly separates canonical content identity, logical source identity, observation identity, governance state, project membership, and retrieval snapshot identity; repository proof remains source-specific; complete-corpus publication/predecessor behavior is specified; no serving behavior or migrations change.
+- `GovernedSourceIdentity` for stable source/origin identity, independent of content and project membership;
+- `GovernedSourceBinding` for explicit source-identity → canonical Resource mapping;
+- `SourceEvidenceRef` for typed SHA-256-bound producer-specific proof references;
+- `GovernedSourceObservation` for immutable capture/admission of one exact ResourceVersion, with source event/revision times distinct from KC observation time;
+- `GovernedSourceDecision` for immutable KC classification/lifecycle/rank decisions separate from capture evidence;
+- `GovernedSnapshotMember` / `GovernedSnapshotExclusion` for exact selected and excluded evidence;
+- `GovernedRetrievalSnapshot` for complete, predecessor-bound, versioned corpus selection.
 
-**Stop:** no database migration, SR-2 serving change, Graphiti generalization, new connector, or public route in 2A.
+The contract is challenged with Git repository, local-note, chat-message, email-message and benchmark-run-shaped fixtures. Those fixtures establish shape compatibility only; they do not implement the future connectors.
 
-#### Task 2B — generic durable evidence + legacy mapping
+Snapshot membership is order-independent for digest identity, project membership is separate from source identity, one observation cannot be selected twice under competing governance decisions, and a decision must bind the selected observation. Snapshot record creation time is retained as evidence but excluded from the semantic snapshot digest so exact reconstruction/replay of the same predecessor/policy/membership remains stable.
+
+No database model, migration, existing SR-2 serving/publication behavior, Graphiti contract, public route, repository manifest or historical evidence changed in 2A.
+
+#### Task 2B — generic durable evidence + legacy mapping — NEXT AUTHORIZED SLICE
 
 Add the source-neutral durable evidence/snapshot layer and new versioned digests. Preserve all existing repository evidence. Deterministically map eligible Git evidence into the generic layer with explicit legacy references; serving remains unchanged.
 
 **Accept when:** reconstruction/replay of mapped repository evidence is deterministic, historical records are untouched, failed/pending/quarantined evidence does not become serving-eligible, and direct-note-shaped evidence can exist without fake repository fields.
+
+**Stop:** do not change SR-2 serving/publication, make repository import consume the new layer, expose `kc_store`, or generalize Graphiti in 2B.
 
 #### Task 2C — repository import becomes a verified producer
 
@@ -177,7 +190,7 @@ Run deterministic/restart/mixed-corpus/idempotency/privacy/publication-failure q
 
 **Accept when:** direct-note and repository evidence are jointly searchable through the accepted text generation after restart/replay, exact canonical provenance is available, restrictions remain dominant, old accepted historical evidence retains its original interpretation, and the full required KC workflow is green.
 
-**Current authorization:** Task 2A only. Checkpoint it before 2B.
+**Current authorization:** Task 2B only. Checkpoint it before 2C.
 
 ### Task 3 — simple read surface
 
