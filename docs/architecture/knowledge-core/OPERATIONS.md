@@ -44,7 +44,7 @@ Task 2 may compose this facility with the new `kc_store` front-door route. Do no
 
 ## Task 2 source-neutral evidence boundary
 
-Task 2A froze the pure-domain governed-source contract in `knowledge_core/domain/governed_sources.py`. Task 2B then added a durable source-neutral evidence layer and deterministic legacy repository mapping without changing SR-2 serving/publication.
+Task 2A froze the pure-domain governed-source contract in `knowledge_core/domain/governed_sources.py`. Task 2B added durable source-neutral evidence and deterministic legacy repository mapping. Task 2C then made the live repository-import service an SR-2 producer that settles the corresponding generic governed evidence without weakening exact Git verification.
 
 The contract separates source identity, source-to-Resource binding, producer evidence, immutable observation/admission, KC governance decision, project membership and complete retrieval snapshot identity. Snapshot semantic identity binds predecessor, selection policy, selected/excluded evidence and governance, but excludes snapshot record creation time. Evidence, project-membership and snapshot-member ordering are canonicalized so persistence/replay equality follows those semantic rules rather than incidental insertion order.
 
@@ -58,9 +58,13 @@ Current operating rules:
 - re-observation of the same ResourceVersion remains distinct evidence;
 - one observation cannot be current in one snapshot under competing governance decisions;
 - complete-corpus snapshots, not producer-local subsets, must feed the future one-current TEXT publication boundary;
-- only settled legacy repository receipts are eligible for the 2B legacy mapper; applying/failed receipts are rejected;
-- 2B generic persistence and mapping are additive only: they do not drive SR-2 serving/publication, expose `kc_store`, or alter Graphiti;
-- Task 2C is the next authorized slice and may make repository import produce the generic evidence, but it must preserve exact Git proof and existing repository guarantees.
+- only settled repository evidence can become an accepted generic snapshot; applying/failed receipts remain ineligible;
+- the live repository-import HTTP service uses the SR-2 producer, and SR-2 settlement must also establish the corresponding generic governed snapshot before publication commits;
+- if generic evidence settlement fails, publication fails closed and the prior current TEXT generation remains serving;
+- legacy RF-2 remains available for historical qualification/reconstruction from an empty/RF-2 state, but the generation fence rejects RF-2 publication over an established SR-2 current TEXT generation;
+- RI-3/RI-4 historical evidence retains its original RF-2 interpretation. Current restart rehearsals are retrieval-mode neutral and validate exact repository provenance, canonical/artifact integrity, serving, lifecycle, restart recovery and replay rather than requiring the obsolete RF-2 physical row shape;
+- SR-2 source selection/lineage and lexical serving provenance remain repository-shaped until Task 2D;
+- no direct-note producer, `kc_store`, source-neutral lexical response contract or Graphiti generalization is authorized by Task 2C.
 
 ## Graphiti operator boundary
 
@@ -74,7 +78,7 @@ Available entry points:
 | `graphiti_host_phase_monitored.py` | Wraps host qualification with host resource telemetry. |
 | `graphiti_host_phase_live.py` | Preflight, live progress/event journal and final summary around the qualification path. |
 | `sr2_host_qualification.py` | Bounded SR-2 restart/recovery with the pinned G22 corpus. |
-| `ri4_host_qualification.py` | Earlier RF-2 whole-document restart/recovery qualification. |
+| `ri4_host_qualification.py` | Historical RI-4 restart/recovery harness; current rehearsal is retrieval-mode neutral while its accepted historical record retains RF-2 semantics. |
 
 To inspect the current source list without touching Graphiti:
 
@@ -110,6 +114,7 @@ These are recorded acceptance checkpoints. Linked historical files retain their 
 | KC Usable V1 Task 1 | `b9e708f2892f3a7303fa50ccadc64c26f5b9bf46`; [Actions 34877670577](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34877670577) | Bootstrap bind configuration, shared-key admission, fixed `local_owner`, bounded operation classes, spoof-resistant principal mapping, and deterministic request rejection. Full existing KC workflow green. Not a full Authority service or remote-exposure qualification. |
 | KC Usable V1 Task 2A | `cbfecbfada73e1210ceae0185a31664bf073a479`; [Actions 34923452994](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34923452994) | Source-neutral governed-source pure-domain contract and adversarial Git/note/chat/email/benchmark-shaped fixtures. Full existing KC workflow green. No persistence, migration, serving, Graphiti or public-route behavior changed. |
 | KC Usable V1 Task 2B | `6910e9abba320e272b34b0528846f289d3d8eb14`; [Actions 34925025743](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34925025743) | Source-neutral durable evidence/snapshot persistence, migration `0016`, deterministic settled-repository legacy mapping, non-Git-shaped persistence, fail-closed non-settled mapping, replay stability and semantic-order normalization. Full existing KC workflow green. Serving/publication, repository producer wiring, Graphiti and public routes unchanged. |
+| KC Usable V1 Task 2C | `30d1ec2ce13ae8c95afc4ac2b9d54d959f36b3bd`; [Actions 34927229037](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34927229037) | Live repository API uses SR-2; SR-2 settlement materializes matching generic governed evidence; generic-mapping failure preserves the prior current generation; replay remains stable; legacy RF-2 cannot replace established SR-2; current RI-3/RI-4 rehearsals are mode-neutral. Full existing KC workflow green. SR-2 downstream source selection/lineage remains repository-shaped for Task 2D. |
 
 The SR-2 intended-host record locates raw JSON at the historical host path `C:\Users\floyd\AppData\Local\KnowledgeCore\sr2-host-qualification-01\SR2_HOST_QUALIFICATION_EVIDENCE.json`. That raw dump is not committed and was not newly inspected during consolidation. The same record excludes machine reboot, backup/restore and production deployment claims.
 
