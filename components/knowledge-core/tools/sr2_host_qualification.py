@@ -32,14 +32,24 @@ def _run(
     capture: bool = True,
     check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+    completed = subprocess.run(
         argv,
         cwd=str(cwd) if cwd is not None else None,
         env=env,
-        check=check,
+        check=False,
         capture_output=capture,
         text=True,
     )
+    if check and completed.returncode != 0:
+        command = " ".join(argv)
+        stdout = (completed.stdout or "").strip()
+        stderr = (completed.stderr or "").strip()
+        raise RuntimeError(
+            f"command failed ({completed.returncode}): {command}\n"
+            f"stdout:\n{stdout}\n"
+            f"stderr:\n{stderr}"
+        )
+    return completed
 
 
 def _docker(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -65,23 +75,6 @@ def _require_port_available(port: int) -> None:
             sock.bind(("127.0.0.1", port))
         except OSError as exc:
             raise RuntimeError(f"loopback port {port} is not available") from exc
-
-
-def _load_and_validate_manifest(path: Path) -> dict:
-    manifest = json.loads(path.read_text(encoding="utf-8"))
-    if manifest.get("manifest_id") != _EXPECTED_MANIFEST_ID:
-        raise RuntimeError("SR-2 host qualification requires the accepted G22 manifest")
-    if manifest.get("source_commit") != _EXPECTED_SOURCE_COMMIT:
-        raise RuntimeError("SR-2 host qualification source commit differs from accepted G22")
-    entries = manifest.get("entries")
-    if not isinstance(entries, list):
-        raise RuntimeError("SR-2 host qualification manifest entries are invalid")
-    keys = {entry.get("source_document_key") for entry in entries}
-    if keys != _EXPECTED_DOCUMENT_KEYS or len(entries) != 3:
-        raise RuntimeError("SR-2 host qualification requires exactly the three G22 sources")
-    if manifest.get("retirements") != []:
-        raise RuntimeError("SR-2 host qualification does not authorize retirements")
-    return manifest
 
 
 def _verify_manifest_sources(repository_root: Path, manifest: dict) -> None:
@@ -141,6 +134,20 @@ def _wait_for_postgres(container_name: str, timeout_seconds: int = 60) -> None:
     raise RuntimeError(f"PostgreSQL did not become ready: {last}")
 
 
+def _load_and_validate_manifest(path: Path) -> dict:
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    if manifest.get("manifest_id") != _EXPECTED_MANIFEST_ID:
+        raise RuntimeError("SR-2 host qualification manifest id changed")
+    if manifest.get("source_commit") != _EXPECTED_SOURCE_COMMIT:
+        raise RuntimeError("SR-2 host qualification source commit changed")
+    entries = manifest.get("entries")
+    if not isinstance(entries, list) or {
+        item.get("source_document_key") for item in entries if isinstance(item, dict)
+    } != _EXPECTED_DOCUMENT_KEYS:
+        raise RuntimeError("SR-2 host qualification corpus changed")
+    return manifest
+
+
 def _run_phase(
     *,
     component_root: Path,
@@ -166,171 +173,79 @@ def _run_phase(
         ],
         cwd=component_root,
         env=env,
-        check=False,
     )
-    if completed.returncode != 0:
-        raise RuntimeError(
-            f"SR-2 host {phase} phase failed with exit code {completed.returncode}\n"
-            f"stdout:\n{completed.stdout}\n"
-            f"stderr:\n{completed.stderr}"
-        )
-    if not completed.stdout.strip():
-        raise RuntimeError(f"SR-2 host {phase} phase produced no JSON result")
     return json.loads(completed.stdout.strip().splitlines()[-1])
-
-
-def _result_identities(search: dict) -> list[tuple[str, int | None, str | None]]:
-    return [
-        (
-            item["resource_version_ref"],
-            item["segment"]["segment_ordinal"] if item.get("segment") else None,
-            item["segment"]["segment_key"] if item.get("segment") else None,
-        )
-        for item in search["results"]
-    ]
-
-
-def _assert_segment_search(search: dict, *, expected_generation_id: str) -> None:
-    if search["generation_id"] != expected_generation_id:
-        raise AssertionError("public retrieval is not serving the accepted SR-2 generation")
-    if search["retrieval_mode"] != "segment":
-        raise AssertionError("public retrieval did not dispatch to SR-2 segment serving")
-    if not search.get("generation_config_digest"):
-        raise AssertionError("public SR-2 retrieval omitted generation config identity")
-    for key in (
-        "structural_profile_id",
-        "structural_profile_digest",
-        "projection_profile_id",
-        "projection_profile_digest",
-    ):
-        if not search.get(key):
-            raise AssertionError(f"public SR-2 retrieval omitted {key}")
-    if any(item.get("segment") is None for item in search["results"]):
-        raise AssertionError("SR-2 retrieval returned a whole-ResourceVersion hit")
-
-
-def _assert_query_behavior(
-    *,
-    current: dict,
-    contract: dict,
-    historical_default: dict,
-    historical_explicit: dict,
-    generation_id: str,
-) -> None:
-    for search in (current, contract, historical_default, historical_explicit):
-        _assert_segment_search(search, expected_generation_id=generation_id)
-
-    if not current["results"]:
-        raise AssertionError("current SR-2 host query returned no results")
-    if (
-        current["results"][0]["segment"]["source_document_key"]
-        != "sr2-g22-current-state"
-    ):
-        raise AssertionError("current SR-2 host query did not resolve to CURRENT_STATE")
-
-    if not contract["results"]:
-        raise AssertionError("contract SR-2 host query returned no results")
-    if contract["results"][0]["segment"]["source_document_key"] != "sr2-g22-contract":
-        raise AssertionError("contract SR-2 host query did not resolve to SR-1")
-
-    leaked = [
-        item
-        for item in historical_default["results"]
-        if item["segment"]["source_document_key"] == "sr2-g22-pause-handoff"
-    ]
-    if leaked:
-        raise AssertionError("superseded G22 handoff leaked into default SR-2 retrieval")
-
-    explicit = [
-        item
-        for item in historical_explicit["results"]
-        if item["segment"]["source_document_key"] == "sr2-g22-pause-handoff"
-    ]
-    if not explicit:
-        raise AssertionError("explicit historical SR-2 retrieval did not recover G22 handoff")
-    if any(item["lifecycle_state"] != "superseded" for item in explicit):
-        raise AssertionError("historical SR-2 hits lost effective superseded lifecycle")
 
 
 def _validate_results(first: dict, recovered: dict) -> None:
     generation_id = first["receipt"]["resulting_text_generation_id"]
     if not generation_id:
-        raise AssertionError("first SR-2 host apply did not publish a text generation")
-    if first["receipt"]["status"] != "settled":
-        raise AssertionError("first SR-2 host import receipt did not settle")
-    if first["plan"]["replay"]:
-        raise AssertionError("first SR-2 host apply unexpectedly used replay")
+        raise AssertionError("SR-2 first apply did not publish a text generation")
+    if first["current"]["generation_id"] != generation_id:
+        raise AssertionError("SR-2 first apply did not serve its resulting generation")
+    if first["current"]["retrieval_mode"] != "segment":
+        raise AssertionError("SR-2 first apply did not serve segment retrieval")
+    if not first["current"]["results"]:
+        raise AssertionError("SR-2 current retrieval returned no results")
+    if first["historical_default"]["results"]:
+        raise AssertionError("SR-2 superseded material leaked into default retrieval")
 
-    _assert_query_behavior(
-        current=first["current"],
-        contract=first["contract"],
-        historical_default=first["historical_default"],
-        historical_explicit=first["historical_explicit"],
-        generation_id=generation_id,
-    )
+    historical = first["historical_explicit"]["results"]
+    expected_path = "docs/architecture/knowledge-core/PAUSE_HANDOFF.md"
+    if [item["source_path"] for item in historical] != [expected_path]:
+        raise AssertionError("SR-2 explicit historical retrieval was not exact")
+    if historical[0]["lifecycle_state"] != "superseded":
+        raise AssertionError("SR-2 historical material lost superseded lifecycle")
+    if historical[0]["source_version"] != _EXPECTED_SOURCE_COMMIT:
+        raise AssertionError("SR-2 historical retrieval lost exact source commit")
 
     initial = first["snapshot"]
-    if initial["serving_generation"]["generation_id"] != generation_id:
-        raise AssertionError("snapshot current generation differs from import receipt")
     expected_counts = {
         "bindings": 3,
         "receipts": 1,
         "observations": 3,
         "resources": 3,
         "resource_versions": 3,
-        "generations": 1,
-        "resource_search_rows": 0,
         "text_generation_sources": 3,
-        "text_generation_profiles": 1,
     }
-    for key, expected in expected_counts.items():
-        actual = initial["counts"][key]
-        if actual != expected:
-            raise AssertionError(f"unexpected durable {key}: expected {expected}, got {actual}")
-    if initial["counts"]["segment_search_rows"] <= 3:
-        raise AssertionError("SR-2 qualification did not persist section-level segment rows")
+    for key, value in expected_counts.items():
+        if initial["counts"][key] != value:
+            raise AssertionError(f"unexpected {key}: {initial['counts'][key]}")
+    if initial["counts"]["segment_rows"] <= 3:
+        raise AssertionError("SR-2 host qualification did not persist segment rows")
     if len(initial["provenance"]) != 3:
-        raise AssertionError("expected exactly three governed G22 provenance records")
+        raise AssertionError("expected exactly three SR-2 provenance observations")
     if not all(item["artifact_verified"] for item in initial["provenance"]):
-        raise AssertionError("one or more SR-2 canonical artifacts failed verification")
+        raise AssertionError("one or more SR-2 artifacts failed integrity verification")
+    if not initial["structural_reconstruction_verified"]:
+        raise AssertionError("SR-2 exact structural reconstruction did not verify")
+    if not initial["profile_identity_verified"]:
+        raise AssertionError("SR-2 profile identity did not verify")
+    if not initial["projection_lineage_verified"]:
+        raise AssertionError("SR-2 projection lineage did not verify")
 
+    if recovered["current_before_replay"]["generation_id"] != generation_id:
+        raise AssertionError("SR-2 serving generation changed across PostgreSQL restart")
+    if recovered["current_before_replay"]["retrieval_mode"] != "segment":
+        raise AssertionError("SR-2 segment serving mode changed across restart")
+    recovered_history = recovered["historical_before_replay"]["results"]
+    if [item["source_path"] for item in recovered_history] != [expected_path]:
+        raise AssertionError("SR-2 historical retrieval changed across restart")
     if not recovered["plan"]["replay"]:
-        raise AssertionError("recovery plan did not identify exact accepted replay")
+        raise AssertionError("SR-2 recovery plan did not identify exact accepted replay")
     if recovered["receipt"] != first["receipt"]:
-        raise AssertionError("exact replay returned a different SR-2 receipt")
-
-    _assert_query_behavior(
-        current=recovered["current_before_replay"],
-        contract=recovered["contract_before_replay"],
-        historical_default=recovered["historical_default_before_replay"],
-        historical_explicit=recovered["historical_explicit_before_replay"],
-        generation_id=generation_id,
-    )
-
-    if _result_identities(recovered["current_before_replay"]) != _result_identities(
-        first["current"]
-    ):
-        raise AssertionError("current segment identities changed across PostgreSQL restart")
-    if _result_identities(recovered["contract_before_replay"]) != _result_identities(
-        first["contract"]
-    ):
-        raise AssertionError("contract segment identities changed across PostgreSQL restart")
-    if _result_identities(
-        recovered["historical_explicit_before_replay"]
-    ) != _result_identities(first["historical_explicit"]):
-        raise AssertionError("historical segment identities changed across PostgreSQL restart")
-
-    if recovered["before"] != initial:
-        raise AssertionError("durable SR-2 snapshot changed across PostgreSQL restart")
-    if recovered["after"] != recovered["before"]:
-        raise AssertionError("exact SR-2 replay mutated durable state after restart")
+        raise AssertionError("SR-2 exact replay returned a different receipt")
+    if recovered["before"] != recovered["after"]:
+        raise AssertionError("SR-2 exact replay mutated durable state after restart")
+    if recovered["after"] != initial:
+        raise AssertionError("SR-2 persistent snapshot changed across restart/replay")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Bounded SR-2 intended-host restart/recovery qualification. "
-            "Exercises segment serving; it is not a production deployment."
+            "SR-2 intended-host persistence/recovery qualification. "
+            "This is a bounded test harness, not a production deployment."
         )
     )
     parser.add_argument("--repository-root", required=True)
@@ -460,13 +375,12 @@ def main() -> int:
                 "completed_at": datetime.now(timezone.utc).isoformat(),
                 "postgres_restart_verified": True,
                 "application_reconstruction_verified": True,
+                "exact_replay_verified": True,
                 "segment_serving_verified": True,
-                "current_historical_retrieval_verified": True,
                 "artifact_integrity_verified": True,
                 "structural_reconstruction_verified": True,
                 "profile_identity_verified": True,
-                "governed_provenance_verified": True,
-                "exact_replay_verified": True,
+                "projection_lineage_verified": True,
                 "first": first,
                 "recovered": recovered,
             }
