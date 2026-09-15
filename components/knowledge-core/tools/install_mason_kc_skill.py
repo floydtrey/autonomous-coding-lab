@@ -93,7 +93,14 @@ def main(argv: list[str] | None = None) -> int:
         description="Install the bounded Knowledge Core skill for local MindsHub Cowork/Anton."
     )
     parser.add_argument("--project-dir", required=True)
-    parser.add_argument("--cowork-url", default="http://127.0.0.1:26866")
+    parser.add_argument(
+        "--cowork-url",
+        required=True,
+        help=(
+            "Loopback URL of the running Cowork sidecar. Packaged Cowork uses a "
+            "per-user port, so Task 5 deliberately does not assume 26866."
+        ),
+    )
     parser.add_argument("--knowledge-core-url", default="http://127.0.0.1:8765")
     args = parser.parse_args(argv)
 
