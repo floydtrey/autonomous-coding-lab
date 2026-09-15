@@ -324,6 +324,14 @@ class GovernedRetrievalSnapshot:
 
     @property
     def canonical_payload(self) -> dict[str, object]:
+        payload = self.digest_payload
+        return {
+            **payload,
+            "created_at": _canonical_time(self.created_at, "created_at"),
+        }
+
+    @property
+    def digest_payload(self) -> dict[str, object]:
         members = sorted(
             (item.canonical_payload for item in self.members),
             key=lambda item: (
@@ -342,7 +350,6 @@ class GovernedRetrievalSnapshot:
         )
         return {
             "contract_version": self.contract_version,
-            "created_at": _canonical_time(self.created_at, "created_at"),
             "exclusions": exclusions,
             "members": members,
             "predecessor_snapshot_digest": self.predecessor_snapshot_digest,
@@ -351,4 +358,4 @@ class GovernedRetrievalSnapshot:
 
     @property
     def digest(self) -> str:
-        return _digest(self.canonical_payload)
+        return _digest(self.digest_payload)
