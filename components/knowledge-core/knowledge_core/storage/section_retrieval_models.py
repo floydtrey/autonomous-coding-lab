@@ -22,7 +22,12 @@ from knowledge_core.storage.models import Base, KC_DERIVED_SCHEMA, KC_SCHEMA
 
 
 class TextGenerationSource(Base):
-    """Exact governed source lineage for one parent in an SR-2 text generation."""
+    """Exact governed source lineage for one parent in an SR-2 text generation.
+
+    The generic governed observation/decision/snapshot columns are authoritative for
+    source-neutral SR-2 generations. The repository columns are retained as nullable
+    compatibility lineage for historical generations and repository-only consumers.
+    """
 
     __tablename__ = "text_generation_source"
     __table_args__ = (
@@ -33,6 +38,14 @@ class TextGenerationSource(Base):
         Index(
             "ix_text_generation_source_governing_manifest",
             "governing_manifest_digest",
+        ),
+        Index(
+            "ix_text_generation_source_governed_observation",
+            "governed_observation_id",
+        ),
+        Index(
+            "ix_text_generation_source_governing_snapshot",
+            "governing_snapshot_digest",
         ),
         {"schema": KC_DERIVED_SCHEMA},
     )
@@ -45,22 +58,47 @@ class TextGenerationSource(Base):
         ForeignKey(f"{KC_SCHEMA}.resource_version.ref_id"),
         primary_key=True,
     )
-    source_observation_id: Mapped[UUID] = mapped_column(
+
+    # Source-neutral lineage used by Task 2D and later generations.
+    governed_observation_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey(
+            f"{KC_CONTROL_SCHEMA}.governed_source_observation.observation_id"
+        ),
+        nullable=True,
+    )
+    governed_decision_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey(f"{KC_CONTROL_SCHEMA}.governed_source_decision.decision_id"),
+        nullable=True,
+    )
+    governing_snapshot_digest: Mapped[str | None] = mapped_column(
+        String(71),
+        ForeignKey(
+            f"{KC_CONTROL_SCHEMA}.governed_retrieval_snapshot.snapshot_digest"
+        ),
+        nullable=True,
+    )
+    governed_projection_digest: Mapped[str | None] = mapped_column(
+        String(71), nullable=True
+    )
+
+    # Historical/repository compatibility lineage. New non-Git sources leave these
+    # fields null rather than fabricating repository proof.
+    source_observation_id: Mapped[UUID | None] = mapped_column(
         ForeignKey(
             f"{KC_CONTROL_SCHEMA}.repository_source_observation.observation_id"
         ),
-        nullable=False,
+        nullable=True,
     )
-    governing_manifest_digest: Mapped[str] = mapped_column(
+    governing_manifest_digest: Mapped[str | None] = mapped_column(
         String(64),
         ForeignKey(
             f"{KC_CONTROL_SCHEMA}.repository_import_receipt.manifest_digest"
         ),
-        nullable=False,
+        nullable=True,
     )
-    projection_snapshot_digest: Mapped[str] = mapped_column(
+    projection_snapshot_digest: Mapped[str | None] = mapped_column(
         String(71),
-        nullable=False,
+        nullable=True,
     )
 
 
@@ -190,11 +228,18 @@ class ResourceSegmentTextSearch(Base):
     )
 
     authority_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    repository: Mapped[str] = mapped_column(Text, nullable=False)
-    source_repository_key: Mapped[str] = mapped_column(String(128), nullable=False)
-    source_document_key: Mapped[str] = mapped_column(String(128), nullable=False)
-    source_path: Mapped[str] = mapped_column(Text, nullable=False)
-    source_version: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Repository metadata is a compatibility projection, not generic source
+    # identity. Non-Git sources leave all five fields null.
+    repository: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_repository_key: Mapped[str | None] = mapped_column(
+        String(128), nullable=True
+    )
+    source_document_key: Mapped[str | None] = mapped_column(
+        String(128), nullable=True
+    )
+    source_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_version: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     search_vector: Mapped[str] = mapped_column(
         TSVECTOR().with_variant(Text(), "sqlite"),
