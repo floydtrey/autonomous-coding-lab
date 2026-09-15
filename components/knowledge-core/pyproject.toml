@@ -23,6 +23,9 @@ test = [
 graphiti = [
   "graphiti-core[falkordb]==0.30.2",
 ]
+service = [
+  "uvicorn>=0.32,<1",
+]
 
 [tool.setuptools.packages.find]
 include = ["knowledge_core*"]
