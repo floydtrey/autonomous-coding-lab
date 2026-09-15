@@ -278,8 +278,11 @@ def test_task2e_kc_store_auth_idempotency_and_app_reconstruction(
         assert snapshot.members[0].project_keys == ("local-ai",)
         assert snapshot.members[0].resource_version_ref == version.ref_id
 
+        # One logical kc_store request intentionally composes three deterministic
+        # ledger operations: source Resource creation, ResourceVersion ingest, and
+        # the no-revision governed-admission parent operation.
         assert (
-            session.scalar(select(func.count()).select_from(Operation)) == 1
+            session.scalar(select(func.count()).select_from(Operation)) == 3
         )
         assert session.scalar(select(func.count()).select_from(Resource)) == 1
         assert session.scalar(select(func.count()).select_from(ResourceVersion)) == 1
