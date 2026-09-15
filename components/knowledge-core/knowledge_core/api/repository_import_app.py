@@ -13,8 +13,10 @@ from knowledge_core.api.repository_import_schemas import (
     RepositoryImportPlanResponse,
     RepositoryImportReceiptResponse,
 )
-from knowledge_core.application.repository_import import RepositoryImportKnowledgeKernel
 from knowledge_core.application.repository_source import RepositorySourceReader
+from knowledge_core.application.section_repository_import import (
+    SectionRepositoryImportKnowledgeKernel,
+)
 from knowledge_core.artifacts.store import LocalArtifactStore
 from knowledge_core.authority.retrieval import RetrievalAuthorityEvaluator
 
@@ -32,8 +34,11 @@ def create_repository_import_app(
     """Create an explicitly import-capable Knowledge Core service.
 
     The ordinary create_app() remains retrieval/resource only. Repository access
-    exists only when the host injects governed readers into this factory. Retrieval
-    remains fail-closed unless the trusted host also injects an Authority evaluator.
+    exists only when the host injects governed readers into this factory. Live
+    repository application uses the SR-2 producer; the older RF-2 importer remains
+    available only for historical qualification/reconstruction code paths.
+    Retrieval remains fail-closed unless the trusted host also injects an Authority
+    evaluator.
     """
 
     app_kwargs = {
@@ -47,7 +52,7 @@ def create_repository_import_app(
     def get_import_kernel():
         session = session_factory()
         try:
-            yield RepositoryImportKnowledgeKernel(
+            yield SectionRepositoryImportKnowledgeKernel(
                 session,
                 artifact_store=artifact_store,
                 source_readers=source_readers,
@@ -74,7 +79,7 @@ def create_repository_import_app(
     )
     def plan_repository_import(
         body: RepositoryImportPlanRequest,
-        kernel: RepositoryImportKnowledgeKernel = Depends(get_import_kernel),
+        kernel: SectionRepositoryImportKnowledgeKernel = Depends(get_import_kernel),
         _caller: str = Depends(caller_context),
     ) -> RepositoryImportPlanResponse:
         plan = kernel.plan_repository_import(body.manifest)
@@ -101,7 +106,7 @@ def create_repository_import_app(
     )
     def apply_repository_import(
         body: RepositoryImportApplyRequest,
-        kernel: RepositoryImportKnowledgeKernel = Depends(get_import_kernel),
+        kernel: SectionRepositoryImportKnowledgeKernel = Depends(get_import_kernel),
         _caller: str = Depends(caller_context),
     ) -> RepositoryImportReceiptResponse:
         receipt = kernel.apply_repository_import(
