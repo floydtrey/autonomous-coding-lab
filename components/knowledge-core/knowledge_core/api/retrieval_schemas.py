@@ -5,7 +5,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
-from knowledge_core.domain.retrieval import RetrievalLifecycleState
+from knowledge_core.domain.retrieval import (
+    LEXICAL_EVIDENCE_CONTRACT_VERSION,
+    RetrievalLifecycleState,
+)
 
 
 class RetrievalSearchRequest(BaseModel):
@@ -22,11 +25,8 @@ class RetrievalSearchRequest(BaseModel):
 
 
 class SegmentRetrievalProvenanceResponse(BaseModel):
+    provenance_contract_version: str
     governed_observation_id: UUID
-    governing_manifest_digest: str
-    projection_snapshot_digest: str
-    source_repository_key: str
-    source_document_key: str
     source_classification: str
     segment_key: str
     segment_ordinal: int
@@ -47,6 +47,33 @@ class SegmentRetrievalProvenanceResponse(BaseModel):
     declaration_byte_end: int | None
     effective_lifecycle_state: RetrievalLifecycleState
     effective_control_provenance: list[dict[str, object]]
+
+    governed_source_observation_id: UUID | None = None
+    governed_observation_digest: str | None = None
+    governed_decision_id: UUID | None = None
+    governed_decision_digest: str | None = None
+    governing_snapshot_digest: str | None = None
+    governed_projection_digest: str | None = None
+    source_identity_digest: str | None = None
+    source_kind: str | None = None
+    origin_scope: str | None = None
+    collection_key: str | None = None
+    item_key: str | None = None
+    project_keys: list[str] = Field(default_factory=list)
+    producer_id: str | None = None
+    producer_version: str | None = None
+    source_observed_at: datetime | None = None
+    source_event_time: datetime | None = None
+    source_revision_time: datetime | None = None
+    governance_policy_id: str | None = None
+    governance_rationale: str | None = None
+    governance_decided_at: datetime | None = None
+
+    legacy_repository_observation_id: UUID | None = None
+    governing_manifest_digest: str | None = None
+    projection_snapshot_digest: str | None = None
+    source_repository_key: str | None = None
+    source_document_key: str | None = None
 
 
 class RetrievalHitResponse(BaseModel):
@@ -74,6 +101,7 @@ class RetrievalSearchResponse(BaseModel):
     generation_id: UUID | None
     source_revision_highwater: int | None
     retrieval_mode: str = "resource_version"
+    evidence_contract_version: str = LEXICAL_EVIDENCE_CONTRACT_VERSION
     generation_config_digest: str | None = None
     structural_profile_id: str | None = None
     structural_profile_digest: str | None = None
@@ -83,18 +111,15 @@ class RetrievalSearchResponse(BaseModel):
 
 
 def retrieval_response_from_domain(item) -> RetrievalSearchResponse:
-    """Map bounded retrieval content and provenance into the public service schema."""
+    """Map bounded retrieval content and exact governed provenance to the API."""
 
     results: list[RetrievalHitResponse] = []
     for rank, hit in enumerate(item.results, start=1):
         segment = hit.segment
         segment_response = (
             SegmentRetrievalProvenanceResponse(
+                provenance_contract_version=segment.provenance_contract_version,
                 governed_observation_id=segment.governed_observation_id,
-                governing_manifest_digest=segment.governing_manifest_digest,
-                projection_snapshot_digest=segment.projection_snapshot_digest,
-                source_repository_key=segment.source_repository_key,
-                source_document_key=segment.source_document_key,
                 source_classification=segment.source_classification,
                 segment_key=segment.segment_key,
                 segment_ordinal=segment.segment_ordinal,
@@ -117,6 +142,35 @@ def retrieval_response_from_domain(item) -> RetrievalSearchResponse:
                 effective_control_provenance=list(
                     segment.effective_control_provenance
                 ),
+                governed_source_observation_id=(
+                    segment.governed_source_observation_id
+                ),
+                governed_observation_digest=segment.governed_observation_digest,
+                governed_decision_id=segment.governed_decision_id,
+                governed_decision_digest=segment.governed_decision_digest,
+                governing_snapshot_digest=segment.governing_snapshot_digest,
+                governed_projection_digest=segment.governed_projection_digest,
+                source_identity_digest=segment.source_identity_digest,
+                source_kind=segment.source_kind,
+                origin_scope=segment.origin_scope,
+                collection_key=segment.collection_key,
+                item_key=segment.item_key,
+                project_keys=list(segment.project_keys),
+                producer_id=segment.producer_id,
+                producer_version=segment.producer_version,
+                source_observed_at=segment.source_observed_at,
+                source_event_time=segment.source_event_time,
+                source_revision_time=segment.source_revision_time,
+                governance_policy_id=segment.governance_policy_id,
+                governance_rationale=segment.governance_rationale,
+                governance_decided_at=segment.governance_decided_at,
+                legacy_repository_observation_id=(
+                    segment.legacy_repository_observation_id
+                ),
+                governing_manifest_digest=segment.governing_manifest_digest,
+                projection_snapshot_digest=segment.projection_snapshot_digest,
+                source_repository_key=segment.source_repository_key,
+                source_document_key=segment.source_document_key,
             )
             if segment is not None
             else None
@@ -148,6 +202,7 @@ def retrieval_response_from_domain(item) -> RetrievalSearchResponse:
         generation_id=item.generation_id,
         source_revision_highwater=item.source_revision_highwater,
         retrieval_mode=item.retrieval_mode,
+        evidence_contract_version=item.evidence_contract_version,
         generation_config_digest=item.generation_config_digest,
         structural_profile_id=item.structural_profile_id,
         structural_profile_digest=item.structural_profile_digest,

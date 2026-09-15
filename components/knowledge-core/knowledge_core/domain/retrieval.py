@@ -6,6 +6,11 @@ from enum import StrEnum
 from uuid import UUID
 
 
+LEXICAL_EVIDENCE_CONTRACT_VERSION = "kc-lexical-evidence-v2"
+LEGACY_REPOSITORY_SR2_PROVENANCE_VERSION = "repository-sr2-v1"
+SOURCE_NEUTRAL_SR2_PROVENANCE_VERSION = "governed-source-sr2-v2"
+
+
 class RetrievalLifecycleState(StrEnum):
     CURRENT = "current"
     UNKNOWN = "unknown"
@@ -25,11 +30,17 @@ class TextIndexSource:
 
 @dataclass(frozen=True)
 class SegmentRetrievalProvenance:
+    """Exact lexical evidence for one SR-2 segment.
+
+    ``governed_observation_id`` is retained as the pre-2F repository compatibility
+    field: repository-backed V2 results keep exposing the verified legacy repository
+    observation there. ``governed_source_observation_id`` is the unambiguous generic
+    observation ID for source-neutral consumers. For non-repository sources, where no
+    legacy observation exists, both identify the generic observation.
+    """
+
+    provenance_contract_version: str
     governed_observation_id: UUID
-    governing_manifest_digest: str
-    projection_snapshot_digest: str
-    source_repository_key: str
-    source_document_key: str
     source_classification: str
     segment_key: str
     segment_ordinal: int
@@ -50,6 +61,33 @@ class SegmentRetrievalProvenance:
     declaration_byte_end: int | None
     effective_lifecycle_state: RetrievalLifecycleState
     effective_control_provenance: tuple[dict[str, object], ...]
+
+    governed_source_observation_id: UUID | None = None
+    governed_observation_digest: str | None = None
+    governed_decision_id: UUID | None = None
+    governed_decision_digest: str | None = None
+    governing_snapshot_digest: str | None = None
+    governed_projection_digest: str | None = None
+    source_identity_digest: str | None = None
+    source_kind: str | None = None
+    origin_scope: str | None = None
+    collection_key: str | None = None
+    item_key: str | None = None
+    project_keys: tuple[str, ...] = ()
+    producer_id: str | None = None
+    producer_version: str | None = None
+    source_observed_at: datetime | None = None
+    source_event_time: datetime | None = None
+    source_revision_time: datetime | None = None
+    governance_policy_id: str | None = None
+    governance_rationale: str | None = None
+    governance_decided_at: datetime | None = None
+
+    legacy_repository_observation_id: UUID | None = None
+    governing_manifest_digest: str | None = None
+    projection_snapshot_digest: str | None = None
+    source_repository_key: str | None = None
+    source_document_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -79,6 +117,7 @@ class RetrievalSearchSnapshot:
     source_revision_highwater: int | None
     results: tuple[RetrievalHit, ...]
     retrieval_mode: str = "resource_version"
+    evidence_contract_version: str = LEXICAL_EVIDENCE_CONTRACT_VERSION
     generation_config_digest: str | None = None
     structural_profile_id: str | None = None
     structural_profile_digest: str | None = None
