@@ -13,12 +13,13 @@ from knowledge_core.api.repository_import_app import create_repository_import_ap
 from knowledge_core.application.governed_source_evidence import (
     GovernedSourceEvidenceKnowledgeKernel,
 )
+from knowledge_core.application.repository_import import RepositoryImportKnowledgeKernel
 from knowledge_core.application.section_repository_import import (
     SectionRepositoryImportKnowledgeKernel,
 )
 from knowledge_core.artifacts.store import LocalArtifactStore
 from knowledge_core.domain.assertions import KnowledgeInvariantError
-from knowledge_core.domain.generations import DerivedKind
+from knowledge_core.domain.generations import DerivedKind, GenerationFenceError
 from knowledge_core.domain.repository_import import RepositorySourceProof
 from knowledge_core.storage.database import create_database_engine, create_session_factory
 from knowledge_core.storage.generation_models import DerivedGeneration
@@ -301,5 +302,61 @@ def test_repository_import_http_service_uses_sr2_producer_and_generic_evidence(
         assert session.get(TextGenerationProfile, generation_ref) is not None
         assert session.get(LegacyRepositorySnapshotMap, body["manifest_digest"]) is not None
         assert _current_text_generation_id(session) == generation_ref
+    finally:
+        session.close()
+
+
+@pytest.mark.postgresql
+def test_legacy_rf2_importer_cannot_replace_established_sr2_current_generation(
+    task2c_engine,
+    tmp_path: Path,
+):
+    reader = FakeRepositoryReader()
+    commit_a, commit_b = "d" * 40, "e" * 40
+    content_a = b"# Alpha\nestablish sr2 dragonfruit\n"
+    content_b = b"# Alpha\nlegacy rf2 elderberry\n"
+    reader.put(commit_a, "alpha.md", content_a)
+    reader.put(commit_b, "alpha.md", content_b)
+
+    sessions = create_session_factory(task2c_engine)
+    session = sessions()
+    artifact_store = LocalArtifactStore(tmp_path / "guard-artifacts")
+    try:
+        sr2 = SectionRepositoryImportKnowledgeKernel(
+            session,
+            artifact_store=artifact_store,
+            source_readers={"repo-task2c": reader},
+        )
+        manifest_a = _manifest(manifest_id="SR2-A", commit=commit_a, content=content_a)
+        receipt_a = _apply(sr2, manifest_a)
+        current_a = _current_text_generation_id(session)
+        assert current_a == receipt_a.resulting_text_generation_id
+        assert session.get(TextGenerationProfile, current_a) is not None
+
+        legacy = RepositoryImportKnowledgeKernel(
+            session,
+            artifact_store=artifact_store,
+            source_readers={"repo-task2c": reader},
+        )
+        manifest_b = _manifest(
+            manifest_id="RF2-B",
+            commit=commit_b,
+            content=content_b,
+            previous=receipt_a.manifest_digest,
+        )
+        plan_b = legacy.plan_repository_import(manifest_b)
+        with pytest.raises(
+            GenerationFenceError,
+            match="RF-2 text publication cannot replace an established SR-2",
+        ):
+            legacy.apply_repository_import(
+                manifest=manifest_b,
+                expected_plan_digest=plan_b.plan_digest,
+            )
+
+        assert _current_text_generation_id(session) == current_a
+        failed = session.get(RepositoryImportReceipt, plan_b.manifest_digest)
+        assert failed is not None
+        assert failed.status == "failed"
     finally:
         session.close()
