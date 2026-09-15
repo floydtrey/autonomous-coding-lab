@@ -175,7 +175,7 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 }
             )
             return self._validate_existing_operation(
-                operation=existing,
+                existing,
                 operation_class=_DIRECT_NOTE_OPERATION_CLASS,
                 caller_principal_ref=caller_principal_ref,
                 request_digest=request_digest,
