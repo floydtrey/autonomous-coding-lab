@@ -20,6 +20,11 @@ from knowledge_core.storage.models import KnowledgeRef, Revision, SemanticProfil
 
 
 _POSTGRES_DERIVED_GENERATION_LOCK = 1262702417
+_RF2_TEXT_MODE = ("postgresql-full-text", "rf2-v1")
+_SR2_TEXT_MODE = (
+    "deterministic-python-postgresql-full-text",
+    "sr2-segment-generation-v1",
+)
 
 
 def _utc(value: datetime) -> datetime:
@@ -129,6 +134,26 @@ class GenerationKnowledgeKernel(ProfileKnowledgeKernel):
                     raise KnowledgeInvariantError(f"unknown generation source revision: {source_revision_id}")
 
         self._acquire_generation_lock()
+        if (
+            derived_kind is DerivedKind.TEXT
+            and (model_identity, model_version) == _RF2_TEXT_MODE
+        ):
+            current = self.session.scalars(
+                select(DerivedGeneration)
+                .where(
+                    DerivedGeneration.derived_kind == DerivedKind.TEXT.value,
+                    DerivedGeneration.status == GenerationStatus.CURRENT.value,
+                )
+                .limit(1)
+            ).first()
+            if current is not None and (
+                current.model_identity,
+                current.model_version,
+            ) == _SR2_TEXT_MODE:
+                raise GenerationFenceError(
+                    "RF-2 text publication cannot replace an established SR-2 current generation"
+                )
+
         generation_id = uuid4()
         row = DerivedGeneration(
             generation_id=generation_id,
