@@ -44,11 +44,11 @@ Task 2 may compose this facility with the new `kc_store` front-door route. Do no
 
 ## Task 2 source-neutral evidence boundary
 
-Task 2A froze the pure-domain governed-source contract in `knowledge_core/domain/governed_sources.py`. Task 2B added durable source-neutral evidence and deterministic legacy repository mapping. Task 2C then made the live repository-import service an SR-2 producer that settles the corresponding generic governed evidence without weakening exact Git verification.
+Task 2A froze the pure-domain governed-source contract in `knowledge_core/domain/governed_sources.py`. Task 2B added durable source-neutral evidence and deterministic legacy repository mapping. Task 2C made the live repository-import service an SR-2 producer that settles corresponding generic governed evidence without weakening exact Git verification. Task 2D then moved live SR-2 selection, lineage and publication onto complete source-neutral governed snapshots while retaining repository/Git provenance only as compatibility metadata for repository sources.
 
 The contract separates source identity, source-to-Resource binding, producer evidence, immutable observation/admission, KC governance decision, project membership and complete retrieval snapshot identity. Snapshot semantic identity binds predecessor, selection policy, selected/excluded evidence and governance, but excludes snapshot record creation time. Evidence, project-membership and snapshot-member ordering are canonicalized so persistence/replay equality follows those semantic rules rather than incidental insertion order.
 
-Task 2B durable state is introduced by migration `0016_governed_source_evidence.py` and includes source-neutral binding, observation, producer-evidence, governance-decision, retrieval-snapshot, snapshot-member, project-membership and exclusion records. Separate legacy mapping records preserve explicit correlation back to existing repository observations, governing selections and receipts rather than mutating historical RI evidence.
+Task 2B durable state is introduced by migration `0016_governed_source_evidence.py` and includes source-neutral binding, observation, producer-evidence, governance-decision, retrieval-snapshot, snapshot-member, project-membership and exclusion records. Separate legacy mapping records preserve explicit correlation back to existing repository observations, governing selections and receipts rather than mutating historical RI evidence. Task 2D migration `0017_sr2_source_neutral_lineage.py` extends SR-2 generation lineage with generic governed observation, decision and snapshot references while retaining nullable legacy repository observation/manifest fields for compatibility.
 
 Current operating rules:
 
@@ -57,14 +57,17 @@ Current operating rules:
 - project membership does not become source identity;
 - re-observation of the same ResourceVersion remains distinct evidence;
 - one observation cannot be current in one snapshot under competing governance decisions;
-- complete-corpus snapshots, not producer-local subsets, must feed the future one-current TEXT publication boundary;
-- only settled repository evidence can become an accepted generic snapshot; applying/failed receipts remain ineligible;
-- the live repository-import HTTP service uses the SR-2 producer, and SR-2 settlement must also establish the corresponding generic governed snapshot before publication commits;
-- if generic evidence settlement fails, publication fails closed and the prior current TEXT generation remains serving;
+- complete-corpus governed snapshots, not producer-local subsets, feed the one-current TEXT publication boundary;
+- only settled repository evidence can become accepted repository-derived generic evidence; applying/failed receipts remain ineligible;
+- the live repository-import HTTP service uses the SR-2 producer and assembles a complete successor governed snapshot before publication;
+- SR-2 candidate construction verifies canonical ResourceVersion/artifact SHA-256, deterministic segmentation, governance decision and snapshot lineage without requiring Git proof for non-Git sources;
+- repository sources retain commit/path/blob/manifest provenance as compatibility metadata, but generic SR-2 lineage is authoritative for the source-neutral publication path;
+- publication rechecks the governed snapshot predecessor under the generation publication lock before cutover, preventing stale or partial producers from dropping newer current knowledge;
+- failed or stale publication leaves the previous current TEXT generation serving; canonical/generic evidence is not reinterpreted to manufacture a successful publication;
 - legacy RF-2 remains available for historical qualification/reconstruction from an empty/RF-2 state, but the generation fence rejects RF-2 publication over an established SR-2 current TEXT generation;
 - RI-3/RI-4 historical evidence retains its original RF-2 interpretation. Current restart rehearsals are retrieval-mode neutral and validate exact repository provenance, canonical/artifact integrity, serving, lifecycle, restart recovery and replay rather than requiring the obsolete RF-2 physical row shape;
-- SR-2 source selection/lineage and lexical serving provenance remain repository-shaped until Task 2D;
-- no direct-note producer, `kc_store`, source-neutral lexical response contract or Graphiti generalization is authorized by Task 2C.
+- the SR-2 host rehearsal now validates the accepted source-neutral V2 generation/config identity and generic observation/decision/snapshot lineage while still verifying exact repository compatibility provenance and deterministic reconstruction;
+- no direct-note public producer, `kc_store`, source-neutral lexical response contract or Graphiti generalization is authorized by Task 2D. Task 2E is the next bounded slice.
 
 ## Graphiti operator boundary
 
@@ -115,6 +118,7 @@ These are recorded acceptance checkpoints. Linked historical files retain their 
 | KC Usable V1 Task 2A | `cbfecbfada73e1210ceae0185a31664bf073a479`; [Actions 34923452994](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34923452994) | Source-neutral governed-source pure-domain contract and adversarial Git/note/chat/email/benchmark-shaped fixtures. Full existing KC workflow green. No persistence, migration, serving, Graphiti or public-route behavior changed. |
 | KC Usable V1 Task 2B | `6910e9abba320e272b34b0528846f289d3d8eb14`; [Actions 34925025743](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34925025743) | Source-neutral durable evidence/snapshot persistence, migration `0016`, deterministic settled-repository legacy mapping, non-Git-shaped persistence, fail-closed non-settled mapping, replay stability and semantic-order normalization. Full existing KC workflow green. Serving/publication, repository producer wiring, Graphiti and public routes unchanged. |
 | KC Usable V1 Task 2C | `30d1ec2ce13ae8c95afc4ac2b9d54d959f36b3bd`; [Actions 34927229037](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34927229037) | Live repository API uses SR-2; SR-2 settlement materializes matching generic governed evidence; generic-mapping failure preserves the prior current generation; replay remains stable; legacy RF-2 cannot replace established SR-2; current RI-3/RI-4 rehearsals are mode-neutral. Full existing KC workflow green. SR-2 downstream source selection/lineage remains repository-shaped for Task 2D. |
+| KC Usable V1 Task 2D | `08d76ab86f011c30a103b080b7fce821bf71c45c`; [Actions 34929951401](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34929951401) | Source-neutral SR-2 snapshot selection, generic observation/decision/snapshot lineage via migration `0017`, complete mixed-source successor assembly, non-Git candidate construction without fake Git proof, predecessor-checked atomic publication, prior-generation preservation on stale/failed publication, repository compatibility provenance, and restart/replay qualification. Full KC workflow green. No `kc_store`, direct-note public route, source-neutral lexical response contract or Graphiti generalization yet. |
 
 The SR-2 intended-host record locates raw JSON at the historical host path `C:\Users\floyd\AppData\Local\KnowledgeCore\sr2-host-qualification-01\SR2_HOST_QUALIFICATION_EVIDENCE.json`. That raw dump is not committed and was not newly inspected during consolidation. The same record excludes machine reboot, backup/restore and production deployment claims.
 
