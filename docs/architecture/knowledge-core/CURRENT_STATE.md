@@ -11,6 +11,7 @@ Task 6D accepted implementation/test checkpoint: `65943a1e12dd08bf01a1e330ceb43e
 Task 6E accepted skill/test checkpoint: `0902a906a5c20e48dfcb07009d68eb9f3ccf9392`; Actions `35060788601` run attempt 2 green after an unchanged-head retry of a transient final SR-2 rehearsal setup failure.
 Task 6F accepted implementation/test checkpoint: `e34ca35cb1d2a31bdb7ec45d9799dd1f685c66d5`; full Knowledge Core workflow Actions `35062593583` green.
 Task 6G accepted implementation/test checkpoint: `80f3804ce2c1a905c3853f9e7c507066a5ca9431`; full Knowledge Core workflow Actions `35064560448` green.
+Task 6H accepted implementation/test checkpoint: `15a41adb0cabda49f8fed189114d12092a2ce438`; full Knowledge Core workflow Actions `35065713770` green.
 
 ## Read order and authority
 
@@ -36,9 +37,10 @@ These are the only current KC authorities. [legacy/](legacy/README.md) preserves
 | Bootstrap consumer API | Accepted local `kc_store`, `kc_search`, `kc_get_source`, `kc_status`, and non-canonical `kc.memory_propose` admission through explicit `BootstrapAdmission` and fixed bootstrap principal `local_owner`. Bootstrap authentication alone is no longer sufficient for canonical `kc_store`. |
 | Direct-note storage | Accepted canonical-first `user_note` ingestion for an explicitly authorized exact write. `kc_store` now additionally requires deterministic `CanonicalStoreAuthority` bound to principal, operation ID, project, content SHA-256, optional source ID, and optional source event time; absent/denied authority fails before canonical mutation. |
 | Memory candidate boundary | **Task 6G accepted.** Autonomous observations may be durably proposed under `kc_control` as pending candidates and deterministically reviewed as approved/rejected without creating canonical revisions, Resource/ResourceVersion, TEXT generations, or graph work. Approval is eligibility only and never performs `kc_store`. |
+| Working-context compaction | **Task 6H accepted.** `kc-worker-context-checkpoint-v1` and `kc-tool-output-reduction-v1` provide model-free bounded wrapper-side working context with exact source/output refs and raw-output SHA-256 correlation. KC durable knowledge remains separate from short-term worker context. MindsHub/Cowork wiring remains Task 6I. |
 | Historical governed Graphiti | Accepted repository-shaped Graphiti qualification at `6376419e369ea9ecfe58a19fa233bbfca90ad703`. This remains historical evidence for that exact build only. |
 | Source-neutral Graphiti implementation | Implemented and CI-qualified through Task 4 plus Task 4.1 runtime hardening; merged into the KC line. **Live intended-host mixed-source acceptance remains pending.** |
-| Mason / MindsHub | **Tasks 5 and 6E accepted.** Mason retains the same four literal bridge operations `kc_status`, `kc_search`, `kc_get_source`, `kc_store`; Task 6G does not change the bridge protocol, but bootstrap possession alone can no longer make `kc_store` canonical. Candidate-wrapper integration remains Task 6I. |
+| Mason / MindsHub | **Tasks 5 and 6E accepted.** Mason retains the same four literal bridge operations `kc_status`, `kc_search`, `kc_get_source`, `kc_store`; Tasks 6G–6H add containment/compaction foundations without changing that bridge protocol. Candidate and compaction wrapper integration remains Task 6I. |
 | Unified retrieval contract | **Task 6B accepted.** `kc-unified-retrieval-evidence-v1` preserves the lexical response and defines a separate optional graph lane with explicit degradation state and exact KC source correlation. |
 | Unified retrieval coordinator | **Task 6C accepted.** Lexical retrieval is mandatory and runs first; optional graph augmentation reuses the existing validated source-neutral graph kernel and degrades independently without starting graph/model work. |
 | Bootstrap `kc_search` unified response | **Task 6D accepted.** The existing request shape and lexical fields remain compatible; additive graph evidence/warnings now pass through the same literal `kc_search` route. No graph binding returns lexical evidence with `graph.state="disabled"`. |
@@ -66,7 +68,7 @@ The merged Task 4.1 checkpoint is `23a0794ff396365d0dfd124e0b4a7bbf9174c00d`.
 
 **Remaining Task 4 acceptance barrier:** run the bounded source-neutral Graphiti/FalkorDB/local-model path on the intended host using a current mixed-source SR-2 corpus, complete independent validation, obtain at least one trusted graph result, and prove exact generic KC evidence correlation. Until that succeeds, source-neutral graph retrieval is implemented but not formally live-accepted.
 
-Tasks 6B–6G do not remove or satisfy this barrier. They define, coordinate, expose, interpret, report, and contain the consumer path around compatible graph evidence and worker memory. They do not create or live-qualify a graph build.
+Tasks 6B–6H do not remove or satisfy this barrier. They define, coordinate, expose, interpret, report, contain, and compact the consumer path around compatible graph evidence and worker memory. They do not create or live-qualify a graph build.
 
 ## Task 5 / Mason status — ACCEPTED
 
@@ -99,6 +101,8 @@ Task 6D keeps the same literal `kc_search` request surface and adds graph eviden
 
 Task 6G also leaves the Mason bridge protocol unchanged, but it changes canonical write admission: successful bootstrap authentication is no longer enough for `kc_store`. The trusted host must provide a deterministic exact-write authority decision before canonical state can change. The non-canonical proposal API exists at KC now; exposing/using it through the worker wrapper is reserved for Task 6I.
 
+Task 6H adds the model-free client-side checkpoint/reduction core beside the existing consumer integration. It does not change the bridge protocol, decide live compaction timing, or run a tokenizer/model. Wiring checkpoints, reduced tool outputs, and memory proposals into the endpoint wrapper remains Task 6I.
+
 ## Current objective — Task 6: dogfood KC through Mason
 
 The current consumer architecture is:
@@ -128,6 +132,8 @@ Do not invent a synthetic score that treats lexical and graph scores as equivale
 Do not create a second Mason graph-search tool unless a later demonstrated need justifies it. Mason's accepted protocol continues to use the literal `kc_search` operation, with `kc_get_source` for exact canonical follow-through.
 
 For worker memory, distinguish **proposal** from **canonical write**. Autonomous observations belong in the non-canonical candidate path. An explicit trusted/user-directed write may use `kc_store` only after the exact deterministic store-authority gate succeeds.
+
+For short-term worker context, use the Task 6H checkpoint as a bounded transient representation, not as a replacement for KC durable evidence. Reduced tool output must retain an exact raw-output reference and SHA-256 so the compact excerpt can always be checked against the complete output.
 
 ## Task 6 bounded sequence
 
@@ -260,17 +266,27 @@ Accepted behavior:
 
 The first Task 6G green implementation head `9597da247beb4924cc3618c3da151e2d03ea5573` proved the containment design. Review then found that the exact canonical-store authority request did not yet bind optional `source_event_time`, even though that timestamp becomes durable provenance and influences graph reference-time policy. The authority request, API binding, and focused fast test were corrected without changing the candidate model, and the complete KC workflow was rerun green on the accepted head above.
 
-### Task 6H — context-compaction core — NEXT AUTHORIZED SLICE
+### Task 6H — context-compaction core — ACCEPTED
 
-Build wrapper-side working-context checkpointing and deterministic tool-output reduction. KC owns durable knowledge; the worker wrapper owns short-term working context.
+Accepted implementation/test checkpoint: `15a41adb0cabda49f8fed189114d12092a2ce438`.
+Qualification: [Actions 35065713770](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/35065713770) green across migrations, fast semantic suite, PostgreSQL G1–G21, pinned G22, RI-4 restart rehearsal and SR-2 restart/replay rehearsal. Detailed evidence is [Task 6H context compaction core](legacy/TASK6H_CONTEXT_COMPACTION_CORE_2026-09-16.md).
 
-A checkpoint should preserve objective, immutable constraints/evidence refs, completed work, current state, blockers, recent actions and exact source/output references.
+Accepted behavior:
 
-Do not wire the compaction core into MindsHub/Cowork in Task 6H; integration is Task 6I.
+- `kc-worker-context-checkpoint-v1` is a client/integration-layer transient working-memory contract; it does not make KC canonical storage own conversation state;
+- a checkpoint preserves objective, immutable constraints, exact evidence refs, completed work, current state, blockers, recent actions/outcomes, exact source/output refs, optional reduced tool-output excerpts, and an optional previous-checkpoint digest;
+- checkpoint payload/digest rendering is deterministic for the same ordered inputs and bounded to 32 KiB UTF-8;
+- `kc-tool-output-reduction-v1` preserves short outputs exactly and deterministically reduces long outputs to bounded head/tail plus fixed-diagnostic-vocabulary lines with original line numbers;
+- every reduced output carries the exact complete-output reference, SHA-256, byte/line counts, selected line numbers, and omitted-line count, so the excerpt is never treated as canonical evidence;
+- the reducer fails closed when an exact raw-output reference is absent;
+- Task 6H uses no model, tokenizer, provider, KC write, graph operation, scheduler, or Worker Lab runtime change and does not decide live compaction timing;
+- MindsHub/Cowork integration, live context-budget policy, and memory-candidate routing remain Task 6I.
 
-### Task 6I — MindsHub wrapper integration
+### Task 6I — MindsHub wrapper integration — NEXT AUTHORIZED SLICE
 
-Wire context compaction/checkpointing and memory-candidate handling into the endpoint wrapper around Mason/Cowork. This is the first slice that necessarily depends on the local worker runtime for end-to-end qualification.
+Wire the accepted Task 6H checkpoint/reduction contract and Task 6G memory-candidate handling into the endpoint wrapper around Mason/Cowork. This is the first slice that necessarily depends on the local worker runtime for end-to-end qualification.
+
+Do not treat deterministic wrapper tests alone as live worker acceptance. Actual model/provider execution remains subject to the repository-level execution-authority boundary.
 
 ### Task 6J — qualification campaign
 
@@ -302,8 +318,8 @@ For any new KC worker/session:
 4. Read `OPERATIONS.md` only for the bounded operating/evidence question.
 5. Treat `legacy/` as evidence, not current instructions.
 
-Task 6G's accepted behavior-bearing checkpoint is `80f3804ce2c1a905c3853f9e7c507066a5ca9431`, qualified by Actions `35064560448`. Later Task 6G documentation records do not change the qualified candidate/authority bytes.
+Task 6H's accepted behavior-bearing checkpoint is `15a41adb0cabda49f8fed189114d12092a2ce438`, qualified by Actions `35065713770`. Later Task 6H documentation records do not change the qualified compaction bytes.
 
-**Current authorized slice:** Task 6H context-compaction core.
+**Current authorized slice:** Task 6I MindsHub wrapper integration.
 
-Do not begin Task 6I MindsHub-wrapper integration until Task 6H is separately accepted.
+Do not begin Task 6J qualification until Task 6I is separately accepted.
