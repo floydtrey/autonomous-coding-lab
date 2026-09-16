@@ -17,6 +17,10 @@ from knowledge_core.api.consumer_schemas import (
     source_response_from_domain,
     status_response_from_domain,
 )
+from knowledge_core.api.memory_candidate_schemas import (
+    MemoryCandidateProposalRequest,
+    MemoryCandidateProposalResponse,
+)
 from knowledge_core.api.retrieval_schemas import (
     RetrievalSearchRequest,
     RetrievalSearchResponse,
@@ -36,6 +40,10 @@ from knowledge_core.application.graph_readiness import (
     disabled_graph_readiness,
     inspect_source_neutral_graph_readiness,
     unavailable_graph_readiness,
+)
+from knowledge_core.application.memory_candidates import (
+    MemoryCandidateKnowledgeKernel,
+    memory_candidate_operation_id,
 )
 from knowledge_core.application.source_neutral_graph import (
     SourceNeutralGraphProjectionKnowledgeKernel,
@@ -58,6 +66,7 @@ from knowledge_core.domain.retrieval import KnowledgeSourceUnavailableError
 
 _RETRIEVAL_PATH = "/v1/retrieval/search"
 _STORE_PATH = "/v1/kc/store"
+_MEMORY_CANDIDATE_PATH = "/v1/kc/memory-candidates"
 _KC_SEARCH_PATH = "/v1/kc/search"
 _KC_GET_SOURCE_PATH = "/v1/kc/get-source"
 _KC_STATUS_PATH = "/v1/kc/status"
@@ -95,7 +104,8 @@ def create_app(
     Retrieval retains the fail-closed Authority seam. When a bootstrap admission
     contract is explicitly supplied by the host, the Usable V1 ``kc_store``,
     ``kc_search``, ``kc_get_source`` and ``kc_status`` front doors are exposed and
-    map successful shared-key admission to ``local_owner``. Existing low-level routes
+    map successful shared-key admission to ``local_owner``. Task 6G also exposes a
+    separate non-canonical memory-candidate proposal route. Existing low-level routes
     are not placed behind the bootstrap key.
 
     ``unified_graph_search_binding`` is optional and query-only. Supplying it never
@@ -141,6 +151,13 @@ def create_app(
                 session,
                 artifact_store=artifact_store,
             )
+        finally:
+            session.close()
+
+    def get_memory_candidate_kernel():
+        session: Session = session_factory()
+        try:
+            yield MemoryCandidateKnowledgeKernel(session)
         finally:
             session.close()
 
@@ -222,6 +239,10 @@ def create_app(
             bootstrap_admission,
             operation=BootstrapOperation.STORE,
         )
+        memory_propose_principal = bootstrap_principal_dependency(
+            bootstrap_admission,
+            operation=BootstrapOperation.MEMORY_PROPOSE,
+        )
         search_principal = bootstrap_principal_dependency(
             bootstrap_admission,
             operation=BootstrapOperation.SEARCH,
@@ -271,6 +292,42 @@ def create_app(
                 text_generation_id=publication.generation_id,
                 text_snapshot_digest=publication.snapshot_digest,
                 text_error_code=publication.error_code,
+            )
+
+        @app.post(
+            _MEMORY_CANDIDATE_PATH,
+            response_model=MemoryCandidateProposalResponse,
+            status_code=202,
+        )
+        def memory_candidate_propose(
+            body: MemoryCandidateProposalRequest,
+            idempotency_key: str = Header(alias="Idempotency-Key"),
+            kernel: MemoryCandidateKnowledgeKernel = Depends(
+                get_memory_candidate_kernel
+            ),
+            principal: str = Depends(memory_propose_principal),
+        ) -> MemoryCandidateProposalResponse:
+            try:
+                operation_id = memory_candidate_operation_id(
+                    principal_ref=principal,
+                    idempotency_key=idempotency_key,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            candidate = kernel.propose_candidate(
+                operation_id=operation_id,
+                caller_principal_ref=principal,
+                proposer_ref=body.proposer_ref,
+                project_key=body.project,
+                content=body.content,
+                source_event_time=body.source_event_time,
+            )
+            return MemoryCandidateProposalResponse(
+                candidate_id=candidate.candidate_id,
+                proposer_ref=candidate.proposer_ref,
+                project=candidate.project_key,
+                content_sha256=candidate.content_sha256,
+                proposed_at=candidate.proposed_at,
             )
 
         @app.post(
