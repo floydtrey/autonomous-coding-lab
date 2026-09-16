@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -148,8 +149,7 @@ def _ready_graph(*, generation_id) -> TrustedProjectionSearchSnapshot:
     )
 
 
-@pytest.mark.asyncio
-async def test_graph_not_configured_returns_lexical_plus_disabled_warning():
+def test_graph_not_configured_returns_lexical_plus_disabled_warning():
     generation_id = uuid4()
     lexical = _LexicalKernel(_lexical(generation_id=generation_id))
     graph = _GraphKernel(error=AssertionError("graph must not be called"))
@@ -159,7 +159,9 @@ async def test_graph_not_configured_returns_lexical_plus_disabled_warning():
         graph_binding=None,
     )
 
-    result = await coordinator.search(query="Why did we choose Mason?", limit=5)
+    result = asyncio.run(
+        coordinator.search(query="Why did we choose Mason?", limit=5)
+    )
 
     assert result.lexical.generation_id == generation_id
     assert result.graph.state is GraphRetrievalState.DISABLED
@@ -168,8 +170,7 @@ async def test_graph_not_configured_returns_lexical_plus_disabled_warning():
     assert graph.calls == []
 
 
-@pytest.mark.asyncio
-async def test_lexical_failure_is_not_masked_by_graph_degradation():
+def test_lexical_failure_is_not_masked_by_graph_degradation():
     lexical_error = KnowledgeInvariantError("lexical lineage failed")
     lexical = _LexicalKernel(error=lexical_error)
     graph = _GraphKernel(error=AssertionError("graph must not be called"))
@@ -180,12 +181,11 @@ async def test_lexical_failure_is_not_masked_by_graph_degradation():
     )
 
     with pytest.raises(KnowledgeInvariantError, match="lexical lineage failed"):
-        await coordinator.search(query="Mason")
+        asyncio.run(coordinator.search(query="Mason"))
     assert graph.calls == []
 
 
-@pytest.mark.asyncio
-async def test_empty_lexical_generation_does_not_call_graph_provider():
+def test_empty_lexical_generation_does_not_call_graph_provider():
     lexical = _LexicalKernel(_lexical(generation_id=None))
     graph = _GraphKernel(error=AssertionError("graph must not be called"))
     coordinator = UnifiedRetrievalCoordinator(
@@ -194,15 +194,14 @@ async def test_empty_lexical_generation_does_not_call_graph_provider():
         graph_binding=_binding(),
     )
 
-    result = await coordinator.search(query="Mason")
+    result = asyncio.run(coordinator.search(query="Mason"))
 
     assert result.graph.state is GraphRetrievalState.NO_BUILD
     assert result.graph.reason_code == "no-current-text-generation"
     assert graph.calls == []
 
 
-@pytest.mark.asyncio
-async def test_historical_lexical_request_does_not_mix_current_graph_evidence():
+def test_historical_lexical_request_does_not_mix_current_graph_evidence():
     generation_id = uuid4()
     lexical = _LexicalKernel(_lexical(generation_id=generation_id))
     graph = _GraphKernel(error=AssertionError("graph must not be called"))
@@ -212,9 +211,11 @@ async def test_historical_lexical_request_does_not_mix_current_graph_evidence():
         graph_binding=_binding(),
     )
 
-    result = await coordinator.search(
-        query="old Mason data",
-        include_superseded=True,
+    result = asyncio.run(
+        coordinator.search(
+            query="old Mason data",
+            include_superseded=True,
+        )
     )
 
     assert result.graph.state is GraphRetrievalState.DISABLED
@@ -223,8 +224,7 @@ async def test_historical_lexical_request_does_not_mix_current_graph_evidence():
     assert graph.calls == []
 
 
-@pytest.mark.asyncio
-async def test_no_compatible_validated_build_degrades_without_provider_result():
+def test_no_compatible_validated_build_degrades_without_provider_result():
     generation_id = uuid4()
     lexical = _LexicalKernel(_lexical(generation_id=generation_id))
     graph = _GraphKernel(
@@ -243,7 +243,7 @@ async def test_no_compatible_validated_build_degrades_without_provider_result():
         graph_binding=_binding(),
     )
 
-    result = await coordinator.search(query="Mason", limit=4)
+    result = asyncio.run(coordinator.search(query="Mason", limit=4))
 
     assert result.graph.state is GraphRetrievalState.NO_BUILD
     assert result.graph.reason_code == "no-compatible-validated-graph-build"
@@ -252,8 +252,7 @@ async def test_no_compatible_validated_build_degrades_without_provider_result():
     assert graph.calls[0]["query"] == "Mason"
 
 
-@pytest.mark.asyncio
-async def test_generation_change_drops_graph_lane_as_stale():
+def test_generation_change_drops_graph_lane_as_stale():
     lexical_generation = uuid4()
     graph_generation = uuid4()
     lexical = _LexicalKernel(_lexical(generation_id=lexical_generation))
@@ -264,15 +263,14 @@ async def test_generation_change_drops_graph_lane_as_stale():
         graph_binding=_binding(),
     )
 
-    result = await coordinator.search(query="Mason")
+    result = asyncio.run(coordinator.search(query="Mason"))
 
     assert result.graph.state is GraphRetrievalState.STALE
     assert result.graph.results == ()
     assert result.graph.reason_code == "text-generation-changed-before-graph-correlation"
 
 
-@pytest.mark.asyncio
-async def test_graph_exception_is_nondisclosing_and_lexical_remains_valid():
+def test_graph_exception_is_nondisclosing_and_lexical_remains_valid():
     generation_id = uuid4()
     lexical = _LexicalKernel(_lexical(generation_id=generation_id))
     graph = _GraphKernel(error=RuntimeError("secret provider detail"))
@@ -282,7 +280,7 @@ async def test_graph_exception_is_nondisclosing_and_lexical_remains_valid():
         graph_binding=_binding(),
     )
 
-    result = await coordinator.search(query="Mason")
+    result = asyncio.run(coordinator.search(query="Mason"))
 
     assert result.lexical.generation_id == generation_id
     assert result.graph.state is GraphRetrievalState.UNAVAILABLE
@@ -290,8 +288,7 @@ async def test_graph_exception_is_nondisclosing_and_lexical_remains_valid():
     assert "secret" not in result.warnings[0].message
 
 
-@pytest.mark.asyncio
-async def test_ready_graph_maps_exact_source_neutral_correlation_without_body():
+def test_ready_graph_maps_exact_source_neutral_correlation_without_body():
     generation_id = uuid4()
     lexical = _LexicalKernel(_lexical(generation_id=generation_id))
     graph_snapshot = _ready_graph(generation_id=generation_id)
@@ -302,7 +299,9 @@ async def test_ready_graph_maps_exact_source_neutral_correlation_without_body():
         graph_binding=_binding(),
     )
 
-    result = await coordinator.search(query="Why did we choose Mason?")
+    result = asyncio.run(
+        coordinator.search(query="Why did we choose Mason?")
+    )
 
     assert result.graph.state is GraphRetrievalState.READY
     assert result.graph.generation_id == generation_id
@@ -317,8 +316,7 @@ async def test_ready_graph_maps_exact_source_neutral_correlation_without_body():
     assert not hasattr(source, "content")
 
 
-@pytest.mark.asyncio
-async def test_non_source_neutral_trusted_hit_is_quarantined_to_graph_lane():
+def test_non_source_neutral_trusted_hit_is_quarantined_to_graph_lane():
     generation_id = uuid4()
     lexical = _LexicalKernel(_lexical(generation_id=generation_id))
     malformed = TrustedProjectionSearchSnapshot(
@@ -344,7 +342,7 @@ async def test_non_source_neutral_trusted_hit_is_quarantined_to_graph_lane():
         graph_binding=_binding(),
     )
 
-    result = await coordinator.search(query="Mason")
+    result = asyncio.run(coordinator.search(query="Mason"))
 
     assert result.graph.state is GraphRetrievalState.UNAVAILABLE
     assert result.graph.results == ()
