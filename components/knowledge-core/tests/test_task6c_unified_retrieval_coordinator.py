@@ -224,7 +224,7 @@ def test_historical_lexical_request_does_not_mix_current_graph_evidence():
     assert graph.calls == []
 
 
-def test_no_compatible_validated_build_degrades_without_provider_result():
+def test_no_compatible_validated_build_degrades_as_unavailable():
     generation_id = uuid4()
     lexical = _LexicalKernel(_lexical(generation_id=generation_id))
     graph = _GraphKernel(
@@ -245,9 +245,10 @@ def test_no_compatible_validated_build_degrades_without_provider_result():
 
     result = asyncio.run(coordinator.search(query="Mason", limit=4))
 
-    assert result.graph.state is GraphRetrievalState.NO_BUILD
+    assert result.graph.state is GraphRetrievalState.UNAVAILABLE
     assert result.graph.reason_code == "no-compatible-validated-graph-build"
     assert result.graph.results == ()
+    assert result.warnings[0].code.value == "graph_unavailable"
     assert graph.calls[0]["limit"] == 4
     assert graph.calls[0]["query"] == "Mason"
 
