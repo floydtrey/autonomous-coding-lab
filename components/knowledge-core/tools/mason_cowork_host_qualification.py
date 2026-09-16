@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -24,7 +23,9 @@ from knowledge_core.integrations.cowork_wrapper import (
 )
 
 
-INITIAL_GOAL = """Task 6I intended-host qualification.
+COWORK_CONTRACT_VERSION = "v0.26.9.14.2"
+
+INITIAL_CONTEXT = """Task 6I intended-host qualification.
 Use the enabled Knowledge Core procedural skill and its exact kc_* operation names.
 Do not call kc_store during this qualification. Do not use raw KC HTTP, SQL,
 filesystem fallback, Graphiti/FalkorDB directly, or Cowork native memories.
@@ -37,9 +38,9 @@ Report the returned text state and graph state. Do not substitute another operat
 name and do not use a fallback outside the Knowledge Core bridge.
 """
 
-CONTINUATION_PROMPT = """Continue only from the working-context checkpoint in this new
-conversation goal. State the checkpoint digest you received, then call literal
-operation kc_status exactly and report the returned text state and graph state.
+CONTINUATION_PROMPT = """Continue only from the working-context checkpoint supplied in this
+fresh conversation's first turn. State the checkpoint digest you received, then call
+literal operation kc_status exactly and report the returned text state and graph state.
 Do not reconstruct omitted conversation history by guessing.
 """
 
@@ -63,13 +64,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--model",
         default=None,
-        help="Optional Cowork model alias; omit to use the project default.",
-    )
-    parser.add_argument(
-        "--skill-id",
-        action="append",
-        default=[],
-        help="Optional Cowork skill ID to activate for each turn; repeat as needed.",
+        help="Optional Cowork model alias; omit to use the project/account default.",
     )
     parser.add_argument(
         "--cowork-base-url",
@@ -77,16 +72,29 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Loopback Cowork API base URL ending in /api/v1.",
     )
     parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=600.0,
+        help="Per-request Cowork HTTP timeout. Default: 600 seconds.",
+    )
+    parser.add_argument(
         "--context-limit-tokens",
         type=int,
         required=True,
-        help="Configured model context limit used only for the qualification policy.",
+        help=(
+            "Configured model context limit recorded with evidence. Cowork "
+            f"{COWORK_CONTRACT_VERSION} does not expose response token usage."
+        ),
     )
     parser.add_argument(
         "--compact-trigger-tokens",
         type=int,
         required=True,
-        help="Normal wrapper compaction trigger; must be below the context limit.",
+        help=(
+            "Intended automatic compaction trigger recorded with evidence. "
+            "Token-triggered rotation is not qualified by this host test because "
+            f"Cowork {COWORK_CONTRACT_VERSION} does not expose usage."
+        ),
     )
     parser.add_argument(
         "--output-dir",
@@ -174,13 +182,15 @@ def run(args: argparse.Namespace) -> dict[str, object]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     client = LocalCoworkClient(
-        CoworkClientConfig(base_url=args.cowork_base_url)
+        CoworkClientConfig(
+            base_url=args.cowork_base_url,
+            timeout_seconds=args.timeout_seconds,
+        )
     )
     wrapper = MasonCoworkWrapper(
         cowork_client=client,
         project_id=args.project_id,
         model=args.model,
-        skill_ids=tuple(args.skill_id),
         context_policy=ContextRotationPolicy(
             context_limit_tokens=args.context_limit_tokens,
             compact_trigger_tokens=args.compact_trigger_tokens,
@@ -188,7 +198,7 @@ def run(args: argparse.Namespace) -> dict[str, object]:
     )
 
     initial_conversation = wrapper.start_conversation(
-        goal=INITIAL_GOAL,
+        initial_context=INITIAL_CONTEXT,
         title="KC Task 6I host qualification - initial",
     )
     first_turn = wrapper.send_turn(STATUS_PROMPT)
@@ -226,26 +236,46 @@ def run(args: argparse.Namespace) -> dict[str, object]:
         and wrapper.conversation_id == rotation.new_conversation_id
         and first_turn.status == "completed"
         and second_turn.status == "completed"
-        and first_turn.usage is not None
-        and second_turn.usage is not None
-        and (proposal_turn is None or proposal_turn.status == "completed")
+        and bool(first_turn.output_text.strip())
+        and bool(second_turn.output_text.strip())
+        and (
+            proposal_turn is None
+            or (
+                proposal_turn.status == "completed"
+                and bool(proposal_turn.output_text.strip())
+            )
+        )
+    )
+
+    usage_state = (
+        "available"
+        if first_turn.usage is not None and second_turn.usage is not None
+        else f"unavailable-from-cowork-responses-{COWORK_CONTRACT_VERSION}"
     )
 
     evidence: dict[str, object] = {
-        "contract": "kc-task6i-host-qualification-v1",
+        "contract": "kc-task6i-host-qualification-v2",
+        "cowork_contract_version": COWORK_CONTRACT_VERSION,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "cowork_base_url": client.config.base_url,
+        "cowork_timeout_seconds": client.config.timeout_seconds,
         "project_id": args.project_id,
         "model": args.model,
-        "skill_ids": list(args.skill_id),
         "context_policy": {
             "context_limit_tokens": args.context_limit_tokens,
             "compact_trigger_tokens": args.compact_trigger_tokens,
+            "usage_state": usage_state,
             "first_turn_triggered_normal_policy": first_rotation_signal,
+            "automatic_token_rotation_qualified": False,
+            "automatic_token_rotation_reason": (
+                f"Cowork {COWORK_CONTRACT_VERSION} non-streaming Response "
+                "does not expose token usage; external telemetry remains required."
+            ),
         },
         "initial_conversation_id": initial_conversation,
         "continuation_conversation_id": rotation.new_conversation_id,
         "checkpoint_digest": checkpoint.checkpoint_digest,
+        "checkpoint_injection": "first-input-of-fresh-conversation",
         "initial_status_turn": _turn_payload(first_turn),
         "initial_status_output_sha256": first_sha,
         "continuation_status_turn": _turn_payload(second_turn),
@@ -259,9 +289,10 @@ def run(args: argparse.Namespace) -> dict[str, object]:
         "semantic_review_required": True,
         "semantic_review_checks": [
             "Initial turn actually invoked literal kc_status through the enabled Knowledge Core skill.",
-            "Continuation turn received the checkpoint and again used literal kc_status without guessing omitted history.",
+            "Fresh continuation turn received the rendered 6H checkpoint in its first input and again used literal kc_status without guessing omitted history.",
             "If memory proposal was exercised, Mason used kc_propose_memory rather than kc_store and reported non-canonical candidate state.",
             "No Cowork native memory or raw KC/SQL/filesystem fallback was used.",
+            "Automatic token-triggered rotation is not claimed by this qualification because the pinned Cowork response contract exposes no token usage.",
         ],
     }
 

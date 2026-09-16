@@ -11,8 +11,8 @@ from knowledge_core.integrations.context_compaction import WorkingContextCheckpo
 
 
 _DEFAULT_BASE_URL = "http://127.0.0.1:26866/api/v1"
-_ALLOWED_RESPONSE_STATES = frozenset({"in_progress", "completed", "failed"})
-_CHECKPOINT_GOAL_PREFIX = (
+_ALLOWED_RESPONSE_STATES = frozenset({"created", "in_progress", "completed"})
+_CHECKPOINT_TURN_PREFIX = (
     "Continue the existing task from this bounded working-context checkpoint. "
     "Treat exact evidence/source/output references as pointers to the retained source of truth; "
     "do not treat reduced excerpts as canonical evidence.\n\n"
@@ -74,7 +74,7 @@ class CoworkConversationClient(Protocol):
         *,
         project_id: str | None = None,
         title: str | None = None,
-        goal: str | None = None,
+        model: str | None = None,
     ) -> dict[str, Any]: ...
 
     def create_response(
@@ -83,7 +83,6 @@ class CoworkConversationClient(Protocol):
         conversation_id: str,
         input_text: str,
         model: str | None = None,
-        skill_ids: tuple[str, ...] = (),
     ) -> dict[str, Any]: ...
 
 
@@ -96,7 +95,7 @@ class KnowledgeCoreBridge(Protocol):
 
 
 class LocalCoworkClient:
-    """Minimal local Cowork REST client for conversations and non-streaming responses."""
+    """Minimal client for Cowork v0.26.9.14.2 conversation/response contracts."""
 
     def __init__(self, config: CoworkClientConfig | None = None):
         self.config = config or CoworkClientConfig()
@@ -127,6 +126,10 @@ class LocalCoworkClient:
             raise CoworkWrapperError(
                 f"Cowork returned HTTP {exc.code}: {detail}"
             ) from exc
+        except TimeoutError as exc:
+            raise CoworkWrapperError(
+                f"Cowork request timed out after {self.config.timeout_seconds:g} seconds"
+            ) from exc
         except URLError as exc:
             raise CoworkWrapperError(
                 f"Cowork is unreachable at {self.config.base_url}: {exc.reason}"
@@ -144,17 +147,17 @@ class LocalCoworkClient:
         *,
         project_id: str | None = None,
         title: str | None = None,
-        goal: str | None = None,
+        model: str | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {}
         for name, value in (
             ("project_id", project_id),
             ("title", title),
-            ("goal", goal),
+            ("model", model),
         ):
             if value is not None:
                 payload[name] = _require_text(name, value)
-        return self._request("/conversations", payload)
+        return self._request("/conversations/", payload)
 
     def create_response(
         self,
@@ -162,27 +165,23 @@ class LocalCoworkClient:
         conversation_id: str,
         input_text: str,
         model: str | None = None,
-        skill_ids: tuple[str, ...] = (),
     ) -> dict[str, Any]:
         conversation = _require_text("conversation_id", conversation_id)
         user_input = _require_text("input_text", input_text)
-        if len(skill_ids) > 64:
-            raise CoworkWrapperError("skill_ids must contain at most 64 items")
-        normalized_skills = tuple(_require_text("skill_id", value) for value in skill_ids)
         payload: dict[str, Any] = {
-            "conversation_id": conversation,
+            "conversation": conversation,
             "input": user_input,
             "stream": False,
         }
         if model is not None:
             payload["model"] = _require_text("model", model)
-        if normalized_skills:
-            payload["skill_ids"] = list(normalized_skills)
-        return self._request("/responses", payload)
+        return self._request("/responses/", payload)
 
 
 @dataclass(frozen=True)
 class CoworkUsage:
+    """Optional external/future usage telemetry; Cowork v0.26.9.14.2 does not return it."""
+
     input_tokens: int
     output_tokens: int
 
@@ -231,11 +230,12 @@ class ConversationRotation:
 class MasonCoworkWrapper:
     """Stateful endpoint wrapper without autonomous authority expansion.
 
-    The wrapper may rotate Cowork conversations using an already-constructed Task 6H
-    checkpoint. It never creates a model-generated summary itself and never writes to
-    Cowork's native memory API. Durable autonomous observations may only be routed to
-    KC's non-canonical candidate path; explicit canonical storage remains a distinct
-    call and remains subject to KC's exact store-authority gate.
+    Cowork v0.26.9.14.2 has no conversation ``goal`` field. Wrapper-owned
+    initial/checkpoint context is therefore injected into the first response
+    input of a freshly created conversation. The wrapper never writes to
+    Cowork's native memory API. Durable autonomous observations may only be
+    routed to KC's non-canonical candidate path; explicit canonical storage
+    remains a distinct call subject to KC's exact store-authority gate.
     """
 
     def __init__(
@@ -245,7 +245,6 @@ class MasonCoworkWrapper:
         knowledge_bridge: KnowledgeCoreBridge | None = None,
         project_id: str | None = None,
         model: str | None = None,
-        skill_ids: tuple[str, ...] = (),
         context_policy: ContextRotationPolicy | None = None,
     ):
         self.cowork_client = cowork_client
@@ -254,9 +253,9 @@ class MasonCoworkWrapper:
             _require_text("project_id", project_id) if project_id is not None else None
         )
         self.model = _require_text("model", model) if model is not None else None
-        self.skill_ids = tuple(_require_text("skill_id", item) for item in skill_ids)
         self.context_policy = context_policy
         self._conversation_id: str | None = None
+        self._pending_first_turn_context: str | None = None
 
     @property
     def conversation_id(self) -> str | None:
@@ -265,7 +264,7 @@ class MasonCoworkWrapper:
     def start_conversation(
         self,
         *,
-        goal: str,
+        initial_context: str | None = None,
         title: str | None = None,
     ) -> str:
         if self._conversation_id is not None:
@@ -273,25 +272,38 @@ class MasonCoworkWrapper:
         payload = self.cowork_client.create_conversation(
             project_id=self.project_id,
             title=title,
-            goal=_require_text("goal", goal),
+            model=self.model,
         )
         self._conversation_id = self._conversation_id_from(payload)
+        self._pending_first_turn_context = (
+            _require_text("initial_context", initial_context)
+            if initial_context is not None
+            else None
+        )
         return self._conversation_id
 
     def attach_conversation(self, conversation_id: str) -> None:
         if self._conversation_id is not None:
             raise CoworkWrapperError("Cowork conversation is already active")
         self._conversation_id = _require_text("conversation_id", conversation_id)
+        self._pending_first_turn_context = None
 
     def send_turn(self, input_text: str) -> CoworkTurnResult:
         conversation_id = self._require_active_conversation()
+        user_input = _require_text("input_text", input_text)
+        pending_context = self._pending_first_turn_context
+        if pending_context is not None:
+            user_input = f"{pending_context}\n\n{user_input}"
+
         raw = self.cowork_client.create_response(
             conversation_id=conversation_id,
-            input_text=_require_text("input_text", input_text),
+            input_text=user_input,
             model=self.model,
-            skill_ids=self.skill_ids,
         )
-        return self._turn_result_from(raw, expected_conversation_id=conversation_id)
+        result = self._turn_result_from(raw, expected_conversation_id=conversation_id)
+        if pending_context is not None:
+            self._pending_first_turn_context = None
+        return result
 
     def needs_context_rotation(self, result: CoworkTurnResult) -> bool:
         policy = self.context_policy
@@ -299,7 +311,8 @@ class MasonCoworkWrapper:
             return False
         if result.usage is None:
             raise CoworkWrapperError(
-                "Cowork usage is required when a context rotation policy is configured"
+                "token-triggered rotation requires external usage telemetry; "
+                "Cowork v0.26.9.14.2 non-streaming responses do not expose usage"
             )
         return result.usage.observed_context_tokens >= policy.compact_trigger_tokens
 
@@ -310,11 +323,10 @@ class MasonCoworkWrapper:
         title: str | None = None,
     ) -> ConversationRotation:
         previous = self._require_active_conversation()
-        goal = _CHECKPOINT_GOAL_PREFIX + checkpoint.render_for_model()
         raw = self.cowork_client.create_conversation(
             project_id=self.project_id,
             title=title,
-            goal=goal,
+            model=self.model,
         )
         new_id = self._conversation_id_from(raw)
         if new_id == previous:
@@ -322,6 +334,9 @@ class MasonCoworkWrapper:
                 "context rotation must create a different Cowork conversation"
             )
         self._conversation_id = new_id
+        self._pending_first_turn_context = (
+            _CHECKPOINT_TURN_PREFIX + checkpoint.render_for_model()
+        )
         return ConversationRotation(
             previous_conversation_id=previous,
             new_conversation_id=new_id,
@@ -386,10 +401,7 @@ class MasonCoworkWrapper:
 
     @staticmethod
     def _conversation_id_from(payload: dict[str, Any]) -> str:
-        value = payload.get("id")
-        if value is None:
-            value = payload.get("conversation_id")
-        return _require_text("Cowork conversation id", str(value or ""))
+        return _require_text("Cowork conversation id", str(payload.get("id") or ""))
 
     @staticmethod
     def _turn_result_from(
@@ -399,16 +411,13 @@ class MasonCoworkWrapper:
     ) -> CoworkTurnResult:
         response_id = _require_text("Cowork response id", str(payload.get("id") or ""))
         conversation_id = _require_text(
-            "Cowork response conversation_id",
-            str(payload.get("conversation_id") or ""),
+            "expected Cowork conversation id",
+            expected_conversation_id,
         )
-        if conversation_id != expected_conversation_id:
-            raise CoworkWrapperError(
-                "Cowork response conversation_id does not match the active conversation"
-            )
         status = _require_text("Cowork response status", str(payload.get("status") or ""))
         if status not in _ALLOWED_RESPONSE_STATES:
             raise CoworkWrapperError(f"unsupported Cowork response status: {status}")
+
         model_value = payload.get("model")
         model = (
             _require_text("Cowork response model", str(model_value))
@@ -423,8 +432,19 @@ class MasonCoworkWrapper:
         for item in output:
             if not isinstance(item, dict):
                 raise CoworkWrapperError("Cowork output items must be JSON objects")
-            if item.get("type") == "text" and isinstance(item.get("text"), str):
-                text_parts.append(item["text"])
+            content = item.get("content")
+            if not isinstance(content, list):
+                raise CoworkWrapperError(
+                    "Cowork output items must contain a content list"
+                )
+            for part in content:
+                if not isinstance(part, dict):
+                    raise CoworkWrapperError(
+                        "Cowork output content items must be JSON objects"
+                    )
+                text = part.get("text")
+                if isinstance(text, str):
+                    text_parts.append(text)
         output_text = "".join(text_parts)
 
         usage_value = payload.get("usage")

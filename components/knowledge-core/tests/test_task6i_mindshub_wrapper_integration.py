@@ -12,8 +12,6 @@ from knowledge_core.integrations.context_compaction import WorkingContextCheckpo
 from knowledge_core.integrations.cowork_wrapper import (
     ContextRotationPolicy,
     CoworkClientConfig,
-    CoworkTurnResult,
-    CoworkUsage,
     CoworkWrapperError,
     LocalCoworkClient,
     MasonCoworkWrapper,
@@ -27,24 +25,30 @@ from knowledge_core.integrations.mindshub import (
 
 
 class _FakeCoworkClient:
+    """Contract-shaped fake for Cowork v0.26.9.14.2."""
+
     def __init__(self):
         self.created = []
         self.responses = []
         self._next_conversation = 1
-        self.next_usage = {"input_tokens": 90, "output_tokens": 15}
 
-    def create_conversation(self, *, project_id=None, title=None, goal=None):
+    def create_conversation(self, *, project_id=None, title=None, model=None):
         conversation_id = f"conv-{self._next_conversation}"
         self._next_conversation += 1
         self.created.append(
             {
                 "project_id": project_id,
                 "title": title,
-                "goal": goal,
+                "model": model,
                 "id": conversation_id,
             }
         )
-        return {"id": conversation_id}
+        return {
+            "id": conversation_id,
+            "title": title or "Untitled task",
+            "project_id": project_id,
+            "model": model,
+        }
 
     def create_response(
         self,
@@ -52,23 +56,33 @@ class _FakeCoworkClient:
         conversation_id,
         input_text,
         model=None,
-        skill_ids=(),
     ):
         self.responses.append(
             {
                 "conversation_id": conversation_id,
                 "input_text": input_text,
                 "model": model,
-                "skill_ids": tuple(skill_ids),
             }
         )
         return {
             "id": f"resp-{len(self.responses)}",
-            "conversation_id": conversation_id,
-            "output": [{"type": "text", "text": "done"}],
+            "object": "response",
             "status": "completed",
             "model": model or "project-default",
-            "usage": dict(self.next_usage),
+            "output": [
+                {
+                    "type": "message",
+                    "id": f"msg-{len(self.responses)}",
+                    "status": "completed",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "done",
+                        }
+                    ],
+                }
+            ],
         }
 
 
@@ -200,7 +214,7 @@ def test_cowork_config_is_loopback_and_api_v1_only():
         CoworkClientConfig(base_url="http://user:secret@127.0.0.1:26866/api/v1")
 
 
-def test_local_cowork_client_uses_real_nonstreaming_response_shape(monkeypatch):
+def test_local_cowork_client_uses_cowork_0269142_nonstreaming_contract(monkeypatch):
     requests = []
 
     def fake_urlopen(request, timeout):
@@ -208,11 +222,23 @@ def test_local_cowork_client_uses_real_nonstreaming_response_shape(monkeypatch):
         return _FakeHttpResponse(
             {
                 "id": "resp-1",
-                "conversation_id": "conv-1",
-                "output": [{"type": "text", "text": "ok"}],
+                "object": "response",
                 "status": "completed",
                 "model": "mason",
-                "usage": {"input_tokens": 10, "output_tokens": 4},
+                "output": [
+                    {
+                        "type": "message",
+                        "id": "msg-1",
+                        "status": "completed",
+                        "role": "assistant",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": "ok",
+                            }
+                        ],
+                    }
+                ],
             }
         )
 
@@ -224,41 +250,82 @@ def test_local_cowork_client_uses_real_nonstreaming_response_shape(monkeypatch):
         conversation_id="conv-1",
         input_text="Continue.",
         model="mason",
-        skill_ids=("knowledge-core",),
     )
 
     request, timeout = requests[0]
-    assert request.full_url == "http://127.0.0.1:26866/api/v1/responses"
+    assert request.full_url == "http://127.0.0.1:26866/api/v1/responses/"
     assert timeout == 120.0
     body = json.loads(request.data.decode("utf-8"))
     assert body == {
-        "conversation_id": "conv-1",
+        "conversation": "conv-1",
         "input": "Continue.",
         "model": "mason",
-        "skill_ids": ["knowledge-core"],
         "stream": False,
     }
 
 
-def test_wrapper_rotates_to_new_conversation_when_checkpoint_is_supplied():
+def test_local_cowork_client_uses_canonical_conversation_route(monkeypatch):
+    requests = []
+
+    def fake_urlopen(request, timeout):
+        requests.append((request, timeout))
+        return _FakeHttpResponse(
+            {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "title": "Qualification",
+                "project_id": "22222222-2222-2222-2222-222222222222",
+                "model": "mason",
+            }
+        )
+
+    import knowledge_core.integrations.cowork_wrapper as module
+
+    monkeypatch.setattr(module, "urlopen", fake_urlopen)
+    client = LocalCoworkClient()
+    client.create_conversation(
+        project_id="22222222-2222-2222-2222-222222222222",
+        title="Qualification",
+        model="mason",
+    )
+
+    request, timeout = requests[0]
+    assert request.full_url == "http://127.0.0.1:26866/api/v1/conversations/"
+    assert timeout == 120.0
+    body = json.loads(request.data.decode("utf-8"))
+    assert body == {
+        "model": "mason",
+        "project_id": "22222222-2222-2222-2222-222222222222",
+        "title": "Qualification",
+    }
+    assert "goal" not in body
+
+
+def test_wrapper_injects_initial_and_checkpoint_context_into_first_turn():
     cowork = _FakeCoworkClient()
     wrapper = MasonCoworkWrapper(
         cowork_client=cowork,
         project_id="proj-1",
         model="mason",
-        skill_ids=("knowledge-core",),
         context_policy=ContextRotationPolicy(
             context_limit_tokens=128,
             compact_trigger_tokens=100,
         ),
     )
-    original = wrapper.start_conversation(goal="Finish the bounded task.")
+    original = wrapper.start_conversation(
+        initial_context="Finish the bounded task.",
+    )
     result = wrapper.send_turn("Do the next step.")
 
     assert result.conversation_id == original == "conv-1"
     assert result.output_text == "done"
-    assert result.usage == CoworkUsage(input_tokens=90, output_tokens=15)
-    assert wrapper.needs_context_rotation(result) is True
+    assert result.usage is None
+    assert cowork.created[0]["model"] == "mason"
+    assert cowork.responses[0]["conversation_id"] == "conv-1"
+    assert cowork.responses[0]["input_text"].startswith("Finish the bounded task.")
+    assert cowork.responses[0]["input_text"].endswith("Do the next step.")
+
+    with pytest.raises(CoworkWrapperError, match="external usage telemetry"):
+        wrapper.needs_context_rotation(result)
 
     checkpoint = _checkpoint()
     rotation = wrapper.rotate_for_checkpoint(checkpoint)
@@ -268,31 +335,46 @@ def test_wrapper_rotates_to_new_conversation_when_checkpoint_is_supplied():
     assert rotation.checkpoint_digest == checkpoint.checkpoint_digest
     assert wrapper.conversation_id == "conv-2"
     assert cowork.created[1]["project_id"] == "proj-1"
-    assert checkpoint.checkpoint_digest in cowork.created[1]["goal"]
-    assert checkpoint.objective in cowork.created[1]["goal"]
+    assert cowork.created[1]["model"] == "mason"
+    assert "goal" not in cowork.created[1]
 
     wrapper.send_turn("Continue from the checkpoint.")
+    continuation_input = cowork.responses[-1]["input_text"]
     assert cowork.responses[-1]["conversation_id"] == "conv-2"
+    assert checkpoint.checkpoint_digest in continuation_input
+    assert checkpoint.objective in continuation_input
+    assert continuation_input.endswith("Continue from the checkpoint.")
+
+    wrapper.send_turn("One more turn.")
+    assert checkpoint.checkpoint_digest not in cowork.responses[-1]["input_text"]
 
 
-def test_wrapper_does_not_claim_compaction_without_usage():
-    wrapper = MasonCoworkWrapper(
-        cowork_client=_FakeCoworkClient(),
-        context_policy=ContextRotationPolicy(
-            context_limit_tokens=128,
-            compact_trigger_tokens=100,
-        ),
+def test_wrapper_accepts_real_response_without_conversation_id_or_usage():
+    result = MasonCoworkWrapper._turn_result_from(
+        {
+            "id": "resp-1",
+            "object": "response",
+            "status": "completed",
+            "model": "mason",
+            "output": [
+                {
+                    "type": "message",
+                    "id": "msg-1",
+                    "status": "completed",
+                    "role": "assistant",
+                    "content": [
+                        {"type": "output_text", "text": "first"},
+                        {"type": "output_text", "text": " second"},
+                    ],
+                }
+            ],
+        },
+        expected_conversation_id="conv-known",
     )
-    result = CoworkTurnResult(
-        response_id="resp-1",
-        conversation_id="conv-1",
-        status="completed",
-        model="mason",
-        output_text="done",
-        usage=None,
-    )
-    with pytest.raises(CoworkWrapperError, match="usage is required"):
-        wrapper.needs_context_rotation(result)
+
+    assert result.conversation_id == "conv-known"
+    assert result.output_text == "first second"
+    assert result.usage is None
 
 
 def test_wrapper_keeps_autonomous_proposal_and_explicit_store_distinct():
@@ -328,14 +410,19 @@ def test_wrapper_keeps_autonomous_proposal_and_explicit_store_distinct():
 
 def test_rotation_requires_a_new_cowork_conversation():
     class SameConversationClient(_FakeCoworkClient):
-        def create_conversation(self, *, project_id=None, title=None, goal=None):
+        def create_conversation(self, *, project_id=None, title=None, model=None):
             self.created.append(
-                {"project_id": project_id, "title": title, "goal": goal, "id": "conv-1"}
+                {
+                    "project_id": project_id,
+                    "title": title,
+                    "model": model,
+                    "id": "conv-1",
+                }
             )
             return {"id": "conv-1"}
 
     wrapper = MasonCoworkWrapper(cowork_client=SameConversationClient())
-    wrapper.start_conversation(goal="Initial goal.")
+    wrapper.start_conversation(initial_context="Initial context.")
     with pytest.raises(CoworkWrapperError, match="different Cowork conversation"):
         wrapper.rotate_for_checkpoint(_checkpoint())
 
