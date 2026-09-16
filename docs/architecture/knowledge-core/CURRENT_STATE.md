@@ -4,7 +4,7 @@
 
 Branch family: `architecture/knowledge-core`.
 Accepted Task 5 merge baseline: `748815927631f512a30ecb70347d6c9476608156`.
-Current bounded work branch: `architecture/knowledge-core-task6a-state-reconciliation`.
+Task 6A reconciliation content checkpoint: `2cc3bfa914ca274b5714c74df1a74cad5dbf5809` (PR #10; documentation-only verification).
 
 ## Read order and authority
 
@@ -119,21 +119,21 @@ Do not create a second Mason graph-search tool unless a later demonstrated need 
 
 Work sequentially. Do not silently absorb later slices into an earlier task.
 
-### Task 6A — authoritative-state reconciliation — CURRENT SLICE
+### Task 6A — authoritative-state reconciliation — ACCEPTED
 
 Documentation-only reconciliation from the accepted Task 5 merge.
 
-Scope:
+Completed scope:
 
-- record Task 5 as accepted;
-- record Task 4/4.1 implementation as merged but live intended-host qualification still pending;
-- remove the stale Task 4 -> Task 5 restart instruction;
-- establish the Task 6 sequence below;
-- make no runtime, schema, provider, model, graph, corpus or authorization changes.
+- recorded Task 5 as accepted;
+- recorded Task 4/4.1 implementation as merged but live intended-host qualification still pending;
+- removed the stale Task 4 -> Task 5 restart instruction;
+- established the Task 6 sequence below;
+- made no runtime, schema, provider, model, graph, corpus or authorization changes.
 
-**Accept when:** current KC status has one unambiguous restart point, no current document says Mason is unimplemented, and no current document falsely claims source-neutral Task 4 live acceptance.
+Verification against Task 5 merge `748815927631f512a30ecb70347d6c9476608156` found exactly three changed files, all current KC documentation: `CURRENT_STATE.md`, `ARCHITECTURE.md`, and `OPERATIONS.md`. No PR-triggered workflow was required or observed for this documentation-only slice.
 
-### Task 6B — unified retrieval contract
+### Task 6B — unified retrieval contract — NEXT AUTHORIZED SLICE
 
 Define a versioned domain/API contract for one `kc_search` request returning:
 
@@ -222,8 +222,8 @@ For any new KC worker/session:
 4. Read `OPERATIONS.md` only for the bounded operating/evidence question.
 5. Treat `legacy/` as evidence, not current instructions.
 
-Current implementation branch baseline before Task 6A: `748815927631f512a30ecb70347d6c9476608156`.
+Task 6A documentation reconciliation is accepted as a documentation-only checkpoint rooted at Task 5 merge `748815927631f512a30ecb70347d6c9476608156` and verified at reconciliation content checkpoint `2cc3bfa914ca274b5714c74df1a74cad5dbf5809`.
 
-**Current authorized slice:** Task 6A documentation reconciliation only.
+**Current authorized slice:** Task 6B unified retrieval contract.
 
-**Next after Task 6A acceptance:** Task 6B unified retrieval contract.
+Do not begin Task 6C runtime wiring until Task 6B is separately accepted.
