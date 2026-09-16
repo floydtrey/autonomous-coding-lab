@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -12,6 +13,7 @@ class CanonicalStoreAuthorityRequest:
     project_key: str
     content_sha256: str
     source_id: str | None = None
+    source_event_time: datetime | None = None
 
     def __post_init__(self) -> None:
         for field_name, value in (
@@ -23,6 +25,11 @@ class CanonicalStoreAuthorityRequest:
                 raise ValueError(f"{field_name} must be non-empty")
         if self.source_id is not None and not self.source_id.strip():
             raise ValueError("source_id must be null or non-empty")
+        if self.source_event_time is not None and (
+            self.source_event_time.tzinfo is None
+            or self.source_event_time.utcoffset() is None
+        ):
+            raise ValueError("source_event_time must be null or timezone-aware")
 
 
 @dataclass(frozen=True)
