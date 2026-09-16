@@ -187,7 +187,7 @@ Historical pre-2D SR-2 generations retain explicit `repository-sr2-v1` provenanc
 
 Task 3 adds the bounded local Usable V1 front door only when the trusted host explicitly supplies `BootstrapAdmission`:
 
-- `POST /v1/kc/search` requires `X-Knowledge-Key`, admits operation `kc.search`, maps success to fixed principal `local_owner`, and currently reuses the exact same accepted lexical search/evidence path. It does not maintain a second index or retrieval definition. If the host also supplies the separate retrieval Authority evaluator, that evaluator is an additional fail-closed policy layer for bootstrap search.
+- `POST /v1/kc/search` requires `X-Knowledge-Key`, admits operation `kc.search`, maps success to fixed principal `local_owner`, and preserves the accepted lexical request/evidence path. Tasks 6B–6D extend its response additively with `kc-unified-retrieval-evidence-v1`: lexical fields remain top-level and an optional separately stateful graph lane/warnings are added behind the KC coordinator. No graph binding produces lexical evidence plus `graph.state="disabled"`; it does not create or synchronize a graph. If the host also supplies the separate lexical retrieval Authority evaluator, that evaluator remains an additional fail-closed policy layer before lexical search.
 - `POST /v1/kc/get-source` requires `X-Knowledge-Key`, admits `kc.get_source`, and accepts an exact `resource_version_ref`. It serves only a ResourceVersion referenced by the current TEXT generation and still serving-eligible. For SR-2 it first revalidates the current generation/profile and generic-or-legacy lineage mode, then reads the full immutable artifact, verifies stored byte size and SHA-256, requires strict UTF-8, and returns the exact canonical source bytes as text. Unknown, non-current or restricted refs are nondisclosing 404. Artifact keys/backends, filesystem paths, database URLs and raw SQL do not cross this contract.
 - `GET /v1/kc/status` requires `X-Knowledge-Key`, admits `kc.status`, and reports bounded canonical/text readiness only: canonical revision, text state (`empty` or `ready`), current text generation/source revision highwater/source count, retrieval mode, lineage mode, evidence-contract version and generation-config digest. It does not currently claim graph readiness or expose storage/provider credentials.
 
@@ -201,7 +201,7 @@ Mason is an accepted local KC consumer through the project-local bounded bridge.
 
 The bridge is loopback-only for the accepted V1 path and does not expose SQL, artifact-store authority, FalkorDB/Graphiti mutation, arbitrary HTTP, or arbitrary KC access. Mason follows retrieval results through `kc_get_source` when exact canonical source content is required.
 
-Task 5 acceptance qualifies explicit Mason -> KC canonical/lexical use. It does not qualify source-neutral Graphiti readiness and does not give Mason direct graph-maintenance authority.
+Task 5 acceptance qualifies explicit Mason -> KC canonical/lexical use. Tasks 6B–6D add a compatible unified `kc_search` response behind that same literal operation; Task 6E owns any Mason instruction/interpretation changes required to consume the new graph lane. None of this gives Mason direct graph-maintenance authority or qualifies source-neutral Graphiti runtime readiness.
 
 ## Graphiti derived projection and trust admission
 
@@ -233,13 +233,13 @@ The reference-time policy is `source-event-then-revision-then-observed-v1`. The 
 
 Task 4.1 hardens the intended local Graphiti/Falkor runtime by serializing KC-visible Falkor access, forcing bounded Graphiti concurrency, disabling telemetry for the qualified profile and explicitly closing async clients used by the one-shot operator path.
 
-**Qualification status:** implementation and deterministic CI qualification are merged. Historical repository-shaped graph acceptance remains valid. Live intended-host acceptance of the new source-neutral mixed-source path is still pending and must not be inferred from implementation tests or from Task 5 Mason acceptance.
+**Qualification status:** implementation and deterministic CI qualification are merged. Historical repository-shaped graph acceptance remains valid. Live intended-host acceptance of the new source-neutral mixed-source path is still pending and must not be inferred from Tasks 6B–6D endpoint/coordinator qualification or from Task 5 Mason acceptance.
 
-## Unified retrieval contract — Task 6B accepted
+## Unified retrieval contract and live bootstrap integration — Tasks 6B–6D accepted
 
-Task 6 preserves the existing Mason operation `kc_search` and places future graph augmentation behind the KC service boundary rather than exposing Graphiti directly to Mason.
+The existing Mason operation `kc_search` is the consumer surface for unified retrieval. Graph augmentation remains behind the KC service boundary rather than exposing Graphiti directly to Mason.
 
-Task 6B accepts additive contract `kc-unified-retrieval-evidence-v1`. The future unified response keeps every existing lexical `RetrievalSearchResponse` field at top level under its existing `kc-lexical-evidence-v2` meaning, then adds a separate `graph` evidence lane and bounded `warnings`.
+The accepted additive contract is `kc-unified-retrieval-evidence-v1`. The live bootstrap `POST /v1/kc/search` keeps every existing lexical `RetrievalSearchResponse` field at top level under its existing `kc-lexical-evidence-v2` meaning, then adds a separate `graph` evidence lane and bounded `warnings`.
 
 ```text
 kc_search
@@ -249,14 +249,18 @@ kc_search
 
 The graph lane has public states `disabled`, `no_build`, `ready`, `stale`, `pending`, `unvalidated`, `failed`, and `unavailable`. Only `ready` may expose graph facts. Ready evidence must identify explicit namespace/scope, at least one validated attempt and the exact same TEXT generation represented by the lexical lane. Every non-ready state exposes zero graph results and requires a bounded reason code plus corresponding warning.
 
-Graph authorization details are not a public state. A coordinator may collapse graph denial or provider/runtime unavailability into nondisclosing `unavailable`; this does not bypass or weaken independent lexical authorization.
+Lexical retrieval executes first. Graph failure cannot turn an otherwise-valid lexical result into failure. Historical `include_superseded=True` search remains lexical-only because the accepted graph path is current-only. A graph generation mismatch degrades to `stale`; lack of a compatible validated attempt or graph Authority/provider/integrity failure degrades nondisclosingly rather than exposing untrusted facts.
+
+Graph authorization details are not a public state. Graph denial or provider/runtime unavailability may collapse into nondisclosing `unavailable`; this does not bypass or weaken independent lexical authorization. A separately configured lexical retrieval Authority evaluator remains a fail-closed pre-check before bootstrap lexical search.
 
 Every graph fact retains exact ResourceVersion/segment/source-identity/observation/decision/snapshot/projection correlation. Full canonical source content is intentionally not duplicated into graph correlation output; consumers follow the returned `resource_version_ref` through `kc_get_source` when exact source content is needed.
 
+The optional trusted-host graph binding must use the same bootstrap principal `local_owner`; application composition rejects a binding that substitutes another caller identity. Supplying a graph binding does not build, synchronize, or launch Graphiti or any model/provider.
+
 Lexical and graph scores are not interchangeable. The accepted contract defines no synthetic combined score and no graph score field. A future fusion/reranking policy would require a separately versioned contract and qualification.
 
-Task 6B is contract-only. The live `/v1/kc/search` route remains lexical until later Task 6D integration. Task 6C is limited to producing this accepted contract inside an application coordinator while reusing the existing lexical and trusted-graph kernels.
+Tasks 6B–6D qualify the contract, coordinator, and bootstrap endpoint integration. They do **not** qualify the pending Task 4 intended-host source-neutral Graphiti/FalkorDB/local-model build. Task 6E is limited to Mason interpretation of this already-live additive response.
 
 ## Contract maintenance
 
-Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2, source-neutral Task 2, Task 3 read-surface, Task 4 implementation/hardening, Task 5 Mason work or Task 6B unified retrieval contract, and historical acceptance must not be overstated as qualification of later behavior.
+Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2, source-neutral Task 2, Task 3 read-surface, Task 4 implementation/hardening, Task 5 Mason work or Tasks 6B–6D unified retrieval work, and historical acceptance must not be overstated as qualification of later behavior.
