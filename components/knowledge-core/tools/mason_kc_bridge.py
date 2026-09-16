@@ -14,7 +14,10 @@ from urllib.request import Request, urlopen
 _BASE_URL_ENV = "KNOWLEDGE_CORE_BASE_URL"
 _KEY_ENV = "KNOWLEDGE_CORE_BOOTSTRAP_KEY"
 _DEFAULT_BASE_URL = "http://127.0.0.1:8765"
-_ALLOWED_OPERATIONS = frozenset({"kc_status", "kc_search", "kc_get_source", "kc_store"})
+MASON_PROPOSER_REF = "mason"
+_ALLOWED_OPERATIONS = frozenset(
+    {"kc_status", "kc_search", "kc_get_source", "kc_store", "kc_propose_memory"}
+)
 
 
 class BridgeError(RuntimeError):
@@ -41,9 +44,9 @@ class BridgeConfig:
 def _require_loopback_http_url(value: str) -> None:
     parsed = urlsplit(value)
     if parsed.scheme != "http":
-        raise BridgeError("Task 5 V1 requires a local http Knowledge Core URL")
+        raise BridgeError("Mason V1 requires a local http Knowledge Core URL")
     if parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
-        raise BridgeError("Task 5 V1 is qualified only for a loopback Knowledge Core endpoint")
+        raise BridgeError("Mason V1 is qualified only for a loopback Knowledge Core endpoint")
     if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
         raise BridgeError("Knowledge Core base URL must not include a path/query/fragment")
 
@@ -59,6 +62,10 @@ def _json_bytes(payload: dict[str, Any]) -> bytes:
 
 def _deterministic_store_key(payload: dict[str, Any]) -> str:
     return f"mason-kc-v1:{sha256(_json_bytes(payload)).hexdigest()}"
+
+
+def _deterministic_memory_proposal_key(payload: dict[str, Any]) -> str:
+    return f"mason-kc-memory-v1:{sha256(_json_bytes(payload)).hexdigest()}"
 
 
 def _require_exact_keys(
@@ -119,6 +126,95 @@ def _request(
     return parsed
 
 
+def _propose_memory(
+    config: BridgeConfig,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    allowed = {"content", "project", "source_event_time", "idempotency_key"}
+    _require_exact_keys(payload, allowed, required={"content", "project"})
+    content = str(payload["content"])
+    project = str(payload["project"]).strip()
+    if not content.strip():
+        raise BridgeError("kc_propose_memory content must not be blank")
+    if not project:
+        raise BridgeError("kc_propose_memory project must not be blank")
+    if len(project) > 255:
+        raise BridgeError("kc_propose_memory project must be 255 characters or fewer")
+
+    request_body: dict[str, Any] = {
+        "content": content,
+        "project": project,
+        "proposer_ref": MASON_PROPOSER_REF,
+    }
+    event_time = payload.get("source_event_time")
+    if event_time is not None:
+        text = str(event_time).strip()
+        if not text:
+            raise BridgeError(
+                "kc_propose_memory source_event_time must not be blank when supplied"
+            )
+        request_body["source_event_time"] = text
+
+    explicit = payload.get("idempotency_key")
+    idempotency_key = (
+        str(explicit).strip()
+        if explicit is not None
+        else _deterministic_memory_proposal_key(request_body)
+    )
+    if not idempotency_key:
+        raise BridgeError("kc_propose_memory idempotency_key must not be blank")
+    return _request(
+        config,
+        "POST",
+        "/v1/kc/memory-candidates",
+        request_body,
+        extra_headers={"Idempotency-Key": idempotency_key},
+    )
+
+
+def _store(config: BridgeConfig, payload: dict[str, Any]) -> dict[str, Any]:
+    allowed = {"content", "project", "source_id", "source_event_time", "idempotency_key"}
+    _require_exact_keys(payload, allowed, required={"content", "project"})
+    content = str(payload["content"])
+    project = str(payload["project"]).strip()
+    if not content.strip():
+        raise BridgeError("kc_store content must not be blank")
+    if not project:
+        raise BridgeError("kc_store project must not be blank")
+    if len(project) > 255:
+        raise BridgeError("kc_store project must be 255 characters or fewer")
+
+    request_body: dict[str, Any] = {
+        "content": content,
+        "project": project,
+        "source_type": "user_note",
+    }
+    for name in ("source_id", "source_event_time"):
+        value = payload.get(name)
+        if value is not None:
+            text = str(value).strip()
+            if not text:
+                raise BridgeError(f"kc_store {name} must not be blank when supplied")
+            request_body[name] = text
+
+    explicit = payload.get("idempotency_key")
+    idempotency_key = (
+        str(explicit).strip()
+        if explicit is not None
+        else _deterministic_store_key(request_body)
+    )
+    if not idempotency_key:
+        raise BridgeError("kc_store idempotency_key must not be blank")
+
+    return _request(
+        config,
+        "POST",
+        "/v1/kc/store",
+        request_body,
+        extra_headers={"Idempotency-Key": idempotency_key},
+    )
+
+
 def execute(
     operation: str,
     payload: dict[str, Any] | None = None,
@@ -166,46 +262,10 @@ def execute(
             {"resource_version_ref": ref},
         )
 
-    allowed = {"content", "project", "source_id", "source_event_time", "idempotency_key"}
-    _require_exact_keys(body, allowed, required={"content", "project"})
-    content = str(body["content"])
-    project = str(body["project"]).strip()
-    if not content.strip():
-        raise BridgeError("kc_store content must not be blank")
-    if not project:
-        raise BridgeError("kc_store project must not be blank")
-    if len(project) > 255:
-        raise BridgeError("kc_store project must be 255 characters or fewer")
+    if operation == "kc_propose_memory":
+        return _propose_memory(resolved, body)
 
-    request_body: dict[str, Any] = {
-        "content": content,
-        "project": project,
-        "source_type": "user_note",
-    }
-    for name in ("source_id", "source_event_time"):
-        value = body.get(name)
-        if value is not None:
-            text = str(value).strip()
-            if not text:
-                raise BridgeError(f"kc_store {name} must not be blank when supplied")
-            request_body[name] = text
-
-    explicit = body.get("idempotency_key")
-    idempotency_key = (
-        str(explicit).strip()
-        if explicit is not None
-        else _deterministic_store_key(request_body)
-    )
-    if not idempotency_key:
-        raise BridgeError("kc_store idempotency_key must not be blank")
-
-    return _request(
-        resolved,
-        "POST",
-        "/v1/kc/store",
-        request_body,
-        extra_headers={"Idempotency-Key": idempotency_key},
-    )
+    return _store(resolved, body)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -215,7 +275,10 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(
                 {
                     "ok": False,
-                    "error": "usage: mason_kc_bridge.py <kc_status|kc_search|kc_get_source|kc_store>",
+                    "error": (
+                        "usage: mason_kc_bridge.py "
+                        "<kc_status|kc_search|kc_get_source|kc_store|kc_propose_memory>"
+                    ),
                 }
             ),
             file=sys.stderr,

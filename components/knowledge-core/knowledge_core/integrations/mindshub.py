@@ -13,7 +13,10 @@ from urllib.request import Request, urlopen
 _BASE_URL_ENV = "KNOWLEDGE_CORE_BASE_URL"
 _KEY_ENV = "KNOWLEDGE_CORE_BOOTSTRAP_KEY"
 _DEFAULT_BASE_URL = "http://127.0.0.1:8765"
-_ALLOWED_OPERATIONS = frozenset({"kc_status", "kc_search", "kc_get_source", "kc_store"})
+MASON_PROPOSER_REF = "mason"
+_ALLOWED_OPERATIONS = frozenset(
+    {"kc_status", "kc_search", "kc_get_source", "kc_store", "kc_propose_memory"}
+)
 
 
 class MasonKnowledgeCoreBridgeError(RuntimeError):
@@ -40,17 +43,26 @@ class MasonKnowledgeCoreConfig:
 def _require_loopback_http_url(value: str) -> None:
     parsed = urlsplit(value)
     if parsed.scheme != "http":
-        raise MasonKnowledgeCoreBridgeError("Task 5 V1 requires a local http Knowledge Core URL")
+        raise MasonKnowledgeCoreBridgeError(
+            "Mason V1 requires a local http Knowledge Core URL"
+        )
     if parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
         raise MasonKnowledgeCoreBridgeError(
-            "Task 5 V1 is qualified only for a loopback Knowledge Core endpoint"
+            "Mason V1 is qualified only for a loopback Knowledge Core endpoint"
         )
     if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
-        raise MasonKnowledgeCoreBridgeError("Knowledge Core base URL must not include a path/query/fragment")
+        raise MasonKnowledgeCoreBridgeError(
+            "Knowledge Core base URL must not include a path/query/fragment"
+        )
 
 
 def _json_bytes(payload: dict[str, Any]) -> bytes:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
 
 
 def _deterministic_store_key(payload: dict[str, Any]) -> str:
@@ -58,15 +70,26 @@ def _deterministic_store_key(payload: dict[str, Any]) -> str:
     return f"mason-kc-v1:{digest}"
 
 
+def _deterministic_memory_proposal_key(payload: dict[str, Any]) -> str:
+    digest = sha256(_json_bytes(payload)).hexdigest()
+    return f"mason-kc-memory-v1:{digest}"
+
+
 class MasonKnowledgeCoreBridge:
-    """Exact four-operation local bridge from Mason/Anton to the KC front door."""
+    """Exact five-operation local bridge from Mason/Cowork to the KC front door."""
 
     def __init__(self, config: MasonKnowledgeCoreConfig):
         self.config = config
 
-    def execute(self, operation: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    def execute(
+        self,
+        operation: str,
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         if operation not in _ALLOWED_OPERATIONS:
-            raise MasonKnowledgeCoreBridgeError(f"unsupported Knowledge Core operation: {operation}")
+            raise MasonKnowledgeCoreBridgeError(
+                f"unsupported Knowledge Core operation: {operation}"
+            )
         body = dict(payload or {})
         if operation == "kc_status":
             self._require_exact_keys(body, set())
@@ -75,16 +98,24 @@ class MasonKnowledgeCoreBridge:
             return self._search(body)
         if operation == "kc_get_source":
             return self._get_source(body)
+        if operation == "kc_propose_memory":
+            return self._propose_memory(body)
         return self._store(body)
 
     def _search(self, payload: dict[str, Any]) -> dict[str, Any]:
-        self._require_exact_keys(payload, {"query", "limit"}, required={"query"})
+        self._require_exact_keys(
+            payload,
+            {"query", "limit"},
+            required={"query"},
+        )
         query = str(payload["query"]).strip()
         if not query:
             raise MasonKnowledgeCoreBridgeError("kc_search query must not be blank")
         limit = int(payload.get("limit", 10))
         if limit < 1 or limit > 50:
-            raise MasonKnowledgeCoreBridgeError("kc_search limit must be between 1 and 50")
+            raise MasonKnowledgeCoreBridgeError(
+                "kc_search limit must be between 1 and 50"
+            )
         return self._request(
             "POST",
             "/v1/kc/search",
@@ -92,19 +123,93 @@ class MasonKnowledgeCoreBridge:
         )
 
     def _get_source(self, payload: dict[str, Any]) -> dict[str, Any]:
-        self._require_exact_keys(payload, {"resource_version_ref"}, required={"resource_version_ref"})
+        self._require_exact_keys(
+            payload,
+            {"resource_version_ref"},
+            required={"resource_version_ref"},
+        )
         ref = str(payload["resource_version_ref"]).strip()
         if not ref:
-            raise MasonKnowledgeCoreBridgeError("kc_get_source resource_version_ref must not be blank")
+            raise MasonKnowledgeCoreBridgeError(
+                "kc_get_source resource_version_ref must not be blank"
+            )
         return self._request(
             "POST",
             "/v1/kc/get-source",
             {"resource_version_ref": ref},
         )
 
+    def _propose_memory(self, payload: dict[str, Any]) -> dict[str, Any]:
+        allowed = {
+            "content",
+            "project",
+            "source_event_time",
+            "idempotency_key",
+        }
+        self._require_exact_keys(
+            payload,
+            allowed,
+            required={"content", "project"},
+        )
+        content = str(payload["content"])
+        project = str(payload["project"]).strip()
+        if not content.strip():
+            raise MasonKnowledgeCoreBridgeError(
+                "kc_propose_memory content must not be blank"
+            )
+        if not project:
+            raise MasonKnowledgeCoreBridgeError(
+                "kc_propose_memory project must not be blank"
+            )
+        if len(project) > 255:
+            raise MasonKnowledgeCoreBridgeError(
+                "kc_propose_memory project must be 255 characters or fewer"
+            )
+
+        body: dict[str, Any] = {
+            "content": content,
+            "project": project,
+            "proposer_ref": MASON_PROPOSER_REF,
+        }
+        event_time = payload.get("source_event_time")
+        if event_time is not None:
+            text = str(event_time).strip()
+            if not text:
+                raise MasonKnowledgeCoreBridgeError(
+                    "kc_propose_memory source_event_time must not be blank when supplied"
+                )
+            body["source_event_time"] = text
+
+        explicit = payload.get("idempotency_key")
+        idempotency_key = (
+            str(explicit).strip()
+            if explicit is not None
+            else _deterministic_memory_proposal_key(body)
+        )
+        if not idempotency_key:
+            raise MasonKnowledgeCoreBridgeError(
+                "kc_propose_memory idempotency_key must not be blank"
+            )
+        return self._request(
+            "POST",
+            "/v1/kc/memory-candidates",
+            body,
+            extra_headers={"Idempotency-Key": idempotency_key},
+        )
+
     def _store(self, payload: dict[str, Any]) -> dict[str, Any]:
-        allowed = {"content", "project", "source_id", "source_event_time", "idempotency_key"}
-        self._require_exact_keys(payload, allowed, required={"content", "project"})
+        allowed = {
+            "content",
+            "project",
+            "source_id",
+            "source_event_time",
+            "idempotency_key",
+        }
+        self._require_exact_keys(
+            payload,
+            allowed,
+            required={"content", "project"},
+        )
         content = str(payload["content"])
         project = str(payload["project"]).strip()
         if not content.strip():
@@ -112,7 +217,9 @@ class MasonKnowledgeCoreBridge:
         if not project:
             raise MasonKnowledgeCoreBridgeError("kc_store project must not be blank")
         if len(project) > 255:
-            raise MasonKnowledgeCoreBridgeError("kc_store project must be 255 characters or fewer")
+            raise MasonKnowledgeCoreBridgeError(
+                "kc_store project must be 255 characters or fewer"
+            )
 
         body: dict[str, Any] = {
             "content": content,
@@ -124,12 +231,20 @@ class MasonKnowledgeCoreBridge:
             if value is not None:
                 text = str(value).strip()
                 if not text:
-                    raise MasonKnowledgeCoreBridgeError(f"kc_store {name} must not be blank when supplied")
+                    raise MasonKnowledgeCoreBridgeError(
+                        f"kc_store {name} must not be blank when supplied"
+                    )
                 body[name] = text
         explicit = payload.get("idempotency_key")
-        idempotency_key = str(explicit).strip() if explicit is not None else _deterministic_store_key(body)
+        idempotency_key = (
+            str(explicit).strip()
+            if explicit is not None
+            else _deterministic_store_key(body)
+        )
         if not idempotency_key:
-            raise MasonKnowledgeCoreBridgeError("kc_store idempotency_key must not be blank")
+            raise MasonKnowledgeCoreBridgeError(
+                "kc_store idempotency_key must not be blank"
+            )
         return self._request(
             "POST",
             "/v1/kc/store",
@@ -193,13 +308,18 @@ class MasonKnowledgeCoreBridge:
                 f"Knowledge Core is unreachable at {self.config.base_url}: {exc.reason}"
             ) from exc
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise MasonKnowledgeCoreBridgeError("Knowledge Core returned invalid JSON") from exc
+            raise MasonKnowledgeCoreBridgeError(
+                "Knowledge Core returned invalid JSON"
+            ) from exc
         if not isinstance(parsed, dict):
-            raise MasonKnowledgeCoreBridgeError("Knowledge Core response must be a JSON object")
+            raise MasonKnowledgeCoreBridgeError(
+                "Knowledge Core response must be a JSON object"
+            )
         return parsed
 
 
 __all__ = [
+    "MASON_PROPOSER_REF",
     "MasonKnowledgeCoreBridge",
     "MasonKnowledgeCoreBridgeError",
     "MasonKnowledgeCoreConfig",
