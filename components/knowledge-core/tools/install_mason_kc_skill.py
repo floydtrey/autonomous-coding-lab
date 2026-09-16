@@ -102,6 +102,11 @@ def _install_project_tool(project_dir: Path, source: Path, relative_target: Path
     return target
 
 
+def _install_project_bridge(project_dir: Path, source_bridge: Path) -> Path:
+    """Backward-compatible Task 5 helper for installing the bounded bridge."""
+    return _install_project_tool(project_dir, source_bridge, _PROJECT_BRIDGE_RELATIVE)
+
+
 def _register_skill(cowork_url: str, instructions: str, project_name: str) -> dict:
     collection_url = f"{cowork_url}/api/v1/skills/"
     skills = _request_json("GET", collection_url)
@@ -185,11 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     tool_dir = Path(__file__).resolve().parent
     source_bridge = (tool_dir / "mason_kc_bridge.py").resolve()
     source_cli = (tool_dir / "mason_kc_cli.py").resolve()
-    bridge_path = _install_project_tool(
-        project_dir,
-        source_bridge,
-        _PROJECT_BRIDGE_RELATIVE,
-    )
+    bridge_path = _install_project_bridge(project_dir, source_bridge)
     cli_path = _install_project_tool(
         project_dir,
         source_cli,
