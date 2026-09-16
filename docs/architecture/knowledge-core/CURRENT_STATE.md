@@ -4,7 +4,8 @@
 
 Branch family: `architecture/knowledge-core`.
 Accepted Task 5 merge baseline: `748815927631f512a30ecb70347d6c9476608156`.
-Task 6A reconciliation content checkpoint: `2cc3bfa914ca274b5714c74df1a74cad5dbf5809` (PR #10; documentation-only verification).
+Task 6A merge checkpoint: `7cb06d2e6e52e9000cdb96d26413f8f82a685982`.
+Task 6B accepted implementation/test checkpoint: `e45822d116eeb087978eb62dee7770638b6393d7`; full Knowledge Core workflow Actions `35041019731` green.
 
 ## Read order and authority
 
@@ -32,7 +33,8 @@ These are the only current KC authorities. [legacy/](legacy/README.md) preserves
 | Historical governed Graphiti | Accepted repository-shaped Graphiti qualification at `6376419e369ea9ecfe58a19fa233bbfca90ad703`. This remains historical evidence for that exact build only. |
 | Source-neutral Graphiti implementation | Implemented and CI-qualified through Task 4 plus Task 4.1 runtime hardening; merged into the KC line. **Live intended-host mixed-source acceptance remains pending.** |
 | Mason / MindsHub | **Task 5 accepted.** Mason reaches KC through the project-local strict bridge and the four literal operations `kc_status`, `kc_search`, `kc_get_source`, `kc_store`. |
-| Public graph consumer surface | Not exposed. Current Mason `kc_search` remains lexical-only. Trusted graph retrieval exists behind the application kernel/operator path. |
+| Unified retrieval contract | **Task 6B accepted.** `kc-unified-retrieval-evidence-v1` preserves the lexical response and defines a separate optional graph lane with explicit degradation state and exact KC source correlation. |
+| Public graph consumer behavior | Not wired yet. Current live Mason `kc_search` remains lexical-only until Tasks 6C–6D implement and expose the accepted contract. |
 | Vera | Future consumer work. |
 
 Acceptance is bounded to recorded evidence. It is not a claim of production deployment, comprehensive answer quality, machine reboot/backup qualification, or qualification of future files/configurations.
@@ -87,7 +89,7 @@ Live qualification proved Mason could invoke the KC skill, run `kc_search`, foll
 
 ## Current objective — Task 6: dogfood KC through Mason
 
-The next phase is not another storage/retrieval rewrite. It is to use the accepted KC foundation through Mason and improve only the demonstrated gaps.
+The next phase is not another storage/retrieval rewrite. It is to use the accepted KC foundation through Mason and improve only demonstrated gaps.
 
 The intended consumer architecture is:
 
@@ -109,7 +111,7 @@ canonical correlation / lifecycle checks
 one bounded evidence package
 ```
 
-The lexical lane remains the required baseline. Graph evidence is additive and must fail/degrade independently: unavailable, stale, unvalidated or failed graph state must never make otherwise-valid canonical/text retrieval unavailable.
+The lexical lane remains the required baseline. Graph evidence is additive and must fail/degrade independently: disabled, unavailable, absent, stale, pending, unvalidated or failed graph state must never make otherwise-valid canonical/text retrieval unavailable.
 
 Do not invent a synthetic score that treats lexical and graph scores as equivalent. Preserve the two evidence lanes and their native evidence/provenance.
 
@@ -131,27 +133,35 @@ Completed scope:
 - established the Task 6 sequence below;
 - made no runtime, schema, provider, model, graph, corpus or authorization changes.
 
-Verification against Task 5 merge `748815927631f512a30ecb70347d6c9476608156` found exactly three changed files, all current KC documentation: `CURRENT_STATE.md`, `ARCHITECTURE.md`, and `OPERATIONS.md`. No PR-triggered workflow was required or observed for this documentation-only slice.
+Merged checkpoint: `7cb06d2e6e52e9000cdb96d26413f8f82a685982` (PR #10).
 
-### Task 6B — unified retrieval contract — NEXT AUTHORIZED SLICE
+### Task 6B — unified retrieval contract — ACCEPTED
 
-Define a versioned domain/API contract for one `kc_search` request returning:
+Accepted implementation/test checkpoint: `e45822d116eeb087978eb62dee7770638b6393d7`.
+Qualification: [Actions 35041019731](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/35041019731) green across migrations, fast semantic suite, PostgreSQL G1–G21, pinned G22, RI-4 restart rehearsal and SR-2 restart/replay rehearsal. The detailed contract record is [Task 6B unified retrieval contract](legacy/TASK6B_UNIFIED_RETRIEVAL_CONTRACT_2026-09-15.md).
 
-- accepted lexical evidence;
-- optional validated graph evidence;
-- graph readiness/freshness state;
-- warnings/degradation state;
-- exact canonical correlation/provenance for both lanes.
+Accepted contract:
 
-No runtime wiring in 6B.
+- version `kc-unified-retrieval-evidence-v1`;
+- all existing lexical `RetrievalSearchResponse` fields remain top-level and retain `kc-lexical-evidence-v2` semantics;
+- graph evidence is additive and separately stateful;
+- public graph states are `disabled`, `no_build`, `ready`, `stale`, `pending`, `unvalidated`, `failed`, and `unavailable`;
+- only `ready` may return graph results;
+- ready graph evidence requires namespace/scope, validated attempt identity and the exact same TEXT generation returned by the lexical lane;
+- every non-ready state returns zero graph results and carries a bounded reason plus matching degradation warning;
+- graph authorization details are not exposed as a distinct public state; future coordination may collapse denied/unavailable graph access into nondisclosing `unavailable` while lexical authorization remains independent;
+- each graph fact retains exact ResourceVersion/segment/governance/snapshot correlation but does not duplicate full canonical source text; consumers use `kc_get_source` for exact source follow-through;
+- no combined lexical/graph score exists.
 
-**Accept when:** the contract is explicit about fail-open-to-lexical behavior, graph trust requirements, provenance and backward compatibility with existing Mason `kc_search` consumers.
+Task 6B does **not** wire the live endpoint or execute Graphiti.
 
-### Task 6C — unified retrieval coordinator
+### Task 6C — unified retrieval coordinator — NEXT AUTHORIZED SLICE
 
 Add one application-level coordinator that reuses the existing lexical consumer kernel and existing validated source-neutral graph kernel. Do not build another index or graph platform.
 
-**Accept when:** lexical-only operation is unchanged when graph evidence is unavailable; graph augmentation occurs only from validated compatible graph attempts; failures remain bounded to the graph lane.
+The coordinator must produce the accepted Task 6B contract without changing the live `/v1/kc/search` route yet.
+
+**Accept when:** lexical-only operation is unchanged when graph evidence is disabled/unavailable/not ready; graph augmentation is emitted only from validated compatible graph attempts bound to the same current TEXT generation; graph failures remain bounded to the graph lane; no local model or graph synchronization is implicitly launched.
 
 ### Task 6D — `kc_search` integration
 
@@ -222,8 +232,8 @@ For any new KC worker/session:
 4. Read `OPERATIONS.md` only for the bounded operating/evidence question.
 5. Treat `legacy/` as evidence, not current instructions.
 
-Task 6A documentation reconciliation is accepted as a documentation-only checkpoint rooted at Task 5 merge `748815927631f512a30ecb70347d6c9476608156` and verified at reconciliation content checkpoint `2cc3bfa914ca274b5714c74df1a74cad5dbf5809`.
+Task 6B's accepted behavior-bearing checkpoint is `e45822d116eeb087978eb62dee7770638b6393d7`, qualified by Actions `35041019731`. Later Task 6B documentation records do not change the qualified contract bytes.
 
-**Current authorized slice:** Task 6B unified retrieval contract.
+**Current authorized slice:** Task 6C unified retrieval coordinator.
 
-Do not begin Task 6C runtime wiring until Task 6B is separately accepted.
+Do not begin Task 6D endpoint wiring until Task 6C is separately accepted.
