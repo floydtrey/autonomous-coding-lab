@@ -23,10 +23,21 @@ from knowledge_core.api.retrieval_schemas import (
     retrieval_response_from_domain,
 )
 from knowledge_core.api.store_schemas import KnowledgeStoreRequest, KnowledgeStoreResponse
+from knowledge_core.api.unified_retrieval_schemas import (
+    UnifiedRetrievalSearchResponse,
+    unified_retrieval_response_from_domain,
+)
 from knowledge_core.application.consumer_read import ConsumerReadKnowledgeKernel
 from knowledge_core.application.direct_note_store import (
     DirectNoteStoreKnowledgeKernel,
     direct_note_operation_id,
+)
+from knowledge_core.application.source_neutral_graph import (
+    SourceNeutralGraphProjectionKnowledgeKernel,
+)
+from knowledge_core.application.unified_retrieval import (
+    UnifiedGraphSearchBinding,
+    UnifiedRetrievalCoordinator,
 )
 from knowledge_core.artifacts.store import LocalArtifactStore
 from knowledge_core.authority.retrieval import (
@@ -72,6 +83,7 @@ def create_app(
     artifact_store: LocalArtifactStore,
     retrieval_authority_evaluator: RetrievalAuthorityEvaluator | None = None,
     bootstrap_admission: BootstrapAdmission | None = None,
+    unified_graph_search_binding: UnifiedGraphSearchBinding | None = None,
 ):
     """Compose the KC semantic API with bounded trusted-host seams.
 
@@ -80,7 +92,25 @@ def create_app(
     ``kc_search``, ``kc_get_source`` and ``kc_status`` front doors are exposed and
     map successful shared-key admission to ``local_owner``. Existing low-level routes
     are not placed behind the bootstrap key.
+
+    ``unified_graph_search_binding`` is optional and query-only. Supplying it never
+    builds or synchronizes a graph. Its caller principal must exactly match the fixed
+    bootstrap principal so graph Authority cannot substitute a second identity for
+    the authenticated ``kc_search`` request.
     """
+
+    if unified_graph_search_binding is not None:
+        if bootstrap_admission is None:
+            raise ValueError(
+                "unified graph search binding requires bootstrap admission"
+            )
+        if (
+            unified_graph_search_binding.caller_principal_ref
+            != bootstrap_admission.contract.principal_ref
+        ):
+            raise ValueError(
+                "unified graph search binding principal must match bootstrap principal"
+            )
 
     app = _create_base_app(
         session_factory=session_factory,
@@ -239,16 +269,16 @@ def create_app(
 
         @app.post(
             _KC_SEARCH_PATH,
-            response_model=RetrievalSearchResponse,
+            response_model=UnifiedRetrievalSearchResponse,
         )
-        def knowledge_search(
+        async def knowledge_search(
             body: RetrievalSearchRequest,
             kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
             principal: str = Depends(search_principal),
-        ) -> RetrievalSearchResponse:
+        ) -> UnifiedRetrievalSearchResponse:
             # Bootstrap admission is the bounded Usable V1 local-read authority. If a
             # separate retrieval Authority evaluator is supplied by the trusted host,
-            # it remains an additional fail-closed policy layer for search.
+            # it remains an additional fail-closed policy layer for lexical search.
             if retrieval_authority_evaluator is not None:
                 require_retrieval_authority(
                     retrieval_authority_evaluator,
@@ -259,13 +289,22 @@ def create_app(
                         include_superseded=body.include_superseded,
                     ),
                 )
-            return retrieval_response_from_domain(
-                kernel.search_text(
-                    query=body.query,
-                    limit=body.limit,
-                    include_superseded=body.include_superseded,
-                )
+
+            graph_kernel = SourceNeutralGraphProjectionKnowledgeKernel(
+                kernel.session,
+                artifact_store=artifact_store,
             )
+            coordinator = UnifiedRetrievalCoordinator(
+                lexical_kernel=kernel,
+                graph_kernel=graph_kernel,
+                graph_binding=unified_graph_search_binding,
+            )
+            result = await coordinator.search(
+                query=body.query,
+                limit=body.limit,
+                include_superseded=body.include_superseded,
+            )
+            return unified_retrieval_response_from_domain(result)
 
         @app.post(
             _KC_GET_SOURCE_PATH,
