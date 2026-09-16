@@ -52,13 +52,13 @@ def _bridge(monkeypatch, returned=None):
     return bridge, calls
 
 
-def test_bridge_exposes_only_four_operations(monkeypatch):
+def test_bridge_exposes_only_bounded_operations(monkeypatch):
     bridge, _calls = _bridge(monkeypatch)
     with pytest.raises(MasonKnowledgeCoreBridgeError, match="unsupported Knowledge Core operation"):
         bridge.execute("sql_query", {})
     with pytest.raises(MasonKnowledgeCoreBridgeError, match="unsupported Knowledge Core operation"):
         bridge.execute("graphiti_sync", {})
-    for shortened in ("status", "search", "get_source", "store"):
+    for shortened in ("status", "search", "get_source", "store", "propose_memory"):
         with pytest.raises(MasonKnowledgeCoreBridgeError, match="unsupported Knowledge Core operation"):
             bridge.execute(shortened, {})
 
@@ -151,18 +151,25 @@ def test_skill_template_is_procedure_body_and_fail_closed():
     )
     text = path.read_text(encoding="utf-8")
     assert "{{BRIDGE_PATH}}" in text
+    assert "{{CLI_PATH}}" in text
     assert not text.startswith("---")
-    assert "not a tool named `knowledge-core`" in text
-    assert "Do not fall back to filesystem searches" in text
-    assert "literal protocol identifiers" in text
-    assert "Never shorten, translate, alias, or remove the `kc_` prefix" in text
-    assert 'return _kc_exact("kc_status", {})' in text
-    assert 'return _kc_exact("kc_search", payload)' in text
-    assert 'return _kc_exact("kc_get_source", payload)' in text
-    assert 'return _kc_exact("kc_store", payload)' in text
+    assert "project-local deterministic CLI" in text
+    assert "python {{CLI_PATH}} status" in text
+    assert "python {{CLI_PATH}} search" in text
+    assert "python {{CLI_PATH}} get-source" in text
+    assert "python {{CLI_PATH}} propose-memory" in text
+    assert "python {{CLI_PATH}} store" in text
+    assert "Do not call `{{BRIDGE_PATH}}` directly" in text
+    assert "subprocess.run" not in text
     assert "KNOWLEDGE_CORE_BOOTSTRAP_KEY" in text
     assert "Never print" in text
-    for operation in ("kc_status", "kc_search", "kc_get_source", "kc_store"):
+    for operation in (
+        "kc_status",
+        "kc_search",
+        "kc_get_source",
+        "kc_store",
+        "kc_propose_memory",
+    ):
         assert operation in text
     assert "graphiti_sync" not in text
     assert "sql_query" not in text
