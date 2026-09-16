@@ -163,7 +163,11 @@ def test_skill_teaches_separate_lexical_and_graph_evidence_without_new_tool():
     assert "kc_get_source" in text
     assert "derived retrieval evidence" in text
     assert "Do not invent or call a second graph-search operation" in text
-    assert "Do not claim graph readiness from this response" in text
+    # Task 6F supersedes the original 6E pre-status wording: kc_status now
+    # reports bounded durable graph readiness while provider liveness remains
+    # a separate search-time concern.
+    assert "graph status of `ready`" in text
+    assert "not proof that the provider is live" in text
 
     for state in (
         "disabled",
