@@ -9,6 +9,7 @@ Task 6B accepted implementation/test checkpoint: `e45822d116eeb087978eb62dee7770
 Task 6C accepted implementation/test checkpoint: `5a8fac1d3a2b8caa3798a63f5df75f2a104705d0`; full Knowledge Core workflow Actions `35041876808` green.
 Task 6D accepted implementation/test checkpoint: `65943a1e12dd08bf01a1e330ceb43ede1e2e6e13`; full Knowledge Core workflow Actions `35060185109` green.
 Task 6E accepted skill/test checkpoint: `0902a906a5c20e48dfcb07009d68eb9f3ccf9392`; Actions `35060788601` run attempt 2 green after an unchanged-head retry of a transient final SR-2 rehearsal setup failure.
+Task 6F accepted implementation/test checkpoint: `e34ca35cb1d2a31bdb7ec45d9799dd1f685c66d5`; full Knowledge Core workflow Actions `35062593583` green.
 
 ## Read order and authority
 
@@ -39,7 +40,7 @@ These are the only current KC authorities. [legacy/](legacy/README.md) preserves
 | Unified retrieval contract | **Task 6B accepted.** `kc-unified-retrieval-evidence-v1` preserves the lexical response and defines a separate optional graph lane with explicit degradation state and exact KC source correlation. |
 | Unified retrieval coordinator | **Task 6C accepted.** Lexical retrieval is mandatory and runs first; optional graph augmentation reuses the existing validated source-neutral graph kernel and degrades independently without starting graph/model work. |
 | Bootstrap `kc_search` unified response | **Task 6D accepted.** The existing request shape and lexical fields remain compatible; additive graph evidence/warnings now pass through the same literal `kc_search` route. No graph binding returns lexical evidence with `graph.state="disabled"`. |
-| Graph readiness/freshness status | Not yet exposed through `kc_status`. Task 6F is the next bounded slice and must inspect durable graph evidence without launching graph synchronization or a model. |
+| Graph readiness/freshness status | **Task 6F accepted.** `kc_status` now adds bounded graph state derived only from KC projection/validation evidence and can distinguish disabled, no-build, ready, stale, pending, unvalidated, failed, and bounded unavailable states without querying Graphiti or launching a model. |
 | Vera | Future consumer work. |
 
 Acceptance is bounded to recorded evidence. It is not a claim of production deployment, comprehensive answer quality, machine reboot/backup qualification, or qualification of future files/configurations.
@@ -63,7 +64,7 @@ The merged Task 4.1 checkpoint is `23a0794ff396365d0dfd124e0b4a7bbf9174c00d`.
 
 **Remaining Task 4 acceptance barrier:** run the bounded source-neutral Graphiti/FalkorDB/local-model path on the intended host using a current mixed-source SR-2 corpus, complete independent validation, obtain at least one trusted graph result, and prove exact generic KC evidence correlation. Until that succeeds, source-neutral graph retrieval is implemented but not formally live-accepted.
 
-Tasks 6B–6E do not remove or satisfy this barrier. They define, coordinate, expose, and interpret the consumer path that can use a compatible already-validated graph build when one exists. They do not create or live-qualify that build.
+Tasks 6B–6F do not remove or satisfy this barrier. They define, coordinate, expose, interpret, and report the consumer path that can use a compatible already-validated graph build when one exists. They do not create or live-qualify that build.
 
 ## Task 5 / Mason status — ACCEPTED
 
@@ -218,18 +219,24 @@ Actions `35060788601` attempt 1 passed the Task 6E fast suite, PostgreSQL G1–G
 
 Task 6E deterministic acceptance does not claim a live Mason/Cowork behavior campaign; that remains Task 6J unless separately authorized earlier.
 
-### Task 6F — graph readiness and freshness status — NEXT AUTHORIZED SLICE
+### Task 6F — graph readiness and freshness status — ACCEPTED
 
-Expose enough bounded status to distinguish at least:
+Accepted implementation/test checkpoint: `e34ca35cb1d2a31bdb7ec45d9799dd1f685c66d5`.
+Qualification: [Actions 35062593583](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/35062593583) green across migrations, fast semantic suite, PostgreSQL G1–G21, pinned G22, RI-4 restart rehearsal and SR-2 restart/replay rehearsal. Detailed evidence is [Task 6F graph readiness status](legacy/TASK6F_GRAPH_READINESS_STATUS_2026-09-16.md).
 
-- no graph build;
-- current validated compatible graph;
-- stale/incompatible graph;
-- failed/pending/unvalidated graph.
+Accepted behavior:
 
-The status path must inspect durable KC graph evidence only. Do not query Graphiti for facts, auto-launch graph synchronization, start a provider/model/embedder, or create background work from status/search.
+- `GET /v1/kc/status` preserves the existing canonical/text fields and adds a bounded `graph` object using the established public graph states;
+- no graph binding reports `disabled` without reading provider or projection state;
+- configured graph readiness is derived only from KC's durable projection-attempt and validation ledger plus the current TEXT generation/profile and the injected adapter descriptor;
+- the classifier distinguishes `no_build`, `ready`, `stale`, `pending`, `unvalidated`, and `failed`; unexpected readiness-inspection failure degrades only graph status to nondisclosing `unavailable`;
+- a `ready` build must be succeeded, validated, current-profile/current-config compatible, and satisfy the adapter's current independent validation requirement when one exists;
+- status exposes at most one representative attempt ID so historical attempt volume cannot make the response unbounded;
+- an existing ready build wins over simultaneous pending/failed attempts because trusted retrieval can still use the ready build;
+- `kc_status` does not call `adapter.search()`, project/synchronize Graphiti, query FalkorDB for facts, invoke embeddings/reranking, launch a provider/model, or create background work;
+- graph readiness does not weaken or replace canonical/text readiness and does not satisfy the still-pending Task 4 intended-host mixed-source Graphiti acceptance barrier.
 
-### Task 6G — memory-candidate boundary
+### Task 6G — memory-candidate boundary — NEXT AUTHORIZED SLICE
 
 Separate autonomous worker observations from explicit trusted `kc_store` writes. Preserve direct canonical storage for explicit trusted/user-directed storage; add a bounded proposal/candidate path for self-initiated model memory.
 
@@ -275,8 +282,8 @@ For any new KC worker/session:
 4. Read `OPERATIONS.md` only for the bounded operating/evidence question.
 5. Treat `legacy/` as evidence, not current instructions.
 
-Task 6E's accepted behavior-bearing checkpoint is `0902a906a5c20e48dfcb07009d68eb9f3ccf9392`, qualified by Actions `35060788601` run attempt 2. Later Task 6E documentation records do not change the qualified skill/test bytes.
+Task 6F's accepted behavior-bearing checkpoint is `e34ca35cb1d2a31bdb7ec45d9799dd1f685c66d5`, qualified by Actions `35062593583`. Later Task 6F documentation records do not change the qualified status/classifier bytes.
 
-**Current authorized slice:** Task 6F graph readiness and freshness status.
+**Current authorized slice:** Task 6G memory-candidate boundary.
 
-Do not begin Task 6G memory-candidate work until Task 6F is separately accepted.
+Do not begin Task 6H context-compaction work until Task 6G is separately accepted.

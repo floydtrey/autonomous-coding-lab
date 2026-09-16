@@ -4,10 +4,12 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from knowledge_core.api.unified_retrieval_schemas import GraphRetrievalEvidenceResponse
 from knowledge_core.domain.retrieval import (
     LEXICAL_EVIDENCE_CONTRACT_VERSION,
     TextReadinessState,
 )
+from knowledge_core.domain.unified_retrieval import GraphRetrievalEvidence
 
 
 class KnowledgeGetSourceRequest(BaseModel):
@@ -40,6 +42,7 @@ class KnowledgeStatusResponse(BaseModel):
     retrieval_mode: str | None
     lineage_mode: str | None
     generation_config_digest: str | None
+    graph: GraphRetrievalEvidenceResponse
 
 
 def source_response_from_domain(item) -> KnowledgeGetSourceResponse:
@@ -60,7 +63,11 @@ def source_response_from_domain(item) -> KnowledgeGetSourceResponse:
     )
 
 
-def status_response_from_domain(item) -> KnowledgeStatusResponse:
+def status_response_from_domain(
+    item,
+    *,
+    graph: GraphRetrievalEvidence,
+) -> KnowledgeStatusResponse:
     return KnowledgeStatusResponse(
         evidence_contract_version=item.evidence_contract_version,
         canonical_revision=item.canonical_revision,
@@ -71,4 +78,13 @@ def status_response_from_domain(item) -> KnowledgeStatusResponse:
         retrieval_mode=item.retrieval_mode,
         lineage_mode=item.lineage_mode,
         generation_config_digest=item.generation_config_digest,
+        graph=GraphRetrievalEvidenceResponse(
+            state=graph.state,
+            namespace_key=graph.namespace_key,
+            scope_key=graph.scope_key,
+            generation_id=graph.generation_id,
+            attempt_ids=list(graph.attempt_ids),
+            results=[],
+            reason_code=graph.reason_code,
+        ),
     )

@@ -32,6 +32,11 @@ from knowledge_core.application.direct_note_store import (
     DirectNoteStoreKnowledgeKernel,
     direct_note_operation_id,
 )
+from knowledge_core.application.graph_readiness import (
+    disabled_graph_readiness,
+    inspect_source_neutral_graph_readiness,
+    unavailable_graph_readiness,
+)
 from knowledge_core.application.source_neutral_graph import (
     SourceNeutralGraphProjectionKnowledgeKernel,
 )
@@ -96,7 +101,8 @@ def create_app(
     ``unified_graph_search_binding`` is optional and query-only. Supplying it never
     builds or synchronizes a graph. Its caller principal must exactly match the fixed
     bootstrap principal so graph Authority cannot substitute a second identity for
-    the authenticated ``kc_search`` request.
+    the authenticated ``kc_search`` request. The same binding may be inspected by
+    ``kc_status`` for durable graph readiness; status never calls the graph provider.
     """
 
     if unified_graph_search_binding is not None:
@@ -329,6 +335,34 @@ def create_app(
             kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
             _principal: str = Depends(status_principal),
         ) -> KnowledgeStatusResponse:
-            return status_response_from_domain(kernel.retrieval_status())
+            lexical_status = kernel.retrieval_status()
+            binding = unified_graph_search_binding
+            if binding is None:
+                graph_status = disabled_graph_readiness()
+            else:
+                graph_kernel = SourceNeutralGraphProjectionKnowledgeKernel(
+                    kernel.session,
+                    artifact_store=artifact_store,
+                )
+                try:
+                    graph_status = inspect_source_neutral_graph_readiness(
+                        kernel=graph_kernel,
+                        adapter=binding.adapter,
+                        namespace_key=binding.namespace_key,
+                        scope_key=binding.scope_key,
+                    )
+                except Exception:
+                    # Status is intentionally bounded and nondisclosing. A malformed
+                    # descriptor or unreadable graph ledger must not make otherwise
+                    # valid canonical/text readiness unavailable, and raw graph-side
+                    # failure details do not cross the bootstrap consumer boundary.
+                    graph_status = unavailable_graph_readiness(
+                        namespace_key=binding.namespace_key,
+                        scope_key=binding.scope_key,
+                    )
+            return status_response_from_domain(
+                lexical_status,
+                graph=graph_status,
+            )
 
     return app
