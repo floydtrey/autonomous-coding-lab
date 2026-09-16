@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import sys
 
 from knowledge_core.integrations import mindshub
 from knowledge_core.integrations.mindshub import (
@@ -107,39 +108,43 @@ def test_project_local_bridge_preserves_additive_unified_search_response(monkeyp
     spec = importlib.util.spec_from_file_location("task6e_project_bridge", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
 
-    returned = _unified_payload()
-    calls = []
+        returned = _unified_payload()
+        calls = []
 
-    def fake_urlopen(request, timeout):
-        calls.append(
-            {
-                "url": request.full_url,
-                "body": json.loads(request.data.decode("utf-8")),
-                "timeout": timeout,
-            }
+        def fake_urlopen(request, timeout):
+            calls.append(
+                {
+                    "url": request.full_url,
+                    "body": json.loads(request.data.decode("utf-8")),
+                    "timeout": timeout,
+                }
+            )
+            return _Response(returned)
+
+        monkeypatch.setattr(module, "urlopen", fake_urlopen)
+        config = module.BridgeConfig(
+            base_url="http://127.0.0.1:8765",
+            api_key="secret-key",
         )
-        return _Response(returned)
 
-    monkeypatch.setattr(module, "urlopen", fake_urlopen)
-    config = module.BridgeConfig(
-        base_url="http://127.0.0.1:8765",
-        api_key="secret-key",
-    )
+        result = module.execute(
+            "kc_search",
+            {"query": "What is Mason?", "limit": 5},
+            config=config,
+        )
 
-    result = module.execute(
-        "kc_search",
-        {"query": "What is Mason?", "limit": 5},
-        config=config,
-    )
-
-    assert result == returned
-    assert result["unified_evidence_contract_version"] == (
-        "kc-unified-retrieval-evidence-v1"
-    )
-    assert calls[0]["url"].endswith("/v1/kc/search")
-    assert calls[0]["body"]["include_superseded"] is False
+        assert result == returned
+        assert result["unified_evidence_contract_version"] == (
+            "kc-unified-retrieval-evidence-v1"
+        )
+        assert calls[0]["url"].endswith("/v1/kc/search")
+        assert calls[0]["body"]["include_superseded"] is False
+    finally:
+        sys.modules.pop(spec.name, None)
 
 
 def test_skill_teaches_separate_lexical_and_graph_evidence_without_new_tool():
