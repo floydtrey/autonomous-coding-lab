@@ -16,6 +16,7 @@ class _FakeCoworkClient:
         self._response = 0
         self.created = []
         self.responses = []
+        self.force_forbidden_fallback = False
         _FakeCoworkClient.last_instance = self
 
     def create_conversation(self, *, project_id=None, title=None, model=None):
@@ -51,6 +52,23 @@ class _FakeCoworkClient:
                 "model": model,
             }
         )
+        if self._response <= 2:
+            text = (
+                "contract: mason-kc-cli-v1\n"
+                "operation: kc_status\n"
+                "text_state: ready\n"
+                "graph_state: disabled"
+            )
+        else:
+            text = (
+                "contract: mason-kc-cli-v1\n"
+                "operation: kc_propose_memory\n"
+                "candidate_id: candidate-1\n"
+                "state: pending\n"
+                "canonical_state: not_stored"
+            )
+        if self.force_forbidden_fallback:
+            text += "\nI also called http://127.0.0.1:8765/v1/kc/status directly."
         return {
             "id": f"resp-{self._response}",
             "object": "response",
@@ -65,7 +83,7 @@ class _FakeCoworkClient:
                     "content": [
                         {
                             "type": "output_text",
-                            "text": f"fake response {self._response}",
+                            "text": text,
                         }
                     ],
                 }
@@ -87,10 +105,8 @@ def _load_launcher():
     return module
 
 
-def test_host_launcher_rotates_and_writes_reviewable_evidence(tmp_path, monkeypatch):
-    module = _load_launcher()
-    monkeypatch.setattr(module, "LocalCoworkClient", _FakeCoworkClient)
-    args = argparse.Namespace(
+def _args(tmp_path, *, exercise_memory_proposal=False):
+    return argparse.Namespace(
         project_id="proj-test",
         model="mason",
         cowork_base_url="http://127.0.0.1:26866/api/v1",
@@ -98,20 +114,30 @@ def test_host_launcher_rotates_and_writes_reviewable_evidence(tmp_path, monkeypa
         context_limit_tokens=131072,
         compact_trigger_tokens=100000,
         output_dir=str(tmp_path / "evidence"),
-        exercise_memory_proposal=False,
+        exercise_memory_proposal=exercise_memory_proposal,
     )
 
-    result = module.run(args)
+
+def test_host_launcher_rotates_and_writes_reviewable_evidence(tmp_path, monkeypatch):
+    module = _load_launcher()
+    monkeypatch.setattr(module, "LocalCoworkClient", _FakeCoworkClient)
+
+    result = module.run(_args(tmp_path))
 
     assert result["mechanical_pass"] is True
+    assert result["automated_semantic_gate_pass"] is True
+    assert result["qualification_candidate_pass"] is True
     assert result["semantic_review_required"] is True
-    assert result["contract"] == "kc-task6i-host-qualification-v2"
+    assert result["contract"] == "kc-task6i-host-qualification-v3"
+    assert result["kc_cli_contract"] == "mason-kc-cli-v1"
     assert result["cowork_contract_version"] == "v0.26.9.14.2"
     assert result["initial_conversation_id"] == "conv-1"
     assert result["continuation_conversation_id"] == "conv-2"
     assert result["checkpoint_digest"].startswith("sha256:")
     assert result["checkpoint_injection"] == "first-input-of-fresh-conversation"
     assert result["memory_proposal_exercised"] is False
+    assert result["initial_cli_gate"]["passed"] is True
+    assert result["continuation_cli_gate"]["passed"] is True
     assert result["context_policy"]["usage_state"].startswith(
         "unavailable-from-cowork-responses-"
     )
@@ -131,8 +157,37 @@ def test_host_launcher_rotates_and_writes_reviewable_evidence(tmp_path, monkeypa
     evidence_path = Path(result["evidence_path"])
     assert evidence_path.exists()
     stored = json.loads(evidence_path.read_text(encoding="utf-8"))
-    assert stored["mechanical_pass"] is True
+    assert stored["qualification_candidate_pass"] is True
     assert stored["initial_status_turn"]["usage"] is None
     assert stored["continuation_status_turn"]["usage"] is None
     assert (tmp_path / "evidence" / "01-initial-status-output.txt").exists()
     assert (tmp_path / "evidence" / "02-continuation-status-output.txt").exists()
+
+
+def test_host_launcher_rejects_forbidden_fallback_even_when_turns_complete(tmp_path, monkeypatch):
+    module = _load_launcher()
+
+    class ForbiddenFallbackClient(_FakeCoworkClient):
+        def __init__(self, config):
+            super().__init__(config)
+            self.force_forbidden_fallback = True
+
+    monkeypatch.setattr(module, "LocalCoworkClient", ForbiddenFallbackClient)
+    result = module.run(_args(tmp_path))
+
+    assert result["mechanical_pass"] is True
+    assert result["automated_semantic_gate_pass"] is False
+    assert result["qualification_candidate_pass"] is False
+    assert result["initial_cli_gate"]["forbidden_fallback_markers"]
+
+
+def test_host_launcher_qualifies_noncanonical_memory_proposal_path(tmp_path, monkeypatch):
+    module = _load_launcher()
+    monkeypatch.setattr(module, "LocalCoworkClient", _FakeCoworkClient)
+
+    result = module.run(_args(tmp_path, exercise_memory_proposal=True))
+
+    assert result["memory_proposal_exercised"] is True
+    assert result["proposal_cli_gate"]["passed"] is True
+    assert result["memory_boundary_pass"] is True
+    assert result["qualification_candidate_pass"] is True
