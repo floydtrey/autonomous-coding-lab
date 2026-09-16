@@ -6,6 +6,7 @@ Branch family: `architecture/knowledge-core`.
 Accepted Task 5 merge baseline: `748815927631f512a30ecb70347d6c9476608156`.
 Task 6A merge checkpoint: `7cb06d2e6e52e9000cdb96d26413f8f82a685982`.
 Task 6B accepted implementation/test checkpoint: `e45822d116eeb087978eb62dee7770638b6393d7`; full Knowledge Core workflow Actions `35041019731` green.
+Task 6C accepted implementation/test checkpoint: `5a8fac1d3a2b8caa3798a63f5df75f2a104705d0`; full Knowledge Core workflow Actions `35041876808` green.
 
 ## Read order and authority
 
@@ -34,7 +35,8 @@ These are the only current KC authorities. [legacy/](legacy/README.md) preserves
 | Source-neutral Graphiti implementation | Implemented and CI-qualified through Task 4 plus Task 4.1 runtime hardening; merged into the KC line. **Live intended-host mixed-source acceptance remains pending.** |
 | Mason / MindsHub | **Task 5 accepted.** Mason reaches KC through the project-local strict bridge and the four literal operations `kc_status`, `kc_search`, `kc_get_source`, `kc_store`. |
 | Unified retrieval contract | **Task 6B accepted.** `kc-unified-retrieval-evidence-v1` preserves the lexical response and defines a separate optional graph lane with explicit degradation state and exact KC source correlation. |
-| Public graph consumer behavior | Not wired yet. Current live Mason `kc_search` remains lexical-only until Tasks 6C–6D implement and expose the accepted contract. |
+| Unified retrieval coordinator | **Task 6C accepted.** Lexical retrieval is mandatory and runs first; optional graph augmentation reuses the existing validated source-neutral graph kernel and degrades independently without starting graph/model work. |
+| Public graph consumer behavior | Not wired yet. Current live Mason `kc_search` remains lexical-only until Task 6D exposes the accepted 6B/6C path. |
 | Vera | Future consumer work. |
 
 Acceptance is bounded to recorded evidence. It is not a claim of production deployment, comprehensive answer quality, machine reboot/backup qualification, or qualification of future files/configurations.
@@ -149,25 +151,43 @@ Accepted contract:
 - only `ready` may return graph results;
 - ready graph evidence requires namespace/scope, validated attempt identity and the exact same TEXT generation returned by the lexical lane;
 - every non-ready state returns zero graph results and carries a bounded reason plus matching degradation warning;
-- graph authorization details are not exposed as a distinct public state; future coordination may collapse denied/unavailable graph access into nondisclosing `unavailable` while lexical authorization remains independent;
+- graph authorization details are not exposed as a distinct public state; coordination may collapse denied/unavailable graph access into nondisclosing `unavailable` while lexical authorization remains independent;
 - each graph fact retains exact ResourceVersion/segment/governance/snapshot correlation but does not duplicate full canonical source text; consumers use `kc_get_source` for exact source follow-through;
 - no combined lexical/graph score exists.
 
 Task 6B does **not** wire the live endpoint or execute Graphiti.
 
-### Task 6C — unified retrieval coordinator — NEXT AUTHORIZED SLICE
+### Task 6C — unified retrieval coordinator — ACCEPTED
 
-Add one application-level coordinator that reuses the existing lexical consumer kernel and existing validated source-neutral graph kernel. Do not build another index or graph platform.
+Accepted implementation/test checkpoint: `5a8fac1d3a2b8caa3798a63f5df75f2a104705d0`.
+Qualification: [Actions 35041876808](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/35041876808) green across migrations, fast semantic suite, PostgreSQL G1–G21, pinned G22, RI-4 restart rehearsal and SR-2 restart/replay rehearsal. Detailed evidence is [Task 6C unified retrieval coordinator](legacy/TASK6C_UNIFIED_RETRIEVAL_COORDINATOR_2026-09-15.md).
 
-The coordinator must produce the accepted Task 6B contract without changing the live `/v1/kc/search` route yet.
+Accepted coordinator behavior:
 
-**Accept when:** lexical-only operation is unchanged when graph evidence is disabled/unavailable/not ready; graph augmentation is emitted only from validated compatible graph attempts bound to the same current TEXT generation; graph failures remain bounded to the graph lane; no local model or graph synchronization is implicitly launched.
+- lexical retrieval executes first and outside graph-degradation handling; a lexical trust/serving failure still fails the request;
+- optional graph augmentation requires explicit host injection of adapter, retrieval Authority seam, caller principal, namespace and scope;
+- no graph binding produces lexical evidence plus `graph.state="disabled"` without graph access;
+- `include_superseded=True` remains lexical-only because the accepted graph path is current-only;
+- no current TEXT generation produces `no_build` without graph access;
+- graph search reuses `SourceNeutralGraphProjectionKnowledgeKernel.search_validated_projection()` rather than duplicating validation/correlation logic;
+- graph generation mismatch with the lexical snapshot produces `stale` and zero graph results;
+- no compatible validated attempt IDs produces nondisclosing `unavailable`, not `no_build`, because trusted search cannot distinguish absent vs stale/pending/failed/unvalidated durable builds; Task 6F owns that later classification;
+- ordinary graph provider/Authority/integrity/mapping exceptions degrade to nondisclosing `unavailable` while valid lexical evidence remains usable;
+- ready graph hits must retain source-neutral `GovernedProjectionSourceSegment` correlation and omit provider source body/full canonical content;
+- the graph lane uses the normalized lexical snapshot query;
+- the coordinator does not synchronize Graphiti, start a provider/model, mutate graph state, or create background work.
 
-### Task 6D — `kc_search` integration
+An earlier qualification run, Actions `35041771603`, stopped with 169 fast tests passed and one incorrect focused assertion. The assertion expected the raw caller query despite the fake lexical snapshot containing a different normalized query. Coordinator behavior was unchanged; the corrected test now verifies use of the lexical snapshot query.
 
-Place the coordinator behind the existing bootstrap `/v1/kc/search` route. Keep the existing request surface and lexical fields backward compatible; graph evidence is additive.
+Task 6C does **not** alter the live `/v1/kc/search` route.
 
-**Accept when:** existing Task 3/5 lexical consumers still work unchanged and a graph-unavailable state does not break `kc_search`.
+### Task 6D — `kc_search` integration — NEXT AUTHORIZED SLICE
+
+Place the accepted Task 6C coordinator behind the existing bootstrap `/v1/kc/search` route. Keep the existing request surface and every lexical response field backward compatible; Task 6B graph evidence/warnings are additive.
+
+Graph augmentation must remain optional and explicitly host-configured. Default/no-graph configuration must preserve existing lexical behavior. Search must not synchronize Graphiti, start a model/provider, or create background work.
+
+**Accept when:** existing Task 3/5 lexical consumers still work without request changes; the response preserves existing lexical fields; graph disabled/unavailable does not break `kc_search`; ready graph evidence can be returned only through the accepted coordinator/trusted-graph path; bootstrap admission and any separate retrieval Authority semantics remain intact.
 
 ### Task 6E — Mason bridge / skill interpretation
 
@@ -232,8 +252,8 @@ For any new KC worker/session:
 4. Read `OPERATIONS.md` only for the bounded operating/evidence question.
 5. Treat `legacy/` as evidence, not current instructions.
 
-Task 6B's accepted behavior-bearing checkpoint is `e45822d116eeb087978eb62dee7770638b6393d7`, qualified by Actions `35041019731`. Later Task 6B documentation records do not change the qualified contract bytes.
+Task 6C's accepted behavior-bearing checkpoint is `5a8fac1d3a2b8caa3798a63f5df75f2a104705d0`, qualified by Actions `35041876808`. Later Task 6C documentation records do not change the qualified coordinator bytes.
 
-**Current authorized slice:** Task 6C unified retrieval coordinator.
+**Current authorized slice:** Task 6D `kc_search` integration.
 
-Do not begin Task 6D endpoint wiring until Task 6C is separately accepted.
+Do not begin Task 6E Mason interpretation changes until Task 6D is separately accepted.
