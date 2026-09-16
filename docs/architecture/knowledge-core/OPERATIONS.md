@@ -43,7 +43,7 @@ Accepted local consumer operations are:
 | `kc_store` | `POST /v1/kc/store` | Requires bootstrap admission plus `Idempotency-Key`; canonical evidence settles before derived publication. |
 | `kc_search` | `POST /v1/kc/search` | Uses the accepted lexical-first unified coordinator. Existing lexical fields remain top-level; additive `graph`/`warnings` follow `kc-unified-retrieval-evidence-v1`. No graph binding returns lexical evidence with `graph.state="disabled"`. |
 | `kc_get_source` | `POST /v1/kc/get-source` | Accepts an exact current-generation `resource_version_ref`; revalidates eligibility and immutable source size/SHA-256/UTF-8. |
-| `kc_status` | `GET /v1/kc/status` | Reports bounded canonical/text readiness. Task 6F is reserved for additive graph readiness/freshness state. |
+| `kc_status` | `GET /v1/kc/status` | Preserves bounded canonical/text readiness and adds bounded graph readiness/freshness derived only from KC durable projection/validation evidence. Status does not query/build Graphiti or launch a model. |
 
 Caller-supplied `X-Knowledge-Caller` does not override the bootstrap principal. The preexisting `/v1/retrieval/search` route remains separate and requires its retrieval Authority evaluator.
 
@@ -122,7 +122,7 @@ Task 4 implementation and deterministic CI qualification are merged. Task 4.1 ha
 
 The source-neutral mixed-source path is **not yet formally live-accepted**. The remaining barrier is the bounded intended-host Graphiti/FalkorDB/local-model run followed by independent validation and at least one trusted graph result with exact generic KC correlation.
 
-Tasks 6B–6E do not satisfy that host barrier. They define, expose, and interpret a consumer path that may consume a current compatible validated build if one is supplied through the accepted trusted-host binding.
+Tasks 6B–6F do not satisfy that host barrier. They define, expose, interpret, and report a consumer path that may consume a current compatible validated build if one is supplied through the accepted trusted-host binding.
 
 ## Mason / MindsHub operating boundary — Tasks 5 and 6E accepted
 
@@ -153,13 +153,13 @@ Task 5 qualification proved a fresh Mason session could call the KC skill, perfo
 
 Task 6E leaves both bridge transports unchanged because both already preserve additive JSON responses. The accepted skill procedure now treats lexical and graph results as separate evidence lanes. A non-ready graph state does not invalidate otherwise-valid lexical evidence. A ready graph fact is derived evidence, not canonical wording. When exact wording, provenance or conflict resolution matters, follow the relevant returned `resource_version_ref` through `kc_get_source`.
 
-Do not add a second graph tool or direct Graphiti/FalkorDB authority to Mason. Do not claim graph readiness from `kc_status` until Task 6F separately defines and qualifies that status contract.
+Task 6F makes the existing `kc_status` operation a bounded graph-readiness surface as well as a canonical/text-readiness surface. Mason still receives no graph maintenance operation, provider credentials, or direct Graphiti/FalkorDB access.
 
-## Unified retrieval operating contract — Tasks 6B–6E accepted
+## Unified retrieval and graph status operating contract — Tasks 6B–6F accepted
 
-Task 6B defines `kc-unified-retrieval-evidence-v1`; Task 6C provides the qualified application-level coordinator; Task 6D places that coordinator behind the existing bootstrap `POST /v1/kc/search` route; Task 6E qualifies deterministic Mason bridge passthrough and interpretation of the additive response.
+Task 6B defines `kc-unified-retrieval-evidence-v1`; Task 6C provides the qualified application-level coordinator; Task 6D places that coordinator behind the existing bootstrap `POST /v1/kc/search` route; Task 6E qualifies deterministic Mason bridge passthrough and interpretation of the additive response; Task 6F adds bounded graph readiness/freshness to the existing `GET /v1/kc/status` route.
 
-The unified contract preserves every accepted lexical response field and its `kc-lexical-evidence-v2` meaning. It adds a separately stateful graph lane and bounded degradation warnings.
+The unified search contract preserves every accepted lexical response field and its `kc-lexical-evidence-v2` meaning. It adds a separately stateful graph lane and bounded degradation warnings.
 
 Public graph states are:
 
@@ -172,7 +172,7 @@ Public graph states are:
 - `failed`
 - `unavailable`
 
-Only `ready` may contain graph results. A ready lane must identify explicit namespace/scope, one or more validated attempt IDs and the exact same TEXT generation as the lexical snapshot. Every non-ready graph lane returns zero graph results and requires a bounded reason code plus the matching warning.
+Only `ready` may contain graph results. A ready search lane must identify explicit namespace/scope, one or more validated attempt IDs and the exact same TEXT generation as the lexical snapshot. Every non-ready search graph lane returns zero graph results and requires a bounded reason code plus the matching warning.
 
 Do not expose graph authorization denial as a distinct public state. The accepted coordinator maps denied/unreachable graph access to nondisclosing `unavailable`; it does not use graph degradation to weaken lexical authorization.
 
@@ -193,10 +193,22 @@ Accepted coordinator/endpoint/consumer behavior:
 - no graph binding returns additive `graph.state="disabled"` without a graph call;
 - graph binding principal must equal bootstrap `local_owner`;
 - a separately configured text retrieval Authority evaluator remains fail-closed before lexical retrieval;
-- `/v1/retrieval/search`, `kc_store`, `kc_get_source`, and `kc_status` are not redefined by Task 6D;
-- both Mason bridges pass the additive response through unchanged;
+- `/v1/retrieval/search`, `kc_store`, and `kc_get_source` are not redefined by Tasks 6B–6F;
+- both Mason bridges pass the additive search/status response fields through unchanged;
 - Mason's accepted skill uses valid lexical evidence when graph is non-ready, treats ready graph facts as derived evidence, and uses `kc_get_source` for exact canonical follow-through;
 - the coordinator/endpoint/consumer procedure does not discover providers, synchronize Graphiti, launch a model, start a scheduler, or mutate graph state.
+
+Accepted Task 6F status behavior:
+
+- no graph binding returns `graph.state="disabled"` without reading graph/provider state;
+- configured readiness is classified from KC's durable projection-attempt/validation ledger, current TEXT generation/profile, and injected adapter descriptor;
+- current-compatible succeeded+validated attempts must also satisfy the adapter's current independent validation requirement when one exists;
+- a usable ready build wins over simultaneous pending/failed attempts;
+- absent durable build is `no_build`; incompatible historical build is `stale`; current compatible nonterminal/untrusted evidence distinguishes `pending`, `unvalidated`, and `failed`;
+- unexpected readiness-inspection failure becomes nondisclosing `unavailable` without erasing canonical/text status;
+- status exposes at most one representative attempt ID;
+- readiness inspection never calls graph search/projection, FalkorDB fact retrieval, embeddings/reranking, or a local model, and never starts graph synchronization/background work;
+- status `ready` is durable KC build/validation readiness, not proof of current provider liveness.
 
 Task 6C implementation/test checkpoint `5a8fac1d3a2b8caa3798a63f5df75f2a104705d0` passed the complete Knowledge Core workflow in Actions `35041876808`. The detailed record is [Task 6C unified retrieval coordinator](legacy/TASK6C_UNIFIED_RETRIEVAL_COORDINATOR_2026-09-15.md).
 
@@ -204,7 +216,9 @@ Task 6D implementation/test checkpoint `65943a1e12dd08bf01a1e330ceb43ede1e2e6e13
 
 Task 6E skill/test checkpoint `0902a906a5c20e48dfcb07009d68eb9f3ccf9392` is accepted from Actions `35060788601` run attempt 2. Attempt 1 had already passed the Task 6E fast tests, PostgreSQL G1–G21, G22 and RI-4 before the unchanged SR-2 host harness failed while migrating its fresh isolated Postgres database. No Task 6E code changed; attempt 2 reran the exact same head and passed all gates including SR-2 restart/replay. The detailed record is [Task 6E Mason unified interpretation](legacy/TASK6E_MASON_UNIFIED_INTERPRETATION_2026-09-16.md).
 
-This acceptance qualifies deterministic contract/coordinator/bootstrap endpoint/bridge interpretation behavior only. It does not establish source-neutral Task 4 intended-host Graphiti acceptance or a live Task 6J Mason quality campaign.
+Task 6F implementation/test checkpoint `e34ca35cb1d2a31bdb7ec45d9799dd1f685c66d5` passed the complete Knowledge Core workflow in Actions `35062593583`. The detailed record is [Task 6F graph readiness status](legacy/TASK6F_GRAPH_READINESS_STATUS_2026-09-16.md).
+
+This acceptance qualifies deterministic contract/coordinator/bootstrap endpoint/bridge/status behavior only. It does not establish source-neutral Task 4 intended-host Graphiti acceptance, current graph-provider liveness, or a live Task 6J Mason quality campaign.
 
 ## Task 6 operating sequence
 
@@ -217,8 +231,8 @@ The intended sequence is:
 - 6C implement the coordinator by reusing existing lexical and graph kernels — accepted;
 - 6D place it behind existing `kc_search` without breaking Task 3/5 consumers — accepted;
 - 6E update Mason interpretation without adding direct graph authority — accepted;
-- 6F expose bounded graph readiness/freshness state — current authorized slice;
-- 6G separate autonomous memory proposals from explicit canonical `kc_store`;
+- 6F expose bounded graph readiness/freshness state — accepted;
+- 6G separate autonomous memory proposals from explicit canonical `kc_store` — current authorized slice;
 - 6H build wrapper-side context compaction/checkpointing;
 - 6I integrate compaction/proposals with MindsHub wrapper;
 - 6J run intended-host/worker qualification after resource contention permits.
@@ -256,6 +270,7 @@ These are recorded checkpoints. Historical files retain their exact scope; [CURR
 | **KC Task 6C unified retrieval coordinator** | **`5a8fac1d3a2b8caa3798a63f5df75f2a104705d0`; [record](legacy/TASK6C_UNIFIED_RETRIEVAL_COORDINATOR_2026-09-15.md); [Actions 35041876808](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/35041876808)** | **Lexical-first coordinator reusing accepted lexical and trusted graph kernels; same-generation/current-only graph augmentation; bounded nondisclosing graph degradation; no provider discovery, sync, model launch, endpoint wiring, migration, or local-runtime qualification.** |
 | **KC Task 6D `kc_search` integration** | **`65943a1e12dd08bf01a1e330ceb43ede1e2e6e13`; [record](legacy/TASK6D_KC_SEARCH_INTEGRATION_2026-09-16.md); [Actions 35060185109](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/35060185109)** | **Existing bootstrap `kc_search` request and lexical fields preserved; additive unified graph/warning response wired through the accepted coordinator; graph binding principal tied to `local_owner`; no graph build/model launch/status change/migration.** |
 | **KC Task 6E Mason unified interpretation** | **`0902a906a5c20e48dfcb07009d68eb9f3ccf9392`; [record](legacy/TASK6E_MASON_UNIFIED_INTERPRETATION_2026-09-16.md); [Actions 35060788601](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/35060788601), successful attempt 2** | **Both bridges preserve the additive response unchanged; Mason skill treats lexical/graph as separate lanes, preserves lexical evidence on graph degradation, and uses `kc_get_source` for exact source follow-through. No new graph tool, bridge transport, endpoint, model/runtime or status change.** |
+| **KC Task 6F graph readiness status** | **`e34ca35cb1d2a31bdb7ec45d9799dd1f685c66d5`; [record](legacy/TASK6F_GRAPH_READINESS_STATUS_2026-09-16.md); [Actions 35062593583](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/35062593583)** | **Additive `kc_status.graph` classification from durable KC projection/validation evidence; distinguishes disabled/no-build/ready/stale/pending/unvalidated/failed/unavailable without provider query, graph sync, model launch, migration, or change to `kc_search`. Does not qualify Task 4 intended-host Graphiti.** |
 
 ## Archive and source identity
 
