@@ -8,6 +8,7 @@ Task 6A merge checkpoint: `7cb06d2e6e52e9000cdb96d26413f8f82a685982`.
 Task 6B accepted implementation/test checkpoint: `e45822d116eeb087978eb62dee7770638b6393d7`; full Knowledge Core workflow Actions `35041019731` green.
 Task 6C accepted implementation/test checkpoint: `5a8fac1d3a2b8caa3798a63f5df75f2a104705d0`; full Knowledge Core workflow Actions `35041876808` green.
 Task 6D accepted implementation/test checkpoint: `65943a1e12dd08bf01a1e330ceb43ede1e2e6e13`; full Knowledge Core workflow Actions `35060185109` green.
+Task 6E accepted skill/test checkpoint: `0902a906a5c20e48dfcb07009d68eb9f3ccf9392`; Actions `35060788601` run attempt 2 green after an unchanged-head retry of a transient final SR-2 rehearsal setup failure.
 
 ## Read order and authority
 
@@ -34,11 +35,11 @@ These are the only current KC authorities. [legacy/](legacy/README.md) preserves
 | Direct-note storage | Accepted canonical-first `user_note` ingestion; derived text failure does not erase canonical evidence or prior valid serving state. |
 | Historical governed Graphiti | Accepted repository-shaped Graphiti qualification at `6376419e369ea9ecfe58a19fa233bbfca90ad703`. This remains historical evidence for that exact build only. |
 | Source-neutral Graphiti implementation | Implemented and CI-qualified through Task 4 plus Task 4.1 runtime hardening; merged into the KC line. **Live intended-host mixed-source acceptance remains pending.** |
-| Mason / MindsHub | **Task 5 accepted.** Mason reaches KC through the project-local strict bridge and the four literal operations `kc_status`, `kc_search`, `kc_get_source`, `kc_store`. |
+| Mason / MindsHub | **Tasks 5 and 6E accepted.** Mason retains the same four literal operations `kc_status`, `kc_search`, `kc_get_source`, `kc_store`; its procedural skill now interprets lexical and graph evidence as separate lanes and follows exact source refs through `kc_get_source`. |
 | Unified retrieval contract | **Task 6B accepted.** `kc-unified-retrieval-evidence-v1` preserves the lexical response and defines a separate optional graph lane with explicit degradation state and exact KC source correlation. |
 | Unified retrieval coordinator | **Task 6C accepted.** Lexical retrieval is mandatory and runs first; optional graph augmentation reuses the existing validated source-neutral graph kernel and degrades independently without starting graph/model work. |
 | Bootstrap `kc_search` unified response | **Task 6D accepted.** The existing request shape and lexical fields remain compatible; additive graph evidence/warnings now pass through the same literal `kc_search` route. No graph binding returns lexical evidence with `graph.state="disabled"`. |
-| Mason graph-response interpretation | Not yet qualified. Task 6E may update the existing Mason skill/bridge guidance so Mason understands the additive graph lane while retaining the same four literal operations and canonical follow-through through `kc_get_source`. |
+| Graph readiness/freshness status | Not yet exposed through `kc_status`. Task 6F is the next bounded slice and must inspect durable graph evidence without launching graph synchronization or a model. |
 | Vera | Future consumer work. |
 
 Acceptance is bounded to recorded evidence. It is not a claim of production deployment, comprehensive answer quality, machine reboot/backup qualification, or qualification of future files/configurations.
@@ -62,7 +63,7 @@ The merged Task 4.1 checkpoint is `23a0794ff396365d0dfd124e0b4a7bbf9174c00d`.
 
 **Remaining Task 4 acceptance barrier:** run the bounded source-neutral Graphiti/FalkorDB/local-model path on the intended host using a current mixed-source SR-2 corpus, complete independent validation, obtain at least one trusted graph result, and prove exact generic KC evidence correlation. Until that succeeds, source-neutral graph retrieval is implemented but not formally live-accepted.
 
-Tasks 6B–6D do not remove or satisfy this barrier. They define, coordinate, and expose the consumer path that can use a compatible already-validated graph build when one exists. They do not create or live-qualify that build.
+Tasks 6B–6E do not remove or satisfy this barrier. They define, coordinate, expose, and interpret the consumer path that can use a compatible already-validated graph build when one exists. They do not create or live-qualify that build.
 
 ## Task 5 / Mason status — ACCEPTED
 
@@ -89,9 +90,9 @@ kc_store
 
 It does not expose SQL, artifact-store access, FalkorDB mutation, Graphiti maintenance, arbitrary HTTP, or arbitrary KC operations.
 
-Live qualification proved Mason could invoke the KC skill, run `kc_search`, follow the returned ResourceVersion through `kc_get_source`, and recover exact canonical content. Task 5 deliberately does not depend on source-neutral Graphiti readiness.
+Live Task 5 qualification proved Mason could invoke the KC skill, run `kc_search`, follow the returned ResourceVersion through `kc_get_source`, and recover exact canonical content. Task 5 deliberately does not depend on source-neutral Graphiti readiness.
 
-Task 6D keeps the same literal `kc_search` request surface and adds graph evidence only to its response. Task 6E is reserved for updating Mason's interpretation procedure as needed; no second retrieval operation is required.
+Task 6D keeps the same literal `kc_search` request surface and adds graph evidence only to its response. Task 6E keeps both bridge transports unchanged and qualifies the procedural interpretation needed for that additive response: lexical results remain usable when the graph lane is non-ready; ready graph facts are derived evidence; exact or conflicting evidence follows returned `resource_version_ref` values through `kc_get_source`. Task 6E does not add a second retrieval operation or direct graph authority.
 
 ## Current objective — Task 6: dogfood KC through Mason
 
@@ -197,15 +198,27 @@ Accepted endpoint behavior:
 - `/v1/retrieval/search`, `kc_store`, `kc_get_source`, and `kc_status` remain outside the Task 6D behavior change;
 - no graph sync, model launch, provider discovery, scheduler, migration, or score fusion was added.
 
-### Task 6E — Mason bridge / skill interpretation — NEXT AUTHORIZED SLICE
+### Task 6E — Mason bridge / skill interpretation — ACCEPTED
 
-Keep the literal bridge operation `kc_search`. Update Mason's project-local bridge/skill instructions only as required to understand the additive `graph` and `warnings` fields while preserving all existing lexical behavior and exact canonical source follow-through through `kc_get_source`.
+Accepted skill/test checkpoint: `0902a906a5c20e48dfcb07009d68eb9f3ccf9392`.
+Qualification: Actions `35060788601`, run attempt 2, green across migrations, fast semantic suite, PostgreSQL G1–G21, pinned G22, RI-4 restart rehearsal and SR-2 restart/replay rehearsal. Detailed evidence, including the unchanged-head transient failure and retry, is [Task 6E Mason unified interpretation](legacy/TASK6E_MASON_UNIFIED_INTERPRETATION_2026-09-16.md).
 
-Do not add direct Graphiti/FalkorDB access, a second graph-search tool, provider credentials, model launch, or graph synchronization to Mason.
+Accepted behavior:
 
-**Accept when:** existing Task 5 Mason calls remain valid without request changes; Mason can distinguish lexical evidence from optional graph facts/degradation state; graph facts that require exact source verification lead back through returned `resource_version_ref` and `kc_get_source`; disabled/unavailable graph state does not cause Mason to abandon valid lexical evidence.
+- both existing bridge transports remain unchanged and preserve the complete additive `kc_search` JSON response;
+- the skill keeps exactly `kc_status`, `kc_search`, `kc_get_source`, and `kc_store` as literal bridge operations;
+- lexical and graph results are separate evidence lanes;
+- non-ready graph state does not invalidate otherwise-relevant lexical evidence;
+- ready graph facts are derived retrieval evidence, not canonical source wording;
+- exact wording, provenance, conflict resolution and verification follow returned `resource_version_ref` values through `kc_get_source`;
+- `kc_status` is not treated as graph readiness before Task 6F;
+- no direct Graphiti/FalkorDB/raw HTTP/SQL/filesystem fallback or second graph-search operation is permitted.
 
-### Task 6F — graph readiness and freshness status
+Actions `35060788601` attempt 1 passed the Task 6E fast suite, PostgreSQL G1–G21, G22 and RI-4 but its final SR-2 rehearsal failed while the unchanged SR-2 harness was preparing its fresh isolated Postgres database (`alembic upgrade head` returned non-zero before SR-2 apply/recovery). No Task 6E code changed. The exact-head job rerun (attempt 2) passed every gate, so the first final-step failure is retained as transient qualification infrastructure rather than a behavior defect.
+
+Task 6E deterministic acceptance does not claim a live Mason/Cowork behavior campaign; that remains Task 6J unless separately authorized earlier.
+
+### Task 6F — graph readiness and freshness status — NEXT AUTHORIZED SLICE
 
 Expose enough bounded status to distinguish at least:
 
@@ -214,7 +227,7 @@ Expose enough bounded status to distinguish at least:
 - stale/incompatible graph;
 - failed/pending/unvalidated graph.
 
-Do not auto-launch graph synchronization or a local model from status/search.
+The status path must inspect durable KC graph evidence only. Do not query Graphiti for facts, auto-launch graph synchronization, start a provider/model/embedder, or create background work from status/search.
 
 ### Task 6G — memory-candidate boundary
 
@@ -262,8 +275,8 @@ For any new KC worker/session:
 4. Read `OPERATIONS.md` only for the bounded operating/evidence question.
 5. Treat `legacy/` as evidence, not current instructions.
 
-Task 6D's accepted behavior-bearing checkpoint is `65943a1e12dd08bf01a1e330ceb43ede1e2e6e13`, qualified by Actions `35060185109`. Later Task 6D documentation records do not change the qualified endpoint bytes.
+Task 6E's accepted behavior-bearing checkpoint is `0902a906a5c20e48dfcb07009d68eb9f3ccf9392`, qualified by Actions `35060788601` run attempt 2. Later Task 6E documentation records do not change the qualified skill/test bytes.
 
-**Current authorized slice:** Task 6E Mason bridge / skill interpretation.
+**Current authorized slice:** Task 6F graph readiness and freshness status.
 
-Do not begin Task 6F graph readiness/status work until Task 6E is separately accepted.
+Do not begin Task 6G memory-candidate work until Task 6F is separately accepted.
