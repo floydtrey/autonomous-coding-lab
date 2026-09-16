@@ -248,13 +248,18 @@ class UnifiedRetrievalCoordinator:
                 )
 
             if not graph_snapshot.attempt_ids:
+                # The trusted-search kernel intentionally returns no attempt IDs when
+                # no current compatible *validated* build is available. That does not
+                # prove that no stale/pending/unvalidated physical build exists, so do
+                # not overstate the public state as ``no_build``. Task 6F may inspect
+                # durable attempt evidence later to distinguish those states.
                 return self._degraded(
                     lexical=lexical,
-                    state=GraphRetrievalState.NO_BUILD,
+                    state=GraphRetrievalState.UNAVAILABLE,
                     reason_code="no-compatible-validated-graph-build",
-                    warning_code=UnifiedRetrievalWarningCode.GRAPH_NO_BUILD,
+                    warning_code=UnifiedRetrievalWarningCode.GRAPH_UNAVAILABLE,
                     warning_message=(
-                        "No compatible validated graph build is available; lexical evidence remains valid."
+                        "No compatible validated graph evidence is available; lexical evidence remains valid."
                     ),
                 )
 
