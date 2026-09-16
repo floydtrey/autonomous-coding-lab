@@ -120,8 +120,9 @@ def create_app(
 
     Bootstrap authentication alone is not sufficient for a canonical ``kc_store``.
     Task 6G requires a second deterministic trusted-host decision bound to the exact
-    operation ID, project, source identity and content digest. This prevents a worker
-    from silently treating an autonomous observation as an explicit trusted write.
+    operation ID, project, source identity, source event time and content digest.
+    This prevents a worker from silently treating an autonomous observation as an
+    explicit trusted write.
 
     ``unified_graph_search_binding`` is optional and query-only. Supplying it never
     builds or synchronizes a graph. Its caller principal must exactly match the fixed
@@ -322,6 +323,7 @@ def create_app(
                     project_key=body.project,
                     content_sha256=sha256(body.content.encode("utf-8")).hexdigest(),
                     source_id=body.source_id,
+                    source_event_time=body.source_event_time,
                 ),
             )
             canonical = kernel.store_note_operation(
