@@ -13,10 +13,12 @@ UNIFIED_RETRIEVAL_EVIDENCE_CONTRACT_VERSION = "kc-unified-retrieval-evidence-v1"
 
 
 class GraphRetrievalState(StrEnum):
-    """Bounded graph-lane state for unified search.
+    """Bounded public graph-lane state for unified search.
 
     ``ready`` is the only state allowed to carry graph results. Every other state
-    explicitly degrades to the independently authorized lexical lane.
+    explicitly degrades to the independently authorized lexical lane. Authorization
+    failures are intentionally not exposed as a distinct public state; callers may
+    receive ``unavailable`` without learning graph policy details.
     """
 
     DISABLED = "disabled"
@@ -27,7 +29,6 @@ class GraphRetrievalState(StrEnum):
     UNVALIDATED = "unvalidated"
     FAILED = "failed"
     UNAVAILABLE = "unavailable"
-    NOT_AUTHORIZED = "not_authorized"
 
 
 class UnifiedRetrievalWarningCode(StrEnum):
@@ -38,7 +39,6 @@ class UnifiedRetrievalWarningCode(StrEnum):
     GRAPH_UNVALIDATED = "graph_unvalidated"
     GRAPH_FAILED = "graph_failed"
     GRAPH_UNAVAILABLE = "graph_unavailable"
-    GRAPH_NOT_AUTHORIZED = "graph_not_authorized"
 
 
 _GRAPH_WARNING_FOR_STATE = {
@@ -49,7 +49,6 @@ _GRAPH_WARNING_FOR_STATE = {
     GraphRetrievalState.UNVALIDATED: UnifiedRetrievalWarningCode.GRAPH_UNVALIDATED,
     GraphRetrievalState.FAILED: UnifiedRetrievalWarningCode.GRAPH_FAILED,
     GraphRetrievalState.UNAVAILABLE: UnifiedRetrievalWarningCode.GRAPH_UNAVAILABLE,
-    GraphRetrievalState.NOT_AUTHORIZED: UnifiedRetrievalWarningCode.GRAPH_NOT_AUTHORIZED,
 }
 
 
@@ -161,6 +160,11 @@ class GraphRetrievalEvidence:
     reason_code: str | None = None
 
     def __post_init__(self) -> None:
+        if len(set(self.attempt_ids)) != len(self.attempt_ids):
+            raise KnowledgeInvariantError(
+                "graph retrieval attempt_ids must not contain duplicates"
+            )
+
         if self.state is GraphRetrievalState.READY:
             if not self.namespace_key or not self.namespace_key.strip():
                 raise KnowledgeInvariantError(
@@ -178,10 +182,15 @@ class GraphRetrievalEvidence:
                 raise KnowledgeInvariantError(
                     "ready graph retrieval evidence requires validated attempt_ids"
                 )
-        elif self.results:
-            raise KnowledgeInvariantError(
-                "non-ready graph retrieval evidence must not expose graph results"
-            )
+        else:
+            if self.results:
+                raise KnowledgeInvariantError(
+                    "non-ready graph retrieval evidence must not expose graph results"
+                )
+            if self.reason_code is None or not self.reason_code.strip():
+                raise KnowledgeInvariantError(
+                    "non-ready graph retrieval evidence requires bounded reason_code"
+                )
 
         if self.reason_code is not None and not self.reason_code.strip():
             raise KnowledgeInvariantError(
@@ -211,12 +220,15 @@ class UnifiedRetrievalSearchSnapshot:
             raise KnowledgeInvariantError(
                 "unsupported unified retrieval evidence contract version"
             )
+
         if self.graph.state is GraphRetrievalState.READY:
+            if self.graph.generation_id != self.lexical.generation_id:
+                raise KnowledgeInvariantError(
+                    "ready graph evidence must match the lexical text generation"
+                )
             return
 
-        expected = _GRAPH_WARNING_FOR_STATE.get(self.graph.state)
-        if expected is None:
-            return
+        expected = _GRAPH_WARNING_FOR_STATE[self.graph.state]
         if not any(item.code is expected for item in self.warnings):
             raise KnowledgeInvariantError(
                 f"graph state {self.graph.state.value} requires warning {expected.value}"
