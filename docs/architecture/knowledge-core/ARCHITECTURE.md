@@ -235,11 +235,11 @@ Task 4.1 hardens the intended local Graphiti/Falkor runtime by serializing KC-vi
 
 **Qualification status:** implementation and deterministic CI qualification are merged. Historical repository-shaped graph acceptance remains valid. Live intended-host acceptance of the new source-neutral mixed-source path is still pending and must not be inferred from implementation tests or from Task 5 Mason acceptance.
 
-## Task 6 unified retrieval target
+## Unified retrieval contract — Task 6B accepted
 
-Task 6 will preserve the existing Mason operation `kc_search` and place any graph augmentation behind the KC service boundary rather than exposing Graphiti directly to Mason.
+Task 6 preserves the existing Mason operation `kc_search` and places future graph augmentation behind the KC service boundary rather than exposing Graphiti directly to Mason.
 
-The architectural target is one bounded evidence package with two non-equivalent evidence lanes:
+Task 6B accepts additive contract `kc-unified-retrieval-evidence-v1`. The future unified response keeps every existing lexical `RetrievalSearchResponse` field at top level under its existing `kc-lexical-evidence-v2` meaning, then adds a separate `graph` evidence lane and bounded `warnings`.
 
 ```text
 kc_search
@@ -247,8 +247,16 @@ kc_search
   -> validated compatible graph evidence     (optional augmentation)
 ```
 
-Lexical and graph scores are not interchangeable and must not be collapsed into a synthetic shared ranking merely for convenience. Graph unavailable/stale/unvalidated/failure state must degrade to valid lexical retrieval rather than fail the whole search. Canonical correlation, lifecycle/privacy eligibility and Authority remain controlling boundaries for both lanes.
+The graph lane has public states `disabled`, `no_build`, `ready`, `stale`, `pending`, `unvalidated`, `failed`, and `unavailable`. Only `ready` may expose graph facts. Ready evidence must identify explicit namespace/scope, at least one validated attempt and the exact same TEXT generation represented by the lexical lane. Every non-ready state exposes zero graph results and requires a bounded reason code plus corresponding warning.
+
+Graph authorization details are not a public state. A coordinator may collapse graph denial or provider/runtime unavailability into nondisclosing `unavailable`; this does not bypass or weaken independent lexical authorization.
+
+Every graph fact retains exact ResourceVersion/segment/source-identity/observation/decision/snapshot/projection correlation. Full canonical source content is intentionally not duplicated into graph correlation output; consumers follow the returned `resource_version_ref` through `kc_get_source` when exact source content is needed.
+
+Lexical and graph scores are not interchangeable. The accepted contract defines no synthetic combined score and no graph score field. A future fusion/reranking policy would require a separately versioned contract and qualification.
+
+Task 6B is contract-only. The live `/v1/kc/search` route remains lexical until later Task 6D integration. Task 6C is limited to producing this accepted contract inside an application coordinator while reusing the existing lexical and trusted-graph kernels.
 
 ## Contract maintenance
 
-Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2, source-neutral Task 2, Task 3 read-surface, Task 4 implementation/hardening or Task 5 Mason work, and historical acceptance must not be overstated as qualification of later behavior.
+Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2, source-neutral Task 2, Task 3 read-surface, Task 4 implementation/hardening, Task 5 Mason work or Task 6B unified retrieval contract, and historical acceptance must not be overstated as qualification of later behavior.
