@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -11,6 +12,7 @@ from knowledge_core.api.retrieval_schemas import (
 )
 from knowledge_core.domain.unified_retrieval import (
     GraphRetrievalState,
+    UNIFIED_RETRIEVAL_EVIDENCE_CONTRACT_VERSION,
     UnifiedRetrievalWarningCode,
     UnifiedRetrievalSearchSnapshot,
 )
@@ -74,7 +76,9 @@ class UnifiedRetrievalSearchResponse(RetrievalSearchResponse):
     New consumers may additionally inspect graph evidence and degradation warnings.
     """
 
-    unified_evidence_contract_version: str
+    unified_evidence_contract_version: Literal[
+        "kc-unified-retrieval-evidence-v1"
+    ] = UNIFIED_RETRIEVAL_EVIDENCE_CONTRACT_VERSION
     graph: GraphRetrievalEvidenceResponse
     warnings: list[UnifiedRetrievalWarningResponse] = Field(default_factory=list)
 
