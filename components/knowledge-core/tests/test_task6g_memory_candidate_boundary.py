@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from hashlib import sha256
 import os
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,6 +25,10 @@ from knowledge_core.authority.memory import (
     MemoryCandidateReviewOutcome,
     MemoryCandidateReviewUnavailableError,
 )
+from knowledge_core.authority.store import (
+    CanonicalStoreAuthorityDecision,
+)
+from knowledge_core.domain.assertions import KnowledgeInvariantError
 from knowledge_core.domain.memory_candidates import MemoryCandidateState
 from knowledge_core.domain.operations import OperationReuseError
 from knowledge_core.storage.database import create_database_engine, create_session_factory
@@ -57,6 +62,19 @@ class _RejectEvaluator:
         )
 
 
+class _CaptureStoreEvaluator:
+    def __init__(self):
+        self.requests = []
+
+    def evaluate_canonical_store(self, request):
+        self.requests.append(request)
+        return CanonicalStoreAuthorityDecision(
+            allowed=True,
+            decision_ref=f"explicit-store:{request.operation_id}",
+            reason_code="explicit-user-directed-store",
+        )
+
+
 def _require_postgres_engine():
     if not _POSTGRES_URL:
         pytest.skip("PostgreSQL qualification URL is not configured")
@@ -82,6 +100,19 @@ def _truncate_kernel_tables(engine) -> None:
         connection.exec_driver_sql(
             "TRUNCATE TABLE " + ", ".join(tables) + " RESTART IDENTITY CASCADE"
         )
+
+
+def _admission(*, allowed_operations=None) -> BootstrapAdmission:
+    return BootstrapAdmission(
+        contract=BootstrapContract(
+            allowed_operations=(
+                frozenset(BootstrapOperation)
+                if allowed_operations is None
+                else frozenset(allowed_operations)
+            )
+        ),
+        api_key=_BOOTSTRAP_KEY,
+    )
 
 
 def test_memory_candidate_operation_identity_is_deterministic_and_separate():
@@ -222,7 +253,7 @@ def test_rejection_is_durable_and_cannot_be_re_reviewed_by_another_operation():
             assert rejected.state is MemoryCandidateState.REJECTED
             assert session.get(MemoryCandidateRecord, candidate.candidate_id).state == "rejected"
 
-            with pytest.raises(Exception, match="already reviewed"):
+            with pytest.raises(KnowledgeInvariantError, match="already reviewed"):
                 kernel.review_candidate(
                     operation_id=uuid4(),
                     candidate_id=candidate.candidate_id,
@@ -244,10 +275,7 @@ def test_memory_candidate_endpoint_returns_pending_without_canonical_storage(tmp
         app = create_app(
             session_factory=sessions,
             artifact_store=LocalArtifactStore(tmp_path / "artifacts"),
-            bootstrap_admission=BootstrapAdmission(
-                contract=BootstrapContract(),
-                api_key=_BOOTSTRAP_KEY,
-            ),
+            bootstrap_admission=_admission(),
         )
         with TestClient(app) as client:
             response = client.post(
@@ -269,7 +297,7 @@ def test_memory_candidate_endpoint_returns_pending_without_canonical_storage(tmp
         assert payload["proposer_ref"] == "mason"
 
         with sessions() as session:
-            assert session.get(MemoryCandidateRecord, payload["candidate_id"]) is not None
+            assert session.get(MemoryCandidateRecord, UUID(payload["candidate_id"])) is not None
             assert session.scalar(select(func.count()).select_from(Revision)) == 0
             assert session.scalar(select(func.count()).select_from(ResourceVersion)) == 0
             assert session.scalar(select(func.count()).select_from(DerivedGeneration)) == 0
@@ -287,12 +315,7 @@ def test_memory_candidate_endpoint_can_be_scoped_out_of_bootstrap_contract(tmp_p
         app = create_app(
             session_factory=sessions,
             artifact_store=LocalArtifactStore(tmp_path / "artifacts"),
-            bootstrap_admission=BootstrapAdmission(
-                contract=BootstrapContract(
-                    allowed_operations=frozenset({BootstrapOperation.STATUS})
-                ),
-                api_key=_BOOTSTRAP_KEY,
-            ),
+            bootstrap_admission=_admission(allowed_operations={BootstrapOperation.STATUS}),
         )
         with TestClient(app) as client:
             response = client.post(
@@ -310,6 +333,83 @@ def test_memory_candidate_endpoint_can_be_scoped_out_of_bootstrap_contract(tmp_p
         assert response.status_code == 403
         with sessions() as session:
             assert session.scalar(select(func.count()).select_from(MemoryCandidateRecord)) == 0
+    finally:
+        _truncate_kernel_tables(engine)
+        engine.dispose()
+
+
+@pytest.mark.postgresql
+def test_kc_store_fails_closed_without_exact_store_authority(tmp_path: Path):
+    engine = _require_postgres_engine()
+    _truncate_kernel_tables(engine)
+    sessions = create_session_factory(engine)
+    try:
+        app = create_app(
+            session_factory=sessions,
+            artifact_store=LocalArtifactStore(tmp_path / "artifacts"),
+            bootstrap_admission=_admission(),
+            canonical_store_authority_evaluator=None,
+        )
+        with TestClient(app) as client:
+            response = client.post(
+                "/v1/kc/store",
+                headers={
+                    "X-Knowledge-Key": _BOOTSTRAP_KEY,
+                    "Idempotency-Key": "unauthorized-store",
+                },
+                json={
+                    "content": "This must not become canonical without exact authority.",
+                    "project": "knowledge-core",
+                    "source_type": "user_note",
+                },
+            )
+        assert response.status_code == 503
+        assert response.json()["error_code"] == "CANONICAL_STORE_AUTHORITY_UNAVAILABLE"
+        with sessions() as session:
+            assert session.scalar(select(func.count()).select_from(Revision)) == 0
+            assert session.scalar(select(func.count()).select_from(ResourceVersion)) == 0
+    finally:
+        _truncate_kernel_tables(engine)
+        engine.dispose()
+
+
+@pytest.mark.postgresql
+def test_explicit_exact_store_authority_preserves_user_directed_kc_store(tmp_path: Path):
+    engine = _require_postgres_engine()
+    _truncate_kernel_tables(engine)
+    sessions = create_session_factory(engine)
+    evaluator = _CaptureStoreEvaluator()
+    content = "Explicit user-directed canonical memory."
+    try:
+        app = create_app(
+            session_factory=sessions,
+            artifact_store=LocalArtifactStore(tmp_path / "artifacts"),
+            bootstrap_admission=_admission(),
+            canonical_store_authority_evaluator=evaluator,
+        )
+        with TestClient(app) as client:
+            response = client.post(
+                "/v1/kc/store",
+                headers={
+                    "X-Knowledge-Key": _BOOTSTRAP_KEY,
+                    "Idempotency-Key": "explicit-store",
+                },
+                json={
+                    "content": content,
+                    "project": "knowledge-core",
+                    "source_type": "user_note",
+                    "source_id": "explicit-store-note",
+                },
+            )
+        assert response.status_code == 201, response.text
+        assert len(evaluator.requests) == 1
+        request = evaluator.requests[0]
+        assert request.caller_principal_ref == "local_owner"
+        assert request.project_key == "knowledge-core"
+        assert request.source_id == "explicit-store-note"
+        assert request.content_sha256 == sha256(content.encode("utf-8")).hexdigest()
+        with sessions() as session:
+            assert session.scalar(select(func.count()).select_from(ResourceVersion)) == 1
     finally:
         _truncate_kernel_tables(engine)
         engine.dispose()
