@@ -10,7 +10,8 @@ Knowledge Core is a standalone semantic service. PostgreSQL is canonical; immuta
 Mason / MindsHub (accepted local consumer)    ACL Controller / Worker Lab    Vera (future)
                     \                                  |                    /
                               KC semantic service boundary
-                             Authority evaluation for retrieval
+                    deterministic Authority evaluation
+                         for retrieval / canonical writes
                                         |
                    PostgreSQL canonical state + immutable source artifacts
                                         |
@@ -22,7 +23,7 @@ Mason / MindsHub (accepted local consumer)    ACL Controller / Worker Lab    Ver
 
 Knowledge does not grant authority. Authority does not prove execution. Execution acknowledgement does not prove world settlement. Worker Lab owns ACL policy, lifecycle, Provider Binding, task authorization and result acceptance; Autonomous Worker Framework executes bounded work. KC supplies informational evidence only.
 
-Clients use semantic operations rather than direct database/artifact credentials, arbitrary SQL/CRUD, or provider-owned identities. AI processes, retrieved text and graph output cannot enlarge protected scope. Authority remains a separate deterministic boundary. The current injected retrieval evaluator is a seam for that boundary, not proof of production authentication or a deployed Authority service.
+Clients use semantic operations rather than direct database/artifact credentials, arbitrary SQL/CRUD, or provider-owned identities. AI processes, retrieved text, candidate memory and graph output cannot enlarge protected scope. Authority remains a separate deterministic boundary. The current injected retrieval, memory-review and canonical-store evaluators are seams for that boundary, not proof of production authentication or a deployed Authority service.
 
 ## Canonical state and identity
 
@@ -66,7 +67,9 @@ Captured/origin locators and current display/navigation locators are also distin
 
 Repository import remains a verified Git producer. Its exact commit/path/blob proof, configured readers, path safety, manifest chain, continuity/retirement rules, Git object identity and receipt/replay semantics stay inside the repository producer boundary. Do not fabricate repository names, commits, paths, blob hashes or manifests for notes, chats, files, email, benchmark evidence or Vera observations.
 
-The first accepted non-Git producer is authenticated local `user_note`. Its source proof is the admitted `local_owner` submission plus exact canonical byte custody and deterministic operation evidence. Email/chat/file/benchmark producers will require their own source identities and capture evidence and are not implemented merely because the generic contract can represent them.
+The first accepted non-Git producer is local `user_note`. Its source proof is the explicitly authorized `local_owner` submission plus exact canonical byte custody and deterministic operation evidence. After Task 6G, bootstrap authentication alone is not sufficient to create that canonical source: the trusted host must also authorize the exact canonical write. Email/chat/file/benchmark producers will require their own source identities and capture evidence and are not implemented merely because the generic contract can represent them.
+
+An autonomous memory candidate is **not** a governed source, Resource, ResourceVersion, observation, or canonical fact. It is control-plane proposal evidence awaiting a later trusted decision. Candidate approval alone still does not create a canonical source.
 
 ### Observation identity and time
 
@@ -79,7 +82,7 @@ Where applicable, keep separate:
 - KC observation/capture/admission time;
 - derived-provider reference-time policy.
 
-Repository receipt/import time is not a universal event clock. Any time that changes derived semantic behavior must be bound into the appropriate versioned snapshot/config/evidence rather than silently reinterpreting historical attempts.
+Repository receipt/import time is not a universal event clock. Any time that changes derived semantic behavior must be bound into the appropriate versioned snapshot/config/evidence rather than silently reinterpreting historical attempts. For direct-note canonical writes, optional `source_event_time` is also part of the exact store-authority request because it becomes durable provenance and can influence the graph reference-time policy.
 
 ### Complete-corpus snapshot and publication
 
@@ -159,11 +162,13 @@ Default retrieval excludes `superseded`; historical retrieval requires explicit 
 
 The detailed accepted [SR-1 specification](legacy/SECTION_RETRIEVAL_SR1.md) and [KC-D025 decision](legacy/DECISIONS.md#kc-d025--section-structure-is-content-derived-retrieval-lifecycle-is-governed-snapshot-derived) remain frozen contract lineage for targeted audits. Their old implementation status/next tasks are superseded by current status.
 
-## Usable V1 direct-note store contract
+## Usable V1 direct-note and memory-candidate admission contract
 
 When the trusted host explicitly supplies `BootstrapAdmission`, the composed API exposes `POST /v1/kc/store`. The route is deliberately absent from hosts that do not enable bootstrap admission; Task 1 bootstrap authentication is not retrofitted onto every low-level KC route.
 
-The request accepts `content`, `project`, `source_type="user_note"`, optional stable `source_id`, and optional timezone-aware `source_event_time`. It requires `X-Knowledge-Key` and `Idempotency-Key`. Successful bootstrap admission maps the request to fixed principal `local_owner`; caller-supplied `X-Knowledge-Caller` cannot replace that principal.
+The canonical request accepts `content`, `project`, `source_type="user_note"`, optional stable `source_id`, and optional timezone-aware `source_event_time`. It requires `X-Knowledge-Key` and `Idempotency-Key`. Successful bootstrap admission maps the request to fixed principal `local_owner`; caller-supplied `X-Knowledge-Caller` cannot replace that principal.
+
+Task 6G makes bootstrap admission necessary but no longer sufficient for canonical `kc_store`. Before canonical mutation, the host must supply a deterministic `CanonicalStoreAuthorityEvaluator` allow decision for the exact request. The authority request binds authenticated principal, deterministic operation ID, project key, content SHA-256, optional stable source ID, and optional timezone-aware source event time. Missing authority fails boundedly as unavailable; explicit denial fails boundedly as denied; both occur before any canonical Resource/ResourceVersion/revision mutation.
 
 The idempotency key identifies the logical store request. Internally KC composes deterministic ledger operations so the existing one-canonical-revision-per-operation invariant is preserved: source Resource creation when needed, ResourceVersion ingest, then a no-revision governed-admission parent operation for observation/decision evidence. Exact retry converges on the same canonical source/Resource/ResourceVersion/observation/decision evidence; reusing the same logical idempotency key with different content/source/project inputs fails. Derived generation/snapshot identity is not part of the idempotency guarantee and may legitimately advance during recovery or another accepted complete-corpus publication.
 
@@ -172,6 +177,10 @@ Project keys are validated against the durable 255-character storage contract be
 Canonical Resource/ResourceVersion bytes and governed observation/decision evidence settle before derived SR-2 publication is attempted. The note is merged into a complete successor snapshot that preserves unrelated current producers. A serving-predecessor race is retryable and reports `text_state="pending"`; other derived build/invariant failures report `text_state="failed"`. In either case canonical evidence survives and the previous valid generation remains serving.
 
 The store response reports `canonical_state="stored"`, `graph_state="pending"`, exact Resource/ResourceVersion IDs and SHA-256, plus text generation/snapshot state. `text_state="indexed"` describes successful derived publication; after Task 2F, a note included in the accepted current SR-2 generation is also searchable through the accepted lexical read contract. The store response itself does not claim that a particular query was executed.
+
+Task 6G also exposes `POST /v1/kc/memory-candidates` behind the separately scoped bootstrap operation `kc.memory_propose`. A candidate is durable control-plane proposal evidence, not canonical knowledge. Proposal/review operations create no canonical revision, Resource/ResourceVersion, governed source observation/decision, TEXT generation, graph projection, or provider/model work.
+
+Candidate state is `pending`, `approved`, or `rejected`. Review uses a separate deterministic trusted evaluator. Approval means eligible for a later explicit trusted store decision only; it does not call or imply `kc_store`. Task 6G deliberately adds no public review/promote endpoint and no automatic promotion. Worker-wrapper proposal routing remains Task 6I.
 
 ## Lexical service and Usable V1 consumer-read contract
 
@@ -191,17 +200,19 @@ Task 3 adds the bounded local Usable V1 front door only when the trusted host ex
 - `POST /v1/kc/get-source` requires `X-Knowledge-Key`, admits `kc.get_source`, and accepts an exact `resource_version_ref`. It serves only a ResourceVersion referenced by the current TEXT generation and still serving-eligible. For SR-2 it first revalidates the current generation/profile and generic-or-legacy lineage mode, then reads the full immutable artifact, verifies stored byte size and SHA-256, requires strict UTF-8, and returns the exact canonical source bytes as text. Unknown, non-current or restricted refs are nondisclosing 404. Artifact keys/backends, filesystem paths, database URLs and raw SQL do not cross this contract.
 - `GET /v1/kc/status` requires `X-Knowledge-Key`, admits `kc.status`, and preserves the accepted canonical/text fields: canonical revision, text state (`empty` or `ready`), current text generation/source revision highwater/source count, retrieval mode, lineage mode, evidence-contract version and generation-config digest. Task 6F adds a bounded `graph` object using `disabled`, `no_build`, `ready`, `stale`, `pending`, `unvalidated`, `failed`, or `unavailable`. Without a graph binding the state is `disabled`. With a binding, the status classifier inspects only KC's durable projection/validation ledger, the current TEXT generation/profile, and the adapter descriptor/current validation requirement. It exposes at most one representative attempt ID. It does not query Graphiti/FalkorDB for facts, call graph search/projection, launch embeddings/reranking/models, or start synchronization/background work. `ready` means KC has current-compatible durably validated build evidence; it is not a provider-liveness claim or Task 4 intended-host acceptance.
 
-These bootstrap read routes are absent when bootstrap admission is not configured. Operation admission remains independently scoped, so a contract allowing only status cannot search or fetch source. Task 3 does not make arbitrary historical ResourceVersions addressable, weaken privacy fences, expose a generic CRUD API, or replace the separate Authority architecture.
+Task 6G adds one further bootstrap-scoped surface: `POST /v1/kc/memory-candidates` admits `kc.memory_propose` and creates only non-canonical candidate evidence. It does not become a new semantic retrieval source until a later explicit trusted canonical store occurs through the separately authorized `kc_store` path.
+
+These bootstrap read/proposal routes are absent when bootstrap admission is not configured. Operation admission remains independently scoped, so a contract allowing only status cannot search, fetch source, store canonical content, or propose memory. Task 3/6G do not make arbitrary historical ResourceVersions addressable, weaken privacy fences, expose a generic CRUD API, or replace the separate Authority architecture.
 
 KC Consumer V1 exact segment evidence feeds the [Controller Task Packet V1](../../CONTROLLER_TASK_PACKET_V1.md) boundary. Retrieval remains informational and cannot choose providers, authorize tools/files or accept worker results.
 
-## Mason / MindsHub consumer contract — Task 5 accepted
+## Mason / MindsHub consumer contract — Tasks 5, 6E and 6G
 
 Mason is an accepted local KC consumer through the project-local bounded bridge. The bridge exposes only the literal operations `kc_status`, `kc_search`, `kc_get_source`, and `kc_store`; unsupported aliases or operation names fail closed.
 
 The bridge is loopback-only for the accepted V1 path and does not expose SQL, artifact-store authority, FalkorDB/Graphiti mutation, arbitrary HTTP, or arbitrary KC access. Mason follows retrieval results through `kc_get_source` when exact canonical source content is required.
 
-Task 5 acceptance qualifies explicit Mason -> KC canonical/lexical use. Tasks 6B–6D add a compatible unified `kc_search` response behind that same literal operation; Task 6E qualifies Mason's procedural interpretation of that additive graph lane; Task 6F adds bounded graph readiness/freshness through the same existing `kc_status` operation. None of this gives Mason direct graph-maintenance authority or qualifies source-neutral Graphiti runtime readiness.
+Task 5 acceptance qualifies explicit Mason -> KC canonical/lexical use. Tasks 6B–6D add a compatible unified `kc_search` response behind that same literal operation; Task 6E qualifies Mason's procedural interpretation of that additive graph lane; Task 6F adds bounded graph readiness/freshness through the same existing `kc_status` operation. Task 6G leaves the bridge operation set unchanged but makes bootstrap possession insufficient for canonical `kc_store`: the host must additionally authorize the exact write. The new candidate proposal route is intentionally not exposed through the bridge until Task 6I wrapper integration. None of this gives Mason direct graph-maintenance authority or qualifies source-neutral Graphiti runtime readiness.
 
 ## Graphiti derived projection and trust admission
 
@@ -233,7 +244,7 @@ The reference-time policy is `source-event-then-revision-then-observed-v1`. The 
 
 Task 4.1 hardens the intended local Graphiti/Falkor runtime by serializing KC-visible Falkor access, forcing bounded Graphiti concurrency, disabling telemetry for the qualified profile and explicitly closing async clients used by the one-shot operator path.
 
-**Qualification status:** implementation and deterministic CI qualification are merged. Historical repository-shaped graph acceptance remains valid. Live intended-host acceptance of the new source-neutral mixed-source path is still pending and must not be inferred from Tasks 6B–6F consumer/status qualification or from Task 5 Mason acceptance.
+**Qualification status:** implementation and deterministic CI qualification are merged. Historical repository-shaped graph acceptance remains valid. Live intended-host acceptance of the new source-neutral mixed-source path is still pending and must not be inferred from Tasks 6B–6G consumer/status/memory qualification or from Task 5 Mason acceptance.
 
 ## Unified retrieval and graph status integration — Tasks 6B–6F accepted
 
@@ -265,4 +276,4 @@ Tasks 6B–6D qualify the search contract, coordinator, and bootstrap endpoint i
 
 ## Contract maintenance
 
-Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2, source-neutral Task 2, Task 3 read-surface, Task 4 implementation/hardening, Task 5 Mason work or Tasks 6B–6F unified retrieval/status work, and historical acceptance must not be overstated as qualification of later behavior.
+Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2, source-neutral Task 2, Task 3 read-surface, Task 4 implementation/hardening, Task 5 Mason work or Tasks 6B–6G unified retrieval/status/memory-containment work, and historical acceptance must not be overstated as qualification of later behavior.
