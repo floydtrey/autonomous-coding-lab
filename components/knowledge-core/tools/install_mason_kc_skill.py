@@ -14,6 +14,7 @@ from urllib.request import Request, urlopen
 _SKILL_LABEL = "knowledge-core"
 _SKILL_DISPLAY_NAME = "Knowledge Core"
 _PROJECT_BRIDGE_RELATIVE = Path("knowledge-core-tools") / "mason_kc_bridge.py"
+_PROJECT_CLI_RELATIVE = Path("knowledge-core-tools") / "kc.py"
 
 
 def _require_loopback_url(value: str, *, name: str) -> str:
@@ -94,10 +95,10 @@ def _resolve_cowork_project_name(cowork_url: str, project_dir: Path) -> str:
     )
 
 
-def _install_project_bridge(project_dir: Path, source_bridge: Path) -> Path:
-    target = project_dir / _PROJECT_BRIDGE_RELATIVE
+def _install_project_tool(project_dir: Path, source: Path, relative_target: Path) -> Path:
+    target = project_dir / relative_target
     target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source_bridge, target)
+    shutil.copyfile(source, target)
     return target
 
 
@@ -183,14 +184,27 @@ def main(argv: list[str] | None = None) -> int:
 
     tool_dir = Path(__file__).resolve().parent
     source_bridge = (tool_dir / "mason_kc_bridge.py").resolve()
-    bridge_path = _install_project_bridge(project_dir, source_bridge)
+    source_cli = (tool_dir / "mason_kc_cli.py").resolve()
+    bridge_path = _install_project_tool(
+        project_dir,
+        source_bridge,
+        _PROJECT_BRIDGE_RELATIVE,
+    )
+    cli_path = _install_project_tool(
+        project_dir,
+        source_cli,
+        _PROJECT_CLI_RELATIVE,
+    )
 
     template_path = (
         tool_dir.parent / "integrations" / "mindshub" / "KNOWLEDGE_CORE_SKILL.md"
     ).resolve()
     relative_bridge = _PROJECT_BRIDGE_RELATIVE.as_posix()
-    instructions = template_path.read_text(encoding="utf-8").replace(
-        "{{BRIDGE_PATH}}", relative_bridge
+    relative_cli = _PROJECT_CLI_RELATIVE.as_posix()
+    instructions = (
+        template_path.read_text(encoding="utf-8")
+        .replace("{{BRIDGE_PATH}}", relative_bridge)
+        .replace("{{CLI_PATH}}", relative_cli)
     )
     skill = _register_skill(cowork_url, instructions, project_name)
 
@@ -205,6 +219,8 @@ def main(argv: list[str] | None = None) -> int:
                 "cowork_url": cowork_url,
                 "bridge_path": str(bridge_path),
                 "bridge_relative_path": relative_bridge,
+                "cli_path": str(cli_path),
+                "cli_relative_path": relative_cli,
                 "skill": skill,
                 "restart_required": True,
             },
