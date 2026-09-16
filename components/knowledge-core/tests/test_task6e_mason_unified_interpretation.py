@@ -156,18 +156,14 @@ def test_skill_teaches_separate_lexical_and_graph_evidence_without_new_tool():
     )
     text = path.read_text(encoding="utf-8")
 
-    assert "separate evidence lanes" in text
-    assert "graph.state" in text
-    assert "continue using relevant lexical results" in text
+    assert "Treat `graph` as an additive derived lane only" in text
     assert "resource_version_ref" in text
     assert "kc_get_source" in text
-    assert "derived retrieval evidence" in text
-    assert "Do not invent or call a second graph-search operation" in text
-    # Task 6F supersedes the original 6E pre-status wording: kc_status now
-    # reports bounded durable graph readiness while provider liveness remains
-    # a separate search-time concern.
+    assert "derived evidence" in text
+    assert "second graph-search operation" in text
     assert "graph status of `ready`" in text
-    assert "not proof that the provider is live" in text
+    assert "project-local deterministic CLI" in text
+    assert "raw KC HTTP" in text
 
     for state in (
         "disabled",
@@ -181,7 +177,13 @@ def test_skill_teaches_separate_lexical_and_graph_evidence_without_new_tool():
     ):
         assert state in text
 
-    for operation in ("kc_status", "kc_search", "kc_get_source", "kc_store"):
+    for operation in (
+        "kc_status",
+        "kc_search",
+        "kc_get_source",
+        "kc_store",
+        "kc_propose_memory",
+    ):
         assert operation in text
 
     assert "kc_graph_search" not in text
