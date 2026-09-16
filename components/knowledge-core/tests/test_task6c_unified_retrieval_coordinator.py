@@ -250,7 +250,7 @@ def test_no_compatible_validated_build_degrades_as_unavailable():
     assert result.graph.results == ()
     assert result.warnings[0].code.value == "graph_unavailable"
     assert graph.calls[0]["limit"] == 4
-    assert graph.calls[0]["query"] == "Mason"
+    assert graph.calls[0]["query"] == lexical.snapshot.query
 
 
 def test_generation_change_drops_graph_lane_as_stale():
