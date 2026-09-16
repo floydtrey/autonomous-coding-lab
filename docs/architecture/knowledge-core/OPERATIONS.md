@@ -11,7 +11,7 @@ python -m pip install -e ".[test]"
 python -m pytest -q -m "not postgresql and not sr2_real_pilot"
 ```
 
-For database qualification, use a dedicated disposable PostgreSQL database: the test fixtures truncate KC application schemas. Set `KNOWLEDGE_CORE_DATABASE_URL` and, where applicable, `KNOWLEDGE_CORE_POSTGRES_TEST_URL` for that database, then follow the existing ordered gates:
+For database qualification, use a dedicated disposable PostgreSQL database. The test fixtures truncate KC application schemas. Set `KNOWLEDGE_CORE_DATABASE_URL` and, where applicable, `KNOWLEDGE_CORE_POSTGRES_TEST_URL`, then use the existing ordered gates:
 
 ```powershell
 python -m alembic upgrade head
@@ -19,184 +19,193 @@ python -m pytest -q -m "postgresql and not sr2_real_pilot"
 python -m pytest -q -m "sr2_real_pilot"
 ```
 
-G22 remains separate from G1–G21. Preserve full Git history for exact pinned corpus objects. The existing [KC workflow](../../../.github/workflows/knowledge-core.yml) applies migrations, runs fast/PostgreSQL/G22 selectors and rehearses RI-4 and SR-2 host restart tools. CI rehearsal is not a replacement for separately recorded intended-host evidence.
+G22 remains separate from G1–G21. Preserve full Git history for exact pinned corpus objects. The [KC workflow](../../../.github/workflows/knowledge-core.yml) applies migrations, runs fast/PostgreSQL/G22 selectors and rehearses RI-4 and SR-2 restart tools. CI rehearsal is not a substitute for separately required intended-host evidence.
 
-The older RF-2 exact-corpus pilot deliberately skips when current checkout bytes differ from its pinned corpus; that is not permission to rewrite its manifest or relabel historical evidence. RI-3, RI-4 and G22 use exact historical Git objects. Their retained machine-readable manifests keep original source paths, commits and blob identities.
+The older RF-2 exact-corpus pilot deliberately skips when current checkout bytes differ from its pinned corpus. Do not rewrite historical manifests or relabel evidence to make old qualification appear current.
 
-For documentation-only changes, verify scope, links/read order, unchanged evidence blobs, manifest pins and non-document bytes. Do not run models, mutate an existing canonical corpus, or rerun completed intended-host acceptance merely to reorganize prose. For behavior changes, run relevant deterministic gates and any separately authorized host qualification required by the changed boundary.
+For documentation-only changes, verify scope, links/read order, unchanged evidence blobs, manifest pins and non-document bytes. Do not run models, mutate canonical corpus state or rerun intended-host acceptance merely to reorganize prose. For behavior changes, run the deterministic gates relevant to the changed boundary and any separately authorized host qualification required by that boundary.
 
-## KC Usable V1 bootstrap operator boundary
+## Bootstrap consumer boundary
 
 Task 1 provides a replaceable bootstrap admission facility. It is not a deployed standalone Authority service and is not attached to every low-level KC route.
 
 | Setting | Current meaning |
 |---|---|
-| `KNOWLEDGE_CORE_BIND_HOST` | Listener/deployment host selection; defaults to `127.0.0.1`. Configuration, not permanent topology. |
-| `KNOWLEDGE_CORE_BOOTSTRAP_KEY` | Shared bootstrap API key. Keep the actual value outside source control, prompts and KC knowledge content. |
+| `KNOWLEDGE_CORE_BIND_HOST` | Listener/deployment host selection; defaults to `127.0.0.1`. |
+| `KNOWLEDGE_CORE_BOOTSTRAP_KEY` | Shared bootstrap API key. Keep the value outside source control, prompts and KC content. |
 | `X-Knowledge-Key` | Request header carrying the bootstrap API key. |
-| `local_owner` | Fixed bootstrap principal after successful admission; not the final multi-principal Authority design. |
+| `local_owner` | Fixed bootstrap principal after successful admission. |
 
-The admitted operation classes are `kc.store`, `kc.search`, `kc.get_source`, and `kc.status`. Caller-supplied `X-Knowledge-Caller` does not override the bootstrap principal. The existing retrieval Authority evaluator remains a separate downstream seam.
+Accepted local consumer operations are:
 
-`POST /v1/kc/store` is implemented when the trusted host explicitly supplies `BootstrapAdmission`. It requires `Idempotency-Key`. Exact replay must resolve to the same canonical source/Resource/ResourceVersion/observation/decision evidence; reuse with changed content/source/project inputs must fail. Derived generation/snapshot identity is not part of that idempotency guarantee and may advance during retry/recovery or another accepted complete-corpus publication.
+| Operation | HTTP surface | Rule |
+|---|---|---|
+| `kc_store` | `POST /v1/kc/store` | Requires bootstrap admission plus `Idempotency-Key`; canonical evidence settles before derived publication. |
+| `kc_search` | `POST /v1/kc/search` | Current accepted behavior reuses `kc-lexical-evidence-v2`; Task 6 may add graph evidence behind this same operation. |
+| `kc_get_source` | `POST /v1/kc/get-source` | Accepts an exact current-generation `resource_version_ref`; revalidates eligibility and immutable source size/SHA-256/UTF-8. |
+| `kc_status` | `GET /v1/kc/status` | Reports bounded canonical/text readiness. Task 6F may add bounded graph readiness/freshness fields. |
 
-Task 3 completes the bounded local read operations. These routes also exist only when the trusted host explicitly supplies `BootstrapAdmission`:
+Caller-supplied `X-Knowledge-Caller` does not override the bootstrap principal. The preexisting `/v1/retrieval/search` route remains separate and requires its retrieval Authority evaluator.
 
-| Consumer operation | HTTP surface | Required admission | Operating rule |
-|---|---|---|---|
-| `kc_search` | `POST /v1/kc/search` | `X-Knowledge-Key`, operation `kc.search` | Reuses accepted `kc-lexical-evidence-v2` search. No second index/search implementation. |
-| `kc_get_source` | `POST /v1/kc/get-source` | `X-Knowledge-Key`, operation `kc.get_source` | Accept a `resource_version_ref` from retrieval; serve only current-TEXT, serving-eligible exact canonical source after size/SHA-256/UTF-8 verification. |
-| `kc_status` | `GET /v1/kc/status` | `X-Knowledge-Key`, operation `kc.status` | Bounded canonical/text readiness; no artifact/database/provider credentials. |
+Do not use bootstrap admission as justification to expose arbitrary entity/assertion/resource CRUD, unrestricted historical source lookup, raw SQL, database credentials, artifact-store authority, FalkorDB credentials, direct Graphiti mutation or remote access.
 
-`kc_search` uses bootstrap principal `local_owner`. If the trusted host also configures the separate retrieval Authority evaluator, that evaluator remains an additional fail-closed policy layer for bootstrap search. The preexisting `POST /v1/retrieval/search` path remains separate: it requires `X-Knowledge-Caller` and a configured retrieval Authority evaluator even when bootstrap admission exists.
+## Source-neutral evidence and lexical serving
 
-`kc_get_source` is not arbitrary ResourceVersion lookup. The requested version must belong to the current TEXT generation and remain serving-eligible. For SR-2, KC validates the current generation/profile and governed lineage, then re-reads the immutable artifact and checks stored byte size, SHA-256 and strict UTF-8 before returning content. Unknown, non-current and restricted refs are all nondisclosing 404. This prevents a known UUID from bypassing privacy or current-corpus fences.
+Tasks 2A–2F establish the accepted source-neutral path from producer-specific proof through canonical ResourceVersion, generic governed observation/decision, complete governed snapshot, SR-2 publication and lexical serving.
 
-`kc_status` reports `text_state=empty|ready`, canonical revision, current text generation/source revision highwater/source count, retrieval mode, lineage mode, evidence contract version and generation config digest. It does not claim graph readiness.
+Operating rules include:
 
-Do not use the bootstrap path as justification to expose arbitrary entity/assertion/resource CRUD, historical unrestricted source lookup, raw SQL, database credentials, artifact-store authority, FalkorDB credentials, direct Graphiti mutation, or remote access without a separate bounded decision.
+- repository commit/path/blob/manifest verification remains inside the Git producer;
+- direct `user_note` evidence is authenticated local-owner submission plus exact canonical byte custody, not fabricated Git proof;
+- source identity, canonical Resource/Version, observation, governance decision, project membership and corpus snapshot remain distinct;
+- complete-corpus snapshots feed the one-current-TEXT boundary; producer-local subsets do not replace unrelated current sources;
+- publication rechecks predecessor state so stale writers cannot erase newer contributions;
+- canonical note evidence settles before derived publication; text failure/pending state does not erase canonical evidence or prior valid serving state;
+- current source-neutral SR-2 lexical reads require complete generic lineage and exact canonical artifact/slice verification before serving;
+- restriction/erasure eligibility is rechecked at serve time and dominates stale derived rows;
+- repository compatibility fields exist only when exact legacy mapping exists; non-Git sources do not receive fabricated repository identity;
+- historical RF-2/pre-source-neutral evidence retains its original explicit interpretation.
 
-## Task 2 source-neutral evidence and lexical boundary
+The public lexical response advertises `evidence_contract_version="kc-lexical-evidence-v2"`; current source-neutral SR-2 segment provenance advertises `governed-source-sr2-v2`.
 
-Task 2A froze the pure-domain governed-source contract. Task 2B added durable source-neutral evidence and deterministic legacy repository mapping. Task 2C made repository import a verified producer of generic evidence. Task 2D moved live SR-2 selection/lineage/publication to complete generic snapshots. Task 2E added the first non-Git producer and authenticated direct-note store. Task 2E.1 corrected audit findings before read-side work. Task 2F completed the source-neutral lexical evidence/serving boundary.
+## Direct-note storage operating rule
 
-Current operating rules:
+`kc_store` currently means explicit trusted canonical storage, not a generic permission for a model to self-author durable memory.
 
-- repository commit/path/blob/manifest verification remains inside the repository producer;
-- complete-corpus selection policy and select/exclude overlap validation belong to the generic governed snapshot seam, not the repository adapter;
-- direct notes use authenticated `local_owner` submission evidence plus exact canonical byte custody; do not fabricate Git proof;
-- source identity, canonical Resource/Version, observation, decision, project membership and corpus snapshot identity remain separate;
-- project membership does not become source identity; same-source direct-note updates preserve/union prior project memberships;
-- direct-note project keys are bounded to 255 characters before canonical writes;
-- re-observation of the same ResourceVersion remains distinct evidence;
-- one observation cannot be selected in one snapshot under competing governance decisions;
-- complete-corpus snapshots, not producer-local subsets, feed the one-current-TEXT publication boundary;
-- only settled repository evidence can become accepted repository-derived generic evidence;
-- SR-2 candidate construction verifies canonical ResourceVersion/artifact SHA-256, strict UTF-8, deterministic segmentation, governance decision and snapshot lineage without requiring Git proof for non-Git sources;
-- repository fields on generic SR-2 lineage/segments are compatibility metadata, not generic identity;
-- publication rechecks expected governed-snapshot predecessor under the generation lock before cutover;
-- a serving-predecessor race is retryable and `kc_store` reports `text_state=pending`; other derived build/invariant failures report `text_state=failed`;
-- canonical note evidence settles before derived publication; failed/pending publication does not erase canonical evidence or the prior valid serving generation;
-- one logical `kc_store` call composes deterministic child operations for Resource creation/ResourceVersion ingest plus a no-canonical-revision governed-admission parent operation, preserving one-canonical-revision-per-operation;
-- `text_state=indexed` means the requested note was included in a successfully published TEXT generation; accepted current SR-2 notes are searchable through Task 2F and available through Task 3 front-door reads;
-- legacy RF-2 remains available for historical reconstruction from an empty/RF-2 state but cannot publish over established SR-2;
-- historical RI-3/RI-4 evidence retains original RF-2 interpretation. Current restart rehearsals are retrieval-mode neutral;
-- the SR-2 host rehearsal validates source-neutral V2 generation/config and generic observation/decision/snapshot lineage while retaining exact repository compatibility provenance.
+The accepted V1 request accepts `content`, `project`, `source_type="user_note"`, optional stable `source_id` and optional timezone-aware `source_event_time`. Exact retry with the same idempotency identity converges on the same canonical source/Resource/ResourceVersion/observation/decision evidence; reusing the identity with different inputs fails.
 
-### Task 2F lexical serving rules
-
-The public lexical response advertises `evidence_contract_version="kc-lexical-evidence-v2"`.
-
-For current source-neutral SR-2 generations:
-
-- segment provenance advertises `provenance_contract_version="governed-source-sr2-v2"`;
-- before lexical matches are served, KC loads every current `TextGenerationSource`, requires complete generic observation/decision/snapshot/projection lineage, requires one governing snapshot, reconstructs that snapshot through the generic governed-evidence kernel, and compares the exact ResourceVersion set to both the generation lineage rows and canonical generation-source set;
-- each lineage row must exactly match generic observation, governance decision, snapshot and projection digest plus any explicit repository compatibility mapping;
-- any partial/mixed generic lineage, multiple-snapshot ambiguity, missing ResourceVersion ownership, source-set mismatch or tampered lineage fails closed;
-- matching segment metadata must agree with the generic governance decision and any exact repository compatibility projection;
-- exact canonical artifact byte size/SHA-256 and segment slice SHA-256 are rechecked when content is served;
-- parent Resource/ResourceVersion serving eligibility is rechecked after lexical matching, so privacy restriction/erasure dominates stale derived rows;
-- direct notes expose generic source kind/origin/collection/item identity, project memberships, producer/version, generic observation ID/digest, governance decision ID/digest, snapshot/projection digests, source times, governance policy/rationale/time and exact structural/lifecycle coordinates;
-- direct-note repository/path/version/manifest fields stay null;
-- repository-backed V2 results expose the same generic evidence plus exact repository compatibility fields. To retain accepted repository consumer/G22 behavior, `segment.governed_observation_id` remains the legacy verified repository observation ID when a legacy mapping exists; `segment.governed_source_observation_id` is the unambiguous generic observation ID;
-- accepted historical pre-2D SR-2 generations with no generic lineage stay on explicit `repository-sr2-v1` provenance. They are not silently relabeled V2;
-- the existing `/v1/retrieval/search` path remains Authority-first through the injected retrieval evaluator.
-
-Focused 2F qualification additionally proves mixed-source search/reconstruction, non-exposure of storage internals, restriction dominance, lineage-tamper fail-closed behavior, and deterministic concurrent-store convergence.
-
-## Task 3 simple read-surface operating boundary
-
-Task 3 is a thin consumer layer above Task 2. It introduces no migration and no alternate retrieval state.
-
-Qualification proves:
-
-- `kc_search`, `kc_get_source` and `kc_status` are absent if `BootstrapAdmission` is not supplied by the trusted host;
-- missing or invalid bootstrap key is rejected before the semantic handler; each operation honors independent Task 1 operation scoping;
-- storing exactly `Mason is my local MindsHub worker model`, reconstructing the application/client boundary, then asking `What is Mason?` through `/v1/kc/search` returns the stored fact and Task 2 generic provenance;
-- the result's exact ResourceVersion can be followed through `/v1/kc/get-source`, which returns the full exact canonical content with matching Resource, ResourceVersion, SHA-256, byte size, media type, generation, retrieval mode and lineage mode;
-- `kc_status` transitions from `empty` before a TEXT generation to `ready` afterward and reports the accepted current generation/source count without storage internals;
-- tested front-door responses do not expose artifact key/backend, artifact root, database URL or raw SQL details;
-- a privacy restriction removes the note from `kc_search` and makes its formerly known ResourceVersion unavailable through `kc_get_source` after application reconstruction;
-- a bootstrap contract allowing only `kc.status` receives 403 for search/get-source while status remains available;
-- the preexisting Authority-first `/v1/retrieval/search` path remains intact.
-
-No model call, Graphiti/FalkorDB access, external account access, Mason/MindsHub integration or remote-network exposure is part of Task 3.
+Task 6G is reserved for a separate autonomous memory-candidate/admission boundary. Until that work is accepted, do not reinterpret `kc_store` as an autonomous worker-memory proposal mechanism.
 
 ## Graphiti operator boundary
 
-The optional dependency is installed with:
+Install the optional graph dependency with:
 
 ```powershell
 python -m pip install -e ".[test,graphiti]"
 ```
 
-The adapter pins `graphiti-core[falkordb]==0.30.2`. Use an explicitly chosen existing KC database/artifact root with current governed SR-2 sources; apply needed migrations only within the authorized environment.
+The current adapter line pins `graphiti-core[falkordb]==0.30.2`.
 
-Available entry points under `components/knowledge-core/tools/`:
+Historical accepted Graphiti evidence at `6376419e369ea9ecfe58a19fa233bbfca90ad703` is repository-shaped and remains valid only for its exact recorded build.
+
+Task 4 adds the source-neutral bounded operator path under `components/knowledge-core/tools/`:
 
 | Tool | Purpose |
 |---|---|
-| `graphiti_host_phase.py` | Lists current canonical sources or runs projection, validation and trusted search; emits result JSON. |
-| `graphiti_host_phase_monitored.py` | Wraps host qualification with host resource telemetry. |
-| `graphiti_host_phase_live.py` | Preflight, live progress/event journal and final summary. |
-| `sr2_host_qualification.py` | Bounded SR-2 restart/recovery with the pinned G22 corpus. |
-| `ri4_host_qualification.py` | Historical RI-4 restart/recovery harness; current rehearsal is retrieval-mode neutral while accepted historical record retains RF-2 semantics. |
+| `graphiti_source_neutral_sync.py` | Build/list source-neutral current SR-2 plan, project a bounded selection, independently validate, then run Authority-first trusted search. |
+| `graphiti_source_neutral_sync_hardened.py` | Reuses the Task 4 flow with the Task 4.1 serialized/hardened Graphiti/Falkor adapter. This is the intended local-runtime entrypoint after Task 4.1. |
+| `graphiti_host_phase.py` | Historical governed-document host flow retained for its accepted scope. |
+| `sr2_host_qualification.py` | Bounded SR-2 restart/recovery with pinned G22 corpus. |
+| `ri4_host_qualification.py` | Historical RI-4 restart/recovery harness. |
 
-To inspect source list without touching Graphiti:
+The Task 4 source-neutral plan is generation/profile-bound and carries exact generic KC source/observation/decision/snapshot/segment evidence. Non-Git sources receive no fabricated Git metadata. Reference time follows `source-event-then-revision-then-observed-v1`.
 
-```powershell
-python tools\graphiti_host_phase.py `
-  --artifact-root "<existing KC artifact root>" `
-  --list-sources
+Graph synchronization is explicit. It is not part of `kc_store`, not launched by `kc_search`, and does not create a scheduler, background queue or automatic GPU/model orchestrator.
+
+Inspect durable attempt/validation/binding evidence before recovery. Exact settled replay does not reproject. Changing attempt salt intentionally creates another attempt/build and is a recovery decision, not a casual retry. Preserve failed, incomplete, pending and quarantined evidence.
+
+Trusted graph retrieval requires:
+
+1. successful compatible projection;
+2. complete independent validation;
+3. Authority-first retrieval;
+4. exact source bindings/canonical correlation;
+5. current compatible generation/profile/config and serving eligibility.
+
+Provider success without independent validation is not trusted retrieval.
+
+### Task 4 qualification status
+
+Task 4 implementation and deterministic CI qualification are merged. Task 4.1 hardened runtime is merged at `23a0794ff396365d0dfd124e0b4a7bbf9174c00d`.
+
+The source-neutral mixed-source path is **not yet formally live-accepted**. The remaining barrier is the bounded intended-host Graphiti/FalkorDB/local-model run followed by independent validation and at least one trusted graph result with exact generic KC correlation.
+
+This pending graph acceptance does not invalidate canonical/text retrieval or Task 5 Mason acceptance.
+
+## Mason / MindsHub operating boundary — Task 5 accepted
+
+Task 5 accepts the project-local Mason -> KC path recorded in [Task 5 qualification](legacy/TASK5_MASON_MINDSHUB_QUALIFICATION_2026-09-15.md).
+
+Accepted path:
+
+```text
+MindsHub/Cowork Mason
+  -> Anton procedural-memory `knowledge-core` skill
+  -> project-local `mason_kc_bridge.py`
+  -> loopback KC bootstrap API
+  -> canonical / lexical evidence
 ```
 
-The accepted 2026-09-14 graph run used LLM alias `graphiti-qwen38-27b-32k`, embedder `nomic-embed-text:latest`, Graphiti `0.30.2`, ruleset `kc-graphiti-governed-document-v3`, validator version `3`. Tool defaults can name an older 9B alias; explicitly choose model configuration for any future authorized run.
+The bridge exposes exactly these literal protocol operations:
 
-Inspect durable attempt/validation/binding evidence before recovery. Exact settled replay does not reproject. Changing attempt salt intentionally creates a new attempt/build and is a recovery decision, not a casual retry. Retain failed, incomplete, pending and quarantined attempts. Never erase failure evidence to produce a clean-looking acceptance history.
+```text
+kc_status
+kc_search
+kc_get_source
+kc_store
+```
 
-A host PASS requires successful projection, complete independent validation, Authority-first retrieval, at least one trusted result and exact canonical correlation. Task 3 does not qualify mixed-source Graphiti input; that is Task 4.
+Do not shorten/alias the operation identifiers. Unsupported operations fail closed. The bridge does not expose SQL, FalkorDB mutation, Graphiti maintenance, artifact-store access, arbitrary HTTP or arbitrary KC operations.
+
+Qualification proved a fresh Mason session could call the KC skill, perform `kc_search`, follow the ResourceVersion through `kc_get_source`, and return exact canonical content. Task 5 consumes the accepted canonical/lexical path and does not imply Task 4 graph acceptance.
+
+## Task 6 operating sequence
+
+The current phase is Task 6 dogfooding. Follow [CURRENT_STATE.md](CURRENT_STATE.md) for the exact authorized slice.
+
+The intended sequence is:
+
+- 6A reconcile authoritative state;
+- 6B define unified lexical + optional validated-graph retrieval contract;
+- 6C implement the coordinator by reusing existing lexical and graph kernels;
+- 6D place it behind existing `kc_search` without breaking Task 3/5 consumers;
+- 6E update Mason interpretation without adding direct graph authority;
+- 6F expose bounded graph readiness/freshness state;
+- 6G separate autonomous memory proposals from explicit canonical `kc_store`;
+- 6H build wrapper-side context compaction/checkpointing;
+- 6I integrate compaction/proposals with MindsHub wrapper;
+- 6J run intended-host/worker qualification after resource contention permits.
+
+Do not auto-run local models merely because implementation code is ready. In particular, graph synchronization and Task 6J qualification remain explicit operator actions.
 
 ## Accepted evidence
 
-These are recorded acceptance checkpoints. Linked historical files retain their exact pre-consolidation scope. Current scope and restart instructions are in [CURRENT_STATE.md](CURRENT_STATE.md).
+These are recorded checkpoints. Historical files retain their exact scope; [CURRENT_STATE.md](CURRENT_STATE.md) controls current interpretation.
 
 | Boundary | Exact checkpoint / evidence | Accepted scope |
 |---|---|---|
 | Kernel V1 | `9e904f49480055615bb0cf32360dbdc8400e117c`; [completion](legacy/IMPLEMENTATION_PLAN_V1.md) | Gates 1–19; frozen kernel semantics. |
-| PostgreSQL | `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`; [record](legacy/POSTGRES_QUALIFICATION.md); [Actions 34364589918](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34364589918) | Real migrations, races/locking, idempotency, rollback and generation fencing. |
-| RF-2 | `479a918762e919851e19fee3b36cc1d95e78f3e8`; [record](legacy/RETRIEVAL_FOUNDATION_RF2.md); [Actions 34371352821](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34371352821) | Whole-document lexical retrieval. |
-| RI-2 | `c2aa14ca5429ccaf5149e0a8a4321ae7a440d8ad`; [record](legacy/REPOSITORY_IMPORT_RI2.md); [Actions 34416061086](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34416061086) | Bounded governed repository import. |
-| RI-3 / RI-4 | [RI-3](legacy/REPOSITORY_IMPORT_RI3.md), [RI-4](legacy/REPOSITORY_IMPORT_RI4.md), [intended-host evidence](legacy/RI4_INTENDED_HOST_EVIDENCE.md); host harness `934850d5830d4a5d89ec32b04630435a027e816f` | Durable application reconstruction and intended-host PostgreSQL restart/replay for historical RF-2. |
-| SR-2 G1–G21 | `7570425231c0f1804c800ad4c6809f6261d82416`; [coverage matrix](legacy/SR2_G1_G21_COVERAGE_MATRIX.md); [Actions 34457756458](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34457756458) | Independently green prerequisite for G22. |
-| SR-2 G22 | `c75a6be2e832bdc29fda0e4a6eab7de28da90668`; [record](legacy/SR2_G22_QUALIFICATION.md); [Actions 34462565404](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34462565404) | Tiny three-document pinned pilot; G1–G22 accepted. |
-| SR-2 intended host | `c3bfac41eb3a1787d5b770274370b5e59f082eb4`; [record](legacy/SR2_INTENDED_HOST_QUALIFICATION.md); [supporting CI 34475309465](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34475309465) | Windows restart/recovery, segment serving, artifact/structure/profile/provenance integrity and replay. |
-| Governed Graphiti | `6376419e369ea9ecfe58a19fa233bbfca90ad703`; [accepted record](legacy/GRAPHITI_GOVERNED_QUALIFICATION_2026-09-14.md) | 17 segments, 17 bindings, 7 checks, 10 attributed results, zero integrity/lifecycle anomalies for its exact repository-shaped input. |
-| KC Usable V1 Task 1 | `b9e708f2892f3a7303fa50ccadc64c26f5b9bf46`; [Actions 34877670577](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34877670577) | Bootstrap bind/key, fixed `local_owner`, bounded admitted operations, spoof-resistant mapping. Full workflow green. |
-| KC Usable V1 Task 2A | `cbfecbfada73e1210ceae0185a31664bf073a479`; [Actions 34923452994](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34923452994) | Source-neutral governed-source pure-domain contract and adversarial source-shaped fixtures. |
-| KC Usable V1 Task 2B | `6910e9abba320e272b34b0528846f289d3d8eb14`; [Actions 34925025743](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34925025743) | Migration `0016`; source-neutral durable evidence/snapshot persistence and deterministic settled-repository mapping. |
-| KC Usable V1 Task 2C | `30d1ec2ce13ae8c95afc4ac2b9d54d959f36b3bd`; [Actions 34927229037](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34927229037) | Live repository SR-2 producer, generic evidence settlement, mapping-failure rollback, RF-2 downgrade fence. |
-| KC Usable V1 Task 2D | `08d76ab86f011c30a103b080b7fce821bf71c45c`; [Actions 34929951401](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34929951401) | Migration `0017`; source-neutral SR-2 selection/lineage/publication, mixed-source complete snapshots, non-Git generation without fake Git proof, predecessor fencing and restart/replay. |
-| KC Usable V1 Task 2E | `9c89e30b9f0fa264180ac57a3e41d01ca0c74699`; [Actions 34931501178](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34931501178) | Authenticated direct-note `kc_store`, deterministic canonical idempotency, complete mixed corpus publication and derived-failure recovery. |
-| KC Usable V1 Task 2E.1 | `c0864a1d1ed76bdd5e289308f85f2b8b4d0499ba`; [PR Actions 34934614070](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34934614070); [post-merge Actions 34935097246](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34935097246) | Pre-2F audit corrections: generic snapshot-policy ownership, retryable predecessor conflicts, fail-vs-pending, project bound/union and corrected canonical idempotency guarantee. |
-| KC Usable V1 Task 2F | `f48200f50ee1c2652e32b56592f6ad86fe83c898`; [Actions 34936164155](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34936164155) | `kc-lexical-evidence-v2`; complete V2 lineage validation before serving; mixed repository+note search/reconstruction; honest non-Git provenance; explicit historical repository mode; artifact/slice/eligibility rechecks; tamper/restriction/concurrency qualification. Full workflow green. |
-| **KC Usable V1 Task 3** | **`5f6cdef96c9d4fcd36db8821df9c0156148080ae`; [Actions 34937735966](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/34937735966)** | **Bootstrap `kc_search`, `kc_get_source`, `kc_status`; fresh-client Mason milestone; exact current-generation source follow-through with byte-size/SHA-256/UTF-8 verification; status readiness; per-operation admission; privacy dominance; no storage-internal leakage; routes absent without bootstrap admission. Migrations, fast suite, PostgreSQL qualification, G22, RI-4 and SR-2 restart/replay green on unchanged rerun after one transient RI-4 temporary-host migration startup failure. No Graphiti or Mason integration.** |
-
-The Task 3 workflow's first attempt passed migrations, fast suite, PostgreSQL qualification and G22, then the RI-4 harness's isolated temporary-host `alembic upgrade head` subprocess exited before its captured stderr was surfaced, so SR-2 rehearsal was skipped by job failure. The same workflow job was rerun unchanged; RI-4 and SR-2 then passed with every earlier gate also green. No code or harness workaround was introduced, and acceptance is based on the fully green unchanged rerun.
-
-The SR-2 intended-host record locates raw JSON at the historical host path `C:\Users\floyd\AppData\Local\KnowledgeCore\sr2-host-qualification-01\SR2_HOST_QUALIFICATION_EVIDENCE.json`. That raw dump is not committed and was not newly inspected during Task 3. Historical intended-host acceptance excludes machine reboot, backup/restore and production deployment claims.
-
-The Graphiti record preserves namespace `kc:graphiti-governed-document-v1-q1`, scope `project:knowledge-core`, physical partition `kc_da882fc9ed8a7b0764b618562951` and lifecycle inventory digest `sha256:270bc4634d33e12628b317cf16f85a7ab943d0664f04a462aa06bf4a6dddb103`. Earlier failed/interrupted attempts remain history, not acceptance.
+| PostgreSQL | `2bd9b1b1288c109b89bb60dde1b7f0f4400d1341`; [record](legacy/POSTGRES_QUALIFICATION.md) | Real migrations, locking/races, idempotency, rollback and generation fencing. |
+| RF-2 | `479a918762e919851e19fee3b36cc1d95e78f3e8`; [record](legacy/RETRIEVAL_FOUNDATION_RF2.md) | Historical whole-document lexical retrieval. |
+| RI-2 | `c2aa14ca5429ccaf5149e0a8a4321ae7a440d8ad`; [record](legacy/REPOSITORY_IMPORT_RI2.md) | Bounded governed repository import. |
+| RI-3 / RI-4 | [RI-3](legacy/REPOSITORY_IMPORT_RI3.md), [RI-4](legacy/REPOSITORY_IMPORT_RI4.md), [host evidence](legacy/RI4_INTENDED_HOST_EVIDENCE.md) | Durable reconstruction and historical intended-host replay evidence. |
+| SR-2 G1–G21 | `7570425231c0f1804c800ad4c6809f6261d82416`; [coverage](legacy/SR2_G1_G21_COVERAGE_MATRIX.md) | Accepted prerequisite coverage. |
+| SR-2 G22 | `c75a6be2e832bdc29fda0e4a6eab7de28da90668`; [record](legacy/SR2_G22_QUALIFICATION.md) | Tiny pinned three-document pilot; G1–G22 accepted. |
+| SR-2 intended host | `c3bfac41eb3a1787d5b770274370b5e59f082eb4`; [record](legacy/SR2_INTENDED_HOST_QUALIFICATION.md) | Windows restart/recovery, serving and exact provenance/integrity. |
+| Historical governed Graphiti | `6376419e369ea9ecfe58a19fa233bbfca90ad703`; [record](legacy/GRAPHITI_GOVERNED_QUALIFICATION_2026-09-14.md) | Repository-shaped governed projection; 17 bindings, 7 validation checks, attributed trusted results. |
+| KC Task 1 | `b9e708f2892f3a7303fa50ccadc64c26f5b9bf46` | Bootstrap bind/key, `local_owner`, bounded operations. |
+| KC Task 2A | `cbfecbfada73e1210ceae0185a31664bf073a479` | Source-neutral governed-source domain contract. |
+| KC Task 2B | `6910e9abba320e272b34b0528846f289d3d8eb14` | Durable generic evidence/snapshot persistence. |
+| KC Task 2C | `30d1ec2ce13ae8c95afc4ac2b9d54d959f36b3bd` | Repository as verified producer of generic evidence. |
+| KC Task 2D | `08d76ab86f011c30a103b080b7fce821bf71c45c` | Source-neutral SR-2 lineage/publication. |
+| KC Task 2E | `9c89e30b9f0fa264180ac57a3e41d01ca0c74699` | Authenticated direct-note `kc_store`. |
+| KC Task 2E.1 | `c0864a1d1ed76bdd5e289308f85f2b8b4d0499ba` | Audit corrections before read-side qualification. |
+| KC Task 2F | `f48200f50ee1c2652e32b56592f6ad86fe83c898` | Source-neutral lexical evidence/serving. |
+| KC Task 3 | `5f6cdef96c9d4fcd36db8821df9c0156148080ae` | Bootstrap `kc_search`, `kc_get_source`, `kc_status`; fresh-client lexical/source milestone. |
+| KC Task 4 implementation | `8fea3d5d0200cc76018008711cea40a14b72ec13`; [checkpoint](legacy/TASK4_SOURCE_NEUTRAL_GRAPH_IMPLEMENTATION_CHECKPOINT_2026-09-15.md) | Source-neutral graph planning/sync/trusted-retrieval implementation; deterministic qualification only, not live intended-host acceptance. |
+| KC Task 4.1 hardening | `23a0794ff396365d0dfd124e0b4a7bbf9174c00d` | Serialized Falkor/Graphiti runtime and hardened operator; intended-host source-neutral acceptance still pending. |
+| **KC Task 5 Mason / MindsHub** | **merge `748815927631f512a30ecb70347d6c9476608156`; [qualification](legacy/TASK5_MASON_MINDSHUB_QUALIFICATION_2026-09-15.md)** | **Project-local strict four-operation Mason bridge; live skill/status and `kc_search` -> `kc_get_source` canonical retrieval accepted. Does not qualify Graphiti.** |
 
 ## Archive and source identity
 
-[legacy/README.md](legacy/README.md) maps old document paths to preserved archive files and Git blobs. Historical cross-references inside frozen evidence may retain original paths; resolve them using that map or exact Git history. No history rewrite or evidence deletion is part of current work.
+[legacy/README.md](legacy/README.md) maps historical document paths to preserved evidence and Git blobs. Historical cross-references may retain original paths; resolve them through the archive map or exact Git history.
 
-The four retained machine-readable manifests are [RF-2](REAL_CORPUS_PILOT_MANIFEST.json), [RI-3](RI3_PERSISTENT_PILOT_MANIFEST.json), [RI-4](RI4_HOST_QUALIFICATION_MANIFEST.json), and [G22](SR2_G22_REAL_DOCUMENT_PILOT_MANIFEST.json). They are executable evidence inputs, not additional current guidance.
-
-A file move changes repository presentation only. Existing canonical records/artifacts, governed metadata and graph builds remain untouched. A later documentation import must explicitly govern lifecycle and identity transitions; `legacy/` does not automatically make a source superseded.
+The retained machine-readable manifests are evidence inputs, not additional current guidance. File moves do not alter canonical records, lifecycle or graph state.
 
 ## Checkpoint discipline — EG-001 / EG-002
 
-Reserve enough task capacity to update durable documentation, record validation and unresolved issues, commit intended changes, and verify final branch/HEAD/diff before starting another task. A task is not complete while its only state record is a chat.
+Reserve enough task capacity to update durable documentation, record validation/unresolved issues, commit intended changes and verify final branch/HEAD/diff before starting another bounded task.
 
-At every material checkpoint update current status/next boundary, the architecture only if its contract changed, and this evidence index with exact commits/runs and limits. Do not create a competing current-state or pause-handoff document. If capacity becomes uncertain, stop implementation early enough to record completed/unverified work and an exact restart point. Preserve incomplete work honestly rather than claiming acceptance.
+At every material checkpoint update current status/next boundary, update architecture only when its contract changed, and update this evidence index with exact commits/runs and limits. Do not create a competing current-state or pause-handoff document.
+
+A task is not complete while its only state record is a chat. Preserve incomplete work honestly rather than claiming acceptance.

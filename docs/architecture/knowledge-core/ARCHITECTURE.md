@@ -7,17 +7,17 @@
 Knowledge Core is a standalone semantic service. PostgreSQL is canonical; immutable artifacts carry exact source bytes; lexical indexes, Graphiti/FalkorDB state, embeddings, summaries, caches and other retrieval projections are derived and rebuildable.
 
 ```text
-Mason / MindsHub (future)       ACL Controller / Worker Lab       Vera (future)
-             \                       |                         /
-                      KC semantic service boundary
-                     Authority evaluation for retrieval
-                                |
-           PostgreSQL canonical state + immutable source artifacts
-                                |
-           governed observations -> deterministic SR-2 segments
-                                |
-               PostgreSQL lexical       Graphiti / FalkorDB
-                                          derived builds
+Mason / MindsHub (accepted local consumer)    ACL Controller / Worker Lab    Vera (future)
+                    \                                  |                    /
+                              KC semantic service boundary
+                             Authority evaluation for retrieval
+                                        |
+                   PostgreSQL canonical state + immutable source artifacts
+                                        |
+                   governed observations -> deterministic SR-2 segments
+                                        |
+                       PostgreSQL lexical       Graphiti / FalkorDB
+                                                  derived builds
 ```
 
 Knowledge does not grant authority. Authority does not prove execution. Execution acknowledgement does not prove world settlement. Worker Lab owns ACL policy, lifecycle, Provider Binding, task authorization and result acceptance; Autonomous Worker Framework executes bounded work. KC supplies informational evidence only.
@@ -42,9 +42,9 @@ Python 3.12+, FastAPI/Pydantic and versioned HTTP/JSON are the implementation ba
 
 ## Source-neutral governed knowledge boundary — Task 2 accepted contract
 
-The 2026-09-14 Task 2 source-model audit found that the canonical Resource/ResourceVersion/artifact foundation was largely source-neutral while governed retrieval had repository/Git assumptions below the adapter boundary. Tasks 2A–2F now implement and qualify the correction through governed evidence, complete SR-2 selection/lineage/publication, authenticated direct-note storage, and source-neutral lexical serving/evidence.
+The 2026-09-14 Task 2 source-model audit found that the canonical Resource/ResourceVersion/artifact foundation was largely source-neutral while governed retrieval had repository/Git assumptions below the adapter boundary. Tasks 2A–2F implement and qualify the correction through governed evidence, complete SR-2 selection/lineage/publication, authenticated direct-note storage, and source-neutral lexical serving/evidence.
 
-Historical repository/SR-2/Graphiti qualifications retain their exact original scope and must not be relabeled as qualification of later behavior. The remaining repository-shaped Graphiti plan/reference-time input and some downstream ACL compatibility schemas are later bounded work; they do not redefine the accepted generic KC source model.
+Historical repository/SR-2/Graphiti qualifications retain their exact original scope and must not be relabeled as qualification of later behavior. Task 4 subsequently adds a source-neutral graph-plan path for generic governed SR-2 sources while preserving historical repository-shaped Graphiti evidence under its original semantics. Some downstream ACL compatibility schemas remain separate bounded work and do not redefine generic KC source identity.
 
 The governing rule is to keep the generic evidence and source-set boundary **above canonical ResourceVersion and below derived retrieval**, while keeping source verification strongly source-specific.
 
@@ -187,42 +187,68 @@ Historical pre-2D SR-2 generations retain explicit `repository-sr2-v1` provenanc
 
 Task 3 adds the bounded local Usable V1 front door only when the trusted host explicitly supplies `BootstrapAdmission`:
 
-- `POST /v1/kc/search` requires `X-Knowledge-Key`, admits operation `kc.search`, maps success to fixed principal `local_owner`, and reuses the exact same accepted lexical search/evidence path. It does not maintain a second index or retrieval definition. If the host also supplies the separate retrieval Authority evaluator, that evaluator is an additional fail-closed policy layer for bootstrap search.
+- `POST /v1/kc/search` requires `X-Knowledge-Key`, admits operation `kc.search`, maps success to fixed principal `local_owner`, and currently reuses the exact same accepted lexical search/evidence path. It does not maintain a second index or retrieval definition. If the host also supplies the separate retrieval Authority evaluator, that evaluator is an additional fail-closed policy layer for bootstrap search.
 - `POST /v1/kc/get-source` requires `X-Knowledge-Key`, admits `kc.get_source`, and accepts an exact `resource_version_ref`. It serves only a ResourceVersion referenced by the current TEXT generation and still serving-eligible. For SR-2 it first revalidates the current generation/profile and generic-or-legacy lineage mode, then reads the full immutable artifact, verifies stored byte size and SHA-256, requires strict UTF-8, and returns the exact canonical source bytes as text. Unknown, non-current or restricted refs are nondisclosing 404. Artifact keys/backends, filesystem paths, database URLs and raw SQL do not cross this contract.
-- `GET /v1/kc/status` requires `X-Knowledge-Key`, admits `kc.status`, and reports bounded canonical/text readiness only: canonical revision, text state (`empty` or `ready`), current text generation/source revision highwater/source count, retrieval mode, lineage mode, evidence-contract version and generation-config digest. It does not claim graph readiness or expose storage/provider credentials.
+- `GET /v1/kc/status` requires `X-Knowledge-Key`, admits `kc.status`, and reports bounded canonical/text readiness only: canonical revision, text state (`empty` or `ready`), current text generation/source revision highwater/source count, retrieval mode, lineage mode, evidence-contract version and generation-config digest. It does not currently claim graph readiness or expose storage/provider credentials.
 
 These bootstrap read routes are absent when bootstrap admission is not configured. Operation admission remains independently scoped, so a contract allowing only status cannot search or fetch source. Task 3 does not make arbitrary historical ResourceVersions addressable, weaken privacy fences, expose a generic CRUD API, or replace the separate Authority architecture.
 
-KC Consumer V1 exact segment evidence feeds the [Controller Task Packet V1](../../CONTROLLER_TASK_PACKET_V1.md) boundary. Retrieval remains informational and cannot choose providers, authorize tools/files or accept worker results. Mason/MindsHub tooling remains Task 5; Task 3 only establishes the stable local service operations that such a consumer may later call.
+KC Consumer V1 exact segment evidence feeds the [Controller Task Packet V1](../../CONTROLLER_TASK_PACKET_V1.md) boundary. Retrieval remains informational and cannot choose providers, authorize tools/files or accept worker results.
+
+## Mason / MindsHub consumer contract — Task 5 accepted
+
+Mason is an accepted local KC consumer through the project-local bounded bridge. The bridge exposes only the literal operations `kc_status`, `kc_search`, `kc_get_source`, and `kc_store`; unsupported aliases or operation names fail closed.
+
+The bridge is loopback-only for the accepted V1 path and does not expose SQL, artifact-store authority, FalkorDB/Graphiti mutation, arbitrary HTTP, or arbitrary KC access. Mason follows retrieval results through `kc_get_source` when exact canonical source content is required.
+
+Task 5 acceptance qualifies explicit Mason -> KC canonical/lexical use. It does not qualify source-neutral Graphiti readiness and does not give Mason direct graph-maintenance authority.
 
 ## Graphiti derived projection and trust admission
 
-Graphiti `0.30.2` over FalkorDB uses local model extraction and embeddings. Only eligible current SR-2 sources can enter the plan. Before external calls KC verifies immutable artifact size/digest, strict UTF-8, exact segment bounds/slice digest and lifecycle. Graphiti episode IDs are provider correlation evidence, never canonical KC identity.
+Graphiti `0.30.2` over FalkorDB uses local model extraction and embeddings. Graph state is derived and rebuildable; canonical Resource/ResourceVersion evidence and valid text retrieval do not depend on graph success.
 
-Durable attempts bind KC source refs/revisions, current SR-2 generation/profile/config, backend/config identity, namespace/scope and request digest. Each candidate physical partition binds namespace, scope, SR-2 profile, **attempt ID and adapter behavioral digest**. It must be empty before first write. New attempts cannot append to an earlier validated build; exact settled replay does not call the provider again.
+The historical accepted `governed-document-v1` path remains valid only for its exact repository-shaped qualification. Durable attempts bind KC source refs/revisions, SR-2 generation/profile/config, backend/config identity, namespace/scope and request digest. Candidate physical partitions bind namespace, scope, profile, attempt ID and adapter behavioral digest. Provider success remains insufficient until independent validation succeeds.
 
-Under `governed-document-v1`, deterministic edge resolution consolidates only normalized exact facts with the same partition, endpoints and relation, preserving active contributing source IDs. It does not invoke semantic contradiction judgment or broad invalidation searches. Model-derived retirement fields are cleared before writes; existing retired edges are not revived. KC lifecycle remains authoritative.
+Every successful segment requires exact durable provider-source correlation. Integrity warnings prevent success. Exceptions after opening an attempt are retained as failure/quarantine evidence; ambiguous pending attempts are not silently rerun. Independent validation checks attempt contract, source bindings, integrity warnings, episode presence, lifecycle inventory, namespace isolation and source attribution before a build is trusted.
 
-Every successful segment needs one exact durable provider-source binding: attempt, canonical ResourceVersion/revision, segment key/slice digest, physical partition and provider episode UUID. Integrity warnings prevent success. Exceptions after opening an attempt are retained as quarantined evidence; ambiguous pending attempts are not automatically rerun.
+Authority is evaluated before protected graph search. Explicit namespace/scope, compatible current generation/profile/config, successful disposition and complete matching validation are required. Every accepted hit must resolve through the build's source bindings to eligible exact canonical evidence; stale, superseded, unattributed or wrong-partition hits are rejected.
 
-Provider success remains unvalidated until independent validation. `kc-graphiti-live-validator` version `3`, ruleset `kc-graphiti-governed-document-v3`, requires all seven durable checks:
+### Task 4 source-neutral graph path
 
-1. `attempt-contract`
-2. `source-binding-contract`
-3. `projection-integrity-warnings`
-4. `source-episodes-present`
-5. `governed-lifecycle-inventory`
-6. `namespace-search-isolation`
-7. `search-source-attribution`
+Task 4 adds `kc-source-neutral-graph-plan-v1` above the accepted source-neutral SR-2 evidence model rather than relabeling historical repository-shaped attempts.
 
-The complete digest-bound edge inventory must have no retirement or invalid source attribution. Indeterminate/incomplete inspection cannot enter trusted retrieval. A summary claiming validation, an old ruleset or a missing required check is insufficient. Settled exact validation replay preserves evidence; failed or ambiguous evidence is not overwritten into success.
+For generic current SR-2 sources the graph plan carries:
 
-[GraphProjectionRetrievalKnowledgeKernel.search_validated_projection()](../../../components/knowledge-core/knowledge_core/application/graph_retrieval.py) evaluates `retrieval.search_graph` Authority **before** sending the query to any graph/embedder/reranker. Explicit namespace/scope, current generation, exact config, successful disposition and complete matching validation are required. Search stays within each immutable build; every sourcing episode on every accepted hit must map through that build's binding to an eligible exact canonical segment. Unknown, stale, superseded, unattributed or wrong-partition hits are rejected. KC rechecks current generation after external search.
+- exact ResourceVersion and canonical revision;
+- segment key/ordinal/coordinates/source-slice SHA-256/body;
+- generic source identity and project memberships;
+- governed observation and decision IDs/digests;
+- governing snapshot and projection digests;
+- producer identity/version and distinct source times;
+- nullable repository compatibility only when exact legacy mapping exists.
 
-The projection attempt/source-binding/validation ledger is substantially source-neutral and should be preserved. The current projection-plan input and reference-time reconstruction are repository-shaped; Task 4 will generalize those inputs only as required for generic governed SR-2 sources and will qualify mixed-source projection without weakening existing validation. New TEXT generations continue to make earlier graph attempts ineligible unless a future cross-generation reuse contract is separately proven and qualified.
+The reference-time policy is `source-event-then-revision-then-observed-v1`. The graph projection profile digest binds this policy, the source-neutral graph-plan version and current TEXT generation config so semantic behavior cannot silently reuse an incompatible validated build.
 
-This kernel path is implemented and has bounded host acceptance. The public/front-door consumer routes remain lexical/canonical in Task 3. Neither direct database access nor raw Graphiti access is an accepted substitute for the future governed graph consumer interface.
+`SourceNeutralGraphProjectionKnowledgeKernel.sync_current_sr2_projection()` is an explicit bounded operator/application boundary. It is not called by `kc_store`, and current design deliberately does not add a scheduler, continuous graph queue, automatic model launch or cross-generation graph reuse.
+
+Task 4.1 hardens the intended local Graphiti/Falkor runtime by serializing KC-visible Falkor access, forcing bounded Graphiti concurrency, disabling telemetry for the qualified profile and explicitly closing async clients used by the one-shot operator path.
+
+**Qualification status:** implementation and deterministic CI qualification are merged. Historical repository-shaped graph acceptance remains valid. Live intended-host acceptance of the new source-neutral mixed-source path is still pending and must not be inferred from implementation tests or from Task 5 Mason acceptance.
+
+## Task 6 unified retrieval target
+
+Task 6 will preserve the existing Mason operation `kc_search` and place any graph augmentation behind the KC service boundary rather than exposing Graphiti directly to Mason.
+
+The architectural target is one bounded evidence package with two non-equivalent evidence lanes:
+
+```text
+kc_search
+  -> lexical/current canonical evidence      (required baseline)
+  -> validated compatible graph evidence     (optional augmentation)
+```
+
+Lexical and graph scores are not interchangeable and must not be collapsed into a synthetic shared ranking merely for convenience. Graph unavailable/stale/unvalidated/failure state must degrade to valid lexical retrieval rather than fail the whole search. Canonical correlation, lifecycle/privacy eligibility and Authority remain controlling boundaries for both lanes.
 
 ## Contract maintenance
 
-Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2, source-neutral Task 2, Task 3 read-surface, or Graphiti work, and historical acceptance must not be overstated as qualification of later behavior.
+Preserve the accepted KC-D001–KC-D025 invariants and historical evidence while correcting accidental source-adapter leakage. Record any material superseding decision here, with affected contract, reason and qualification evidence; update current status and operations together. The archive preserves original wording and checkpoint evidence, not a competing instruction set. Scope-specific exclusions from early Kernel/RF/RI slices do not undo later accepted SR-2, source-neutral Task 2, Task 3 read-surface, Task 4 implementation/hardening or Task 5 Mason work, and historical acceptance must not be overstated as qualification of later behavior.
