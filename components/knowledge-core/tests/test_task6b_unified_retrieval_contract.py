@@ -22,10 +22,10 @@ from knowledge_core.domain.unified_retrieval import (
 )
 
 
-def _lexical() -> RetrievalSearchSnapshot:
+def _lexical(*, generation_id=None) -> RetrievalSearchSnapshot:
     return RetrievalSearchSnapshot(
         query="Why did we choose Mason?",
-        generation_id=uuid4(),
+        generation_id=generation_id or uuid4(),
         source_revision_highwater=9,
         results=(),
         retrieval_mode="sr2_segment",
@@ -62,6 +62,22 @@ def _source() -> GraphSourceCorrelation:
         reference_time=now,
         reference_time_policy="source-event-then-revision-then-observed-v1",
     )
+
+
+def _ready_graph(*, generation_id, results=()) -> GraphRetrievalEvidence:
+    return GraphRetrievalEvidence(
+        state=GraphRetrievalState.READY,
+        namespace_key="kc:graphiti-source-neutral-v1",
+        scope_key="project:knowledge-core",
+        generation_id=generation_id,
+        attempt_ids=(uuid4(),),
+        results=results,
+    )
+
+
+def test_non_ready_graph_lane_requires_bounded_reason_code():
+    with pytest.raises(KnowledgeInvariantError, match="requires bounded reason_code"):
+        GraphRetrievalEvidence(state=GraphRetrievalState.STALE)
 
 
 def test_non_ready_graph_lane_requires_matching_degradation_warning():
@@ -103,6 +119,7 @@ def test_non_ready_graph_lane_cannot_expose_graph_results():
         GraphRetrievalEvidence(
             state=GraphRetrievalState.UNVALIDATED,
             results=(hit,),
+            reason_code="validation-required",
         )
 
 
@@ -110,24 +127,30 @@ def test_ready_graph_lane_requires_current_build_identity():
     with pytest.raises(KnowledgeInvariantError, match="requires namespace_key"):
         GraphRetrievalEvidence(state=GraphRetrievalState.READY)
 
-    graph = GraphRetrievalEvidence(
-        state=GraphRetrievalState.READY,
-        namespace_key="kc:graphiti-source-neutral-v1",
-        scope_key="project:knowledge-core",
-        generation_id=uuid4(),
-        attempt_ids=(uuid4(),),
-    )
+    generation_id = uuid4()
+    graph = _ready_graph(generation_id=generation_id)
+    assert graph.generation_id == generation_id
     assert graph.results == ()
+
+
+def test_ready_graph_lane_must_match_lexical_generation():
+    lexical = _lexical()
+    with pytest.raises(
+        KnowledgeInvariantError,
+        match="must match the lexical text generation",
+    ):
+        UnifiedRetrievalSearchSnapshot(
+            lexical=lexical,
+            graph=_ready_graph(generation_id=uuid4()),
+        )
 
 
 def test_additive_response_preserves_lexical_shape_and_separates_graph_lane():
     source = _source()
-    graph = GraphRetrievalEvidence(
-        state=GraphRetrievalState.READY,
-        namespace_key="kc:graphiti-source-neutral-v1",
-        scope_key="project:knowledge-core",
-        generation_id=uuid4(),
-        attempt_ids=(uuid4(),),
+    generation_id = uuid4()
+    lexical = _lexical(generation_id=generation_id)
+    graph = _ready_graph(
+        generation_id=generation_id,
         results=(
             GraphRetrievalHit(
                 provider_hit_id="edge-1",
@@ -140,7 +163,7 @@ def test_additive_response_preserves_lexical_shape_and_separates_graph_lane():
     )
     response = unified_retrieval_response_from_domain(
         UnifiedRetrievalSearchSnapshot(
-            lexical=_lexical(),
+            lexical=lexical,
             graph=graph,
         )
     )
@@ -153,6 +176,7 @@ def test_additive_response_preserves_lexical_shape_and_separates_graph_lane():
         == UNIFIED_RETRIEVAL_EVIDENCE_CONTRACT_VERSION
     )
     assert payload["graph"]["state"] == "ready"
+    assert payload["graph"]["generation_id"] == str(generation_id)
     assert payload["graph"]["results"][0]["fact"].startswith("Mason is")
     graph_source = payload["graph"]["results"][0]["sources"][0]
     assert graph_source["resource_version_ref"] == str(source.resource_version_ref)
@@ -168,7 +192,7 @@ def test_unavailable_graph_degrades_without_changing_lexical_contract():
             lexical=_lexical(),
             graph=GraphRetrievalEvidence(
                 state=GraphRetrievalState.UNAVAILABLE,
-                reason_code="graph-runtime-unreachable",
+                reason_code="graph-runtime-unavailable",
             ),
             warnings=(
                 UnifiedRetrievalWarning(
