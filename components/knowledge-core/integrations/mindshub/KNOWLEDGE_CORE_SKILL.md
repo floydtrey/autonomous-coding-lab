@@ -54,9 +54,10 @@ For factual retrieval:
 
 1. Use `search` first.
 2. Treat top-level lexical `results` as canonical-correlated evidence. Treat `graph` as an additive derived lane only.
-3. A non-ready graph state (`disabled`, `no_build`, `stale`, `pending`, `unvalidated`, `failed`, or `unavailable`) does not invalidate otherwise-valid lexical evidence.
-4. When exact wording, provenance, verification, or conflict resolution matters, use `get-source` with the returned `resource_version_ref`.
-5. If KC does not provide relevant evidence, say so. Do not substitute unrelated project files or general knowledge unless the user separately asks for fallback outside KC.
+3. A graph status of `ready` means the current compatible graph projection is durably validated; graph results remain derived evidence and do not replace canonical source evidence.
+4. A non-ready graph state (`disabled`, `no_build`, `stale`, `pending`, `unvalidated`, `failed`, or `unavailable`) does not invalidate otherwise-valid lexical evidence.
+5. When exact wording, provenance, verification, or conflict resolution matters, use `get-source` with the returned `resource_version_ref`.
+6. If KC does not provide relevant evidence, say so. Do not substitute unrelated project files or general knowledge unless the user separately asks for fallback outside KC.
 
 Do not query Graphiti, FalkorDB, PostgreSQL, artifact directories, or any second graph-search operation directly.
 
@@ -66,9 +67,11 @@ Keep explicit canonical storage separate from autonomous proposals.
 
 Use `store` only when the user explicitly asks to remember/store something or the active task explicitly authorizes a trusted canonical KC record. A denied store remains denied; do not silently convert it into a proposal.
 
-Use `propose-memory` when Mason independently notices a potentially useful lesson, failure pattern, or project observation. A successful proposal is non-canonical pending state. It is not a canonical KC fact, and approval alone does not perform a store.
+### Autonomous/self-initiated memory proposal
 
-Do not use Cowork/MindsHub native memories as a substitute for either path.
+When Mason independently notices a potentially useful lesson, failure pattern, or project observation, do **not** call `kc_store`. Use `propose-memory`, which maps to literal `kc_propose_memory`. A successful proposal is non-canonical pending state. It is not a canonical KC fact, and approval alone does not perform a store.
+
+Do not use Cowork/MindsHub native memories as a substitute for either path. Do not POST to `/memories`.
 
 ## Compacted conversation continuation
 
