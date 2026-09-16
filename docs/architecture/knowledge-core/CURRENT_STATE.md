@@ -10,6 +10,7 @@ Task 6C accepted implementation/test checkpoint: `5a8fac1d3a2b8caa3798a63f5df75f
 Task 6D accepted implementation/test checkpoint: `65943a1e12dd08bf01a1e330ceb43ede1e2e6e13`; full Knowledge Core workflow Actions `35060185109` green.
 Task 6E accepted skill/test checkpoint: `0902a906a5c20e48dfcb07009d68eb9f3ccf9392`; Actions `35060788601` run attempt 2 green after an unchanged-head retry of a transient final SR-2 rehearsal setup failure.
 Task 6F accepted implementation/test checkpoint: `e34ca35cb1d2a31bdb7ec45d9799dd1f685c66d5`; full Knowledge Core workflow Actions `35062593583` green.
+Task 6G accepted implementation/test checkpoint: `80f3804ce2c1a905c3853f9e7c507066a5ca9431`; full Knowledge Core workflow Actions `35064560448` green.
 
 ## Read order and authority
 
@@ -32,11 +33,12 @@ These are the only current KC authorities. [legacy/](legacy/README.md) preserves
 | Source-neutral governed evidence | Accepted source identity, Resource/ResourceVersion, observation, decision, project membership and complete snapshot separation. |
 | SR-2 text publication | Accepted source-neutral complete-corpus selection/publication with predecessor fencing and exact canonical lineage. |
 | Lexical retrieval | Accepted `kc-lexical-evidence-v2` over current source-neutral SR-2 evidence with exact canonical/provenance correlation. |
-| Bootstrap consumer API | Accepted local `kc_store`, `kc_search`, `kc_get_source`, and `kc_status` through explicit `BootstrapAdmission` and fixed bootstrap principal `local_owner`. |
-| Direct-note storage | Accepted canonical-first `user_note` ingestion; derived text failure does not erase canonical evidence or prior valid serving state. |
+| Bootstrap consumer API | Accepted local `kc_store`, `kc_search`, `kc_get_source`, `kc_status`, and non-canonical `kc.memory_propose` admission through explicit `BootstrapAdmission` and fixed bootstrap principal `local_owner`. Bootstrap authentication alone is no longer sufficient for canonical `kc_store`. |
+| Direct-note storage | Accepted canonical-first `user_note` ingestion for an explicitly authorized exact write. `kc_store` now additionally requires deterministic `CanonicalStoreAuthority` bound to principal, operation ID, project, content SHA-256, optional source ID, and optional source event time; absent/denied authority fails before canonical mutation. |
+| Memory candidate boundary | **Task 6G accepted.** Autonomous observations may be durably proposed under `kc_control` as pending candidates and deterministically reviewed as approved/rejected without creating canonical revisions, Resource/ResourceVersion, TEXT generations, or graph work. Approval is eligibility only and never performs `kc_store`. |
 | Historical governed Graphiti | Accepted repository-shaped Graphiti qualification at `6376419e369ea9ecfe58a19fa233bbfca90ad703`. This remains historical evidence for that exact build only. |
 | Source-neutral Graphiti implementation | Implemented and CI-qualified through Task 4 plus Task 4.1 runtime hardening; merged into the KC line. **Live intended-host mixed-source acceptance remains pending.** |
-| Mason / MindsHub | **Tasks 5 and 6E accepted.** Mason retains the same four literal operations `kc_status`, `kc_search`, `kc_get_source`, `kc_store`; its procedural skill now interprets lexical and graph evidence as separate lanes and follows exact source refs through `kc_get_source`. |
+| Mason / MindsHub | **Tasks 5 and 6E accepted.** Mason retains the same four literal bridge operations `kc_status`, `kc_search`, `kc_get_source`, `kc_store`; Task 6G does not change the bridge protocol, but bootstrap possession alone can no longer make `kc_store` canonical. Candidate-wrapper integration remains Task 6I. |
 | Unified retrieval contract | **Task 6B accepted.** `kc-unified-retrieval-evidence-v1` preserves the lexical response and defines a separate optional graph lane with explicit degradation state and exact KC source correlation. |
 | Unified retrieval coordinator | **Task 6C accepted.** Lexical retrieval is mandatory and runs first; optional graph augmentation reuses the existing validated source-neutral graph kernel and degrades independently without starting graph/model work. |
 | Bootstrap `kc_search` unified response | **Task 6D accepted.** The existing request shape and lexical fields remain compatible; additive graph evidence/warnings now pass through the same literal `kc_search` route. No graph binding returns lexical evidence with `graph.state="disabled"`. |
@@ -64,7 +66,7 @@ The merged Task 4.1 checkpoint is `23a0794ff396365d0dfd124e0b4a7bbf9174c00d`.
 
 **Remaining Task 4 acceptance barrier:** run the bounded source-neutral Graphiti/FalkorDB/local-model path on the intended host using a current mixed-source SR-2 corpus, complete independent validation, obtain at least one trusted graph result, and prove exact generic KC evidence correlation. Until that succeeds, source-neutral graph retrieval is implemented but not formally live-accepted.
 
-Tasks 6B–6F do not remove or satisfy this barrier. They define, coordinate, expose, interpret, and report the consumer path that can use a compatible already-validated graph build when one exists. They do not create or live-qualify that build.
+Tasks 6B–6G do not remove or satisfy this barrier. They define, coordinate, expose, interpret, report, and contain the consumer path around compatible graph evidence and worker memory. They do not create or live-qualify a graph build.
 
 ## Task 5 / Mason status — ACCEPTED
 
@@ -95,6 +97,8 @@ Live Task 5 qualification proved Mason could invoke the KC skill, run `kc_search
 
 Task 6D keeps the same literal `kc_search` request surface and adds graph evidence only to its response. Task 6E keeps both bridge transports unchanged and qualifies the procedural interpretation needed for that additive response: lexical results remain usable when the graph lane is non-ready; ready graph facts are derived evidence; exact or conflicting evidence follows returned `resource_version_ref` values through `kc_get_source`. Task 6E does not add a second retrieval operation or direct graph authority.
 
+Task 6G also leaves the Mason bridge protocol unchanged, but it changes canonical write admission: successful bootstrap authentication is no longer enough for `kc_store`. The trusted host must provide a deterministic exact-write authority decision before canonical state can change. The non-canonical proposal API exists at KC now; exposing/using it through the worker wrapper is reserved for Task 6I.
+
 ## Current objective — Task 6: dogfood KC through Mason
 
 The current consumer architecture is:
@@ -122,6 +126,8 @@ The lexical lane remains the required baseline. Graph evidence is additive and m
 Do not invent a synthetic score that treats lexical and graph scores as equivalent. Preserve the two evidence lanes and their native evidence/provenance.
 
 Do not create a second Mason graph-search tool unless a later demonstrated need justifies it. Mason's accepted protocol continues to use the literal `kc_search` operation, with `kc_get_source` for exact canonical follow-through.
+
+For worker memory, distinguish **proposal** from **canonical write**. Autonomous observations belong in the non-canonical candidate path. An explicit trusted/user-directed write may use `kc_store` only after the exact deterministic store-authority gate succeeds.
 
 ## Task 6 bounded sequence
 
@@ -236,17 +242,31 @@ Accepted behavior:
 - `kc_status` does not call `adapter.search()`, project/synchronize Graphiti, query FalkorDB for facts, invoke embeddings/reranking, launch a provider/model, or create background work;
 - graph readiness does not weaken or replace canonical/text readiness and does not satisfy the still-pending Task 4 intended-host mixed-source Graphiti acceptance barrier.
 
-### Task 6G — memory-candidate boundary — NEXT AUTHORIZED SLICE
+### Task 6G — memory-candidate boundary — ACCEPTED
 
-Separate autonomous worker observations from explicit trusted `kc_store` writes. Preserve direct canonical storage for explicit trusted/user-directed storage; add a bounded proposal/candidate path for self-initiated model memory.
+Accepted implementation/test checkpoint: `80f3804ce2c1a905c3853f9e7c507066a5ca9431`.
+Qualification: [Actions 35064560448](https://github.com/floydtrey/autonomous-coding-lab/actions/runs/35064560448) green across migration, fast semantic suite, PostgreSQL G1–G21, pinned G22, RI-4 restart rehearsal and SR-2 restart/replay rehearsal. Detailed evidence is [Task 6G memory candidate boundary](legacy/TASK6G_MEMORY_CANDIDATE_BOUNDARY_2026-09-16.md).
 
-**Accept when:** a model cannot silently turn an autonomous observation into trusted canonical memory without the defined admission/validation path.
+Accepted behavior:
 
-### Task 6H — context-compaction core
+- autonomous/self-initiated observations have a durable non-canonical `kc_control.memory_candidate` path instead of being treated as `user_note` canonical knowledge;
+- proposal is separately bootstrap-scoped as `kc.memory_propose`; proposal/review operations create no canonical revision, Resource/ResourceVersion, TEXT generation, or graph work;
+- candidate states are `pending`, `approved`, and `rejected`; deterministic review uses a separate trusted review evaluator, and approval is eligibility only—it never invokes or implies `kc_store`;
+- there is no public review/promote endpoint and no automatic promotion in Task 6G;
+- canonical `kc_store` remains available for explicit trusted/user-directed storage but now requires both bootstrap admission and a separate fail-closed `CanonicalStoreAuthorityEvaluator` before any canonical mutation;
+- the exact store-authority request is bound to caller principal, deterministic operation ID, project, content SHA-256, optional source ID, and optional timezone-aware source event time;
+- missing authority returns bounded unavailable before writes; denied authority returns bounded denial before writes;
+- Task 6G does not change the Mason bridge protocol, add a worker-visible proposal operation, perform context compaction, launch a model/provider, or change graph behavior. Worker-wrapper proposal routing is Task 6I.
+
+The first Task 6G green implementation head `9597da247beb4924cc3618c3da151e2d03ea5573` proved the containment design. Review then found that the exact canonical-store authority request did not yet bind optional `source_event_time`, even though that timestamp becomes durable provenance and influences graph reference-time policy. The authority request, API binding, and focused fast test were corrected without changing the candidate model, and the complete KC workflow was rerun green on the accepted head above.
+
+### Task 6H — context-compaction core — NEXT AUTHORIZED SLICE
 
 Build wrapper-side working-context checkpointing and deterministic tool-output reduction. KC owns durable knowledge; the worker wrapper owns short-term working context.
 
 A checkpoint should preserve objective, immutable constraints/evidence refs, completed work, current state, blockers, recent actions and exact source/output references.
+
+Do not wire the compaction core into MindsHub/Cowork in Task 6H; integration is Task 6I.
 
 ### Task 6I — MindsHub wrapper integration
 
@@ -282,8 +302,8 @@ For any new KC worker/session:
 4. Read `OPERATIONS.md` only for the bounded operating/evidence question.
 5. Treat `legacy/` as evidence, not current instructions.
 
-Task 6F's accepted behavior-bearing checkpoint is `e34ca35cb1d2a31bdb7ec45d9799dd1f685c66d5`, qualified by Actions `35062593583`. Later Task 6F documentation records do not change the qualified status/classifier bytes.
+Task 6G's accepted behavior-bearing checkpoint is `80f3804ce2c1a905c3853f9e7c507066a5ca9431`, qualified by Actions `35064560448`. Later Task 6G documentation records do not change the qualified candidate/authority bytes.
 
-**Current authorized slice:** Task 6G memory-candidate boundary.
+**Current authorized slice:** Task 6H context-compaction core.
 
-Do not begin Task 6H context-compaction work until Task 6G is separately accepted.
+Do not begin Task 6I MindsHub-wrapper integration until Task 6H is separately accepted.

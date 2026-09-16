@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from hashlib import sha256
+
 from fastapi import Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -16,6 +18,10 @@ from knowledge_core.api.consumer_schemas import (
     KnowledgeStatusResponse,
     source_response_from_domain,
     status_response_from_domain,
+)
+from knowledge_core.api.memory_candidate_schemas import (
+    MemoryCandidateProposalRequest,
+    MemoryCandidateProposalResponse,
 )
 from knowledge_core.api.retrieval_schemas import (
     RetrievalSearchRequest,
@@ -37,6 +43,10 @@ from knowledge_core.application.graph_readiness import (
     inspect_source_neutral_graph_readiness,
     unavailable_graph_readiness,
 )
+from knowledge_core.application.memory_candidates import (
+    MemoryCandidateKnowledgeKernel,
+    memory_candidate_operation_id,
+)
 from knowledge_core.application.source_neutral_graph import (
     SourceNeutralGraphProjectionKnowledgeKernel,
 )
@@ -53,11 +63,19 @@ from knowledge_core.authority.retrieval import (
     RetrievalAuthorityUnavailableError,
     require_retrieval_authority,
 )
+from knowledge_core.authority.store import (
+    CanonicalStoreAuthorityDeniedError,
+    CanonicalStoreAuthorityEvaluator,
+    CanonicalStoreAuthorityRequest,
+    CanonicalStoreAuthorityUnavailableError,
+    require_canonical_store_authority,
+)
 from knowledge_core.domain.retrieval import KnowledgeSourceUnavailableError
 
 
 _RETRIEVAL_PATH = "/v1/retrieval/search"
 _STORE_PATH = "/v1/kc/store"
+_MEMORY_CANDIDATE_PATH = "/v1/kc/memory-candidates"
 _KC_SEARCH_PATH = "/v1/kc/search"
 _KC_GET_SOURCE_PATH = "/v1/kc/get-source"
 _KC_STATUS_PATH = "/v1/kc/status"
@@ -87,6 +105,7 @@ def create_app(
     session_factory: SessionFactory,
     artifact_store: LocalArtifactStore,
     retrieval_authority_evaluator: RetrievalAuthorityEvaluator | None = None,
+    canonical_store_authority_evaluator: CanonicalStoreAuthorityEvaluator | None = None,
     bootstrap_admission: BootstrapAdmission | None = None,
     unified_graph_search_binding: UnifiedGraphSearchBinding | None = None,
 ):
@@ -95,8 +114,15 @@ def create_app(
     Retrieval retains the fail-closed Authority seam. When a bootstrap admission
     contract is explicitly supplied by the host, the Usable V1 ``kc_store``,
     ``kc_search``, ``kc_get_source`` and ``kc_status`` front doors are exposed and
-    map successful shared-key admission to ``local_owner``. Existing low-level routes
+    map successful shared-key admission to ``local_owner``. Task 6G also exposes a
+    separate non-canonical memory-candidate proposal route. Existing low-level routes
     are not placed behind the bootstrap key.
+
+    Bootstrap authentication alone is not sufficient for a canonical ``kc_store``.
+    Task 6G requires a second deterministic trusted-host decision bound to the exact
+    operation ID, project, source identity, source event time and content digest.
+    This prevents a worker from silently treating an autonomous observation as an
+    explicit trusted write.
 
     ``unified_graph_search_binding`` is optional and query-only. Supplying it never
     builds or synchronizes a graph. Its caller principal must exactly match the fixed
@@ -144,6 +170,13 @@ def create_app(
         finally:
             session.close()
 
+    def get_memory_candidate_kernel():
+        session: Session = session_factory()
+        try:
+            yield MemoryCandidateKnowledgeKernel(session)
+        finally:
+            session.close()
+
     def caller_context(
         x_knowledge_caller: str | None = Header(
             default=None,
@@ -162,7 +195,6 @@ def create_app(
         _request: Request,
         _exc: RetrievalAuthorityDeniedError,
     ):
-        # Match the existing serving-fence non-disclosure behavior.
         return JSONResponse(
             status_code=404,
             content={"detail": "knowledge item is unavailable"},
@@ -178,6 +210,32 @@ def create_app(
             content={
                 "detail": "retrieval authority is unavailable",
                 "error_code": "RETRIEVAL_AUTHORITY_UNAVAILABLE",
+            },
+        )
+
+    @app.exception_handler(CanonicalStoreAuthorityDeniedError)
+    async def canonical_store_authority_denied_handler(
+        _request: Request,
+        _exc: CanonicalStoreAuthorityDeniedError,
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": "canonical store is not authorized",
+                "error_code": "CANONICAL_STORE_NOT_AUTHORIZED",
+            },
+        )
+
+    @app.exception_handler(CanonicalStoreAuthorityUnavailableError)
+    async def canonical_store_authority_unavailable_handler(
+        _request: Request,
+        _exc: CanonicalStoreAuthorityUnavailableError,
+    ):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "canonical store authority is unavailable",
+                "error_code": "CANONICAL_STORE_AUTHORITY_UNAVAILABLE",
             },
         )
 
@@ -222,6 +280,10 @@ def create_app(
             bootstrap_admission,
             operation=BootstrapOperation.STORE,
         )
+        memory_propose_principal = bootstrap_principal_dependency(
+            bootstrap_admission,
+            operation=BootstrapOperation.MEMORY_PROPOSE,
+        )
         search_principal = bootstrap_principal_dependency(
             bootstrap_admission,
             operation=BootstrapOperation.SEARCH,
@@ -253,6 +315,17 @@ def create_app(
                 )
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
+            require_canonical_store_authority(
+                canonical_store_authority_evaluator,
+                CanonicalStoreAuthorityRequest(
+                    caller_principal_ref=principal,
+                    operation_id=operation_id,
+                    project_key=body.project,
+                    content_sha256=sha256(body.content.encode("utf-8")).hexdigest(),
+                    source_id=body.source_id,
+                    source_event_time=body.source_event_time,
+                ),
+            )
             canonical = kernel.store_note_operation(
                 operation_id=operation_id,
                 caller_principal_ref=principal,
@@ -274,6 +347,42 @@ def create_app(
             )
 
         @app.post(
+            _MEMORY_CANDIDATE_PATH,
+            response_model=MemoryCandidateProposalResponse,
+            status_code=202,
+        )
+        def memory_candidate_propose(
+            body: MemoryCandidateProposalRequest,
+            idempotency_key: str = Header(alias="Idempotency-Key"),
+            kernel: MemoryCandidateKnowledgeKernel = Depends(
+                get_memory_candidate_kernel
+            ),
+            principal: str = Depends(memory_propose_principal),
+        ) -> MemoryCandidateProposalResponse:
+            try:
+                operation_id = memory_candidate_operation_id(
+                    principal_ref=principal,
+                    idempotency_key=idempotency_key,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            candidate = kernel.propose_candidate(
+                operation_id=operation_id,
+                caller_principal_ref=principal,
+                proposer_ref=body.proposer_ref,
+                project_key=body.project,
+                content=body.content,
+                source_event_time=body.source_event_time,
+            )
+            return MemoryCandidateProposalResponse(
+                candidate_id=candidate.candidate_id,
+                proposer_ref=candidate.proposer_ref,
+                project=candidate.project_key,
+                content_sha256=candidate.content_sha256,
+                proposed_at=candidate.proposed_at,
+            )
+
+        @app.post(
             _KC_SEARCH_PATH,
             response_model=UnifiedRetrievalSearchResponse,
         )
@@ -282,9 +391,6 @@ def create_app(
             kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
             principal: str = Depends(search_principal),
         ) -> UnifiedRetrievalSearchResponse:
-            # Bootstrap admission is the bounded Usable V1 local-read authority. If a
-            # separate retrieval Authority evaluator is supplied by the trusted host,
-            # it remains an additional fail-closed policy layer for lexical search.
             if retrieval_authority_evaluator is not None:
                 require_retrieval_authority(
                     retrieval_authority_evaluator,
@@ -352,10 +458,6 @@ def create_app(
                         scope_key=binding.scope_key,
                     )
                 except Exception:
-                    # Status is intentionally bounded and nondisclosing. A malformed
-                    # descriptor or unreadable graph ledger must not make otherwise
-                    # valid canonical/text readiness unavailable, and raw graph-side
-                    # failure details do not cross the bootstrap consumer boundary.
                     graph_status = unavailable_graph_readiness(
                         namespace_key=binding.namespace_key,
                         scope_key=binding.scope_key,
