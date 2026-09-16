@@ -15,6 +15,7 @@ class BootstrapOperation(StrEnum):
     SEARCH = "kc.search"
     GET_SOURCE = "kc.get_source"
     STATUS = "kc.status"
+    MEMORY_PROPOSE = "kc.memory_propose"
 
 
 _DEFAULT_ALLOWED_OPERATIONS = frozenset(BootstrapOperation)
