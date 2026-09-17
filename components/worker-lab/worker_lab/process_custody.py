@@ -244,7 +244,7 @@ def _validate_custody(record: ProcessCustodyRecord) -> None:
     if record.request_sent and not assigned:
         raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "dispatched custody requires worker identity")
     expected_sent = record.state in {
-        CustodyState.DISPATCHING, CustodyState.EXITED, CustodyState.ABSENCE_VERIFIED,
+        CustodyState.DISPATCHING, CustodyState.EXITED,
     }
     if expected_sent and assigned and not record.request_sent:
         raise LabValidationError("INTEGRATION_CUSTODY_INVALID", "dispatched custody requires request evidence")

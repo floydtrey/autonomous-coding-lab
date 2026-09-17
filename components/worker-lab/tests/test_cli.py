@@ -393,8 +393,17 @@ def test_complete_phase1_operator_workflow(tmp_path: Path, capsys) -> None:
         f"VERIFIED {digest}"
     )
 
+    # Even verified retained evidence cannot turn the generic lifecycle command
+    # into acceptance. The protected acceptance operation must evaluate it.
+    before = (lab / "state" / "attempts" / f"{attempt_id}.json").read_bytes()
+    assert main(["--root", str(lab), "transition-attempt", attempt_id, "PASSED"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.startswith("ERROR ATTEMPT_ACCEPTANCE_REQUIRED:")
+    assert (lab / "state" / "attempts" / f"{attempt_id}.json").read_bytes() == before
+
     for state, extra in (
-        ("PASSED", []),
+        ("NEEDS_REVIEW", []),
         ("CLOSED", ["--cleanup-outcome", "workspace absent"]),
     ):
         transitioned = json.loads(succeed([

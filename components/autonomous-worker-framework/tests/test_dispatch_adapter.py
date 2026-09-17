@@ -229,11 +229,20 @@ def executor(binding, binding_digest, seen, root: Path):
     )
 
 
-def test_workspace_write_uses_exact_injected_provider_and_returns_candidate_evidence(tmp_path):
+@pytest.mark.parametrize("no_context", [False, True])
+def test_workspace_write_uses_exact_injected_provider_and_returns_candidate_evidence(tmp_path, no_context):
     root, base_commit = repo(tmp_path)
     framework = tmp_path / "framework"
     framework.mkdir()
     raw, invocation, binding, _, binding_digest = request(root, base_commit)
+    if no_context:
+        payload = json.loads(raw)
+        packet = json.loads(payload["prompt"])
+        packet.update(schema_version="worker-lab-controller-task-packet:v2", context_mode="none", knowledge_evidence=[])
+        payload["prompt"] = canonical_json(packet)
+        payload["invocation"]["prompt_digest"] = canonical_digest(packet)
+        payload["invocation"]["controller_task_packet_digest"] = canonical_digest(packet)
+        raw = canonical_json(payload).encode("utf-8")
     seen = []
     response = execute_workspace_write(
         raw,
@@ -245,11 +254,40 @@ def test_workspace_write_uses_exact_injected_provider_and_returns_candidate_evid
     assert len(seen) == 1
     assert seen[0].sandbox == "workspace-write"
     assert seen[0].writable_paths == ("target.py",)
+    if no_context:
+        assert "No Knowledge Core context requested or required" in seen[0].prompt
     assert value["provider_adapter_id"] == binding["provider_adapter_id"]
     assert value["provider_binding_digest"] == binding_digest
     assert value["changed_paths"] == ["target.py"]
     assert value["validation_stages"] == [{"test_id": "T001", "outcome": "pass"}]
     assert git(root, "rev-parse", "HEAD") == base_commit
+
+
+@pytest.mark.parametrize("schema,mode,has_evidence,valid", [
+    ("v1", None, True, True), ("v1", None, False, False),
+    ("v1", "none", False, False), ("v2", None, False, False),
+    ("v2", "none", False, True), ("v2", "none", True, False),
+    ("v2", "knowledge-core", True, True), ("v2", "knowledge-core", False, False),
+    ("v2", "unknown", False, False), ("v3", "none", False, False),
+])
+def test_dispatch_packet_context_schema_matrix(schema, mode, has_evidence, valid):
+    from tools.dispatch_adapter import _controller_task_packet
+    base = "a" * 40
+    raw, _ = prompt(base)
+    packet = json.loads(raw)
+    packet["schema_version"] = "worker-lab-controller-task-packet:" + schema
+    if mode is not None:
+        packet["context_mode"] = mode
+    if not has_evidence:
+        packet["knowledge_evidence"] = []
+    invocation = {name: packet[name] for name in ("attempt_id", "exercise_id", "exercise_version")}
+    invocation.update(source_state={"base_commit": base}, authorized_by="controller-1",
+                      controller_task_packet_digest=canonical_digest(packet))
+    if valid:
+        assert _controller_task_packet(canonical_json(packet), invocation) == packet
+    else:
+        with pytest.raises(DispatchAdapterError, match="Controller Task Packet"):
+            _controller_task_packet(canonical_json(packet), invocation)
 
 
 def test_no_executor_means_no_fallback_and_no_workspace_mutation(tmp_path):
@@ -266,6 +304,69 @@ def test_no_executor_means_no_fallback_and_no_workspace_mutation(tmp_path):
         )
     assert error.value.code == "DISPATCH_EXECUTOR_REQUIRED"
     assert git(root, "status", "--porcelain") == ""
+
+
+@pytest.mark.parametrize("changes,allow_noop,required,artifact,valid", [
+    (["target.py"], False, ["target.py"], "target.py", True),
+    (["target.py"], False, ["target.py"], "optional_a.py", False),
+    (["optional_a.py"], False, ["target.py"], "target.py", False),
+    (["target.py", "outside.py"], False, ["target.py"], "target.py", False),
+    ([], True, [], "target.py", True),
+    ([], False, ["target.py"], "target.py", False),
+])
+def test_explicit_output_contract_reaches_executor_and_handoff(tmp_path, changes, allow_noop, required, artifact, valid):
+    root, base = repo(tmp_path)
+    framework = tmp_path / "framework"
+    framework.mkdir()
+    raw, _, binding, _, binding_digest = request(root, base)
+    payload = json.loads(raw)
+    allowed = ["optional_a.py", "optional_b.py", "target.py"]
+    output = dict(schema_version="worker-lab-output-acceptance:v1", allowed_writable_paths=allowed,
+        required_changed_paths=required, required_artifact_paths=[artifact],
+        required_evidence=["protected-test-results:v1", "worker-output:v1", "workspace-diff:v1"], allow_noop=allow_noop)
+    payload["invocation"].update(schema_version="worker-lab-framework-invocation:v4",
+                                 writable_paths=allowed, output_acceptance=output)
+    payload["workspace_write"].update(schema_version="worker-lab-workspace-write-task:v3",
+                                      writable_paths=allowed, output_acceptance=output)
+    if allow_noop:
+        validation = payload["workspace_write"]["consumer_profile"]["full_validation"][0]
+        validation["argv"][-1] = validation["argv"][-1].replace("VALUE = 2", "VALUE = 1")
+        payload["workspace_write"]["acceptance_criteria"] = ["Existing VALUE = 1 remains valid."]
+
+    def execute(request, settings):
+        assert request.writable_paths == tuple(allowed)
+        assert "permission does not require mutation" in request.prompt
+        for path in changes:
+            (root / path).write_text("VALUE = 2\n", encoding="utf-8")
+        return WorkerExecution(("fixture",), 0, "candidate", "")
+
+    handle = BoundProviderExecutor(provider_adapter_id=binding["provider_adapter_id"],
+        tool_surface_id=binding["tool_surface_id"], provider_binding_digest=binding_digest,
+        runtime_settings_digest=binding["runtime_settings_digest"], execute=execute)
+    def run():
+        return execute_workspace_write(canonical_json(payload).encode(), workspace_root=root,
+                                       framework_root=framework, provider_executor=handle)
+    if valid:
+        response = json.loads(run())
+        assert response["changed_paths"] == changes
+        assert response["validation_stages"] == [{"test_id": "T001", "outcome": "pass"}]
+    else:
+        with pytest.raises(DispatchAdapterError):
+            run()
+
+
+def test_dispatch_rejects_output_contract_substitution(tmp_path):
+    from tools.dispatch_adapter import parse_dispatch_request
+    root, base = repo(tmp_path)
+    raw, *_ = request(root, base)
+    payload = json.loads(raw)
+    output = dict(schema_version="worker-lab-output-acceptance:v1", allowed_writable_paths=["target.py"],
+        required_changed_paths=[], required_artifact_paths=[], required_evidence=[], allow_noop=False)
+    payload["invocation"].update(schema_version="worker-lab-framework-invocation:v4", output_acceptance=output)
+    payload["workspace_write"].update(schema_version="worker-lab-workspace-write-task:v3",
+                                      output_acceptance=dict(output, allow_noop=True))
+    with pytest.raises(DispatchAdapterError, match="output contract differs"):
+        parse_dispatch_request(canonical_json(payload).encode())
 
 
 def test_executor_identity_substitution_is_rejected_before_execution(tmp_path):

@@ -1,6 +1,6 @@
 {
   "invariants": [
-    {"rule_id": "P001", "statement": "Use ChatGPT-managed authentication only; API-key authentication is forbidden."},
+    {"rule_id": "P001", "statement": "Use only operator-approved credentials required by the selected provider transport; authentication does not grant task authority, and unrelated secrets must not be exposed to workers."},
     {"rule_id": "P002", "statement": "Strip GitHub credential-like variables from restricted worker subprocesses."},
     {"rule_id": "P003", "statement": "Use only explicit read-only or workspace-write sandbox modes; danger and full-access modes are forbidden."},
     {"rule_id": "P004", "statement": "Operate on a separate assigned target repository and remain inside exact task scope."},

@@ -69,7 +69,9 @@ def build_repository_handoff(
             "WORKER_RESULT_NOT_READY",
             "Worker Result has not passed every local handoff boundary",
         )
-    if result.workspace_state != "dirty-candidate":
+    if result.workspace_state != "dirty-candidate" and not (
+        result.contract_version == "worker-result:v2" and result.workspace_state == "clean" and not result.changed_paths
+    ):
         raise RepositoryHandoffError(
             "WORKSPACE_STATE_INVALID",
             "repository handoff currently requires a dirty-candidate workspace",

@@ -8,6 +8,7 @@ from typing import Any, Callable, Mapping
 from .canonical import canonical_json
 from .controller_task_packet import parse_controller_task_packet
 from .errors import LabValidationError
+from .output_acceptance import OutputAcceptance
 from .integration_v3 import (
     FRAMEWORK_DISPATCH_CONTRACT_V1,
     InvocationOperation,
@@ -43,9 +44,10 @@ class WorkspaceWriteTask:
     consumer_profile: Mapping[str, Any]
     test_ids: tuple[str, ...]
     writable_paths: tuple[str, ...]
+    output_acceptance: OutputAcceptance | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "schema_version": self.schema_version,
             "task_digest": self.task_digest,
             "objective": self.objective,
@@ -54,6 +56,9 @@ class WorkspaceWriteTask:
             "test_ids": list(self.test_ids),
             "writable_paths": list(self.writable_paths),
         }
+        if self.output_acceptance is not None:
+            value["output_acceptance"] = self.output_acceptance.to_dict()
+        return value
 
     @classmethod
     def from_mapping(
@@ -71,12 +76,15 @@ class WorkspaceWriteTask:
             "test_ids",
             "writable_paths",
         }
+        if invocation.output_acceptance is not None:
+            expected.add("output_acceptance")
         if not isinstance(value, Mapping) or set(value) != expected:
             raise LabValidationError(
                 "DISPATCH_TASK_FIELDS_INVALID",
                 "workspace-write task fields are missing or unknown",
             )
-        if value["schema_version"] != WORKSPACE_WRITE_TASK_SCHEMA:
+        schema = "worker-lab-workspace-write-task:v3" if invocation.output_acceptance else WORKSPACE_WRITE_TASK_SCHEMA
+        if value["schema_version"] != schema:
             raise LabValidationError(
                 "DISPATCH_TASK_IDENTITY_INVALID",
                 "workspace-write task schema is unsupported",
@@ -109,14 +117,18 @@ class WorkspaceWriteTask:
                 "DISPATCH_TASK_SCOPE_INVALID",
                 "workspace-write task scope or tests differ from the sealed invocation",
             )
+        output = OutputAcceptance.from_mapping(value["output_acceptance"]) if "output_acceptance" in value else None
+        if output != invocation.output_acceptance:
+            raise LabValidationError("DISPATCH_TASK_SCOPE_INVALID", "output contract differs from sealed invocation")
         return cls(
-            WORKSPACE_WRITE_TASK_SCHEMA,
+            schema,
             task_digest,
             objective,
             criteria,
             dict(profile),
             test_ids,
             writable_paths,
+            output,
         )
 
 
@@ -127,7 +139,7 @@ def dispatch_workspace_write(
     workspace_write: Mapping[str, Any] | WorkspaceWriteTask,
     binding_store: ProviderBindingStore,
     runner: DispatchRunner | None,
-    settings: RuntimeSettingsProfile = CODING_WORKER_SETTINGS_V1,
+    settings: RuntimeSettingsProfile | None = None,
 ) -> bytes:
     """Dispatch one sealed V3 workspace-write request through an injected framework runner.
 
@@ -144,6 +156,12 @@ def dispatch_workspace_write(
         invocation.provider_binding_id,
         invocation.provider_binding_digest,
     )
+    if settings is None:
+        if binding.provider_adapter_id == "pi-local-files:v1":
+            from .pi_binding import validate_pi_binding
+            settings = RuntimeSettingsProfile(**validate_pi_binding(binding)["runtime_settings"])
+        else:
+            settings = CODING_WORKER_SETTINGS_V1
     _validate_binding_reference(invocation, binding, settings)
     task = (
         workspace_write
@@ -302,7 +320,10 @@ def _validate_response(
         value["invocation_digest"] != invocation.identity_digest()
         or value["provider_binding_digest"] != binding.digest()
         or value["provider_adapter_id"] != binding.provider_adapter_id
-        or value["changed_paths"] != list(invocation.writable_paths)
+        or not isinstance(value["changed_paths"], list)
+        or any(not isinstance(p, str) for p in value["changed_paths"])
+        or value["changed_paths"] != sorted(set(value["changed_paths"]))
+        or not set(value["changed_paths"]) <= set(invocation.writable_paths)
     ):
         raise LabValidationError(
             "DISPATCH_IDENTITY_INVALID",

@@ -12,6 +12,19 @@ This is the routing page for current ACL work.
 
 For source portability, read `docs/PORTABLE_SOURCE_IDENTITY.md`. For Controller/Knowledge Core handoff, read `docs/CONTROLLER_TASK_PACKET_V1.md`. For Git/repository boundaries, read `docs/REPOSITORY_COUPLING_INVENTORY.md`.
 
+For the S02–S04 immutable job-plan contract, dependency validation, and admission-only bridge, read `docs/JOB_PLAN_V1.md`. These foundations do not implement the sequential controller.
+
+For the approved S05b prerequisite immediately before S06, read
+[the bounded task queue amendment](BOUNDED_TASK_QUEUE.md). S05b defines and carries
+the output-acceptance contract; S06 follows after its acceptance tests pass.
+
+For S05b schema, evidence semantics, and migration limits, read
+[V1 output acceptance](OUTPUT_ACCEPTANCE_V1.md).
+
+For S07's pinned Pi package and Windows import/startup evidence, read
+[the compatibility probe](../tools/pi-compatibility/README.md). This does not
+establish model/provider qualification or enable execution.
+
 ## Component ownership
 
 - Worker Lab: protected authority, lifecycle, Provider Binding, dispatch preparation, independent acceptance.
@@ -29,7 +42,9 @@ ACL target identity is logical (`target:*` / `workspace:*`). Git repository fact
 
 ## Reconstruction status
 
-Tasks 1–9 are complete. Task 9 accepted the exact current architecture through the complete deterministic test, source-identity, documentation, repository-boundary, no-fallback, and disabled-execution gates.
+Tasks 1–9 are complete. Task 9 accepted its reconstruction checkpoint through the deterministic test, source-identity, documentation, repository-boundary, no-fallback, and disabled-execution gates. That historical acceptance is not a claim that subsequent changes or an end-to-end V1 controller are accepted.
+
+The sequential controller does **not** exist yet. The next implementation milestone is to build that controller around the existing task-packet, Invocation/Result V3, Provider Binding, and Worker Lab acceptance contracts. Initial V1 workers receive exact-file read/write authority; protected tests and result validation run on the controller side. Authentication is provider-neutral, with operator-approved credentials for the selected transport. No provider, including any proposed Pi integration, is qualified by this documentation.
 
 Reconstruction completion does **not** activate ACL. Until the user separately authorizes the next supervised stage:
 
@@ -39,10 +54,40 @@ Reconstruction completion does **not** activate ACL. Until the user separately a
 - do not introduce provider/model/runner fallback;
 - do not broaden current bounded workspace/tool authority.
 
-The next permitted stage, when separately authorized, is actual host/provider qualification followed by a supervised disposable vertical slice. Benchmark-lab work remains separate and advisory.
+Actual host/provider qualification and a supervised disposable vertical slice remain separate execution gates requiring explicit authorization; they are not substitutes for implementing the missing sequential controller. Benchmark-lab work remains separate and advisory.
 
 ## Research and Knowledge Core docs
 
 `docs/research/` is non-authoritative research/reference material. For Knowledge Core, read [current state](architecture/knowledge-core/CURRENT_STATE.md), [architecture](architecture/knowledge-core/ARCHITECTURE.md), then [operations/evidence](architecture/knowledge-core/OPERATIONS.md). These three documents govern current KC work; its retrieval output remains informational to Worker Lab.
 
 `docs/architecture/knowledge-core/legacy/` preserves historical KC documents and accepted evidence outside the default read order. Its old status and next-task prose are not current guidance. Git history remains intact; there is no second legacy runtime to resume.
+
+## Minimum usable ACL implementation
+
+Use the supplied [replacement M-task queue](MINIMUM_USABLE_ACL_QUEUE.md) for new
+implementation; it supersedes unfinished S10–S51. S01–S09 evidence remains valid
+within its recorded scope. Codex now acts on assigned tasks. See
+[M02 adapter integration](M02_PI_ADAPTER.md) and
+[M03 supervision](M03_PI_SUPERVISION.md). M03's real edit and cancellation checks
+passed at the operator's preferred 128K setting.
+[M04 worker outcomes](M04_WORKER_OUTCOMES.md) adds the explicit single-task command
+and durable failure/restart evidence.
+[M05 protected checks](M05_PROTECTED_VALIDATION.md) adds explicit named local-test
+approval, exact candidate checks and durable validator cleanup evidence. Local
+validation is unsandboxed host code execution; no approval is implied.
+[M05A audit corrections](MINIMUM_USABLE_ACL_QUEUE.md#m05a--fix-the-four-m01m05-audit-findings)
+are complete in the separate development target, with deterministic regression
+evidence and refreshed source identities. These fix the retained runtime files.
+[M06 task acceptance](M06_TASK_WORKFLOW.md) is verified, including one real
+local-model maintenance task and independent acceptance. [M07 durable job
+selection](M07_DURABLE_JOBS.md) is complete with deterministic fixture evidence.
+[M08 accepted snapshots](M08_ACCEPTED_SNAPSHOTS.md) is complete in the isolated development target.
+It carries accepted source bytes into the next task without changing its approved
+authority. The selected configuration remains 131072 context tokens and 2048 output
+tokens. The operator has authorized integration of accepted work through M08
+into `architecture/knowledge-core`; runtime activation remains a separate gate.
+
+The next queue step after verified M08 is M09's assembled sequential controller and
+deadline supervision. M09 needs a separate assignment; the M06–M08 authorization
+does not start it automatically. Generic job execution remains disabled until that
+integration is complete.

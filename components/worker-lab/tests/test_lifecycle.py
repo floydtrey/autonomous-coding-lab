@@ -3,6 +3,7 @@ from dataclasses import replace
 import pytest
 
 from worker_lab.errors import LabValidationError
+from worker_lab.attempt_store import AttemptStore
 from worker_lab.lifecycle import transition_attempt
 from worker_lab.models import ATTEMPT_SCHEMA, AttemptRecord, AttemptState
 
@@ -40,11 +41,12 @@ def attempt(state: AttemptState = AttemptState.DRAFT) -> AttemptRecord:
     })
 
 
-def test_happy_path_to_closed() -> None:
+@pytest.mark.parametrize('verdict', [AttemptState.FAILED, AttemptState.NEEDS_REVIEW])
+def test_nonaccepting_lifecycle_to_closed(verdict) -> None:
     value = attempt()
     for index, state in enumerate((
         AttemptState.READY, AttemptState.RUNNING, AttemptState.CANDIDATE,
-        AttemptState.EVALUATING, AttemptState.PASSED, AttemptState.CLOSED,
+        AttemptState.EVALUATING, verdict, AttemptState.CLOSED,
     ), start=1):
         value = transition_attempt(
             value,
@@ -57,6 +59,48 @@ def test_happy_path_to_closed() -> None:
     assert value.state is AttemptState.CLOSED
     assert value.candidate_digest == DIGEST_A
     assert value.cleanup_outcome == "workspace removed"
+
+
+def test_generic_transition_cannot_claim_acceptance() -> None:
+    evaluating = replace(attempt(AttemptState.EVALUATING), candidate_digest=DIGEST_A)
+    with pytest.raises(LabValidationError) as raised:
+        transition_attempt(evaluating, AttemptState.PASSED, occurred_at="2026-08-27T12:00:01Z")
+    assert raised.value.code == "ATTEMPT_ACCEPTANCE_REQUIRED"
+    assert evaluating.state is AttemptState.EVALUATING
+
+
+def test_forged_passed_record_cannot_bypass_store_lifecycle(tmp_path) -> None:
+    store = AttemptStore(tmp_path)
+    current = attempt()
+    store.create(current)
+    for index, state in enumerate((AttemptState.READY, AttemptState.RUNNING,
+                                    AttemptState.CANDIDATE, AttemptState.EVALUATING), start=1):
+        current = transition_attempt(current, state,
+            occurred_at=f"2026-08-27T12:00:0{index}Z",
+            runtime_identity=DIGEST_B if state is AttemptState.RUNNING else None,
+            candidate_digest=DIGEST_A if state is AttemptState.CANDIDATE else None)
+        store.save_transition(current)
+    path = tmp_path / 'attempts' / f'{current.attempt_id}.json'
+    before = path.read_bytes()
+    forged = replace(current, state=AttemptState.PASSED, updated_at="2026-08-27T12:00:05Z")
+    with pytest.raises(LabValidationError) as raised:
+        store.save_transition(forged)
+    assert raised.value.code == "ATTEMPT_ACCEPTANCE_REQUIRED"
+    assert path.read_bytes() == before
+    assert store.read(current.attempt_id) == current
+
+
+def test_historical_passed_record_remains_readable_and_can_close(tmp_path) -> None:
+    store = AttemptStore(tmp_path)
+    historical = replace(attempt(AttemptState.PASSED), candidate_digest=DIGEST_A)
+    # Existing history predates evidence-gated task acceptance; loading it grants
+    # no permission to create another PASSED record through the lifecycle API.
+    store.records.write(f'attempts/{historical.attempt_id}.json', historical)
+    assert store.read(historical.attempt_id) == historical
+    closed = transition_attempt(historical, AttemptState.CLOSED,
+        occurred_at="2026-08-27T12:00:01Z", cleanup_outcome="historical workspace absent")
+    store.save_transition(closed)
+    assert store.read(historical.attempt_id).state is AttemptState.CLOSED
 
 
 def test_illegal_transition_does_not_mutate_source() -> None:
@@ -101,5 +145,4 @@ def test_running_requires_one_exact_runtime_identity_binding() -> None:
         running, AttemptState.ABORTED, occurred_at="2026-08-27T12:00:03Z", cleanup_outcome="contained"
     )
     assert aborted.runtime_identity == DIGEST_A
-
 

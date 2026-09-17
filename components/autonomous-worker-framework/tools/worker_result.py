@@ -104,7 +104,7 @@ class WorkerResult:
 
 
 def validate_worker_result(value: WorkerResult) -> None:
-    if value.contract_version != CONTRACT_VERSION:
+    if value.contract_version not in (CONTRACT_VERSION, "worker-result:v2"):
         raise WorkerResultValidationError(
             f"unsupported contract_version {value.contract_version!r}; expected {CONTRACT_VERSION!r}"
         )
@@ -166,8 +166,8 @@ def _compute_ready(value: WorkerResult) -> bool:
         and value.patch_boundary.result == "pass"
         and value.quick_validation.result == "pass"
         and value.full_validation.result == "pass"
-        and value.workspace_state in {"dirty-candidate", "committed-candidate"}
-        and bool(value.changed_paths)
+        and ((value.workspace_state in {"dirty-candidate", "committed-candidate"} and bool(value.changed_paths))
+             or (value.contract_version == "worker-result:v2" and value.workspace_state == "clean" and not value.changed_paths))
         and value.candidate_content_digest is not None
     )
 

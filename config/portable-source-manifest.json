@@ -10,13 +10,18 @@
         "tools/code_task.py",
         "tools/consumer_profile.py",
         "tools/dispatch_adapter.py",
+        "tools/pi_adapter.mjs",
+        "tools/pi_adapter_main.mjs",
+        "tools/pi_file_bridge.py",
+        "tools/pi_file_tools.mjs",
+        "tools/pi_protocol.mjs",
         "tools/pydantic_ollama_worker.py",
         "tools/repository_handoff.py",
         "tools/repository_state.py",
         "tools/worker_result.py",
         "tools/worker_runtime.py"
       ],
-      "digest": "sha256:edac32b728348d6a2e2c7521d1c846e5021fe6e40f33db70e7df625d1ca584c5"
+      "digest": "sha256:7ff5e9a652ac46e65d7f948dd9b75f9bd1b30413a5d27ddf47c328e1ec1f28f6"
     },
     "local-model-bench": {
       "root": "components/local-model-bench",
@@ -28,7 +33,7 @@
       "root": "components/worker-lab",
       "production_root": "worker_lab",
       "scope": "python-production-tree",
-      "digest": "sha256:f7da2a750241f1bd6e76ddf383ab82a017a2f1aaa69a395d0ae994f8ec05c224"
+      "digest": "sha256:1313ddce09ec5690e04f73b94c3f6298f081e11e8b5fc3abfcaaa620951358fd"
     }
   },
   "separation_policy": {

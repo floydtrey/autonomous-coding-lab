@@ -111,7 +111,8 @@ def test_controller_packet_rejects_tampered_or_historical_kc_evidence():
     assert error.value.code == "CONTROLLER_PACKET_LIFECYCLE_INVALID"
 
 
-def test_prepare_controller_invocation_uses_public_service_and_seals_packet_digest():
+@pytest.mark.parametrize("no_context", [False, True])
+def test_prepare_controller_invocation_uses_public_service_and_seals_packet_digest(no_context):
     attempt = ready_attempt()
     captured = {}
 
@@ -150,7 +151,54 @@ def test_prepare_controller_invocation_uses_public_service_and_seals_packet_dige
         provider_binding_digest="sha256:" + "a" * 64,
         controller_identity="trusted-controller",
         user_request="Use retrieved guidance but do not expand scope.",
-        kc_search_response=kc_response(),
+        **({"no_context": True} if no_context else {"kc_search_response": kc_response()}),
     )
     assert captured["prompt"] == prepared.packet.to_json()
     assert prepared.packet_digest == prepared.invocation.to_dict()["record"]["prompt_digest"]
+
+
+def test_explicit_no_context_is_deterministic_without_retrieval(monkeypatch):
+    def forbidden(*args, **kwargs):
+        pytest.fail("no-context preparation must not consume a KC search response")
+    monkeypatch.setattr("worker_lab.controller_task_packet.knowledge_evidence_from_search_response", forbidden)
+    kwargs = dict(controller_identity="trusted-controller", user_request="Self-contained task.", no_context=True)
+    packet = build_controller_task_packet(ready_attempt(), **kwargs)
+    assert packet.schema_version == "worker-lab-controller-task-packet:v2"
+    assert packet.context_mode == "none"
+    assert packet.knowledge_evidence == ()
+    assert parse_controller_task_packet(packet.to_json()) == packet
+    assert build_controller_task_packet(ready_attempt(), **kwargs).digest() == packet.digest()
+
+
+@pytest.mark.parametrize("kwargs", [
+    {}, {"no_context": "true"}, {"no_context": True, "kc_search_response": {}},
+    {"no_context": True, "result_indexes": ()}, {"kc_search_response": {"results": []}},
+])
+def test_missing_or_contradictory_context_input_is_rejected(kwargs):
+    with pytest.raises(LabValidationError):
+        build_controller_task_packet(ready_attempt(), controller_identity="trusted-controller",
+                                     user_request="Bounded task.", **kwargs)
+
+
+@pytest.mark.parametrize("schema,mode,has_evidence,valid", [
+    ("v1", None, True, True), ("v1", None, False, False),
+    ("v1", "none", False, False), ("v2", None, False, False),
+    ("v2", "none", False, True), ("v2", "none", True, False),
+    ("v2", "knowledge-core", True, True), ("v2", "knowledge-core", False, False),
+    ("v2", "unknown", False, False), ("v3", "none", False, False),
+])
+def test_packet_context_schema_matrix(schema, mode, has_evidence, valid):
+    from worker_lab.canonical import canonical_json
+    packet = build_controller_task_packet(ready_attempt(), controller_identity="trusted-controller",
+        user_request="Bounded task.", kc_search_response=kc_response()).to_dict()
+    packet["schema_version"] = "worker-lab-controller-task-packet:" + schema
+    if mode is not None:
+        packet["context_mode"] = mode
+    if not has_evidence:
+        packet["knowledge_evidence"] = []
+    raw = canonical_json(packet)
+    if valid:
+        assert parse_controller_task_packet(raw).to_json() == raw
+    else:
+        with pytest.raises(LabValidationError):
+            parse_controller_task_packet(raw)

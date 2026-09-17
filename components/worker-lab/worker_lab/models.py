@@ -29,6 +29,7 @@ class AttemptState(StrEnum):
     DRAFT = "DRAFT"
     READY = "READY"
     RUNNING = "RUNNING"
+    OUTCOME_RECORDED = "OUTCOME_RECORDED"
     CANDIDATE = "CANDIDATE"
     EVALUATING = "EVALUATING"
     PASSED = "PASSED"
@@ -224,7 +225,7 @@ class AttemptRecord(_Record):
             raise LabValidationError(
                 "ATTEMPT_RUNTIME_IDENTITY_INVALID", "draft and ready attempts require null runtime identity"
             )
-        if state not in {AttemptState.DRAFT, AttemptState.READY, AttemptState.ABORTED} and runtime_identity is None:
+        if state not in {AttemptState.DRAFT, AttemptState.READY, AttemptState.ABORTED, AttemptState.OUTCOME_RECORDED} and runtime_identity is None:
             raise LabValidationError(
                 "ATTEMPT_RUNTIME_IDENTITY_REQUIRED", "active execution states require runtime identity"
             )

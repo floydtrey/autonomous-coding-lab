@@ -1,0 +1,294 @@
+{
+  "schema_version": "acl-pi-selection:s08:v1",
+  "observed_at": "2026-09-17T07:13:07.780Z",
+  "status": "PASS",
+  "package": {
+    "name": "@earendil-works/pi-coding-agent",
+    "version": "0.85.1"
+  },
+  "node": "v24.19.0",
+  "platform": "win32",
+  "architecture": "x64",
+  "runtime_version": {
+    "version": "0.34.1"
+  },
+  "installed_model": {
+    "name": "qwen3.8:27b",
+    "model": "qwen3.8:27b",
+    "modified_at": "2026-09-13T04:57:23.3830205-05:00",
+    "size": 17741872154,
+    "digest": "22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643",
+    "details": {
+      "parent_model": "qwen3.8:27b-q4_K_M",
+      "format": "gguf",
+      "family": "qwen35",
+      "families": [
+        "qwen35"
+      ],
+      "parameter_size": "27.3B",
+      "quantization_level": "Q4_K_M",
+      "context_length": 262144,
+      "embedding_length": 5120
+    },
+    "capabilities": [
+      "completion",
+      "vision",
+      "tools",
+      "thinking"
+    ]
+  },
+  "loaded_models_before": {
+    "models": [
+      {
+        "name": "qwen3.8:27b",
+        "model": "qwen3.8:27b",
+        "size": 18112692875,
+        "digest": "22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": [
+            "qwen35"
+          ],
+          "parameter_size": "27.3B",
+          "quantization_level": "Q4_K_M"
+        },
+        "expires_at": "2026-09-17T02:17:41.9009976-05:00",
+        "size_vram": 12813703575,
+        "context_length": 4096
+      }
+    ]
+  },
+  "loaded_models_after": {
+    "models": [
+      {
+        "name": "qwen3.8:27b",
+        "model": "qwen3.8:27b",
+        "size": 18112692875,
+        "digest": "22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": [
+            "qwen35"
+          ],
+          "parameter_size": "27.3B",
+          "quantization_level": "Q4_K_M"
+        },
+        "expires_at": "2026-09-17T02:18:06.135641-05:00",
+        "size_vram": 12813703575,
+        "context_length": 4096
+      }
+    ]
+  },
+  "approved_selection": {
+    "model": "qwen3.8:27b",
+    "endpoint": "http://127.0.0.1:11434/v1"
+  },
+  "settings": {
+    "compaction": {
+      "enabled": false
+    },
+    "retry": {
+      "enabled": false,
+      "maxRetries": 0,
+      "provider": {
+        "timeoutMs": 60000,
+        "maxRetries": 0
+      }
+    }
+  },
+  "settings_sha256": "dad091f30cc174eedda37b2ebf81cfb54df2e88b5032f76ad012b5bc60fd55d3",
+  "tools": [],
+  "extensions": [],
+  "resource_discovery": false,
+  "resource_config_sha256": "b44ee36898e317e84a37689e3f4d0c3b28c318f801f90f75d782933204a97d5d",
+  "lock_sha256": "35727af5925cf30922c318c4a6e9a4fac89d1e1302cf1afdc755d894f30bfd64",
+  "probe_sha256": "eb7068fbd12bf878be6207a962108b1ec1d67ba69a164c95976d4bc73c295933",
+  "effective_context_qualified": false,
+  "production_dispatch_modified": false,
+  "results": [
+    {
+      "case": "exact_pair",
+      "exit_code": 0,
+      "error": null,
+      "stderr": "",
+      "detail": {
+        "name": "exact_pair",
+        "model": "qwen3.8:27b",
+        "endpoint": "http://127.0.0.1:11434/v1",
+        "expectSuccess": true,
+        "verified": true,
+        "success": true,
+        "effective": {
+          "id": "qwen3.8:27b",
+          "provider": "acl-s08-local",
+          "api": "openai-completions",
+          "baseUrl": "http://127.0.0.1:11434/v1",
+          "contextWindow_metadata_only": 32768,
+          "maxTokens": 32,
+          "tools": []
+        },
+        "requests": [
+          {
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "method": "POST",
+            "model": "qwen3.8:27b",
+            "max_tokens": 32,
+            "status": 200
+          }
+        ],
+        "final": {
+          "model": "qwen3.8:27b",
+          "provider": "acl-s08-local",
+          "stopReason": "stop",
+          "errorMessage": null,
+          "content": [
+            {
+              "type": "text",
+              "text": "ACL_S08_OK"
+            }
+          ],
+          "usage": {
+            "input": 63,
+            "output": 6,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "reasoning": 0,
+            "totalTokens": 69,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "total": 0
+            }
+          }
+        },
+        "events": [
+          "agent_end",
+          "agent_settled"
+        ],
+        "error": null
+      }
+    },
+    {
+      "case": "wrong_model",
+      "exit_code": 0,
+      "error": null,
+      "stderr": "",
+      "detail": {
+        "name": "wrong_model",
+        "model": "acl-s08-nonexistent-model:missing",
+        "endpoint": "http://127.0.0.1:11434/v1",
+        "expectSuccess": false,
+        "verified": true,
+        "success": false,
+        "effective": {
+          "id": "acl-s08-nonexistent-model:missing",
+          "provider": "acl-s08-local",
+          "api": "openai-completions",
+          "baseUrl": "http://127.0.0.1:11434/v1",
+          "contextWindow_metadata_only": 32768,
+          "maxTokens": 32,
+          "tools": []
+        },
+        "requests": [
+          {
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "method": "POST",
+            "model": "acl-s08-nonexistent-model:missing",
+            "max_tokens": 32,
+            "status": 404
+          }
+        ],
+        "final": {
+          "model": "acl-s08-nonexistent-model:missing",
+          "provider": "acl-s08-local",
+          "stopReason": "error",
+          "errorMessage": "404: {\"message\":\"model 'acl-s08-nonexistent-model:missing' not found\",\"type\":\"not_found_error\",\"param\":null,\"code\":null}",
+          "content": [],
+          "usage": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 0,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "total": 0
+            }
+          }
+        },
+        "events": [
+          "agent_end",
+          "agent_settled"
+        ],
+        "error": null
+      }
+    },
+    {
+      "case": "wrong_endpoint",
+      "exit_code": 0,
+      "error": null,
+      "stderr": "",
+      "detail": {
+        "name": "wrong_endpoint",
+        "model": "qwen3.8:27b",
+        "endpoint": "http://127.0.0.1:11434/acl-s08-invalid/v1",
+        "expectSuccess": false,
+        "verified": true,
+        "success": false,
+        "effective": {
+          "id": "qwen3.8:27b",
+          "provider": "acl-s08-local",
+          "api": "openai-completions",
+          "baseUrl": "http://127.0.0.1:11434/acl-s08-invalid/v1",
+          "contextWindow_metadata_only": 32768,
+          "maxTokens": 32,
+          "tools": []
+        },
+        "requests": [
+          {
+            "url": "http://127.0.0.1:11434/acl-s08-invalid/v1/chat/completions",
+            "method": "POST",
+            "model": "qwen3.8:27b",
+            "max_tokens": 32,
+            "status": 404
+          }
+        ],
+        "final": {
+          "model": "qwen3.8:27b",
+          "provider": "acl-s08-local",
+          "stopReason": "error",
+          "errorMessage": "404 404 page not found",
+          "content": [],
+          "usage": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 0,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "total": 0
+            }
+          }
+        },
+        "events": [
+          "agent_end",
+          "agent_settled"
+        ],
+        "error": null
+      }
+    }
+  ]
+}

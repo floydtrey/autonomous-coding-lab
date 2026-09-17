@@ -18,9 +18,13 @@ The model receives only ACL-owned tools explicitly allowed by the task contract.
 
 Workers do not commit, push, merge, publish, or approve their own work under the current coding slice.
 
+Initial V1 grants workers exact-file read/write authority only. Protected tests and result validation run on the controller side through Worker Lab. Policy capability names do not independently grant worker shell or test-process access.
+
 ## Credential boundary
 
 Secrets are host/operator concerns and must not be committed into source identity, prompts, evidence, benchmark fixtures, or candidate output. Provider adapters should use only the credentials required by their explicitly qualified transport. ACL must not expose unrelated environment secrets to a worker.
+
+Authentication is provider-neutral and operator-approved for the selected transport. V1 does not require ChatGPT-managed authentication or categorically forbid API keys. Authentication never grants task authority or establishes provider qualification.
 
 ## Source, host, activation, and authorization separation
 
@@ -44,4 +48,4 @@ Execution and publication are separate. A valid candidate does not authorize com
 
 ## Reconstruction safety
 
-Execution remains `DISABLED` until Task 9 passes and the user separately authorizes the next supervised step. No actual provider/model qualification or model request is part of Tasks 1–9 unless explicitly authorized outside this reconstruction plan.
+Task 9 passed at its reconstruction checkpoint; execution remains `DISABLED`. The sequential controller does **not** exist yet and is the next implementation milestone. Its implementation does not authorize actual provider/model qualification, model requests, or activation; those require separate explicit user authorization. No provider or Pi integration is declared qualified by this governance record.

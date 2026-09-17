@@ -9,6 +9,7 @@ from .dispatch_client import DISPATCH_RESPONSE_SCHEMA, MAX_DISPATCH_RESPONSE_BYT
 from .errors import LabValidationError
 from .integration_v3 import (
     RESULT_SCHEMA_V3,
+    RESULT_SCHEMA_V4,
     GitWorkspaceResultEvidence,
     InvocationOperation,
     InvocationRecordV3,
@@ -47,6 +48,7 @@ def accept_workspace_write_response_v3(
     custody_store: ProcessCustodyStore,
     source_evidence: GitWorkspaceResultEvidence,
     validation_stages: tuple[ValidationStage, ...],
+    workspace_path: Path | None = None,
 ) -> ResultRecordV3:
     """Convert a framework dispatch response into independently accepted V3 evidence."""
     if not isinstance(record, InvocationRecordV3) or record.operation is not InvocationOperation.WORKSPACE_WRITE_CODE_TASK:
@@ -78,18 +80,30 @@ def accept_workspace_write_response_v3(
         "worker_output_digest",
     ):
         _digest(decoded[field], field)
-    if decoded["changed_paths"] != list(record.writable_paths):
+    if decoded["changed_paths"] != list(source_evidence.changed_paths):
         raise LabValidationError(
             "INTEGRATION_V3_SCOPE_INVALID",
             "framework candidate paths differ from the authorized write scope",
         )
-    if source_evidence.changed_paths != record.writable_paths:
+    if not set(source_evidence.changed_paths) <= set(record.writable_paths):
         raise LabValidationError(
             "INTEGRATION_V3_SCOPE_INVALID",
             "independent workspace paths differ from the authorized write scope",
         )
     _validate_framework_stages(decoded["validation_stages"], record)
     _validate_independent_stages(validation_stages, record)
+    if record.output_acceptance is not None:
+        record.output_acceptance.validate_changes(source_evidence.changed_paths)
+        if record.output_acceptance.required_artifact_paths:
+            from .workspace import canonical_path_digest
+            from .windows_job import workspace_content_digest
+            if (workspace_path is None or canonical_path_digest(workspace_path) != source_evidence.workspace_path_digest
+                    or workspace_content_digest(workspace_path) != source_evidence.workspace_content_digest):
+                raise LabValidationError("OUTPUT_ACCEPTANCE_INVALID", "artifact workspace differs from independent candidate evidence")
+        record.output_acceptance.validate_artifacts(workspace_path)
+        record.output_acceptance.validate_evidence((
+            "protected-test-results:v1", "worker-output:v1", "workspace-diff:v1",
+        ))
 
     candidate_manifest = {
         "schema_version": _CANDIDATE_SCHEMA,
@@ -107,7 +121,7 @@ def accept_workspace_write_response_v3(
     reference = f"candidates/{retained_digest[7:]}.json"
 
     result = ResultRecordV3.from_mapping({
-        "schema_version": RESULT_SCHEMA_V3,
+        "schema_version": RESULT_SCHEMA_V4 if record.output_acceptance is not None else RESULT_SCHEMA_V3,
         "invocation_digest": record.identity_digest(),
         "request_digest": record.identity_digest(),
         "invocation_id": record.invocation_id,

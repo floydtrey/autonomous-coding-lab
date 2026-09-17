@@ -62,7 +62,7 @@ from .process_custody import (
 )
 from .windows_job import WindowsJobCustodyBackend, WorkspaceLaunchEvidence
 
-from .integration_v3 import INVOCATION_SCHEMA_V3, InvocationRecordV3, ResultRecordV3
+from .integration_v3 import INVOCATION_SCHEMA_V3, INVOCATION_SCHEMA_V4, InvocationRecordV3, ResultRecordV3
 from .service_runtime_v3 import (
     WorkspaceDispatchRunner,
     authorize_invocation as authorize_invocation_v3,
@@ -463,7 +463,7 @@ class WorkerLabApplicationService:
                 "SERVICE_CANDIDATE_IDENTITY_INVALID",
                 "candidate requires exactly one invocation, result, and custody record",
             )
-        if timeline.invocations[0].record.get("schema_version") != INVOCATION_SCHEMA_V3:
+        if timeline.invocations[0].record.get("schema_version") not in (INVOCATION_SCHEMA_V3, INVOCATION_SCHEMA_V4):
             raise LabValidationError(
                 "SERVICE_CANDIDATE_IDENTITY_INVALID",
                 "candidate invocation is not a current V3 record",
@@ -579,6 +579,66 @@ class WorkerLabApplicationService:
             "cancel-invocation", "invocation", invocation_id, invocation
         )
 
+    def approve_local_validation(self, attempt_id, expected_outcome_digest, controller_identity,
+            *, protected_files, acknowledge_unsandboxed=False, timeout_seconds=30,
+            output_limit_bytes=1048576, cleanup_timeout_seconds=5):
+        from .protected_validation import approve_local_validation
+        self._require_present_data_root()
+        return approve_local_validation(self.data_root, attempt_id=_identity(attempt_id),
+            expected_outcome_digest=_digest(expected_outcome_digest), controller_identity=controller_identity,
+            protected_files=protected_files, acknowledge_unsandboxed=acknowledge_unsandboxed,
+            timeout_seconds=timeout_seconds, output_limit_bytes=output_limit_bytes,
+            cleanup_timeout_seconds=cleanup_timeout_seconds)
+
+    def validate_task(self, attempt_id, expected_outcome_digest, controller_identity, validation_id,
+            *, cancellation=None, process_factory=None):
+        from .protected_validation import validate_task
+        self._require_present_data_root()
+        options = {} if process_factory is None else {'process_factory': process_factory}
+        return validate_task(self.data_root, attempt_id=_identity(attempt_id),
+            expected_outcome_digest=_digest(expected_outcome_digest), controller_identity=controller_identity,
+            validation_id=validation_id, clock=self._clock, cancellation=cancellation, **options)
+
+    def run_task(self, task_file: Path, *, cancellation=None, runner_factory=None,
+                 candidate_archive_limit_bytes=None, process_factory=None, review_id=None):
+        """Run the explicitly approved worker/check/acceptance sequence once."""
+        from .task_workflow import run_task
+        self._require_present_data_root()
+        options = {} if runner_factory is None else {'runner_factory': runner_factory}
+        return run_task(self.data_root, _absolute_path_argument(task_file, 'task file'),
+            clock=self._clock, cancellation=cancellation,
+            candidate_archive_limit_bytes=candidate_archive_limit_bytes,
+            process_factory=process_factory, review_id=review_id, **options)
+
+    def approve_task_execution(self, task_file, controller_identity, *, protected_files,
+            acknowledge_unsandboxed=False, review_required=False, timeout_seconds=30,
+            output_limit_bytes=1048576, cleanup_timeout_seconds=5):
+        from .task_workflow import approve_task_execution
+        self._require_present_data_root()
+        return approve_task_execution(self.data_root, _absolute_path_argument(task_file, 'task file'),
+            controller_identity=controller_identity, protected_files=protected_files,
+            acknowledge_unsandboxed=acknowledge_unsandboxed, review_required=review_required,
+            timeout_seconds=timeout_seconds, output_limit_bytes=output_limit_bytes,
+            cleanup_timeout_seconds=cleanup_timeout_seconds)
+
+    def accept_task(self, attempt_id, expected_outcome_digest, controller_identity, validation_id,
+            *, expected_validation_digest=None, review_id=None):
+        from .task_acceptance import accept_task
+        self._require_present_data_root()
+        return accept_task(self.data_root, attempt_id=_identity(attempt_id),
+            expected_outcome_digest=_digest(expected_outcome_digest), controller_identity=controller_identity,
+            validation_id=validation_id, expected_validation_digest=expected_validation_digest,
+            review_id=review_id, clock=self._clock)
+
+    def record_task_review(self, attempt_id, expected_outcome_digest, controller_identity,
+            validation_id, expected_validation_digest, *, reviewer_identity, review_id, decision='approved'):
+        from .task_acceptance import record_task_review
+        self._require_present_data_root()
+        return record_task_review(self.data_root, attempt_id=_identity(attempt_id),
+            expected_outcome_digest=_digest(expected_outcome_digest), controller_identity=controller_identity,
+            validation_id=validation_id, expected_validation_digest=_digest(expected_validation_digest),
+            reviewer_identity=reviewer_identity, review_id=review_id, decision=decision, clock=self._clock)
+
     def dispatch_invocation(
         self,
         invocation_id: str,
@@ -662,13 +722,129 @@ class WorkerLabApplicationService:
             f"catalogs/{exercise.evaluator_catalog_version}.json",
             TestCatalog.from_mapping,
         )
+        return self._create_bounded_attempt(exercise, policy, role, context, catalog, target_repository)
+
+    def create_job(self, job_id: str, plan, *, approved_by: str, approved_plan_digest: str):
+        """Record an exact approved plan without admitting or launching its tasks."""
+        from .job_runner import create_job
+        self._require_present_data_root()
+        return create_job(self.data_root, job_id=job_id, plan=plan,
+            controller_identity=approved_by, approved_plan_digest=approved_plan_digest, clock=self._clock)
+
+    def read_job(self, job_id: str):
+        from .job_runner import read_job
+        return read_job(self.data_root, job_id)
+
+    def reserve_next_job_task(self, job_id: str, *, controller_identity: str, expected_job_digest: str):
+        from .job_runner import reserve_next_task
+        return reserve_next_task(self.data_root, job_id, controller_identity=controller_identity,
+            expected_job_digest=expected_job_digest, clock=self._clock)
+
+    def bind_job_attempt(self, job_id: str, *, controller_identity: str, reservation_id: str,
+            attempt_id: str, invocation_id: str, expected_invocation_digest: str):
+        from .job_runner import bind_job_attempt
+        return bind_job_attempt(self.data_root, job_id, controller_identity=controller_identity,
+            reservation_id=reservation_id, attempt_id=_identity(attempt_id), invocation_id=_identity(invocation_id),
+            expected_invocation_digest=expected_invocation_digest, clock=self._clock)
+
+    def record_job_task_result(self, job_id: str, *, controller_identity: str,
+            reservation_id: str, task_run_digest: str):
+        from .job_runner import record_task_result
+        return record_task_result(self.data_root, job_id, controller_identity=controller_identity,
+            reservation_id=reservation_id, task_run_digest=task_run_digest, clock=self._clock)
+
+    def promote_accepted_task(self, attempt_id: str, expected_acceptance_digest: str,
+            controller_identity: str, artifact_root: Path):
+        """Publish a separate local snapshot without changing the accepted candidate."""
+        from .accepted_snapshot import promote_accepted_task
+        return promote_accepted_task(self.data_root, attempt_id=_identity(attempt_id),
+            expected_acceptance_digest=expected_acceptance_digest, controller_identity=controller_identity,
+            artifact_root=_absolute_path_argument(artifact_root, 'artifact root'), clock=self._clock)
+
+    def attach_job_artifact(self, job_id: str, *, task_id: str, controller_identity: str,
+            acceptance_digest: str, artifact_reference: str, artifact_digest: str):
+        from .job_runner import attach_accepted_artifact
+        from .job_plan import identity
+        return attach_accepted_artifact(self.data_root, job_id, task_id=identity(task_id, 'task_id'),
+            controller_identity=controller_identity, acceptance_digest=acceptance_digest,
+            artifact_reference=artifact_reference, artifact_digest=artifact_digest, clock=self._clock)
+
+    def prepare_job_input(self, job_id: str, *, controller_identity: str, reservation_id: str):
+        """Resolve the reserved task's accepted source; None means the original first base."""
+        from .job_admission import JobAuthorityProfile
+        from .job_input import create_job_input
+        from .job_plan import JobPlan
+        from .job_runner import _read, _reservation, _input_snapshot, _require, _millis
+        from .pi_supervision import _exclusive_controller
+        records = AtomicRecordStore(self.data_root / 'state')
+        with _exclusive_controller(records.root, 'job-controller.lock'):
+            value = _read(records, job_id, controller_identity).to_dict()
+            task_id, item, slot = _reservation(value, reservation_id)
+            _require(value['status'] == 'active' and item['state'] == 'reserved',
+                'JOB_NOT_RUNNABLE', 'only the current reserved task may prepare an input')
+            _require(_millis(slot['reserved_at']) <= _millis(self._clock()) < _millis(slot['deadline_at']),
+                'JOB_WALL_BUDGET_EXHAUSTED', 'reserved task preparation budget expired')
+            snapshot = _input_snapshot(self.data_root, value, task_id)
+            if snapshot is None:
+                return None
+            plan = JobPlan.from_mapping(value['plan'])
+            task = plan.task(task_id)
+            profile = AtomicRecordStore(self.data_root / 'job-authorities').read(
+                f'{task.authority_ref.profile_id}/v{task.authority_ref.version}.json',
+                JobAuthorityProfile.from_mapping)
+            _require(profile.digest() == task.authority_ref.digest,
+                'JOB_TASK_AUTHORITY_MISMATCH', 'protected profile differs from the approved plan')
+            return create_job_input(self.data_root, profile=profile, plan_digest=plan.digest(),
+                task_id=task_id, controller_identity=controller_identity,
+                snapshot_reference=snapshot['reference'], snapshot_digest=canonical_digest(snapshot))
+
+
+    def admit_job_task(
+        self, plan, task_id: str, target_repository: Path, *, approved_by: str,
+        approved_plan_digest: str, input_binding=None,
+    ) -> OperationResultDTO:
+        """Admit an approved task from its original or verified accepted input."""
+        from .job_plan import JobPlan
+        from .job_admission import JobAuthorityProfile, JobTaskDefinition
+        plan = JobPlan.from_mapping(plan.to_dict() if isinstance(plan, JobPlan) else plan)
+        task = plan.task(task_id)
+        self._require_present_data_root()
+        profile = AtomicRecordStore(self.data_root / "job-authorities").read(
+            f"{task.authority_ref.profile_id}/v{task.authority_ref.version}.json",
+            JobAuthorityProfile.from_mapping,
+        )
+        if task.dependencies and input_binding is None:
+            raise LabValidationError('JOB_INPUT_REQUIRED', 'dependent admission requires accepted snapshot input')
+        value = {
+            "schema_version": "worker-lab-job-task:v1", "plan": plan.to_dict(), "task_id": task_id,
+            "profile": profile.to_dict(), "approved_by": approved_by,
+            "approved_plan_digest": approved_plan_digest,
+        }
+        if input_binding is not None:
+            from .job_input import JobInput
+            binding = input_binding if isinstance(input_binding, JobInput) else JobInput.from_mapping(input_binding)
+            value.update(schema_version='worker-lab-job-task:v2', input_binding=binding.to_dict())
+        definition = JobTaskDefinition.from_mapping(value)
+        target = _path_argument(target_repository, "target repository")
+        definition.verify_input(self.data_root, source_repository=target)
+        for relative in definition.writable_paths:
+            candidate = target / relative
+            if candidate.exists() and not candidate.is_file():
+                raise LabValidationError("JOB_TASK_SCOPE_INVALID", "job writable scope must name exact files")
+            if candidate.is_symlink() or not candidate.resolve().is_relative_to(target.resolve()):
+                raise LabValidationError("JOB_TASK_SCOPE_INVALID", "job writable file escapes target")
+        return self._create_bounded_attempt(definition, *definition.authorities(), target)
+
+    def _create_bounded_attempt(self, exercise, policy, role, context, catalog, target_repository):
+        from .job_admission import JobTaskDefinition, ATTEMPT_PREFIX
+        is_job = isinstance(exercise, JobTaskDefinition)
         _validate_attempt_authority(exercise, policy, role, context, catalog)
         _validate_target_repository(self.data_root, target_repository, exercise.template_commit)
         verify_context_files(context, target_repository)
         occurred_at = self._clock()
         attempt = AttemptRecord.from_mapping({
             "schema_version": ATTEMPT_SCHEMA,
-            "attempt_id": "ATTEMPT-" + uuid.uuid4().hex.upper(),
+            "attempt_id": (ATTEMPT_PREFIX if is_job else "ATTEMPT-") + uuid.uuid4().hex.upper(),
             "curriculum_id": exercise.curriculum_id,
             "exercise_id": exercise.exercise_id,
             "exercise_version": exercise.exercise_version,
@@ -692,8 +868,14 @@ class WorkerLabApplicationService:
             "cleanup_outcome": None,
             "prior_attempt_id": None,
         })
+        if is_job:
+            store = AtomicRecordStore(self.data_root / "state")
+            store.write_bytes(f"job-plans/{exercise.plan.plan_id}/v{exercise.plan.revision}.json",
+                              exercise.plan.to_json().encode("utf-8"))
+            store.write_bytes(f"job-tasks/{attempt.attempt_id}.json",
+                              canonical_json(exercise.to_dict()).encode("utf-8"))
         AttemptStore(self.data_root / "state").create(attempt)
-        return _operation_result("create-attempt", "attempt", attempt.attempt_id, attempt)
+        return _operation_result("admit-job-task" if is_job else "create-attempt", "attempt", attempt.attempt_id, attempt)
 
     def prepare_workspace(
         self,
@@ -757,6 +939,8 @@ class WorkerLabApplicationService:
             raise LabValidationError(
                 "SERVICE_ATTEMPT_STATE_INVALID", "attempt target state is unsupported"
             ) from exc
+        if target is AttemptState.OUTCOME_RECORDED:
+            raise LabValidationError('WORKER_OUTCOME_REQUIRED', 'use run-task to record a worker outcome')
         receipt_path = self.data_root / "state" / "workspaces" / f"{current.attempt_id}.json"
         if (
             current.state is AttemptState.READY

@@ -195,7 +195,7 @@ def validate_relations(
         if attempt.prior_attempt_id is None:
             continue
         prior = attempts_by_id[attempt.prior_attempt_id]
-        if prior.state not in {AttemptState.CLOSED, AttemptState.ABORTED}:
+        if prior.state not in {AttemptState.CLOSED, AttemptState.ABORTED, AttemptState.OUTCOME_RECORDED}:
             raise LabValidationError("RELATION_STATE_INVALID", "prior attempt is not terminal")
         if attempt.created_at < prior.updated_at:
             raise LabValidationError("RELATION_TIME_INVALID", "retry predates prior completion")

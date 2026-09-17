@@ -93,7 +93,7 @@ def test_json_round_trip_is_deterministic():
 
 
 def test_unknown_contract_version_fails_closed():
-    result = _passing_result(contract_version="worker-result:v2")
+    result = _passing_result(contract_version="worker-result:v99")
 
     with pytest.raises(WorkerResultValidationError, match="unsupported contract_version"):
         validate_worker_result(result)

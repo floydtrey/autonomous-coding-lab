@@ -1,0 +1,103 @@
+{
+  "observed_at": "2026-09-17T07:04:15.699Z",
+  "alias": "acl-s09-qwen25-official:7b",
+  "created": {
+    "status": "success"
+  },
+  "template": "{{- if .Suffix }}<|fim_prefix|>{{ .Prompt }}<|fim_suffix|>{{ .Suffix }}<|fim_middle|>\n{{- else if .Messages }}\n{{- if or .System .Tools }}<|im_start|>system\n{{- if .System }}\n{{ .System }}\n{{- end }}\n{{- if .Tools }}\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>\n{{- range .Tools }}\n{\"type\": \"function\", \"function\": {{ .Function }}}\n{{- end }}\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <args-json-object>}\n</tool_call>\n{{- end }}<|im_end|>\n{{ end }}\n{{- range $i, $_ := .Messages }}\n{{- $last := eq (len (slice $.Messages $i)) 1 -}}\n{{- if eq .Role \"user\" }}<|im_start|>user\n{{ .Content }}<|im_end|>\n{{ else if eq .Role \"assistant\" }}<|im_start|>assistant\n{{ if .Content }}{{ .Content }}\n{{- else if .ToolCalls }}<tool_call>\n{{ range .ToolCalls }}{\"name\": \"{{ .Function.Name }}\", \"arguments\": {{ .Function.Arguments }}}\n{{ end }}</tool_call>\n{{- end }}{{ if not $last }}<|im_end|>\n{{ end }}\n{{- else if eq .Role \"tool\" }}<|im_start|>user\n<tool_response>\n{{ .Content }}\n</tool_response><|im_end|>\n{{ end }}\n{{- if and (ne .Role \"assistant\") $last }}<|im_start|>assistant\n{{ end }}\n{{- end }}\n{{- else }}\n{{- if .System }}<|im_start|>system\n{{ .System }}<|im_end|>\n{{ end }}{{ if .Prompt }}<|im_start|>user\n{{ .Prompt }}<|im_end|>\n{{ end }}<|im_start|>assistant\n{{ end }}{{ .Response }}{{ if .Response }}<|im_end|>{{ end }}",
+  "body": {
+    "model": "acl-s09-qwen25-official:7b",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Use the ACL tools to perform the requested file edit. Read before writing; copy the returned sha256 exactly. After writing, respond DONE.\nCurrent working directory: C:/Users/floyd_dev/AppData/Local/Temp/acl-s09-real-YoRCaU\n"
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "Read target.txt with acl_read_file. Change its content to exactly VALUE = 2 followed by a newline, using acl_write_file and the SHA-256 returned by the read. Then stop."
+          }
+        ]
+      }
+    ],
+    "stream": false,
+    "max_tokens": 256,
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "acl_read_file",
+          "description": "Read an exact authorized UTF-8 file. Returns content and sha256 for a subsequent write.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false
+          },
+          "strict": false
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "acl_write_file",
+          "description": "Atomically replace an exact authorized UTF-8 file. Supply expected_sha256 from read, or absent for an authorized new file.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              },
+              "expected_sha256": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "content",
+              "expected_sha256"
+            ],
+            "additionalProperties": false
+          },
+          "strict": false
+        }
+      }
+    ]
+  },
+  "response": {
+    "id": "chatcmpl-269",
+    "object": "chat.completion",
+    "created": 1789628655,
+    "model": "acl-s09-qwen25-official:7b",
+    "system_fingerprint": "fp_ollama",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"name\": \"acl_read_file\", \"arguments\": {\"path\": \"C:/Users/floyd_dev/AppData/Local/Temp/acl-s09-real-YoRCaU/target.txt\"}}"
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 326,
+      "prompt_tokens_details": {
+        "cached_tokens": 60
+      },
+      "completion_tokens": 42,
+      "total_tokens": 368
+    }
+  }
+}

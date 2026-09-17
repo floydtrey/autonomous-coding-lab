@@ -39,7 +39,7 @@ except ModuleNotFoundError:  # direct execution support
     from worker_runtime import WorkerExecution, WorkerRequest  # type: ignore
 
 
-CODE_TASK_VERSION = "code-task:v1"
+CODE_TASK_VERSION = "code-task:v2"
 
 
 class CodeTaskError(RuntimeError):
@@ -60,6 +60,9 @@ class CodeTaskContract:
     expected_changed_paths: tuple[str, ...]
     acceptance_criteria: tuple[str, ...]
     quick_validation: tuple[ValidationCommand, ...]
+    allowed_writable_paths: tuple[str, ...]
+    required_artifact_paths: tuple[str, ...]
+    allow_noop: bool
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -72,6 +75,9 @@ class CodeTaskContract:
             "expected_changed_paths": list(self.expected_changed_paths),
             "acceptance_criteria": list(self.acceptance_criteria),
             "quick_validation": [item.to_dict() for item in self.quick_validation],
+            "allowed_writable_paths": list(self.allowed_writable_paths),
+            "required_artifact_paths": list(self.required_artifact_paths),
+            "allow_noop": self.allow_noop,
         }
 
     def digest(self) -> str:
@@ -119,16 +125,25 @@ def build_code_task(
     expected_changed_paths: Sequence[str],
     acceptance_criteria: Sequence[str],
     quick_validation: Sequence[ValidationCommand],
+    allowed_writable_paths: Sequence[str] | None = None,
+    required_artifact_paths: Sequence[str] = (),
+    allow_noop: bool = False,
 ) -> CodeTaskContract:
     paths = tuple(expected_changed_paths)
+    allowed = tuple(packet.allowed_paths if allowed_writable_paths is None else allowed_writable_paths)
+    artifacts = tuple(required_artifact_paths)
     criteria = tuple(" ".join(item.split()) for item in acceptance_criteria)
     clean_objective = " ".join(objective.split())
     if not task_id.strip() or not clean_objective or not criteria or not all(criteria):
         raise CodeTaskError("CODE_TASK_INVALID", "task identity, objective, and acceptance criteria are required")
-    if not paths or paths != tuple(sorted(set(paths))):
+    if paths != tuple(sorted(set(paths))):
         raise CodeTaskError("CODE_TASK_SCOPE_INVALID", "expected changed paths must be sorted and unique")
     if not set(paths).issubset(packet.allowed_paths):
         raise CodeTaskError("CODE_TASK_SCOPE_INVALID", "expected changed paths exceed context scope")
+    if (not allowed or allowed != tuple(sorted(set(allowed))) or not set(allowed) <= set(packet.allowed_paths)
+            or not set(paths + artifacts) <= set(allowed) or artifacts != tuple(sorted(set(artifacts)))
+            or type(allow_noop) is not bool or (allow_noop and paths)):
+        raise CodeTaskError("CODE_TASK_SCOPE_INVALID", "output obligations differ from allowed scope or no-op permission")
     if not quick_validation:
         raise CodeTaskError("CODE_TASK_INVALID", "quick validation is required")
     return CodeTaskContract(
@@ -141,6 +156,9 @@ def build_code_task(
         paths,
         criteria,
         tuple(quick_validation),
+        allowed,
+        artifacts,
+        allow_noop,
     )
 
 
@@ -165,7 +183,7 @@ def run_code_task(
             {
                 *(item.path for item in packet.authority_files),
                 *(item.path for item in packet.task_files),
-                *contract.expected_changed_paths,
+                *contract.allowed_writable_paths,
             }
         )
     )
@@ -176,17 +194,20 @@ def run_code_task(
             framework_repo=framework_repo,
             sandbox="workspace-write",
             readable_paths=readable_paths,
-            writable_paths=contract.expected_changed_paths,
+            writable_paths=contract.allowed_writable_paths,
         )
     )
     if repository_head(repo_root) != contract.repository_head:
         raise CodeTaskError("CODE_TASK_HEAD_CHANGED", "worker changed repository HEAD")
     observed = tuple(changed_paths(repo_root, contract.repository_head))
-    if observed != contract.expected_changed_paths:
+    if (not set(observed) <= set(contract.allowed_writable_paths)
+            or not set(contract.expected_changed_paths) <= set(observed)
+            or (not observed and not contract.allow_noop)):
         raise CodeTaskError(
             "CODE_TASK_BOUNDARY_FAILED",
-            f"expected changed paths {contract.expected_changed_paths!r}; observed {observed!r}",
+            f"candidate violates allowed paths, required changes, or no-op permission: {observed!r}",
         )
+    _verify_artifacts(contract, repo_root)
     _git_diff_check(repo_root)
     quick = _run_validation(repo_root, contract.quick_validation, "CODE_TASK_QUICK_FAILED")
     full = _run_validation(repo_root, packet.full_validation, "CODE_TASK_FULL_FAILED")
@@ -213,20 +234,23 @@ def build_code_task_handoff(
         result.task_digest != contract.digest()
         or result.context_digest != contract.context_digest
         or result.repository_head != contract.repository_head
-        or result.changed_paths != contract.expected_changed_paths
+        or not set(result.changed_paths) <= set(contract.allowed_writable_paths)
+        or not set(contract.expected_changed_paths) <= set(result.changed_paths)
+        or (not result.changed_paths and not contract.allow_noop)
         or not result.ready_for_handoff
     ):
         raise CodeTaskError("CODE_TASK_RESULT_INVALID", "code-task result differs from its sealed contract")
+    _verify_artifacts(contract, repo_root)
     candidate_digest = candidate_content_digest(repo_root, result.changed_paths)
     worker_result = WorkerResult(
-        contract_version="worker-result:v1",
+        contract_version="worker-result:v2" if not result.changed_paths else "worker-result:v1",
         task_id=contract.task_id,
         consumer=contract.consumer,
         task_contract_digest=contract.digest(),
         base_sha=contract.repository_head,
         candidate_sha=None,
         candidate_content_digest=candidate_digest,
-        workspace_state="dirty-candidate",
+        workspace_state="dirty-candidate" if result.changed_paths else "clean",
         changed_paths=result.changed_paths,
         patch_boundary=BoundaryResult("pass"),
         quick_validation=ValidationResult(
@@ -252,14 +276,27 @@ def _verify_contract(contract: CodeTaskContract, packet: WorkerContextPacket) ->
         raise CodeTaskError("CODE_TASK_CONTEXT_MISMATCH", "task does not match context packet")
     if contract.repository_head != packet.repository_head:
         raise CodeTaskError("CODE_TASK_CONTEXT_MISMATCH", "task and context repository heads differ")
-    if not set(contract.expected_changed_paths).issubset(packet.allowed_paths):
+    if (not set(contract.allowed_writable_paths).issubset(packet.allowed_paths)
+            or not set(contract.expected_changed_paths + contract.required_artifact_paths) <= set(contract.allowed_writable_paths)
+            or type(contract.allow_noop) is not bool or (contract.allow_noop and contract.expected_changed_paths)):
         raise CodeTaskError("CODE_TASK_SCOPE_INVALID", "task paths exceed context scope")
+
+
+def _verify_artifacts(contract: CodeTaskContract, root: Path) -> None:
+    for relative in contract.required_artifact_paths:
+        target = root
+        for part in Path(relative).parts:
+            target = target / part
+            if target.is_symlink() or target.is_junction():
+                raise CodeTaskError("CODE_TASK_OUTPUT_MISSING", "required artifact traverses a link")
+        if not target.is_file():
+            raise CodeTaskError("CODE_TASK_OUTPUT_MISSING", f"required artifact missing: {relative}")
 
 
 def _implementation_prompt(contract: CodeTaskContract, packet: WorkerContextPacket) -> str:
     authority = "\n".join(f"- {item.path}" for item in packet.authority_files)
     context = "\n".join(f"- {item.path}" for item in packet.task_files) or "- none"
-    paths = "\n".join(f"- {item}" for item in contract.expected_changed_paths)
+    paths = "\n".join(f"- {item}" for item in contract.allowed_writable_paths)
     criteria = "\n".join(f"- {item}" for item in contract.acceptance_criteria)
     invariants = "\n".join(f"- {item}" for item in packet.product_invariants)
     return (
@@ -267,7 +304,10 @@ def _implementation_prompt(contract: CodeTaskContract, packet: WorkerContextPack
         f"Task digest: {contract.digest()}\nContext digest: {packet.digest()}\n"
         f"Objective: {contract.objective}\n\nRead authority first:\n{authority}\n\n"
         f"Read-only supporting files:\n{context}\n\n"
-        f"Change exactly these paths and no others:\n{paths}\n\n"
+        f"You may modify only these paths (permission does not require mutation):\n{paths}\n\n"
+        f"Required changes: {contract.expected_changed_paths!r}\n"
+        f"Required existing files: {contract.required_artifact_paths!r}\n"
+        f"Unchanged workspace permitted if all criteria pass: {contract.allow_noop}\n\n"
         f"Acceptance criteria:\n{criteria}\n\nInvariants:\n{invariants}\n\n"
         "Do not commit, push, alter Git configuration, or access GitHub. Make the smallest implementation that satisfies the criteria. Run only focused tests relevant to the change and report what you changed."
     )

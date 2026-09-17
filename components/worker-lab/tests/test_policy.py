@@ -53,7 +53,7 @@ def role_mapping() -> dict:
             "tests.run-authorized",
         ],
         "denied_capabilities": ["evaluator.modify", "git.publish"],
-        "required_outputs": ["changed-files", "implementation-summary", "test-results"],
+        "required_outputs": ["protected-test-results:v1", "worker-output:v1", "workspace-diff:v1"],
     }
 
 

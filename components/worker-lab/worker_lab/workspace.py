@@ -264,6 +264,16 @@ def prepare_workspace(
         attempt, AttemptState.READY, occurred_at=occurred_at
     )
     exercise, context = _load_and_verify_authority(lab, attempt)
+    from .job_admission import JobTaskDefinition
+    snapshot_input = None
+    if isinstance(exercise, JobTaskDefinition) and exercise.input_binding is not None:
+        # Admission does not authorize a later caller to replace the selected
+        # source, even with a repository that contains the same Git commit.
+        exercise.verify_input(lab, source_repository=template_repository)
+        from .accepted_snapshot import verify_accepted_snapshot, _checkout_attributes, _tree, _tree_digest
+        binding = exercise.input_binding.to_dict()
+        snapshot_input = verify_accepted_snapshot(lab,
+            reference=binding['snapshot_reference'], expected_digest=binding['snapshot_digest']).to_dict()
     source = _verify_template_repository(
         template_repository,
         lab,
@@ -307,13 +317,22 @@ def prepare_workspace(
             run_process,
             git_timeout_seconds,
         )
-        _configure_context_checkout_attributes(
-            staged_workspace,
-            source,
-            context,
-            run_process=run_process,
-            timeout=git_timeout_seconds,
-        )
+        if snapshot_input is not None:
+            # The accepted artifact includes every retained file, including
+            # files outside the next task's read-only context manifest.
+            source_entries = _tree(source)
+            if _tree_digest(source_entries) != snapshot_input['tree_digest']:
+                raise LabValidationError('JOB_INPUT_CHANGED', 'accepted input bytes changed before checkout')
+            _checkout_attributes(staged_workspace, source,
+                tuple(entry['path'] for entry in source_entries), run_process=run_process)
+        else:
+            _configure_context_checkout_attributes(
+                staged_workspace,
+                source,
+                context,
+                run_process=run_process,
+                timeout=git_timeout_seconds,
+            )
         _git(
             [
                 "-C", str(staged_workspace), "-c", "core.autocrlf=false", "checkout",
@@ -336,6 +355,8 @@ def prepare_workspace(
             run_process=run_process,
             timeout=git_timeout_seconds,
         )
+        if snapshot_input is not None and _tree_digest(_tree(staged_workspace)) != snapshot_input['tree_digest']:
+            raise LabValidationError('JOB_INPUT_CHANGED', 'prepared workspace differs from accepted input bytes')
         _verify_template_repository(
             source,
             lab,
@@ -365,6 +386,10 @@ def prepare_workspace(
             run_process=run_process,
             timeout=git_timeout_seconds,
         )
+        if snapshot_input is not None:
+            exercise.verify_input(lab, source_repository=source)
+            if _tree_digest(_tree(final_workspace)) != snapshot_input['tree_digest']:
+                raise LabValidationError('JOB_INPUT_CHANGED', 'published workspace differs from accepted input bytes')
         receipt = WorkspaceReceipt.from_mapping({
             "schema_version": WORKSPACE_RECEIPT_SCHEMA,
             "attempt_id": attempt.attempt_id,
@@ -430,24 +455,8 @@ def canonical_path_digest(path: Path) -> str:
 def _load_and_verify_authority(
     lab: Path, attempt: AttemptRecord
 ) -> tuple[ExerciseRecord, ContextManifest]:
-    definitions = AtomicRecordStore(lab / "curricula")
-    exercise = definitions.read(
-        f"exercises/{attempt.exercise_id}/v{attempt.exercise_version}.json",
-        ExerciseRecord.from_mapping,
-    )
-    policy = definitions.read(
-        f"policies/{attempt.policy_id}/v{attempt.policy_version}.json", PolicyRecord.from_mapping
-    )
-    role = definitions.read(
-        f"roles/{attempt.role_id}/v{attempt.role_version}.json", RoleRecord.from_mapping
-    )
-    context = definitions.read(
-        f"contexts/{exercise.context_manifest_id}/v{exercise.context_manifest_version}.json",
-        ContextManifest.from_mapping,
-    )
-    catalog = definitions.read(
-        f"catalogs/{attempt.evaluator_catalog_version}.json", TestCatalog.from_mapping
-    )
+    from .job_admission import load_task_authorities
+    exercise, policy, role, context, catalog = load_task_authorities(lab, attempt)
     validate_attempt_authority_binding(attempt, exercise, policy, role, context, catalog)
     return exercise, context
 
@@ -758,6 +767,8 @@ def _git_bytes(
     operation: str,
     run_process: RunProcess,
     timeout: int,
+    *,
+    allowed_returncodes: tuple[int, ...] = (0,),
 ) -> bytes:
     command = [
         "git",
@@ -783,7 +794,7 @@ def _git_bytes(
         raise LabValidationError("WORKSPACE_GIT_TIMEOUT", f"Git timed out: {operation}") from exc
     except OSError as exc:
         raise LabValidationError("WORKSPACE_GIT_UNAVAILABLE", f"Git unavailable: {operation}") from exc
-    if result.returncode != 0 or not isinstance(result.stdout, bytes):
+    if result.returncode not in allowed_returncodes or not isinstance(result.stdout, bytes):
         raise LabValidationError("WORKSPACE_GIT_FAILED", f"Git failed: {operation}")
     return result.stdout
 

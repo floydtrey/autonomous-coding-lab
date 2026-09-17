@@ -47,6 +47,7 @@ FRAMEWORK_DISPATCH_CONTRACT_V1 = "worker-lab-provider-dispatch:v1"
 WORKER_LAB_CONTRACT_VERSION_V3 = "worker-lab-runtime-contract:v3"
 GIT_SOURCE_STATE_SCHEMA = "worker-lab-git-workspace-source-state:v1"
 CONTROLLER_TASK_PACKET_SCHEMA = "worker-lab-controller-task-packet:v1"
+CONTROLLER_TASK_PACKET_SCHEMA_V2 = "worker-lab-controller-task-packet:v2"
 AUTHORITY_EFFECT = "informational-only"
 MAX_DISPATCH_REQUEST_BYTES = 262_144
 MAX_DISPATCH_RESPONSE_BYTES = 131_072
@@ -250,7 +251,10 @@ def execute_workspace_write(
             context,
             task_id=invocation["invocation_id"],
             objective=objective,
-            expected_changed_paths=tuple(invocation["writable_paths"]),
+            expected_changed_paths=tuple(invocation.get("output_acceptance", {}).get("required_changed_paths", ())),
+            allowed_writable_paths=tuple(invocation["writable_paths"]),
+            required_artifact_paths=tuple(invocation.get("output_acceptance", {}).get("required_artifact_paths", ())),
+            allow_noop=invocation.get("output_acceptance", {}).get("allow_noop", False),
             acceptance_criteria=tuple(task["acceptance_criteria"]),
             quick_validation=quick,
         )
@@ -336,10 +340,12 @@ def parse_dispatch_request(raw: bytes | str) -> ParsedDispatch:
 
 
 def _validate_invocation(value: Any) -> Mapping[str, Any]:
-    if not isinstance(value, Mapping) or set(value) != _INVOCATION_FIELDS:
+    output_version = isinstance(value, Mapping) and value.get("schema_version") == "worker-lab-framework-invocation:v4"
+    fields = _INVOCATION_FIELDS | ({"output_acceptance"} if output_version else set())
+    if not isinstance(value, Mapping) or set(value) != fields:
         raise DispatchAdapterError("DISPATCH_FIELDS_INVALID", "V3 invocation fields are missing or unknown")
     exact = {
-        "schema_version": INVOCATION_SCHEMA_V3,
+        "schema_version": "worker-lab-framework-invocation:v4" if output_version else INVOCATION_SCHEMA_V3,
         "operation": "workspace-write-code-task",
         "worker_lab_contract_version": WORKER_LAB_CONTRACT_VERSION_V3,
         "framework_contract_version": FRAMEWORK_DISPATCH_CONTRACT_V1,
@@ -399,6 +405,8 @@ def _validate_invocation(value: Any) -> Mapping[str, Any]:
         raise DispatchAdapterError("DISPATCH_IDENTITY_INVALID", "sealed test plan is empty")
     readable = _readable_paths(value["readable_paths"])
     writable = _path_array(value["writable_paths"], "writable paths", require_nonempty=True)
+    if output_version:
+        _validate_output_acceptance(value["output_acceptance"], writable)
     if set(item["path"] for item in readable).intersection(writable):
         raise DispatchAdapterError(
             "DISPATCH_SCOPE_INVALID",
@@ -510,9 +518,11 @@ def _validate_prompt(value: Any, invocation: Mapping[str, Any]) -> str:
 
 
 def _validate_workspace_write_task(value: Any, invocation: Mapping[str, Any]) -> Mapping[str, Any]:
-    if not isinstance(value, Mapping) or set(value) != _TASK_FIELDS:
+    fields = _TASK_FIELDS | ({"output_acceptance"} if "output_acceptance" in invocation else set())
+    if not isinstance(value, Mapping) or set(value) != fields:
         raise DispatchAdapterError("DISPATCH_TASK_INVALID", "workspace-write task fields are missing or unknown")
-    if value["schema_version"] != WORKSPACE_WRITE_TASK_SCHEMA:
+    schema = "worker-lab-workspace-write-task:v3" if "output_acceptance" in invocation else WORKSPACE_WRITE_TASK_SCHEMA
+    if value["schema_version"] != schema:
         raise DispatchAdapterError("DISPATCH_TASK_INVALID", "workspace-write task schema differs")
     if _digest(value["task_digest"], "task digest") != invocation["task_digest"]:
         raise DispatchAdapterError("DISPATCH_TASK_INVALID", "workspace-write task identity differs")
@@ -526,7 +536,24 @@ def _validate_workspace_write_task(value: Any, invocation: Mapping[str, Any]) ->
         raise DispatchAdapterError("DISPATCH_TASK_INVALID", "workspace-write test plan differs")
     if _path_array(value["writable_paths"], "writable paths", require_nonempty=True) != tuple(invocation["writable_paths"]):
         raise DispatchAdapterError("DISPATCH_TASK_INVALID", "workspace-write writable scope differs")
+    if value.get("output_acceptance") != invocation.get("output_acceptance"):
+        raise DispatchAdapterError("DISPATCH_TASK_INVALID", "output contract differs from sealed invocation")
     return value
+
+
+def _validate_output_acceptance(value, writable):
+    fields = {"schema_version", "allowed_writable_paths", "required_changed_paths",
+              "required_artifact_paths", "required_evidence", "allow_noop"}
+    if not isinstance(value, Mapping) or set(value) != fields or value["schema_version"] != "worker-lab-output-acceptance:v1":
+        raise DispatchAdapterError("DISPATCH_TASK_INVALID", "explicit output contract required")
+    allowed = _path_array(value["allowed_writable_paths"], "output permission", require_nonempty=True)
+    changed = _path_array(value["required_changed_paths"], "required changes", require_nonempty=False)
+    artifacts = _path_array(value["required_artifact_paths"], "required artifacts", require_nonempty=False)
+    evidence = () if value["required_evidence"] == [] else _text_array(value["required_evidence"], "required evidence", sorted_unique=True)
+    if (allowed != writable or not set(changed + artifacts) <= set(allowed)
+            or type(value["allow_noop"]) is not bool or (changed and value["allow_noop"])
+            or not set(evidence) <= {"protected-test-results:v1", "worker-output:v1", "workspace-diff:v1"}):
+        raise DispatchAdapterError("DISPATCH_TASK_INVALID", "output contract scope or obligations are invalid")
 
 
 def _validate_profile(profile: ConsumerProfile, invocation: Mapping[str, Any]) -> None:
@@ -552,9 +579,11 @@ def _controller_task_packet(prompt: str, invocation: Mapping[str, Any]) -> Mappi
             "DISPATCH_PROMPT_INVALID",
             "workspace-write prompt must be the canonical Controller Task Packet",
         ) from exc
-    if not isinstance(value, Mapping) or set(value) != _CONTROLLER_PACKET_FIELDS:
+    schema = value.get("schema_version") if isinstance(value, Mapping) else None
+    fields = _CONTROLLER_PACKET_FIELDS | ({"context_mode"} if schema == CONTROLLER_TASK_PACKET_SCHEMA_V2 else set())
+    if not isinstance(value, Mapping) or set(value) != fields:
         raise DispatchAdapterError("DISPATCH_PROMPT_INVALID", "Controller Task Packet fields are invalid")
-    if _canonical_json(value) != prompt or value["schema_version"] != CONTROLLER_TASK_PACKET_SCHEMA:
+    if _canonical_json(value) != prompt or schema not in (CONTROLLER_TASK_PACKET_SCHEMA, CONTROLLER_TASK_PACKET_SCHEMA_V2):
         raise DispatchAdapterError("DISPATCH_PROMPT_INVALID", "Controller Task Packet is not canonical or current")
     source = invocation["source_state"]
     if (
@@ -572,7 +601,10 @@ def _controller_task_packet(prompt: str, invocation: Mapping[str, Any]) -> Mappi
         )
     user_request = _text(value["user_request"], "user request", allow_newlines=True)
     evidence = value["knowledge_evidence"]
-    if not isinstance(evidence, list) or not 1 <= len(evidence) <= 4:
+    mode = value.get("context_mode", "knowledge-core")
+    if mode not in ("none", "knowledge-core") or not isinstance(evidence, list) or not (
+        len(evidence) == 0 if mode == "none" else 1 <= len(evidence) <= 4
+    ):
         raise DispatchAdapterError("DISPATCH_PROMPT_INVALID", "Controller Task Packet evidence is invalid")
     for item in evidence:
         if not isinstance(item, Mapping):
@@ -595,6 +627,8 @@ def _controller_enriched_objective(base_objective: str, packet: Mapping[str, Any
         f"Controller Task Packet digest: {_canonical_digest(packet)}.",
         f"Original user request: {packet['user_request']}",
     ]
+    if packet.get("context_mode") == "none":
+        sections.append("No Knowledge Core context requested or required for this task.")
     for index, item in enumerate(packet["knowledge_evidence"], start=1):
         sections.append(
             "Knowledge Core evidence "

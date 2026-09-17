@@ -12,6 +12,10 @@ Autonomous Coding Lab (ACL) is a supervised local-agent system for bounded work.
 
 The current runtime path is Invocation/Result V3 and Provider Binding V1. A different qualified model/provider must be selectable through qualification and binding data rather than source edits.
 
+The sequential controller does **not** exist yet. These are execution and authority components, not a completed end-to-end V1 system. The next implementation milestone is a sequential controller that prepares one bounded task, dispatches it through the existing contracts, and validates its result before proceeding.
+
+Initial V1 worker authority is exact-file read/write scope. Validation runs on the controller side through Worker Lab's protected test and acceptance path; workers do not receive shell or test-process authority. Authentication is provider-neutral and uses only operator-approved credentials for the selected transport. No provider or Pi integration is declared qualified by this architecture.
+
 ## Identity boundaries
 
 `config/portable-source-manifest.json` is **portable source identity V2**. It binds reviewed ACL source/component bytes only. It deliberately does not contain host requirements, provider qualification, local activation, or task authorization.
@@ -50,6 +54,6 @@ For Knowledge Core, read [current state](docs/architecture/knowledge-core/CURREN
 
 ## Reconstruction status
 
-Runtime reconstruction Tasks 1–9 are complete in the accepted architecture. The deterministic reconstruction gate has passed on the exact checkpoint bytes.
+Runtime reconstruction Tasks 1–9 are complete. Task 9 accepted its reconstruction checkpoint; this is not acceptance of a sequential controller or qualification of later changes.
 
 **Execution authority remains `DISABLED`.** Actual provider/model host qualification, supervised disposable vertical-slice execution, or persistent activation requires separate explicit user authorization after reconstruction.

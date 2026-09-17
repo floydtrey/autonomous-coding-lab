@@ -1,0 +1,134 @@
+{
+  "schema_version": "acl-pi-selection:s08:v1",
+  "observed_at": "2026-09-17T06:28:54.166Z",
+  "status": "FAIL",
+  "package": {
+    "name": "@earendil-works/pi-coding-agent",
+    "version": "0.85.1"
+  },
+  "node": "v24.19.0",
+  "platform": "win32",
+  "architecture": "x64",
+  "runtime_version": {
+    "version": "0.34.1"
+  },
+  "installed_model": {
+    "name": "qwen2.5-coder:7b",
+    "model": "qwen2.5-coder:7b",
+    "modified_at": "2026-09-11T08:28:41.5217492-05:00",
+    "size": 4683087561,
+    "digest": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364",
+    "details": {
+      "parent_model": "",
+      "format": "gguf",
+      "family": "qwen2",
+      "families": [
+        "qwen2"
+      ],
+      "parameter_size": "7.6B",
+      "quantization_level": "Q4_K_M",
+      "context_length": 32768,
+      "embedding_length": 3584
+    },
+    "capabilities": [
+      "completion",
+      "tools",
+      "insert"
+    ]
+  },
+  "loaded_models_before": {
+    "models": []
+  },
+  "approved_selection": {
+    "model": "qwen2.5-coder:7b",
+    "endpoint": "http://127.0.0.1:11434/v1"
+  },
+  "settings": {
+    "compaction": {
+      "enabled": false
+    },
+    "retry": {
+      "enabled": false,
+      "maxRetries": 0,
+      "provider": {
+        "timeoutMs": 60000,
+        "maxRetries": 0
+      }
+    }
+  },
+  "settings_sha256": "dad091f30cc174eedda37b2ebf81cfb54df2e88b5032f76ad012b5bc60fd55d3",
+  "tools": [],
+  "extensions": [],
+  "resource_discovery": false,
+  "resource_config_sha256": "b44ee36898e317e84a37689e3f4d0c3b28c318f801f90f75d782933204a97d5d",
+  "lock_sha256": "35727af5925cf30922c318c4a6e9a4fac89d1e1302cf1afdc755d894f30bfd64",
+  "probe_sha256": "74636a4b72f8662b264e09b226eb24400f771f44f42b5eadaea085fefe214ddb",
+  "effective_context_qualified": false,
+  "production_dispatch_modified": false,
+  "results": [
+    {
+      "case": "exact_pair",
+      "exit_code": 1,
+      "error": null,
+      "stderr": "",
+      "detail": {
+        "name": "exact_pair",
+        "model": "qwen2.5-coder:7b",
+        "endpoint": "http://127.0.0.1:11434/v1",
+        "expectSuccess": true,
+        "verified": false,
+        "success": false,
+        "effective": {
+          "id": "qwen2.5-coder:7b",
+          "provider": "acl-s08-local",
+          "api": "openai-completions",
+          "baseUrl": "http://127.0.0.1:11434/v1",
+          "contextWindow_metadata_only": 4096,
+          "maxTokens": 32,
+          "tools": []
+        },
+        "requests": [
+          {
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "method": "POST",
+            "model": "qwen2.5-coder:7b",
+            "max_tokens": 1,
+            "status": 200
+          }
+        ],
+        "final": {
+          "model": "qwen2.5-coder:7b",
+          "provider": "acl-s08-local",
+          "stopReason": "length",
+          "errorMessage": null,
+          "content": [
+            {
+              "type": "text",
+              "text": "ACL"
+            }
+          ],
+          "usage": {
+            "input": 61,
+            "output": 1,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "reasoning": 0,
+            "totalTokens": 62,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "total": 0
+            }
+          }
+        },
+        "events": [
+          "agent_end",
+          "agent_settled"
+        ],
+        "error": null
+      }
+    }
+  ]
+}

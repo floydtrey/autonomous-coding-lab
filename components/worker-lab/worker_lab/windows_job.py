@@ -341,6 +341,128 @@ def _process_creation_time(handle, kernel32) -> int:
     return (created.dwHighDateTime << 32) | created.dwLowDateTime
 
 
+class _STARTUPINFOW(ctypes.Structure):
+    _fields_ = [("cb", wintypes.DWORD), ("lpReserved", wintypes.LPWSTR),
+        ("lpDesktop", wintypes.LPWSTR), ("lpTitle", wintypes.LPWSTR),
+        *[(name, wintypes.DWORD) for name in ("dwX", "dwY", "dwXSize", "dwYSize",
+          "dwXCountChars", "dwYCountChars", "dwFillAttribute", "dwFlags")],
+        ("wShowWindow", wintypes.WORD), ("cbReserved2", wintypes.WORD),
+        ("lpReserved2", ctypes.c_void_p), ("hStdInput", wintypes.HANDLE),
+        ("hStdOutput", wintypes.HANDLE), ("hStdError", wintypes.HANDLE)]
+
+
+class _STARTUPINFOEXW(ctypes.Structure):
+    _fields_ = [("StartupInfo", _STARTUPINFOW), ("lpAttributeList", ctypes.c_void_p)]
+
+
+class _PROCESS_INFORMATION(ctypes.Structure):
+    _fields_ = [("hProcess", wintypes.HANDLE), ("hThread", wintypes.HANDLE),
+               ("dwProcessId", wintypes.DWORD), ("dwThreadId", wintypes.DWORD)]
+
+
+class OwnedWindowsProcess:
+    """Create suspended, atomically in a kill-on-close job; never launch then assign.
+
+    Windows 10+ JOB_LIST closes the process-creation/assignment crash window.
+    The parent exclusively owns the non-inheritable job handle. File handles are
+    the only inherited handles; all descendants remain in the same lifetime job.
+    This manages lifetime, not filesystem/network/account-permission isolation.
+    """
+
+    def __init__(self, argv, *, cwd: Path, environment: dict[str, str], stdin, stdout, stderr):
+        if os.name != "nt":
+            raise LabValidationError("INTEGRATION_RUNTIME_FORBIDDEN", "Windows Job Objects required")
+        import msvcrt
+        self.kernel = kernel = _kernel32()
+        self.job = self.process = self.thread = None
+        kernel.InitializeProcThreadAttributeList.argtypes = [ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(ctypes.c_size_t)]
+        kernel.UpdateProcThreadAttribute.argtypes = [ctypes.c_void_p, wintypes.DWORD, ctypes.c_size_t, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p, ctypes.c_void_p]
+        kernel.DeleteProcThreadAttributeList.argtypes = [ctypes.c_void_p]
+        kernel.CreateProcessW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, ctypes.c_void_p, ctypes.c_void_p, wintypes.BOOL,
+            wintypes.DWORD, ctypes.c_void_p, wintypes.LPCWSTR, ctypes.POINTER(_STARTUPINFOEXW), ctypes.POINTER(_PROCESS_INFORMATION)]
+        kernel.ResumeThread.argtypes = [wintypes.HANDLE]
+        kernel.ResumeThread.restype = wintypes.DWORD
+        kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        kernel.WaitForSingleObject.restype = wintypes.DWORD
+        handles = [msvcrt.get_osfhandle(f.fileno()) for f in (stdin, stdout, stderr)]
+        attributes = None
+        attributes_initialized = False
+        try:
+            self.job = kernel.CreateJobObjectW(None, None)
+            self._require(self.job)
+            self._require(kernel.SetHandleInformation(self.job, HANDLE_FLAG_INHERIT, 0))
+            limits = _JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
+            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            self._require(kernel.SetInformationJobObject(self.job, JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS,
+                ctypes.byref(limits), ctypes.sizeof(limits)))
+            size = ctypes.c_size_t()
+            kernel.InitializeProcThreadAttributeList(None, 2, 0, ctypes.byref(size))
+            attributes = ctypes.create_string_buffer(size.value)
+            self._require(kernel.InitializeProcThreadAttributeList(attributes, 2, 0, ctypes.byref(size)))
+            attributes_initialized = True
+            inherited = (wintypes.HANDLE * 3)(*handles)
+            jobs = (wintypes.HANDLE * 1)(self.job)
+            for handle in handles:
+                self._require(kernel.SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT))
+            self._require(kernel.UpdateProcThreadAttribute(attributes, 0, 0x00020002, inherited, ctypes.sizeof(inherited), None, None))
+            self._require(kernel.UpdateProcThreadAttribute(attributes, 0, 0x0002000D, jobs, ctypes.sizeof(jobs), None, None))
+            startup = _STARTUPINFOEXW()
+            startup.StartupInfo.cb = ctypes.sizeof(startup)
+            startup.StartupInfo.dwFlags = 0x100  # STARTF_USESTDHANDLES
+            startup.StartupInfo.hStdInput, startup.StartupInfo.hStdOutput, startup.StartupInfo.hStdError = handles
+            startup.lpAttributeList = ctypes.addressof(attributes)
+            info = _PROCESS_INFORMATION()
+            command = ctypes.create_unicode_buffer(subprocess.list2cmdline(list(argv)))
+            env = ctypes.create_unicode_buffer("\0".join(f"{k}={v}" for k, v in sorted(environment.items(), key=lambda item: item[0].upper())) + "\0\0")
+            # CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW
+            self._require(kernel.CreateProcessW(str(argv[0]), command, None, None, True, 0x08080404,
+                env, str(cwd), ctypes.byref(startup), ctypes.byref(info)))
+            self.process, self.thread, self.pid = info.hProcess, info.hThread, info.dwProcessId
+            self.identity = windows_process_identity(self.pid, _process_creation_time(self.process, kernel))
+        except BaseException:
+            self.close()
+            raise
+        finally:
+            for handle in handles:
+                kernel.SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0)
+            if attributes_initialized:
+                kernel.DeleteProcThreadAttributeList(attributes)
+
+    @staticmethod
+    def _require(ok):
+        if not ok:
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def resume(self):
+        if self.kernel.ResumeThread(self.thread) == 0xFFFFFFFF:
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def poll(self):
+        state = self.kernel.WaitForSingleObject(self.process, 0)
+        if state == 258:
+            return None
+        self._require(state == 0)
+        code = wintypes.DWORD()
+        self._require(self.kernel.GetExitCodeProcess(self.process, ctypes.byref(code)))
+        return code.value
+
+    def active_count(self):
+        info = _JOBOBJECT_BASIC_ACCOUNTING_INFORMATION()
+        self._require(self.kernel.QueryInformationJobObject(self.job, JOB_OBJECT_BASIC_ACCOUNTING_INFORMATION_CLASS,
+            ctypes.byref(info), ctypes.sizeof(info), None))
+        return info.ActiveProcesses
+
+    def terminate(self):
+        self._require(self.kernel.TerminateJobObject(self.job, 1))
+
+    def close(self):
+        # Closing the job also covers construction/recording exceptions and crashes.
+        for field in ("job", "thread", "process"):
+            handle = getattr(self, field, None)
+            if handle:
+                self.kernel.CloseHandle(handle)
+                setattr(self, field, None)
 
 
 

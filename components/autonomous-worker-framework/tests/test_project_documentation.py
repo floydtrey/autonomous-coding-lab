@@ -37,7 +37,7 @@ def test_current_state_records_reconstruction_authority_and_remaining_work():
     assert "**Execution authority:** `DISABLED`" in current
     assert "docs/RUNTIME_CORE_RECONSTRUCTION_PLAN.md" in current
     assert "Task 9" in current
-    assert "no actual provider/model execution occurs during reconstruction" in current
+    assert "no actual provider/model request or real capability qualification occurred during reconstruction" in current
 
 
 def test_architecture_and_governance_preserve_security_boundaries():

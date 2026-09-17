@@ -79,7 +79,7 @@ class ProviderBinding:
             _text(value["qualification_candidate_id"], "qualification candidate id"),
             _positive(value["qualification_candidate_version"], "qualification candidate version"),
             _digest(value["qualification_candidate_digest"], "qualification candidate digest"),
-            _exact(value["provider_adapter_id"], PROVIDER_ADAPTER_ID, "provider adapter"),
+            _text(value["provider_adapter_id"], "provider adapter"),
             _text(value["tool_surface_id"], "tool surface"),
             _text(value["provider_kind"], "provider kind"),
             _text(value["model_name"], "model name"),
@@ -155,10 +155,15 @@ def create_provider_binding(
 def validate_current_provider_binding(
     binding: ProviderBinding,
     *,
-    settings: RuntimeSettingsProfile = CODING_WORKER_SETTINGS_V1,
+    settings: RuntimeSettingsProfile | None = None,
 ) -> ProviderBinding:
     if not isinstance(binding, ProviderBinding):
         raise LabValidationError("PROVIDER_BINDING_INVALID", "provider binding type is invalid")
+    if binding.provider_adapter_id == "pi-local-files:v1":
+        from .pi_binding import validate_pi_binding
+        validate_pi_binding(binding, settings)
+        return binding
+    settings = CODING_WORKER_SETTINGS_V1 if settings is None else settings
     requirement = resolve_runtime_identity(
         binding.runtime_requirement_profile_id,
         binding.runtime_requirement_digest,

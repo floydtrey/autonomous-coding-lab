@@ -9,6 +9,7 @@ from .models import AttemptRecord, AttemptState
 from .operator_control import validate_controller_identity
 
 CONTROLLER_TASK_PACKET_SCHEMA = "worker-lab-controller-task-packet:v1"
+CONTROLLER_TASK_PACKET_SCHEMA_V2 = "worker-lab-controller-task-packet:v2"
 KNOWLEDGE_CORE_EVIDENCE_SCHEMA = "worker-lab-knowledge-core-segment-evidence:v1"
 AUTHORITY_EFFECT = "informational-only"
 _MAX_USER_REQUEST_BYTES = 4096
@@ -118,9 +119,10 @@ class ControllerTaskPacket:
     starting_commit: str
     authority_effect: str
     knowledge_evidence: tuple[KnowledgeCoreSegmentEvidence, ...]
+    context_mode: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "schema_version": self.schema_version,
             "attempt_id": self.attempt_id,
             "controller_identity": self.controller_identity,
@@ -131,6 +133,9 @@ class ControllerTaskPacket:
             "authority_effect": self.authority_effect,
             "knowledge_evidence": [item.to_dict() for item in self.knowledge_evidence],
         }
+        if self.schema_version == CONTROLLER_TASK_PACKET_SCHEMA_V2:
+            data["context_mode"] = self.context_mode
+        return data
 
     def to_json(self) -> str:
         return canonical_json(self.to_dict())
@@ -140,12 +145,21 @@ class ControllerTaskPacket:
 
     @classmethod
     def from_mapping(cls, value: Any) -> "ControllerTaskPacket":
-        data = _object(value, set(cls.__dataclass_fields__), "controller task packet")
-        if data["schema_version"] != CONTROLLER_TASK_PACKET_SCHEMA:
+        schema = value.get("schema_version") if isinstance(value, Mapping) else None
+        if schema not in (CONTROLLER_TASK_PACKET_SCHEMA, CONTROLLER_TASK_PACKET_SCHEMA_V2):
             raise LabValidationError("CONTROLLER_PACKET_SCHEMA_INVALID", "controller task packet schema is unsupported")
+        fields = set(cls.__dataclass_fields__)
+        if schema == CONTROLLER_TASK_PACKET_SCHEMA:
+            fields.remove("context_mode")
+        data = _object(value, fields, "controller task packet")
+        mode = data.get("context_mode", "knowledge-core")
+        if mode not in ("none", "knowledge-core"):
+            raise LabValidationError("CONTROLLER_PACKET_EVIDENCE_INVALID", "controller context mode is unsupported")
         evidence_raw = data["knowledge_evidence"]
-        if not isinstance(evidence_raw, list) or not 1 <= len(evidence_raw) <= _MAX_EVIDENCE_ITEMS:
-            raise LabValidationError("CONTROLLER_PACKET_EVIDENCE_INVALID", "controller task packet requires one to four evidence items")
+        if not isinstance(evidence_raw, list) or not (
+            len(evidence_raw) == 0 if mode == "none" else 1 <= len(evidence_raw) <= _MAX_EVIDENCE_ITEMS
+        ):
+            raise LabValidationError("CONTROLLER_PACKET_EVIDENCE_INVALID", "evidence must match the declared context mode")
         evidence = tuple(KnowledgeCoreSegmentEvidence.from_mapping(item) for item in evidence_raw)
         request = _text(data["user_request"], "user_request")
         if len(request.encode("utf-8")) > _MAX_USER_REQUEST_BYTES:
@@ -157,7 +171,7 @@ class ControllerTaskPacket:
         if len(commit) != 40 or any(ch not in "0123456789abcdef" for ch in commit):
             raise LabValidationError("CONTROLLER_PACKET_IDENTITY_INVALID", "starting commit is invalid")
         return cls(
-            CONTROLLER_TASK_PACKET_SCHEMA,
+            schema,
             _text(data["attempt_id"], "attempt_id"),
             controller,
             request,
@@ -166,6 +180,7 @@ class ControllerTaskPacket:
             commit,
             AUTHORITY_EFFECT,
             evidence,
+            data.get("context_mode"),
         )
 
 @dataclass(frozen=True)
@@ -241,12 +256,21 @@ def knowledge_evidence_from_search_response(response: Mapping[str, Any], *, resu
 
 def build_controller_task_packet(
     attempt: AttemptRecord, *, controller_identity: str, user_request: str,
-    kc_search_response: Mapping[str, Any], result_indexes: Sequence[int] = (0,),
+    kc_search_response: Mapping[str, Any] | None = None,
+    result_indexes: Sequence[int] | None = None, no_context: bool = False,
 ) -> ControllerTaskPacket:
     if attempt.state is not AttemptState.READY:
         raise LabValidationError("CONTROLLER_PACKET_ATTEMPT_INVALID", "controller task packet requires a READY attempt")
+    if not isinstance(no_context, bool) or (no_context and (kc_search_response is not None or result_indexes is not None)):
+        raise LabValidationError("CONTROLLER_PACKET_EVIDENCE_INVALID", "no_context must be boolean and cannot accompany Knowledge Core input")
+    if not no_context and kc_search_response is None:
+        raise LabValidationError("CONTROLLER_PACKET_EVIDENCE_INVALID", "provide Knowledge Core evidence or explicitly select no_context")
+    evidence = () if no_context else knowledge_evidence_from_search_response(
+        kc_search_response, result_indexes=(0,) if result_indexes is None else result_indexes,
+    )
     packet = ControllerTaskPacket.from_mapping({
-        "schema_version": CONTROLLER_TASK_PACKET_SCHEMA,
+        "schema_version": CONTROLLER_TASK_PACKET_SCHEMA_V2 if no_context else CONTROLLER_TASK_PACKET_SCHEMA,
+        **({"context_mode": "none"} if no_context else {}),
         "attempt_id": attempt.attempt_id,
         "controller_identity": controller_identity,
         "user_request": user_request,
@@ -254,7 +278,7 @@ def build_controller_task_packet(
         "exercise_version": attempt.exercise_version,
         "starting_commit": attempt.starting_commit,
         "authority_effect": AUTHORITY_EFFECT,
-        "knowledge_evidence": [item.to_dict() for item in knowledge_evidence_from_search_response(kc_search_response, result_indexes=result_indexes)],
+        "knowledge_evidence": [item.to_dict() for item in evidence],
     })
     if len(packet.to_json().encode("utf-8")) > 32768:
         raise LabValidationError("CONTROLLER_PACKET_OVERSIZED", "controller task packet exceeds Worker Lab prompt limit")
@@ -263,14 +287,14 @@ def build_controller_task_packet(
 def prepare_controller_task_invocation(
     service: ControllerTaskService, *, attempt_id: str, workspace_root,
     logical_target_id: str, provider_binding_id: str, provider_binding_digest: str,
-    controller_identity: str, user_request: str, kc_search_response: Mapping[str, Any],
-    result_indexes: Sequence[int] = (0,),
+    controller_identity: str, user_request: str, kc_search_response: Mapping[str, Any] | None = None,
+    result_indexes: Sequence[int] | None = None, no_context: bool = False,
 ) -> PreparedControllerInvocation:
     detail = service.show_record("attempts", attempt_id)
     attempt = AttemptRecord.from_mapping(detail.record)
     packet = build_controller_task_packet(
         attempt, controller_identity=controller_identity, user_request=user_request,
-        kc_search_response=kc_search_response, result_indexes=result_indexes,
+        kc_search_response=kc_search_response, result_indexes=result_indexes, no_context=no_context,
     )
     invocation = service.prepare_invocation(
         attempt_id, workspace_root, packet.to_json(),

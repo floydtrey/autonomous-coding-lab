@@ -2,6 +2,8 @@
 
 ACL is a supervised system for turning a user objective into one bounded, independently verified task execution. Repository mechanics are optional backend details, not the system abstraction.
 
+This is the intended V1 architecture. Its execution and authority components exist, but the sequential controller does **not** exist yet. Implementing that controller is the next milestone: prepare and dispatch one bounded task, validate the result on the controller side, and record its outcome before proceeding.
+
 ## Authority plane
 
 Worker Lab owns the protected definition and lifecycle of work:
@@ -27,6 +29,8 @@ Autonomous Worker Framework receives one canonical dispatch envelope and indepen
 
 The provider receives only ACL-owned tools. Current bounded coding tools are exact-file read/write operations. Shell, process, arbitrary network, Git publication, approval, and unrestricted directory traversal are not implied provider capabilities.
 
+Initial V1 uses this exact-file authority without adding worker shell or test-process access. The controller side invokes Worker Lab's protected validation and acceptance path. A test capability named in policy does not itself expose a process-running tool to the worker.
+
 ## Provider model
 
 The provider path is data-driven:
@@ -42,6 +46,8 @@ installation observation
 Observation describes installed facts. Qualification proves the required controlled tool/context behavior. Provider Binding freezes the exact qualified combination for authorization. None of these layers is local activation by itself.
 
 Pydantic AI + Ollama is the first adapter implementation. Another supported provider/model should require new observation/qualification/binding data, not changes to Worker Lab authority contracts.
+
+Authentication is provider-neutral: use only operator-approved credentials required by the selected transport. ChatGPT-managed authentication is not a V1 requirement, and API-key authentication is not categorically forbidden. Neither an authentication method nor an implemented adapter proves qualification. No provider or proposed Pi integration is declared qualified here.
 
 ## Containment
 

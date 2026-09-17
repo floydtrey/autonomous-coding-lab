@@ -21,7 +21,7 @@ _IMMUTABLE_FIELDS = tuple(
     field.name for field in fields(InvocationRecordV3) if field.name not in _MUTABLE_FIELDS
 )
 _TERMINAL_STATES = frozenset(
-    {InvocationState.COMPLETED, InvocationState.REJECTED, InvocationState.ABORTED}
+    {InvocationState.COMPLETED, InvocationState.REJECTED, InvocationState.ABORTED, InvocationState.OUTCOME_RECORDED}
 )
 
 
@@ -76,6 +76,14 @@ class InvocationStoreV3:
                 "V3 invocation transition requires a V3 record",
             )
         current = self.read(updated.invocation_id)
+        if updated.state is InvocationState.OUTCOME_RECORDED:
+            from .attempt_store import AttemptStore
+            outcome = AttemptStore(self.records.root).read_outcome(updated.attempt_id)
+            value = outcome.to_dict()
+            if (updated.result_digest != outcome.digest()
+                    or value['invocation_digest'] != updated.identity_digest()
+                    or value['invocation_id'] != updated.invocation_id):
+                raise LabValidationError('WORKER_OUTCOME_MISMATCH', 'invocation must reference its durable worker outcome')
         if current.digest() != expected_digest:
             raise LabValidationError(
                 "INTEGRATION_V3_STALE_WRITE",

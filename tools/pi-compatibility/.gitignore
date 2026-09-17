@@ -1,0 +1,7 @@
+node_modules/
+.store/
+evidence.local.json
+selection.local.json
+files.local.json
+diagnostic.local.json
+selection-27b.local.json

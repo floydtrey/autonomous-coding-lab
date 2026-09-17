@@ -96,6 +96,56 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("--expected-identity-digest", required=True)
     command.add_argument("--controller", required=True)
     command.set_defaults(handler=_service_cancel_invocation)
+    command = commands.add_parser("approve-validation", help="explicitly approve named local checks as unsandboxed host code")
+    command.add_argument("attempt_id")
+    command.add_argument("--expected-outcome-digest", required=True)
+    command.add_argument("--controller", required=True)
+    command.add_argument("--protected-file", required=True, type=Path, action="append")
+    command.add_argument("--acknowledge-unsandboxed-host-code-execution", action="store_true")
+    command.add_argument("--timeout-seconds", type=int, default=30)
+    command.add_argument("--output-limit-bytes", type=int, default=1048576)
+    command.add_argument("--cleanup-timeout-seconds", type=int, default=5)
+    command.set_defaults(handler=_service_approve_validation)
+    command = commands.add_parser("validate-task", help="run the approved protected checks; no acceptance")
+    command.add_argument("attempt_id")
+    command.add_argument("--expected-outcome-digest", required=True)
+    command.add_argument("--controller", required=True)
+    command.add_argument("--validation-id", required=True)
+    command.set_defaults(handler=_service_validate_task)
+    command = commands.add_parser("approve-task-execution", help="approve this task's exact named local checks before execution")
+    command.add_argument("task_file", type=Path)
+    command.add_argument("--controller", required=True)
+    command.add_argument("--protected-file", required=True, type=Path, action="append")
+    command.add_argument("--acknowledge-unsandboxed-host-code-execution", action="store_true")
+    command.add_argument("--review-required", action="store_true")
+    command.add_argument("--timeout-seconds", type=int, default=30)
+    command.add_argument("--output-limit-bytes", type=int, default=1048576)
+    command.add_argument("--cleanup-timeout-seconds", type=int, default=5)
+    command.set_defaults(handler=_service_approve_task_execution)
+    command = commands.add_parser("accept-task", help="verify durable worker/check evidence and record acceptance")
+    command.add_argument("attempt_id")
+    command.add_argument("--expected-outcome-digest", required=True)
+    command.add_argument("--controller", required=True)
+    command.add_argument("--validation-id", required=True)
+    command.add_argument("--expected-validation-digest", required=True)
+    command.add_argument("--review-id")
+    command.set_defaults(handler=_service_accept_task)
+    command = commands.add_parser("record-task-review", help="record an explicit review of exact candidate and check evidence")
+    command.add_argument("attempt_id")
+    command.add_argument("--expected-outcome-digest", required=True)
+    command.add_argument("--controller", required=True)
+    command.add_argument("--validation-id", required=True)
+    command.add_argument("--expected-validation-digest", required=True)
+    command.add_argument("--review-id", required=True)
+    command.add_argument("--reviewer", required=True)
+    command.add_argument("--decision", choices=('approved','rejected'), required=True)
+    command.set_defaults(handler=_service_record_task_review)
+    command = commands.add_parser("run-task", help="run one explicitly approved task through worker, checks and acceptance")
+    command.add_argument("task_file", type=Path)
+    command.add_argument("--review-id")
+    command.add_argument("--candidate-archive-limit-bytes", type=int,
+        help="full candidate ZIP budget in uncompressed bytes (default 33554432; zero omits ZIP)")
+    command.set_defaults(handler=_service_run_task)
     command = commands.add_parser("dispatch-invocation")
     command.add_argument("invocation_id")
     command.add_argument("--expected-identity-digest", required=True)
@@ -227,6 +277,44 @@ def _service_cancel_invocation(args: argparse.Namespace) -> str:
         args.expected_identity_digest,
         args.controller,
     ).to_json()
+
+
+def _service_approve_validation(args: argparse.Namespace) -> str:
+    return _service(args).approve_local_validation(args.attempt_id, args.expected_outcome_digest,
+        args.controller, protected_files=args.protected_file,
+        acknowledge_unsandboxed=args.acknowledge_unsandboxed_host_code_execution,
+        timeout_seconds=args.timeout_seconds, output_limit_bytes=args.output_limit_bytes,
+        cleanup_timeout_seconds=args.cleanup_timeout_seconds).to_json()
+
+
+def _service_validate_task(args: argparse.Namespace) -> str:
+    return _service(args).validate_task(args.attempt_id, args.expected_outcome_digest,
+        args.controller, args.validation_id).to_json()
+
+
+def _service_run_task(args: argparse.Namespace) -> str:
+    return _service(args).run_task(args.task_file.resolve(),
+        candidate_archive_limit_bytes=args.candidate_archive_limit_bytes, review_id=args.review_id).to_json()
+
+
+def _service_approve_task_execution(args):
+    return _service(args).approve_task_execution(args.task_file.resolve(), args.controller,
+        protected_files=args.protected_file,
+        acknowledge_unsandboxed=args.acknowledge_unsandboxed_host_code_execution,
+        review_required=args.review_required, timeout_seconds=args.timeout_seconds,
+        output_limit_bytes=args.output_limit_bytes, cleanup_timeout_seconds=args.cleanup_timeout_seconds).to_json()
+
+
+def _service_accept_task(args):
+    return _service(args).accept_task(args.attempt_id, args.expected_outcome_digest, args.controller,
+        args.validation_id, expected_validation_digest=args.expected_validation_digest,
+        review_id=args.review_id).to_json()
+
+
+def _service_record_task_review(args):
+    return _service(args).record_task_review(args.attempt_id, args.expected_outcome_digest, args.controller,
+        args.validation_id, args.expected_validation_digest, reviewer_identity=args.reviewer,
+        review_id=args.review_id, decision=args.decision).to_json()
 
 
 def _service_dispatch_invocation(args: argparse.Namespace) -> str:

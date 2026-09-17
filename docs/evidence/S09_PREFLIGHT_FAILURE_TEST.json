@@ -1,0 +1,16 @@
+{
+  "schema_version": "acl-pi-file-probe:s09:v1",
+  "observed_at": "2026-09-17T07:12:40.741Z",
+  "status": "FAIL",
+  "model": "qwen3.8:27b",
+  "endpoint": "http://127.0.0.1:11434/v1",
+  "failure_reasons": [
+    "PREFLIGHT_OR_REPORT_FAILURE"
+  ],
+  "error": {
+    "name": "Error",
+    "message": "PYTHON_PREFLIGHT_FAILED: spawnSync C:\\does-not-exist\\python.exe EPERM",
+    "code": null,
+    "stack": "Error: PYTHON_PREFLIGHT_FAILED: spawnSync C:\\does-not-exist\\python.exe EPERM\n    at file:///C:/Projects/autonomous-coding-lab/tools/pi-compatibility/file-probe.mjs:98:60\n    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)\n    at async node:internal/modules/esm/loader:643:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)"
+  }
+}

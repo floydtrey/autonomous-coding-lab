@@ -20,7 +20,9 @@ Reconstruct ACL around one provider-neutral, target-system-centered authority/ex
 9. Worker success is independently verified before acceptance.
 10. Reconstruction completion does not grant execution authority; activation/qualification still require separate user authorization.
 
-## Current execution path
+## Intended V1 execution path
+
+The execution/authority foundations below exist, but the sequential Controller / Foreman does **not** exist yet. This diagram describes the intended composition, not an operational controller loop. The next implementation milestone is that sequential controller, with exact-file worker authority and controller-side validation through Worker Lab. No provider or Pi integration is declared qualified here.
 
 ```text
 User objective
@@ -76,6 +78,6 @@ Task 9 changes only the accepted reconstruction status/documentation. It does no
 
 Reconstruction is complete, but this is **not** authorization to run a model or activate ACL.
 
-Only after separate explicit user authorization may ACL proceed to actual host/provider capability qualification and then a supervised disposable vertical slice. Provider/model choice should be informed by qualification and, where useful, separate Benchmark Lab evidence; benchmark output remains advisory and cannot authorize ACL work.
+The next implementation milestone is the missing sequential controller. Actual host/provider capability qualification and a supervised disposable vertical slice require separate explicit user authorization. Provider/model choice should be informed by qualification and, where useful, separate Benchmark Lab evidence; benchmark output remains advisory and cannot authorize ACL work. Authentication is provider-neutral and uses operator-approved credentials for the selected transport.
 
 Persistent execution, autonomous retry loops, GUI work, Knowledge Core expansion, Linux containment, publication authority, and broader model/harness campaigns remain separate later tasks.

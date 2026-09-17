@@ -66,10 +66,10 @@ def inspect_git_workspace_result(
 def _changed_paths(workspace_path: Path, base_commit: str) -> tuple[str, ...]:
     found: set[str] = set()
     for arguments in (
-        ("diff", "--name-only", "--diff-filter=ACDMRT", base_commit),
-        ("ls-files", "--others", "--exclude-standard"),
+        ("diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--name-only", "-z", "--diff-filter=ACDMRT", base_commit, "--"),
+        ("ls-files", "--others", "-z"),
     ):
-        for line in _git(workspace_path, *arguments).splitlines():
+        for line in _git(workspace_path, *arguments).split("\0"):
             if line:
                 found.add(_relative_path(line))
     check = _git_process(
@@ -77,7 +77,11 @@ def _changed_paths(workspace_path: Path, base_commit: str) -> tuple[str, ...]:
         "-c",
         "core.whitespace=trailing-space,space-before-tab,cr-at-eol",
         "diff",
+        "--no-ext-diff",
+        "--no-textconv",
         "--check",
+        base_commit,
+        "--",
     )
     if check.returncode != 0:
         raise LabValidationError(

@@ -2,6 +2,8 @@
 
 This guide describes the current reconstructed ACL runtime. It does not authorize model execution.
 
+The sequential controller does **not** exist yet. The commands below are component-level operations, not an automated V1 workflow. The next implementation milestone is that controller, initially using exact-file worker authority and controller-side validation.
+
 ## 1. Verify portable source identity
 
 From the repository root:
@@ -56,6 +58,8 @@ The normal CLI constructs no provider runner. Therefore source verification, doc
 
 A provider/framework success response is not acceptance. Worker Lab reruns protected tests and independently observes capability-specific workspace evidence before producing Result V3 and promoting an attempt to candidate state.
 
+Initial V1 workers read and write only exact authorized files. Protected test execution and result validation belong to the controller side through Worker Lab; workers receive no shell or test-process authority.
+
 ## 7. Containment
 
 Windows Job Objects are the current Windows containment backend. Durable custody is backend-neutral. A different OS requires a compatible containment backend plus qualification; it must not require changing portable source identity.
@@ -70,4 +74,4 @@ Local Model Bench is advisory and separate from runtime authority. Benchmark a m
 
 ## Current stop condition
 
-Task 9 is the remaining deterministic reconstruction acceptance gate. Until it passes and the user separately authorizes a supervised run, do not perform real model execution or persistent activation.
+Task 9 passed at its reconstruction checkpoint. Execution remains `DISABLED`; this acceptance neither supplies the missing sequential controller nor qualifies a provider. Real capability qualification, model execution, and persistent activation still require separate explicit authorization. No provider or Pi integration is declared qualified by this guide.

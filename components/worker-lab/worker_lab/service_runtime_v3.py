@@ -12,11 +12,13 @@ from .canonical import canonical_digest
 from .controller_task_packet import ControllerTaskPacket, parse_controller_task_packet
 from .dispatch_client import WORKSPACE_WRITE_TASK_SCHEMA, dispatch_workspace_write
 from .errors import LabValidationError
+from .output_acceptance import OutputAcceptance, OUTPUT_ACCEPTANCE_SCHEMA
 from .git_workspace_evidence import inspect_git_workspace_result
 from .integration_v3 import (
     FRAMEWORK_DISPATCH_CONTRACT_V1,
     GIT_SOURCE_STATE_SCHEMA,
     INVOCATION_SCHEMA_V3,
+    INVOCATION_SCHEMA_V4,
     WORKER_LAB_CONTRACT_VERSION_V3,
     InvocationOperation,
     InvocationRecordV3,
@@ -116,6 +118,12 @@ def prepare_invocation(
     )
     packet = parse_controller_task_packet(prompt)
     _validate_controller_packet(packet, attempt, exercise)
+    from .job_admission import JobTaskDefinition
+    if isinstance(exercise, JobTaskDefinition):
+        if logical_target_id != exercise.plan.objective.target_id:
+            raise LabValidationError("JOB_TASK_TARGET_MISMATCH", "invocation target differs from approved job")
+        if packet.controller_identity != exercise.approved_by:
+            raise LabValidationError("JOB_TASK_APPROVER_MISMATCH", "packet controller differs from recorded approver")
     prompt_bytes = _prompt_bytes(prompt)
     prompt_digest = _bytes_digest(prompt_bytes)
     if packet.digest() != prompt_digest:
@@ -128,7 +136,8 @@ def prepare_invocation(
     binding = binding_store.require(provider_binding_id, provider_binding_digest)
     worker_source_digest, framework_source_digest = _current_source_digests()
     invocation = InvocationRecordV3.from_mapping({
-        "schema_version": INVOCATION_SCHEMA_V3,
+        "schema_version": INVOCATION_SCHEMA_V4,
+        "output_acceptance": _output_contract(exercise, role).to_dict(),
         "invocation_id": _new_invocation_id(),
         "attempt_id": attempt.attempt_id,
         "operation": str(InvocationOperation.WORKSPACE_WRITE_CODE_TASK),
@@ -197,6 +206,10 @@ def authorize_invocation(
     state_root = data_root / "state"
     store = InvocationStoreV3(state_root)
     current = store.read(invocation_id)
+    from .job_admission import ATTEMPT_PREFIX
+    if current.attempt_id.startswith(ATTEMPT_PREFIX):
+        raise LabValidationError("JOB_TASK_EXECUTION_NOT_IMPLEMENTED",
+            "Job-task admission/preparation only: dependency readiness and budget enforcement require a later execution gate")
     if current.identity_digest() != _digest(expected_identity_digest, "expected invocation identity"):
         raise LabValidationError(
             "INTEGRATION_V3_IDENTITY_INVALID",
@@ -272,22 +285,9 @@ def cancel_invocation(
     return cancelled
 
 
-def dispatch_invocation(
-    data_root: Path,
-    *,
-    invocation_id: str,
-    expected_identity_digest: str,
-    controller_identity: str,
-    workspace_root: Path,
-    clock: Clock,
-    workspace_dispatch_runner: WorkspaceDispatchRunner | None,
-    sealed_test_executor: SealedTestExecutor,
-) -> AttemptRecord:
-    if workspace_dispatch_runner is None or not callable(workspace_dispatch_runner):
-        raise LabValidationError(
-            "INTEGRATION_EXECUTION_DISABLED",
-            "V3 dispatch requires an explicitly injected framework/provider runner",
-        )
+def prepare_dispatch(data_root: Path, *, invocation_id: str, expected_identity_digest: str,
+                     controller_identity: str, workspace_root: Path):
+    """Shared protected preflight; no lifecycle mutation or provider launch."""
     state_root = data_root / "state"
     invocation_store = InvocationStoreV3(state_root)
     invocation = invocation_store.read(invocation_id)
@@ -334,6 +334,31 @@ def dispatch_invocation(
         invocation, exercise, policy, role, context, catalog
     )
     workspace_path = workspace_root / attempt.attempt_id
+
+    return invocation, attempt, catalog, prompt, workspace_task, workspace_path
+
+
+def dispatch_invocation(
+    data_root: Path,
+    *,
+    invocation_id: str,
+    expected_identity_digest: str,
+    controller_identity: str,
+    workspace_root: Path,
+    clock: Clock,
+    workspace_dispatch_runner: WorkspaceDispatchRunner | None,
+    sealed_test_executor: SealedTestExecutor,
+) -> AttemptRecord:
+    if workspace_dispatch_runner is None or not callable(workspace_dispatch_runner):
+        raise LabValidationError(
+            "INTEGRATION_EXECUTION_DISABLED",
+            "V3 dispatch requires an explicitly injected framework/provider runner",
+        )
+    invocation, attempt, catalog, prompt, workspace_task, workspace_path = prepare_dispatch(
+        data_root, invocation_id=invocation_id, expected_identity_digest=expected_identity_digest,
+        controller_identity=controller_identity, workspace_root=workspace_root)
+    state_root = data_root / "state"
+    invocation_store, attempt_store = InvocationStoreV3(state_root), AttemptStore(state_root)
 
     occurred_at = clock()
     running = transition_attempt(
@@ -396,6 +421,7 @@ def dispatch_invocation(
         custody_store=custody_store,
         source_evidence=source_evidence,
         validation_stages=validation_stages,
+        workspace_path=workspace_path,
     )
     AtomicRecordStore(state_root).write(
         f"results/{invocation.invocation_id}.json",
@@ -688,27 +714,8 @@ def _definitions_for_attempt(
     data_root: Path,
     attempt: AttemptRecord,
 ) -> tuple[ExerciseRecord, PolicyRecord, RoleRecord, ContextManifest, TestCatalog]:
-    definitions = AtomicRecordStore(data_root / "curricula")
-    exercise = definitions.read(
-        f"exercises/{attempt.exercise_id}/v{attempt.exercise_version}.json",
-        ExerciseRecord.from_mapping,
-    )
-    policy = definitions.read(
-        f"policies/{attempt.policy_id}/v{attempt.policy_version}.json",
-        PolicyRecord.from_mapping,
-    )
-    role = definitions.read(
-        f"roles/{attempt.role_id}/v{attempt.role_version}.json",
-        RoleRecord.from_mapping,
-    )
-    context = definitions.read(
-        f"contexts/{exercise.context_manifest_id}/v{exercise.context_manifest_version}.json",
-        ContextManifest.from_mapping,
-    )
-    catalog = definitions.read(
-        f"catalogs/{attempt.evaluator_catalog_version}.json",
-        TestCatalog.from_mapping,
-    )
+    from .job_admission import load_task_authorities
+    exercise, policy, role, context, catalog = load_task_authorities(data_root, attempt)
     _validate_attempt_definitions(attempt, exercise, policy, role, context, catalog)
     return exercise, policy, role, context, catalog
 
@@ -993,6 +1000,20 @@ def _validate_recovery_workspace(
         )
 
 
+def _output_contract(exercise, role):
+    from .job_admission import JobTaskDefinition
+    if isinstance(exercise, JobTaskDefinition):
+        return exercise.plan.task(exercise.task_id).required_outputs
+    # Exercise roles must name explicit evidence types. Ambiguous old labels
+    # require a reviewed authority revision, never an inferred translation.
+    return OutputAcceptance.from_mapping({
+        "schema_version": OUTPUT_ACCEPTANCE_SCHEMA,
+        "allowed_writable_paths": sorted(exercise.writable_paths),
+        "required_changed_paths": [], "required_artifact_paths": [],
+        "required_evidence": sorted(role.required_outputs), "allow_noop": False,
+    })
+
+
 def _workspace_write_task(
     invocation: InvocationRecordV3,
     exercise: ExerciseRecord,
@@ -1001,6 +1022,8 @@ def _workspace_write_task(
     context: ContextManifest,
     catalog: TestCatalog,
 ) -> Mapping[str, object]:
+    if invocation.output_acceptance != _output_contract(exercise, role):
+        raise LabValidationError("JOB_TASK_OUTPUT_MISMATCH", "invocation output contract differs from approved definition")
     readable_paths = tuple(item.path for item in invocation.readable_paths)
     if set(readable_paths).intersection(invocation.writable_paths):
         raise LabValidationError(
@@ -1026,7 +1049,8 @@ def _workspace_write_task(
         *exercise.prohibited_shortcuts,
     }))
     return {
-        "schema_version": WORKSPACE_WRITE_TASK_SCHEMA,
+        "schema_version": "worker-lab-workspace-write-task:v3" if invocation.output_acceptance else WORKSPACE_WRITE_TASK_SCHEMA,
+        **({"output_acceptance": invocation.output_acceptance.to_dict()} if invocation.output_acceptance else {}),
         "task_digest": invocation.task_digest,
         "objective": exercise.objective,
         "acceptance_criteria": list(exercise.acceptance_criteria),

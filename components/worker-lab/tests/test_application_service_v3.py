@@ -216,7 +216,7 @@ def _authorize(service, prepared):
 def test_v3_prepare_binds_logical_target_provider_binding_and_controller_packet(tmp_path: Path) -> None:
     service, lab, workspace_root, binding, packet, prepared = _prepare(tmp_path)
     record = prepared["record"]
-    assert record["schema_version"] == "worker-lab-framework-invocation:v3"
+    assert record["schema_version"] == "worker-lab-framework-invocation:v4"
     assert record["logical_target_id"] == "target:record-model"
     assert record["provider_binding_id"] == binding.binding_id
     assert record["provider_binding_digest"] == binding.digest()

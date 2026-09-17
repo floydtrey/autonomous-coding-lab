@@ -9,11 +9,11 @@ from .models import AttemptRecord, AttemptState, _timestamp
 
 LEGAL_TRANSITIONS: dict[AttemptState, frozenset[AttemptState]] = {
     AttemptState.DRAFT: frozenset({AttemptState.READY, AttemptState.ABORTED}),
-    AttemptState.READY: frozenset({AttemptState.RUNNING, AttemptState.ABORTED}),
-    AttemptState.RUNNING: frozenset({AttemptState.CANDIDATE, AttemptState.ABORTED}),
+    AttemptState.READY: frozenset({AttemptState.RUNNING, AttemptState.ABORTED, AttemptState.OUTCOME_RECORDED}),
+    AttemptState.RUNNING: frozenset({AttemptState.CANDIDATE, AttemptState.ABORTED, AttemptState.OUTCOME_RECORDED}),
+    AttemptState.OUTCOME_RECORDED: frozenset(),
     AttemptState.CANDIDATE: frozenset({AttemptState.EVALUATING, AttemptState.ABORTED}),
     AttemptState.EVALUATING: frozenset({
-        AttemptState.PASSED,
         AttemptState.FAILED,
         AttemptState.NEEDS_REVIEW,
         AttemptState.ABORTED,
@@ -36,6 +36,11 @@ def transition_attempt(
     cleanup_outcome: str | None = None,
 ) -> AttemptRecord:
     """Return a new attempt state or fail without mutating the input record."""
+    if target == AttemptState.PASSED:
+        raise LabValidationError(
+            "ATTEMPT_ACCEPTANCE_REQUIRED",
+            "task acceptance requires the protected evidence-gated acceptance operation",
+        )
     if target not in LEGAL_TRANSITIONS[attempt.state]:
         raise LabValidationError(
             "ATTEMPT_TRANSITION_INVALID",
@@ -72,11 +77,11 @@ def transition_attempt(
         raise LabValidationError(
             "ATTEMPT_IDENTITY_IMMUTABLE", "candidate identity cannot change after capture"
         )
-    if target in {AttemptState.CLOSED, AttemptState.ABORTED} and not cleanup_outcome:
+    if target in {AttemptState.CLOSED, AttemptState.ABORTED, AttemptState.OUTCOME_RECORDED} and not cleanup_outcome:
         raise LabValidationError(
             "ATTEMPT_CLEANUP_REQUIRED", "terminal transition requires cleanup outcome"
         )
-    if cleanup_outcome is not None and target not in {AttemptState.CLOSED, AttemptState.ABORTED}:
+    if cleanup_outcome is not None and target not in {AttemptState.CLOSED, AttemptState.ABORTED, AttemptState.OUTCOME_RECORDED}:
         raise LabValidationError(
             "ATTEMPT_CLEANUP_INVALID", "cleanup outcome is only recorded at a terminal transition"
         )

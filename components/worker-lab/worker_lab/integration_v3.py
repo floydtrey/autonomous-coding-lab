@@ -9,13 +9,16 @@ from typing import Any, Mapping
 
 from .canonical import canonical_digest
 from .errors import LabValidationError
+from .output_acceptance import OutputAcceptance
 from .provider_binding import ProviderBinding, ProviderBindingStore
 from .runtime_selection import resolve_runtime_identity
 
 
 INVOCATION_SCHEMA_V3 = "worker-lab-framework-invocation:v3"
+INVOCATION_SCHEMA_V4 = "worker-lab-framework-invocation:v4"
 INVOCATION_IDENTITY_SCHEMA_V3 = "worker-lab-framework-invocation-identity:v3"
 RESULT_SCHEMA_V3 = "worker-lab-framework-result:v3"
+RESULT_SCHEMA_V4 = "worker-lab-framework-result:v4"
 GIT_SOURCE_STATE_SCHEMA = "worker-lab-git-workspace-source-state:v1"
 GIT_RESULT_EVIDENCE_SCHEMA = "worker-lab-git-workspace-result-evidence:v1"
 WORKER_LAB_CONTRACT_VERSION_V3 = "worker-lab-runtime-contract:v3"
@@ -40,6 +43,7 @@ class InvocationState(StrEnum):
     AUTHORIZED = "AUTHORIZED"
     DISPATCHING = "DISPATCHING"
     COMPLETED = "COMPLETED"
+    OUTCOME_RECORDED = "OUTCOME_RECORDED"
     UNCERTAIN = "UNCERTAIN"
     REJECTED = "REJECTED"
     ABORTED = "ABORTED"
@@ -47,10 +51,11 @@ class InvocationState(StrEnum):
 
 LEGAL_INVOCATION_TRANSITIONS = {
     InvocationState.PREPARED: frozenset({InvocationState.AUTHORIZED, InvocationState.REJECTED}),
-    InvocationState.AUTHORIZED: frozenset({InvocationState.DISPATCHING, InvocationState.ABORTED}),
-    InvocationState.DISPATCHING: frozenset({InvocationState.COMPLETED, InvocationState.UNCERTAIN}),
+    InvocationState.AUTHORIZED: frozenset({InvocationState.DISPATCHING, InvocationState.ABORTED, InvocationState.OUTCOME_RECORDED}),
+    InvocationState.DISPATCHING: frozenset({InvocationState.COMPLETED, InvocationState.UNCERTAIN, InvocationState.OUTCOME_RECORDED}),
     InvocationState.COMPLETED: frozenset(),
-    InvocationState.UNCERTAIN: frozenset({InvocationState.ABORTED}),
+    InvocationState.OUTCOME_RECORDED: frozenset(),
+    InvocationState.UNCERTAIN: frozenset({InvocationState.ABORTED, InvocationState.OUTCOME_RECORDED}),
     InvocationState.REJECTED: frozenset(),
     InvocationState.ABORTED: frozenset(),
 }
@@ -185,6 +190,7 @@ class InvocationRecordV3:
     authorized_at: str | None
     state: InvocationState
     result_digest: str | None
+    output_acceptance: OutputAcceptance | None = None
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
@@ -194,6 +200,10 @@ class InvocationRecordV3:
         value["readable_paths"] = [item.to_dict() for item in self.readable_paths]
         value["writable_paths"] = list(self.writable_paths)
         value["source_state"] = None if self.source_state is None else self.source_state.to_dict()
+        if self.schema_version == INVOCATION_SCHEMA_V4:
+            value["output_acceptance"] = self.output_acceptance.to_dict()
+        else:
+            value.pop("output_acceptance")
         return value
 
     def digest(self) -> str:
@@ -207,14 +217,17 @@ class InvocationRecordV3:
 
     @classmethod
     def from_mapping(cls, value: Any) -> "InvocationRecordV3":
-        data = _object(value, set(cls.__dataclass_fields__))
+        fields = set(cls.__dataclass_fields__)
+        if isinstance(value, Mapping) and value.get("schema_version") == INVOCATION_SCHEMA_V3:
+            fields.remove("output_acceptance")
+        data = _object(value, fields)
         try:
             operation = InvocationOperation(data["operation"])
             state = InvocationState(data["state"])
         except (TypeError, ValueError) as exc:
             raise LabValidationError("INTEGRATION_V3_INVOCATION_INVALID", "unsupported operation or state") from exc
         record = cls(
-            _exact(data["schema_version"], INVOCATION_SCHEMA_V3, "invocation schema"),
+            _choice(data["schema_version"], {INVOCATION_SCHEMA_V3, INVOCATION_SCHEMA_V4}, "invocation schema"),
             _id(data["invocation_id"], "invocation id"),
             _id(data["attempt_id"], "attempt id"),
             operation,
@@ -255,6 +268,7 @@ class InvocationRecordV3:
             _optional_timestamp(data["authorized_at"], "authorized at"),
             state,
             _optional_digest(data["result_digest"], "result digest"),
+            OutputAcceptance.from_mapping(data["output_acceptance"]) if "output_acceptance" in data else None,
         )
         _validate_invocation(record)
         return record
@@ -341,7 +355,7 @@ class ResultRecordV3:
         except (TypeError, ValueError) as exc:
             raise LabValidationError("INTEGRATION_V3_RESULT_INVALID", "unsupported operation") from exc
         result = cls(
-            _exact(data["schema_version"], RESULT_SCHEMA_V3, "result schema"),
+            _choice(data["schema_version"], {RESULT_SCHEMA_V3, RESULT_SCHEMA_V4}, "result schema"),
             _digest(data["invocation_digest"], "invocation digest"),
             _digest(data["request_digest"], "request digest"),
             _id(data["invocation_id"], "invocation id"),
@@ -436,7 +450,7 @@ def transition_invocation(
             "INTEGRATION_V3_TRANSITION_INVALID",
             "invocation transition is not legal",
         )
-    if target is InvocationState.COMPLETED:
+    if target in {InvocationState.COMPLETED, InvocationState.OUTCOME_RECORDED}:
         digest = _digest(result_digest, "result digest")
     elif result_digest is not None:
         raise LabValidationError(
@@ -449,6 +463,9 @@ def transition_invocation(
 
 
 def validate_result_for_invocation(result: ResultRecordV3, invocation: InvocationRecordV3) -> None:
+    expected_schema = RESULT_SCHEMA_V4 if invocation.output_acceptance is not None else RESULT_SCHEMA_V3
+    if result.schema_version != expected_schema:
+        raise LabValidationError("INTEGRATION_V3_IDENTITY_INVALID", "result schema differs from invocation output contract")
     expected_identity = invocation.identity_digest()
     if (
         result.invocation_digest != expected_identity
@@ -508,14 +525,23 @@ def validate_result_for_invocation(result: ResultRecordV3, invocation: Invocatio
                     "INTEGRATION_V3_SCOPE_INVALID",
                     "read-only result changed the Git workspace",
                 )
-        elif evidence.changed_paths != invocation.writable_paths:
+        elif not set(evidence.changed_paths) <= set(invocation.writable_paths):
             raise LabValidationError(
                 "INTEGRATION_V3_SCOPE_INVALID",
                 "result paths differ from the exact authorized write scope",
             )
+        elif invocation.output_acceptance is not None:
+            invocation.output_acceptance.validate_changes(evidence.changed_paths)
+        elif not evidence.changed_paths:
+            raise LabValidationError("INTEGRATION_V3_SCOPE_INVALID", "no-op requires an explicit output contract")
 
 
 def _validate_invocation(record: InvocationRecordV3) -> None:
+    if record.output_acceptance is not None and (
+        record.operation is not InvocationOperation.WORKSPACE_WRITE_CODE_TASK
+        or record.output_acceptance.allowed_writable_paths != record.writable_paths
+    ):
+        raise LabValidationError("INTEGRATION_V3_SCOPE_INVALID", "output contract differs from invocation permission")
     requirement = resolve_runtime_identity(
         record.runtime_requirement_profile_id,
         record.runtime_requirement_digest,
@@ -558,7 +584,7 @@ def _validate_invocation(record: InvocationRecordV3) -> None:
             "INTEGRATION_V3_AUTHORIZATION_INVALID",
             "authorized state requires controller identity and time",
         )
-    if (record.state is InvocationState.COMPLETED) != (record.result_digest is not None):
+    if (record.state in {InvocationState.COMPLETED, InvocationState.OUTCOME_RECORDED}) != (record.result_digest is not None):
         raise LabValidationError(
             "INTEGRATION_V3_RESULT_INVALID",
             "only completed invocation carries a result digest",
@@ -630,8 +656,8 @@ def _validate_result(result: ResultRecordV3) -> None:
             )
     else:
         if (
-            result.source_evidence.workspace_state != "changed"
-            or not result.source_evidence.changed_paths
+            result.source_evidence.workspace_state != ("changed" if result.source_evidence.changed_paths else "unchanged")
+            or (not result.source_evidence.changed_paths and result.schema_version != RESULT_SCHEMA_V4)
             or result.proposal_digest is not None
             or result.candidate_digest is None
             or tuple(stage.test_id for stage in result.validation_stages) != result.test_ids

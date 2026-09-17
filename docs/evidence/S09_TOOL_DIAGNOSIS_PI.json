@@ -1,0 +1,251 @@
+{
+  "schema_version": "acl-pi-file-probe:s09:v1",
+  "observed_at": "2026-09-17T07:00:01.175Z",
+  "status": "FAIL",
+  "node": "v24.19.0",
+  "python": "C:\\Users\\floyd_dev\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+  "package": "0.85.1",
+  "runtimeVersion": {
+    "version": "0.34.1"
+  },
+  "installed": {
+    "name": "qwen2.5-coder:7b",
+    "model": "qwen2.5-coder:7b",
+    "modified_at": "2026-09-11T08:28:41.5217492-05:00",
+    "size": 4683087561,
+    "digest": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364",
+    "details": {
+      "parent_model": "",
+      "format": "gguf",
+      "family": "qwen2",
+      "families": [
+        "qwen2"
+      ],
+      "parameter_size": "7.6B",
+      "quantization_level": "Q4_K_M",
+      "context_length": 32768,
+      "embedding_length": 3584
+    },
+    "capabilities": [
+      "completion",
+      "tools",
+      "insert"
+    ]
+  },
+  "loaded_after": {
+    "models": [
+      {
+        "name": "qwen2.5-coder:7b",
+        "model": "qwen2.5-coder:7b",
+        "size": 4748056984,
+        "digest": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen2",
+          "families": [
+            "qwen2"
+          ],
+          "parameter_size": "7.6B",
+          "quantization_level": "Q4_K_M"
+        },
+        "expires_at": "2026-09-17T02:05:01.1528986-05:00",
+        "size_vram": 4748056984,
+        "context_length": 4096
+      }
+    ]
+  },
+  "settings": {
+    "compaction": {
+      "enabled": false
+    },
+    "retry": {
+      "enabled": false,
+      "maxRetries": 0,
+      "provider": {
+        "timeoutMs": 60000,
+        "maxRetries": 0
+      }
+    }
+  },
+  "settings_digest": "sha256:dad091f30cc174eedda37b2ebf81cfb54df2e88b5032f76ad012b5bc60fd55d3",
+  "tool_schema_digest": "sha256:8bc5114224f2146f5889caee75f60edaece8fd69e235ba225d186bb4711c8d26",
+  "extensions": [],
+  "resource_discovery": false,
+  "request_limit": 4,
+  "tool_limit": 6,
+  "child_deadline_ms": 180000,
+  "file_hashes": {
+    "tool-diagnostic.mjs": "sha256:d2960165335660d80084be7c6d76610ffa437075c26cd6e02d12613f2eddff18",
+    "file-probe.mjs": "sha256:533403a6be1444027df98bf5401d89c64d2218c853450a8c94271f37536bae4b",
+    "file-tools.mjs": "sha256:3e1309fc25acb903803c41665a56247a6637521523a017232bbcfd0c07e55ac5",
+    "file-bridge.py": "sha256:712440e4aaeb06953e6f45c97d6da03398acf613b8e751bfd74f7c9f0eb364d0",
+    "file-tools.test.mjs": "sha256:7fe6c970d88b29ca1e402aac8bbcc864e35b73c215031f11b62ff431814363bb",
+    "pnpm-lock.yaml": "sha256:35727af5925cf30922c318c4a6e9a4fac89d1e1302cf1afdc755d894f30bfd64",
+    "../../components/autonomous-worker-framework/tools/pydantic_ollama_worker.py": "sha256:1e62f1cb9a44ffae7f57debe2874742d5d45bd25cd66358e3655cc3a8bd34a77"
+  },
+  "child_exit": 0,
+  "child_error": null,
+  "stderr": "",
+  "before": {
+    "protected.txt": "UFJPVEVDVEVECg==",
+    "target.txt": "VkFMVUUgPSAxCg=="
+  },
+  "after": {
+    "protected.txt": "UFJPVEVDVEVECg==",
+    "target.txt": "VkFMVUUgPSAxCg=="
+  },
+  "validation": {
+    "changed_paths": [],
+    "exact_target_bytes": false,
+    "protected_unchanged": true,
+    "no_extra_files": true
+  },
+  "detail": {
+    "grant": {
+      "root": "C:\\Users\\floyd_dev\\AppData\\Local\\Temp\\acl-s09-real-YoRCaU",
+      "readable_paths": [
+        "target.txt"
+      ],
+      "writable_paths": [
+        "target.txt"
+      ]
+    },
+    "grant_digest": "sha256:b80e11f1ab5207a8fa47d4ffc91b9919d755dc5dddacfb931a5b8f1273f0ddf0",
+    "trace": [],
+    "requests": [
+      {
+        "url": "http://127.0.0.1:11434/v1/chat/completions",
+        "model": "qwen2.5-coder:7b",
+        "tools": [
+          "acl_read_file",
+          "acl_write_file"
+        ],
+        "max_tokens": 256,
+        "status": 200,
+        "body": {
+          "model": "qwen2.5-coder:7b",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Use the ACL tools to perform the requested file edit. Read before writing; copy the returned sha256 exactly. After writing, respond DONE.\nCurrent working directory: C:/Users/floyd_dev/AppData/Local/Temp/acl-s09-real-YoRCaU\n"
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Read target.txt with acl_read_file. Change its content to exactly VALUE = 2 followed by a newline, using acl_write_file and the SHA-256 returned by the read. Then stop."
+                }
+              ]
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "max_tokens": 256,
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "acl_read_file",
+                "description": "Read an exact authorized UTF-8 file. Returns content and sha256 for a subsequent write.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "additionalProperties": false
+                },
+                "strict": false
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "acl_write_file",
+                "description": "Atomically replace an exact authorized UTF-8 file. Supply expected_sha256 from read, or absent for an authorized new file.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "content": {
+                      "type": "string"
+                    },
+                    "expected_sha256": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "content",
+                    "expected_sha256"
+                  ],
+                  "additionalProperties": false
+                },
+                "strict": false
+              }
+            }
+          ]
+        },
+        "raw_response": "data: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"{\\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"name\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\":\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"acl\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"_read\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"_file\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\",\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"arguments\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\":\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" {\\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"path\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\":\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"target\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\".txt\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\"}}\\n\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"{\\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"name\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\":\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"acl\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"_write\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"_file\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\",\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"arguments\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\":\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" {\\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"path\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\":\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"target\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\".txt\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\",\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"content\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\":\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"VALUE\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" =\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"2\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\\n\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\",\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"expected\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"_sha\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"2\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"5\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"6\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\":\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" \\\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\u003csha\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"2\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"5\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"6\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"-from\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"-read\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\u003e\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\"}}\\n\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"DONE\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"chatcmpl-968\",\"object\":\"chat.completion.chunk\",\"created\":1789628400,\"model\":\"qwen2.5-coder:7b\",\"system_fingerprint\":\"fp_ollama\",\"choices\":[],\"usage\":{\"prompt_tokens\":336,\"prompt_tokens_details\":{\"cached_tokens\":55},\"completion_tokens\":64,\"total_tokens\":400}}\n\ndata: [DONE]\n\n"
+      }
+    ],
+    "events": [
+      "agent_end",
+      "agent_settled"
+    ],
+    "effective": {
+      "model": "qwen2.5-coder:7b",
+      "provider": "acl-s09-local",
+      "endpoint": "http://127.0.0.1:11434/v1",
+      "tools": [
+        "acl_read_file",
+        "acl_write_file"
+      ],
+      "contextWindow_metadata_only": 32768
+    },
+    "final": {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"name\": \"acl_read_file\", \"arguments\": {\"path\": \"target.txt\"}}\n{\"name\": \"acl_write_file\", \"arguments\": {\"path\": \"target.txt\", \"content\": \"VALUE = 2\\n\", \"expected_sha256\": \"<sha256-from-read>\"}}\nDONE"
+        }
+      ],
+      "api": "openai-completions",
+      "provider": "acl-s09-local",
+      "model": "qwen2.5-coder:7b",
+      "usage": {
+        "input": 281,
+        "output": 64,
+        "cacheRead": 55,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 400,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      "stopReason": "stop",
+      "timestamp": 1789628400070,
+      "responseId": "chatcmpl-968",
+      "rawStopReason": "stop"
+    },
+    "error": null
+  },
+  "production_dispatch_modified": false,
+  "effective_context_qualified": false
+}

@@ -9,7 +9,7 @@ from .models import AttemptRecord, AttemptState
 from .storage import AtomicRecordStore
 
 
-TERMINAL_STATES = frozenset({AttemptState.CLOSED, AttemptState.ABORTED})
+TERMINAL_STATES = frozenset({AttemptState.CLOSED, AttemptState.ABORTED, AttemptState.OUTCOME_RECORDED})
 MUTABLE_FIELDS = frozenset({"state", "updated_at", "runtime_identity", "candidate_digest", "cleanup_outcome"})
 IMMUTABLE_FIELDS = tuple(
     field.name for field in fields(AttemptRecord) if field.name not in MUTABLE_FIELDS
@@ -44,6 +44,10 @@ class AttemptStore:
 
     def save_transition(self, updated: AttemptRecord) -> None:
         current = self.read(updated.attempt_id)
+        if updated.state is AttemptState.OUTCOME_RECORDED:
+            outcome = self.read_outcome(updated.attempt_id)
+            if updated.cleanup_outcome != 'worker-outcome:' + outcome.digest():
+                raise LabValidationError('WORKER_OUTCOME_MISMATCH', 'attempt must reference its durable worker outcome')
         if current.state in TERMINAL_STATES:
             raise LabValidationError("ATTEMPT_TERMINAL_IMMUTABLE", "terminal attempt is immutable")
         changed = [
@@ -66,7 +70,7 @@ class AttemptStore:
             ),
             cleanup_outcome=(
                 updated.cleanup_outcome
-                if updated.state in {AttemptState.CLOSED, AttemptState.ABORTED}
+                if updated.state in {AttemptState.CLOSED, AttemptState.ABORTED, AttemptState.OUTCOME_RECORDED}
                 else None
             ),
         )
@@ -75,6 +79,24 @@ class AttemptStore:
                 "ATTEMPT_TRANSITION_INVALID", "stored transition differs from protected lifecycle"
             )
         self.records.write(self._path(updated.attempt_id), updated)
+
+    def read_outcome(self, attempt_id):
+        from .worker_outcome import WorkerOutcome
+        self.read(attempt_id)
+        return self.records.read(f'worker-outcomes/{attempt_id}.json', WorkerOutcome.from_mapping)
+
+    def record_outcome(self, outcome):
+        from .worker_outcome import WorkerOutcome
+        from .invocation_store_v3 import InvocationStoreV3
+        from .canonical import canonical_json
+        outcome = WorkerOutcome.from_mapping(outcome.to_dict())
+        value = outcome.to_dict()
+        attempt = self.read(value['attempt_id'])
+        invocation = InvocationStoreV3(self.records.root).read(value['invocation_id'])
+        if invocation.attempt_id != attempt.attempt_id or invocation.identity_digest() != value['invocation_digest']:
+            raise LabValidationError('WORKER_OUTCOME_MISMATCH', 'outcome differs from durable invocation')
+        self.records.write_bytes(f'worker-outcomes/{attempt.attempt_id}.json',
+            (canonical_json(value) + '\n').encode('utf-8'))
 
     def bind_authorized_invocation(
         self,
