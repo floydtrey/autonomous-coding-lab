@@ -390,10 +390,12 @@ class SupervisedPiLauncher:
 
 
 def make_supervised_pi_dispatch_runner(*, state_root, workspace_root, node, framework_root,
-                                      python, pi_installation, agent_dir, outcome_sink, cancellation=None):
+                                      python, pi_installation, agent_dir, outcome_sink, cancellation=None,
+                                      absolute_deadline_unix_ms=None):
     launcher = SupervisedPiLauncher(state_root=state_root, workspace_root=workspace_root, node=node,
         framework_root=framework_root, python=python, pi_installation=pi_installation, agent_dir=agent_dir,
         cancellation=cancellation)
     return make_pi_dispatch_runner(binding_store=ProviderBindingStore(state_root), workspace_root=workspace_root,
         node=node, framework_root=framework_root, python=python, pi_installation=pi_installation,
-        agent_dir=agent_dir, launcher=launcher, outcome_sink=outcome_sink)
+        agent_dir=agent_dir, launcher=launcher, outcome_sink=outcome_sink,
+        absolute_deadline_unix_ms=absolute_deadline_unix_ms)
