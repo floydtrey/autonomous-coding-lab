@@ -9,7 +9,7 @@ Date: 2026-09-18
 - Isolated implementation branch: `kc-console-v1`, created from that exact baseline.
 - Source conversation: the current handoff-review conversation. A chat URL/identifier has not been supplied; do not invent one.
 - Basis: the uploaded “KC Console V1 — PostgreSQL-first implementation plan,” the external-evidence review, and the subsequent agreement to inventory the pipeline before implementing, without relocating KC yet.
-- Current task: **C01, in progress — source contract recorded; host identity pending**. C02, C03 and C07 have not started. The current source review and proposed integration mappings are in [KC_C01_INTEGRATION_CONTRACT.md](KC_C01_INTEGRATION_CONTRACT.md). This is not live tower qualification or a completed C01 gate.
+- Current task: **C02 next — C01 complete.** C03 and C07 have not started. The completed source/runtime contract is in [KC_C01_INTEGRATION_CONTRACT.md](KC_C01_INTEGRATION_CONTRACT.md). Live startup/restart/persistence acceptance remains C07.
 
 ## Product and release boundary
 
@@ -23,8 +23,8 @@ Saving preserves information; it does not verify its claims or adopt it as polic
 
 | Order | Task | Status |
 | --- | --- | --- |
-| 1 | KC-C01 — Trace the required pipeline and confirm the PostgreSQL integration contract | IN PROGRESS — host identity pending |
-| 2 | KC-C02 — Implement Add, recent notes and exact-original inspection | NOT STARTED |
+| 1 | KC-C01 — Trace the required pipeline and confirm the PostgreSQL integration contract | **COMPLETE** — stopped runtime/storage identity resolved; live acceptance deferred to C07 |
+| 2 | KC-C02 — Implement Add, recent notes and exact-original inspection | **NEXT — NOT STARTED** |
 | 3 | KC-C03 — Implement Search, evidence display and basic status | NOT STARTED |
 | 4 | KC-C07 — Package daily use and verify the real workflow | NOT STARTED |
 
@@ -144,3 +144,13 @@ Six exact archive-to-repository file comparisons were performed. The installed M
 The live KC launcher, Python/import location, actual database and artifact directory, and any custom host admission remain unresolved. The previously supplied `Get-KC-C01Inventory.ps1` output ZIP has not been returned. Receive that narrow inventory, resolve only the remaining runtime facts, and finalize C01 before C02. Do not substitute archived settings or the collecting shell's environment for the service's actual configuration.
 
 Changes in this checkpoint are documentation only. No application tests, database writes/migrations, model execution, tower service changes or persistence qualification were performed. All four task boundaries and the deferred repository move remain unchanged.
+
+## C01 completion checkpoint — runtime identity resolved, 2026-09-18
+
+C01 is complete. The intended stopped Cowork KC installation is now bound to the ACL `components/knowledge-core` source tree, its component-local Python 3.12 virtual environment, PostgreSQL container `knowledge-core-sr2-host-62329544d83c` on host port 55434, and artifact root `%LOCALAPPDATA%\\KnowledgeCore\\task4-host-qualification-01\\artifacts`. A separate older qualification database/container on 55433 remains distinct and is not selected for the notebook runtime.
+
+The stopped-runtime binding check found no tracked KC-component changes versus application baseline `73f049bf87174b2fffee00728395eca8e40a0020`; selected source-file Git blobs match the reviewed baseline. The tower checkout was on unrelated ACL commit `3e8531a9b9018add737276ce481af47c51499152`, so no branch switch, merge or tower repository mutation was performed.
+
+The selected launcher uses the standard bootstrap service and does not establish a custom canonical-store authority evaluator. Owner-save admission therefore remains an explicit bounded C02 addition, not an unresolved C01 host question. KC was intentionally offline after reboot; no live startup, migration, SQL, saved-note read, restart or persistence claim was made. Those acceptance checks remain C07.
+
+**Next allowed task: C02 — Add, recent notes and exact-original inspection.** Implement on `kc-console-v1` GitHub-first. Do not silently begin C03, C07, graph work, repository relocation, or unrelated ACL changes.
