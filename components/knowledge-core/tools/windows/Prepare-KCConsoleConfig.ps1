@@ -107,7 +107,7 @@ $Lines = @(
     "KNOWLEDGE_CORE_PORT=$Port",
     "KNOWLEDGE_CORE_CONSOLE_ENABLED=true",
     "KNOWLEDGE_CORE_CONSOLE_KEY=$ConsoleKey",
-    "KNOWLEDGE_CORE_CONSOLE_PROJECTS=" + ($ProjectList -join ","),
+    ("KNOWLEDGE_CORE_CONSOLE_PROJECTS={0}" -f ($ProjectList -join ",")),
     "KNOWLEDGE_CORE_CONSOLE_DEFAULT_PROJECT=$DefaultProject",
     "KNOWLEDGE_CORE_POSTGRES_CONTAINER=$Container"
 )
