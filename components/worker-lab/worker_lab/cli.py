@@ -140,6 +140,27 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("--reviewer", required=True)
     command.add_argument("--decision", choices=('approved','rejected'), required=True)
     command.set_defaults(handler=_service_record_task_review)
+    command = commands.add_parser("run", help="run one approved job sequentially through the existing task workflow")
+    command.add_argument("plan_file", type=Path)
+    command.add_argument("--job-id")
+    command.add_argument("--approved-plan-digest", required=True)
+    command.add_argument("--controller", required=True)
+    command.add_argument("--target-repository", required=True, type=Path)
+    command.add_argument("--workspace-root", required=True, type=Path)
+    command.add_argument("--artifact-root", required=True, type=Path)
+    command.add_argument("--provider-binding-id", required=True)
+    command.add_argument("--protected-file", required=True, type=Path, action="append")
+    command.add_argument("--acknowledge-unsandboxed-host-code-execution", action="store_true")
+    command.add_argument("--review-required", action="store_true")
+    command.add_argument("--timeout-seconds", type=int, default=30)
+    command.add_argument("--output-limit-bytes", type=int, default=1048576)
+    command.add_argument("--cleanup-timeout-seconds", type=int, default=5)
+    command.add_argument("--candidate-archive-limit-bytes", type=int,
+        help="full candidate ZIP budget in uncompressed bytes (default 33554432; zero omits ZIP)")
+    command.set_defaults(handler=_service_run_job)
+    command = commands.add_parser("status", help="show the durable read-only status for one job")
+    command.add_argument("job_id")
+    command.set_defaults(handler=_service_job_status)
     command = commands.add_parser("run-task", help="run one explicitly approved task through worker, checks and acceptance")
     command.add_argument("task_file", type=Path)
     command.add_argument("--review-id")
@@ -290,6 +311,32 @@ def _service_approve_validation(args: argparse.Namespace) -> str:
 def _service_validate_task(args: argparse.Namespace) -> str:
     return _service(args).validate_task(args.attempt_id, args.expected_outcome_digest,
         args.controller, args.validation_id).to_json()
+
+
+def _service_run_job(args: argparse.Namespace) -> str:
+    from .job_plan import JobPlan
+    plan = JobPlan.from_mapping(json.loads(args.plan_file.resolve().read_text(encoding="utf-8")))
+    return _service(args).run_job(
+        args.job_id or plan.plan_id,
+        plan,
+        approved_plan_digest=args.approved_plan_digest,
+        controller_identity=args.controller,
+        target_repository=args.target_repository.resolve(),
+        workspace_root=args.workspace_root.resolve(),
+        artifact_root=args.artifact_root.resolve(),
+        provider_binding_id=args.provider_binding_id,
+        protected_files=tuple(path.resolve() for path in args.protected_file),
+        acknowledge_unsandboxed=args.acknowledge_unsandboxed_host_code_execution,
+        review_required=args.review_required,
+        validation_timeout_seconds=args.timeout_seconds,
+        validation_output_limit_bytes=args.output_limit_bytes,
+        validation_cleanup_timeout_seconds=args.cleanup_timeout_seconds,
+        candidate_archive_limit_bytes=args.candidate_archive_limit_bytes,
+    ).to_json()
+
+
+def _service_job_status(args: argparse.Namespace) -> str:
+    return _service(args).job_status(args.job_id).to_json()
 
 
 def _service_run_task(args: argparse.Namespace) -> str:
