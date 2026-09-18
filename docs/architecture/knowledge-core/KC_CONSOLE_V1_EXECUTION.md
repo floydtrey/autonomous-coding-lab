@@ -9,7 +9,7 @@ Date: 2026-09-18
 - Isolated implementation branch: `kc-console-v1`, created from that exact baseline.
 - Source conversation: the current handoff-review conversation. A chat URL/identifier has not been supplied; do not invent one.
 - Basis: the uploaded “KC Console V1 — PostgreSQL-first implementation plan,” the external-evidence review, and the subsequent agreement to inventory the pipeline before implementing, without relocating KC yet.
-- Current task: **C02 next — C01 complete.** C03 and C07 have not started. The completed source/runtime contract is in [KC_C01_INTEGRATION_CONTRACT.md](KC_C01_INTEGRATION_CONTRACT.md). Live startup/restart/persistence acceptance remains C07.
+- Current task: **C03 next — C01 and C02 complete.** C07 has not started. The completed source/runtime contract is in [KC_C01_INTEGRATION_CONTRACT.md](KC_C01_INTEGRATION_CONTRACT.md). C02 is implementation-qualified on GitHub; live tower migration/startup/restart/persistence acceptance remains C07.
 
 ## Product and release boundary
 
@@ -24,8 +24,8 @@ Saving preserves information; it does not verify its claims or adopt it as polic
 | Order | Task | Status |
 | --- | --- | --- |
 | 1 | KC-C01 — Trace the required pipeline and confirm the PostgreSQL integration contract | **COMPLETE** — stopped runtime/storage identity resolved; live acceptance deferred to C07 |
-| 2 | KC-C02 — Implement Add, recent notes and exact-original inspection | **NEXT — NOT STARTED** |
-| 3 | KC-C03 — Implement Search, evidence display and basic status | NOT STARTED |
+| 2 | KC-C02 — Implement Add, recent notes and exact-original inspection | **COMPLETE** — GitHub implementation and disposable PostgreSQL qualification green; tower deployment deferred to C07 |
+| 3 | KC-C03 — Implement Search, evidence display and basic status | **NEXT — NOT STARTED** |
 | 4 | KC-C07 — Package daily use and verify the real workflow | NOT STARTED |
 
 The gaps found inside C01 belong to these tasks. Do not turn each gap into a new project or silently expand the release boundary.
@@ -154,3 +154,61 @@ The stopped-runtime binding check found no tracked KC-component changes versus a
 The selected launcher uses the standard bootstrap service and does not establish a custom canonical-store authority evaluator. Owner-save admission therefore remains an explicit bounded C02 addition, not an unresolved C01 host question. KC was intentionally offline after reboot; no live startup, migration, SQL, saved-note read, restart or persistence claim was made. Those acceptance checks remain C07.
 
 **Next allowed task: C02 — Add, recent notes and exact-original inspection.** Implement on `kc-console-v1` GitHub-first. Do not silently begin C03, C07, graph work, repository relocation, or unrelated ACL changes.
+
+
+## C02 completion checkpoint — Add, recent notes and exact original, 2026-09-18
+
+C02 is complete as a GitHub-first implementation task on `kc-console-v1`. It has **not** been deployed or migrated against the tower knowledge store; that controlled deployment and persistence acceptance remains C07.
+
+### Implemented
+
+- Added versioned migration `0019_direct_note_capture_metadata.py` and `kc_control.direct_note_capture_metadata`. The row binds immutable notebook metadata to the governed observation, parent submission operation and exact ResourceVersion; original text remains only in the existing canonical ResourceVersion/artifact path.
+- Extended direct-note idempotency so metadata-bearing C02 submissions include metadata in the parent request digest and governed submission evidence. Requests that omit all C02 metadata preserve the historical Task 2E digest shape.
+- Added metadata fingerprint verification on canonical reads. Exact-original reads still enforce Resource/ResourceVersion serving eligibility, artifact byte size, SHA-256 and strict UTF-8.
+- Added canonical recent-note enumeration and exact note read independent of current TEXT-generation membership. A canonically stored note remains available through Recent/Original when text publication is pending or failed. Restricted/non-serving versions are excluded.
+- Legacy direct notes remain readable. Missing notebook metadata is shown as derived/default/unsupplied rather than fabricated; project is derived from settled governed snapshot evidence where available and otherwise remains unknown.
+- Added opt-in console-owner admission separate from the worker bootstrap credential. The configured console key must differ from `KNOWLEDGE_CORE_BOOTSTRAP_KEY`. Save authority binds the owner principal, submission operation, allowed project, content digest, optional event time and capture-metadata digest.
+- Added owner session + HttpOnly SameSite=Strict cookie + CSRF protection. Console project controls expose only the configured allowlist; fresh configuration defaults to project key `inbox`, displayed as **Inbox**.
+- Added packaged local UI at `/console/` for Add, Recent and exact Original. Original note and metadata values are rendered as text rather than executable HTML. The page stores drafts locally but never stores the owner key.
+- Failed/rejected saves preserve the draft. Transport/5xx outcomes are retained separately as uncertain frozen submissions; **Retry exact** reuses the same idempotency key and frozen payload while the editable draft may continue independently.
+- A deliberate second save gets a fresh submission key even when its content is identical. Changed content/metadata under a reused key is rejected as an operation-reuse conflict.
+- Extended the existing `POST /v1/kc/store` schema with optional metadata fields without granting console authority to worker/bootstrap calls. The standard bootstrap service enables the console only when explicitly configured.
+
+### Opt-in console configuration
+
+The standard KC bootstrap recognizes:
+
+```text
+KNOWLEDGE_CORE_CONSOLE_ENABLED=true
+KNOWLEDGE_CORE_CONSOLE_KEY=<separate owner secret>
+KNOWLEDGE_CORE_CONSOLE_PROJECTS=inbox
+KNOWLEDGE_CORE_CONSOLE_DEFAULT_PROJECT=inbox
+```
+
+Additional authorized project keys may be comma-separated in `KNOWLEDGE_CORE_CONSOLE_PROJECTS`. These are configuration inputs, not authorization to deploy them on the tower during C02.
+
+### Verification actually run
+
+Final exact-head GitHub Actions run: **35354099414**, successful.
+
+- PostgreSQL migrations through `0019`: success.
+- Fast semantic suite: **216 passed, 1 skipped, 73 deselected**.
+- PostgreSQL G1–G21 suite: **70 passed, 2 skipped, 218 deselected**.
+- SR-2 G22 pinned real-document pilot: **1 passed, 289 deselected**.
+- RI-4 local-host restart rehearsal: success.
+- SR-2 local-host segment restart rehearsal: success.
+
+The focused C02 tests cover owner versus worker admission, configured/default/denied projects, CSRF, exact original + supplied metadata, whitespace/Unicode, date/timestamp precision, legacy notes, serving restrictions, forced text-index failure with canonical Recent/Original still usable, exact retry, changed-metadata conflict, intentional duplicate saves, separate console/worker keys, packaged draft/uncertain-retry behavior, disposable PostgreSQL metadata round-trip, and exact replay after FastAPI/session reconstruction.
+
+An initial temporary CI run exposed a missing Python `date` import before migration execution. It was corrected before the successful qualification runs. No migration from that failed run touched the tower; all CI PostgreSQL databases were disposable GitHub Actions services.
+
+### Remaining limits / deferred acceptance
+
+- C03 Search/evidence/basic Status is not implemented yet.
+- C07 launcher, export, gateway privacy action, tower deployment, real-note acceptance, KC service restart persistence and model/Graphiti-off daily-use acceptance remain pending.
+- Console sessions are intentionally process-local; a KC service restart requires owner re-authentication. Knowledge records and metadata are durable; session continuity is not a V1 persistence requirement.
+- No model service or Graphiti is required for C02.
+- No tower branch switch, merge, KC migration, service start, SQL query or saved-note write was performed by C02.
+- Repository/data relocation remains deferred.
+
+**Next allowed task: C03 — Search, evidence display and basic status.** Implement on `kc-console-v1` GitHub-first. Do not silently begin C07, graph work, repository relocation or unrelated ACL changes.
