@@ -4,10 +4,10 @@ M09A is the first bounded implementation slice of M09. It prepares the existing
 single-task machinery for job-controlled coding work; it does not add the
 sequential controller loop, status, stop or reconcile commands.
 
-**Checkpoint status:** implementation and the focused Windows job/deadline/
-acceptance checks below are verified. The Node adapter and root source-identity
-regressions, final integration checkpoint and M09A closure remain pending.
-Do not start M09B from this intermediate verification checkpoint.
+**Checkpoint status:** M09A is complete and verified. The final Node adapter and
+root portable-source regressions passed at the documentation-only closure parent.
+M09B remains a separate assignment; this checkpoint does not begin the sequential
+controller loop.
 
 Source assignment: the conversation titled "ACL M09A — Authorization, Realistic
 Worker Budgets, Shared Deadline, and Telemetry". An opaque chat identifier was
@@ -133,6 +133,8 @@ misleading full-suite total.
 | Same `472d507` production bytes: workflow rerun after the operator enabled Windows long paths and restarted | 9 passed in 26.86s; exit 0 | Resolved the observed host path-length failure without changing directory permissions, production storage or test paths |
 | `3e8531a9b9018add737276ce481af47c51499152`: validator-deadline, protected validation, acceptance and workflow (four files) | 67 passed in 156.10s; exit 0 | Includes 12 deterministic validator-deadline race cases and affected real Windows validation/acceptance regressions |
 | Same `3e8531a` production bytes plus the exact integration test now committed here | 13 passed in 22.97s; exit 0 | One real job/authorization/dispatch/record pipeline with simulated provider, clock and validator processes; no sequential loop or real model |
+| `c9db69d322b8de7a7a654c959b4b8a14ac931550`: Node Pi adapter regression | 12 passed, 0 failed; exit 0 | Bounded tools, mutation freeze, settlement, model/context rejection, and request-budget stop reason remain intact |
+| Same `c9db69d`: root portable-source regression | 3 passed in 1.08s; exit 0 | Source-only manifest verification and strict source identity remain intact |
 
 The integration test is `components/worker-lab/tests/test_m09a_job_execution.py`.
 Its operator-verified LF SHA-256 is
@@ -163,18 +165,18 @@ Manifest-byte SHA-256:
 This checkpoint adds only the verified test and this documentation; production
 code, selected configuration and manifest bytes are unchanged from `3e8531a`.
 
-## Remaining closure work and next-task boundary
+## Closure and next-task boundary
 
-Run the existing Node adapter regression file with `ACL_PI_TEST_PYTHON` set to the
-approved test interpreter, and `tests/test_portable_source.py` from the repository
-root. Neither requires a model server, Docker, model fallback or installation.
-Keep their actual results separate from the Windows results above. Then record
-the final M09A checkpoint, branch/HEAD and working-tree state before closure.
+M09A closes after the final Node/source regressions above. No model server, Docker,
+live model request, new qualification, or persistent activation was used for this
+closure. The final reported local working tree was clean for tracked files with
+only `components/knowledge-core/task6i-host-evidence/` untracked; that unrelated
+KC evidence remains outside M09A and must stay untouched.
 
-At the last reported local status, the integration test and
-`components/knowledge-core/task6i-host-evidence/` were untracked. The test is
-included here byte-for-byte; KC host evidence must remain untouched and untracked.
-Do not stage the repository wholesale. Do not reset an advanced branch.
+The final M09A checkpoint is documentation-only relative to `c9db69d`: executable
+production/configuration/manifest bytes are unchanged from the already verified
+parent. Therefore the passing executable tests remain applicable without claiming
+that documentation edits were executable-runtime tests.
 
 M09B is a separate assignment for sequential run/status. It must reuse these
 single-task operations, preserve the reservation-before-preparation order, exact

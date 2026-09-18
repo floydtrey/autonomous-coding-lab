@@ -26,9 +26,9 @@ ACL has one intended V1 architecture with the following implemented execution an
 
 There is no active compatibility path for the removed commissioning/V2 runtime.
 
-The sequential controller does **not** exist yet. Controller Task Packet V1 and the preparation/acceptance APIs are foundations for that controller, not an implemented orchestration loop. S02–S04 now add an immutable V1 job plan, deterministic dependency-cycle validation, and explicit job-task admission through V3 preparation without creating curriculum exercises. See [Job Plan V1](JOB_PLAN_V1.md). These changes stop at PREPARED; job execution authorization remains blocked pending dependency-readiness and budget-enforcement gates.
+The sequential controller does **not** exist yet. Controller Task Packet V1 and the preparation/acceptance APIs remain foundations for that controller, not an implemented orchestration loop. S02–S04 provide the immutable V1 job plan and admission bridge; M07–M08 add durable reservation and accepted-snapshot lineage. M09A is complete: a valid reserved JOBTASK can now authorize through the existing job gate, and one absolute reservation deadline is enforced across preparation, worker execution and protected validation with objective attempt telemetry retained.
 
-The next implementation milestone remains the sequential controller: prepare one bounded task, dispatch through the existing contracts, perform controller-side validation, and record the outcome before proceeding.
+The next implementation milestone is M09B: sequential run plus status, reusing the verified single-task path. M09C later owns stop/reconcile and M09D owns assembled M09 closure.
 
 Initial V1 worker authority is exact-file read/write scope. The controller side uses Worker Lab's protected tests and independent acceptance checks; workers receive no shell or test-process authority. Authentication is provider-neutral and limited to operator-approved credentials for the selected transport. No provider or Pi integration is declared qualified here.
 
@@ -236,8 +236,9 @@ separate checkpoints.
 with one durable task reservation, exact attempt binding, accepted dependency
 references, blockers and restart-safe result recording. The 39 focused job/plan
 checks pass. These are deterministic coordination fixtures, not model execution.
-The generic job authorization boundary remains disabled until M09 connects the
-job time budget to supervision; M08 supplies accepted-source handoff.
+M09A now connects the existing job authorization gate to execution and carries the
+reservation deadline through worker and validator supervision. M08 supplies the
+accepted-source handoff; sequential orchestration remains M09B work.
 
 
 ## M08 — accepted local snapshots and exact downstream input
@@ -267,7 +268,8 @@ M06 evidence remains pinned to its own controller checkpoint.
 The runtime grants no remote publication or automatic adoption. The operator
 separately authorized integrating accepted work through M08 into the development
 branch `architecture/knowledge-core` and publishing that branch. Earlier isolated
-checkout statements describe their historical checkpoints. The selected
-131072-context/2048-output-token configuration remains unchanged.
-M09's assembled sequential commands and deadline supervision are the next queue
-step and require a separate assignment; generic job-task execution remains disabled.
+checkout statements describe their historical checkpoints. M09A supersedes the earlier selected execution ceilings for upcoming bounded coding
+work: 131072 context, 8192 max output tokens, 64 model requests, 128 tool calls,
+900-second provider timeout and 1800-second attempt timeout, all still configurable
+and additionally bounded by the job reservation deadline. M09B sequential run/status
+is the next queue step and requires a separate assignment.

@@ -81,13 +81,16 @@ evidence and refreshed source identities. These fix the retained runtime files.
 [M06 task acceptance](M06_TASK_WORKFLOW.md) is verified, including one real
 local-model maintenance task and independent acceptance. [M07 durable job
 selection](M07_DURABLE_JOBS.md) is complete with deterministic fixture evidence.
-[M08 accepted snapshots](M08_ACCEPTED_SNAPSHOTS.md) is complete in the isolated development target.
-It carries accepted source bytes into the next task without changing its approved
-authority. The selected configuration remains 131072 context tokens and 2048 output
-tokens. The operator has authorized integration of accepted work through M08
-into `architecture/knowledge-core`; runtime activation remains a separate gate.
+[M08 accepted snapshots](M08_ACCEPTED_SNAPSHOTS.md) is complete and carries accepted
+source bytes into the next task without changing its approved authority.
+[M09A execution foundations](M09A_JOB_EXECUTION_FOUNDATIONS.md) is also complete:
+reserved JOBTASK authorization is connected to the existing gate, realistic
+configurable coding-work ceilings are selected, one absolute reservation deadline
+is shared across preparation/worker/validation, and objective attempt evidence is
+retained. The selected ceilings are 131072 context, 8192 max output tokens, 64 model
+requests, 128 tool calls, 900-second provider timeout and 1800-second attempt timeout.
+Runtime activation remains a separate gate.
 
-The next queue step after verified M08 is M09's assembled sequential controller and
-deadline supervision. M09 needs a separate assignment; the M06–M08 authorization
-does not start it automatically. Generic job execution remains disabled until that
-integration is complete.
+The next queue step is M09B sequential run plus status. M09C later owns stop/reconcile
+and M09D assembled M09 closure. Do not treat M09A completion as implementing those
+commands or as live-model activation.
