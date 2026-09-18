@@ -252,3 +252,12 @@ class ConsoleStatusResponse(BaseModel):
     )
     graph_state: Literal["not-required-unverified"] = "not-required-unverified"
     graph_label: str = "Not required for this release / integration unverified"
+
+
+class ConsoleExportResponse(BaseModel):
+    schema_version: Literal["kc-console-export-v1"] = "kc-console-export-v1"
+    exported_at: datetime
+    captured_through: datetime
+    boundary_observation_id: UUID | None
+    note_count: int
+    notes: list[NotebookNoteDetailResponse]
