@@ -9,6 +9,7 @@ let csrfToken = null;
 let nextCursor = null;
 
 const $ = (id) => document.getElementById(id);
+const projectLabel = (project) => project === "inbox" ? "Inbox" : project;
 
 function setStatus(element, message, kind = "") {
   element.textContent = message;
@@ -151,7 +152,7 @@ function activateNotebook(session) {
   for (const project of session.allowed_projects) {
     const option = document.createElement("option");
     option.value = project;
-    option.textContent = project;
+    option.textContent = projectLabel(project);
     select.append(option);
   }
   select.value = session.default_project;
@@ -237,7 +238,7 @@ async function loadRecent(reset) {
     const title = document.createElement("strong");
     title.textContent = note.display_title;
     const meta = document.createElement("span");
-    const project = note.projects.length ? note.projects.join(", ") : "project unknown";
+    const project = note.projects.length ? note.projects.map(projectLabel).join(", ") : "project unknown";
     meta.textContent = `${note.category} · ${project} · ${new Date(note.captured_at).toLocaleString()}`;
     button.append(title, meta);
     button.addEventListener("click", () => openNote(note.observation_id));
@@ -267,7 +268,7 @@ async function openNote(observationId) {
   addMetadataField(fields, "Observation ID", note.observation_id);
   addMetadataField(fields, "Submission ID", note.submission_id);
   addMetadataField(fields, "Source ID", note.source_id);
-  addMetadataField(fields, "Projects", note.projects);
+  addMetadataField(fields, "Projects", note.projects.map(projectLabel));
   addMetadataField(fields, "Category", note.category + (note.category_supplied ? "" : " (default/legacy)"));
   addMetadataField(fields, "Source date", note.source_date);
   addMetadataField(fields, "Source time", note.source_event_time);
