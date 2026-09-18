@@ -4,11 +4,14 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
+    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -90,6 +93,47 @@ class GovernedSourceObservationRecord(Base):
     observation_digest: Mapped[str] = mapped_column(
         String(71), nullable=False, unique=True
     )
+
+
+class DirectNoteCaptureMetadataRecord(Base):
+    """Immutable notebook metadata bound to one direct-note capture."""
+
+    __tablename__ = "direct_note_capture_metadata"
+    __table_args__ = (
+        CheckConstraint(
+            "source_time_precision IN ('unsupplied','date','timestamp')",
+            name="ck_direct_note_capture_source_time_precision",
+        ),
+        ForeignKeyConstraint(
+            ["observation_id", "resource_version_ref"],
+            [
+                f"{KC_CONTROL_SCHEMA}.governed_source_observation.observation_id",
+                f"{KC_CONTROL_SCHEMA}.governed_source_observation.resource_version_ref",
+            ],
+            name="fk_direct_note_capture_observation_version",
+        ),
+        {"schema": KC_CONTROL_SCHEMA},
+    )
+
+    observation_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    operation_id: Mapped[UUID] = mapped_column(
+        ForeignKey(f"{KC_CONTROL_SCHEMA}.operation.operation_id"),
+        nullable=False,
+        unique=True,
+    )
+    resource_version_ref: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    principal_ref: Mapped[str] = mapped_column(String(255), nullable=False)
+    project_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    metadata_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title_supplied: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    category: Mapped[str] = mapped_column(String(128), nullable=False)
+    category_supplied: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    source_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_urls: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    source_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    source_time_precision: Mapped[str] = mapped_column(String(32), nullable=False)
 
 
 class GovernedSourceEvidenceRecord(Base):
