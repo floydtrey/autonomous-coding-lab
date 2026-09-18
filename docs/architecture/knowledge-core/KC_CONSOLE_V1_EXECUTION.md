@@ -1,4 +1,4 @@
-# KC Console V1 — execution task list and C01 checkpoint
+# KC Console V1 — execution task list and checkpoints
 
 Date: 2026-09-18
 
@@ -9,7 +9,7 @@ Date: 2026-09-18
 - Isolated implementation branch: `kc-console-v1`, created from that exact baseline.
 - Source conversation: the current handoff-review conversation. A chat URL/identifier has not been supplied; do not invent one.
 - Basis: the uploaded “KC Console V1 — PostgreSQL-first implementation plan,” the external-evidence review, and the subsequent agreement to inventory the pipeline before implementing, without relocating KC yet.
-- Current task: **C03 next — C01 and C02 complete.** C07 has not started. The completed source/runtime contract is in [KC_C01_INTEGRATION_CONTRACT.md](KC_C01_INTEGRATION_CONTRACT.md). C02 is implementation-qualified on GitHub; live tower migration/startup/restart/persistence acceptance remains C07.
+- Current task: **C07 next — C01, C02 and C03 complete.** Core notebook Add/Recent/Original/Search/Status functionality is implementation-qualified on GitHub. The completed source/runtime contract is in [KC_C01_INTEGRATION_CONTRACT.md](KC_C01_INTEGRATION_CONTRACT.md). Live tower migration/startup/restart/persistence, export and daily-use acceptance remain C07.
 
 ## Product and release boundary
 
@@ -25,8 +25,8 @@ Saving preserves information; it does not verify its claims or adopt it as polic
 | --- | --- | --- |
 | 1 | KC-C01 — Trace the required pipeline and confirm the PostgreSQL integration contract | **COMPLETE** — stopped runtime/storage identity resolved; live acceptance deferred to C07 |
 | 2 | KC-C02 — Implement Add, recent notes and exact-original inspection | **COMPLETE** — GitHub implementation and disposable PostgreSQL qualification green; tower deployment deferred to C07 |
-| 3 | KC-C03 — Implement Search, evidence display and basic status | **NEXT — NOT STARTED** |
-| 4 | KC-C07 — Package daily use and verify the real workflow | NOT STARTED |
+| 3 | KC-C03 — Implement Search, evidence display and basic status | **COMPLETE** — PostgreSQL lexical search/evidence/status implementation qualified on GitHub |
+| 4 | KC-C07 — Package daily use and verify the real workflow | **NEXT — NOT STARTED** |
 
 The gaps found inside C01 belong to these tasks. Do not turn each gap into a new project or silently expand the release boundary.
 
@@ -212,3 +212,48 @@ An initial temporary CI run exposed a missing Python `date` import before migrat
 - Repository/data relocation remains deferred.
 
 **Next allowed task: C03 — Search, evidence display and basic status.** Implement on `kc-console-v1` GitHub-first. Do not silently begin C07, graph work, repository relocation or unrelated ACL changes.
+
+
+## C03 completion checkpoint — Search, evidence and basic status, 2026-09-18
+
+C03 is complete as a GitHub-first implementation task on `kc-console-v1`. It did not add or modify a database migration and did not deploy or query the tower knowledge store.
+
+### Implemented
+
+- Added authenticated owner-console `POST /v1/kc/console/search`, directly reusing the existing PostgreSQL lexical `ConsumerReadKnowledgeKernel.search_text()` path with `include_superseded=false`. No query rewriting, model call, embedding service or graph provider participates.
+- Search returns lexical excerpts plus exact source/evidence identity rather than a generated answer. Source-neutral SR-2 provenance is surfaced when available: source kind/ID, project membership, governed capture time, source event/revision time, lifecycle/classification, repository/path/version and source-line/heading context.
+- Direct-note hits are recognized only by exact governed source identity (`local.user-note`, `local_owner`, governed observation ID). C02 metadata is joined by exact observation/version identity; title/category/capture/project values are not inferred from fuzzy text.
+- Added authenticated `GET /v1/kc/console/sources/{resource_version_ref}` for non-note current search results. It reuses `read_current_source()`, including current-generation membership, serving eligibility, byte-size, SHA-256 and strict UTF-8 checks.
+- Direct-note search hits continue to open through the C02 canonical-note original path, so a note is never reconstructed from a search excerpt.
+- A successful search returning zero hits is explicitly `result_state="empty"`. Retrieval/integrity/database failures produce HTTP 503 `CONSOLE_SEARCH_UNAVAILABLE`; they are never converted into an empty success.
+- Added authenticated `GET /v1/kc/console/status`. It reports canonical revision and lexical TEXT readiness separately from owner write admission. Owner write admission is labeled project-scoped and explicitly states that only a successful save receipt proves durability for a particular submission.
+- Graph UI/status is fixed to **“Not required for this release / integration unverified.”** C03 does not inspect or call Graphiti.
+- Added Search and Status panels to the packaged console. Search is explicitly described as **PostgreSQL lexical search**; returned excerpts are evidence, not generated answers. Search results display provenance and an Open original action using the correct source path.
+- Existing C02 Add/Recent/Original/save semantics were not changed.
+
+### Verification actually run
+
+Final C03 implementation qualification: GitHub Actions run **35392143695**, successful.
+
+- Existing PostgreSQL migrations through `0019`: success; C03 introduced no migration.
+- Fast semantic suite: **217 passed, 1 skipped, 74 deselected**.
+- PostgreSQL G1–G21 suite: **71 passed, 2 skipped, 219 deselected**.
+- SR-2 G22 pinned real-document pilot: **1 passed, 291 deselected**.
+- RI-4 local-host restart rehearsal: success.
+- SR-2 local-host segment restart rehearsal: success.
+
+Focused C03 tests cover: owner-session authentication; true empty search before/after indexing; real PostgreSQL direct-note lexical match; exact C02 title/category/project/capture evidence on the search hit; absence of graph/generated-answer fields; direct-note Open original; generic current-source exact-original route; canonical/text/write/graph status separation; forced search failure returning 503 rather than empty results; forced status failure returning 503; and packaged UI wording/behavior.
+
+The workflow was temporarily enabled for `kc-console-v1` to obtain this qualification and then restored byte-for-byte to its original branch trigger.
+
+### Remaining limits / deferred acceptance
+
+- C07 is now the only remaining V1 task: daily launcher/shortcut, readable full-note export, gateway privacy action, controlled tower migration/configuration, five genuine-note acceptance, KC restart persistence, and model/Graphiti-off daily-use acceptance.
+- Search intentionally exposes the existing authorized current KC corpus; it is not falsely labeled note-only or project-scoped. V1 does not add a backend project/search filter.
+- Search is lexical PostgreSQL retrieval, not semantic/conversational search.
+- C03 does not generate answers, rewrite queries, qualify Graphiti or add graph evidence.
+- A healthy search/status response does not prove a future save will succeed; the per-submission save receipt remains authoritative.
+- No tower branch switch, merge, migration, service start, SQL query or saved-note write was performed by C03.
+- Repository/data relocation remains deferred.
+
+**Next allowed task: C07 — Daily launcher, export and real-use acceptance.** GitHub-first packaging/export work may proceed before the controlled tower deployment. Do not silently begin graph/model work, repository relocation or unrelated ACL changes.
