@@ -14,6 +14,7 @@ class CanonicalStoreAuthorityRequest:
     content_sha256: str
     source_id: str | None = None
     source_event_time: datetime | None = None
+    capture_metadata_digest: str | None = None
 
     def __post_init__(self) -> None:
         for field_name, value in (
@@ -30,6 +31,14 @@ class CanonicalStoreAuthorityRequest:
             or self.source_event_time.utcoffset() is None
         ):
             raise ValueError("source_event_time must be null or timezone-aware")
+        if self.capture_metadata_digest is not None:
+            digest = self.capture_metadata_digest.strip()
+            if len(digest) != 64 or any(
+                character not in "0123456789abcdef" for character in digest
+            ):
+                raise ValueError(
+                    "capture_metadata_digest must be null or a lowercase SHA-256 digest"
+                )
 
 
 @dataclass(frozen=True)
