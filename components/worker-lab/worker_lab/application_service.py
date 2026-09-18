@@ -735,6 +735,44 @@ class WorkerLabApplicationService:
         from .job_runner import read_job
         return read_job(self.data_root, job_id)
 
+    def job_status(self, job_id: str):
+        """Return the M09B durable job projection without mutation."""
+        from .sequential_controller import job_status
+        self._require_present_data_root()
+        return job_status(self.data_root, job_id)
+
+    def run_job(
+        self, job_id: str, plan, *, approved_plan_digest: str, controller_identity: str,
+        target_repository: Path, workspace_root: Path, artifact_root: Path,
+        provider_binding_id: str, protected_files, acknowledge_unsandboxed: bool,
+        review_required: bool = False, validation_timeout_seconds: int = 30,
+        validation_output_limit_bytes: int = 1048576,
+        validation_cleanup_timeout_seconds: int = 5,
+        candidate_archive_limit_bytes=None, runner_factory=None, process_factory=None,
+    ):
+        """Run M09B sequentially through the existing single-task workflow."""
+        from .sequential_controller import run_job
+        self._require_present_data_root()
+        target_repository = _absolute_path_argument(target_repository, "target repository")
+        workspace_root = _absolute_path_argument(workspace_root, "workspace root")
+        artifact_root = _absolute_path_argument(artifact_root, "artifact root")
+        protected_files = tuple(
+            _absolute_path_argument(path, "protected file") for path in protected_files
+        )
+        return run_job(
+            self, job_id=job_id, plan=plan, approved_plan_digest=approved_plan_digest,
+            controller_identity=controller_identity, target_repository=target_repository,
+            workspace_root=workspace_root, artifact_root=artifact_root,
+            provider_binding_id=provider_binding_id, protected_files=protected_files,
+            acknowledge_unsandboxed=acknowledge_unsandboxed,
+            review_required=review_required,
+            validation_timeout_seconds=validation_timeout_seconds,
+            validation_output_limit_bytes=validation_output_limit_bytes,
+            validation_cleanup_timeout_seconds=validation_cleanup_timeout_seconds,
+            candidate_archive_limit_bytes=candidate_archive_limit_bytes,
+            runner_factory=runner_factory, process_factory=process_factory,
+        )
+
     def reserve_next_job_task(self, job_id: str, *, controller_identity: str, expected_job_digest: str):
         from .job_runner import reserve_next_task
         return reserve_next_task(self.data_root, job_id, controller_identity=controller_identity,
