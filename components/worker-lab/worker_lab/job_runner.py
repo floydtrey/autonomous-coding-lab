@@ -413,6 +413,18 @@ def job_authorization_gate(data_root, invocation, *, controller_identity, clock=
             deadline_unix_ms=_millis(slot['deadline_at']), remaining_milliseconds=_millis(slot['deadline_at']) - current)
 
 
+
+def job_execution_allowance(data_root, invocation, *, controller_identity, clock=now):
+    """Return the still-valid absolute reservation deadline for one bound job task.
+
+    This reuses the M07 authorization gate rather than creating a second job
+    authority contract. The returned absolute deadline is immutable across
+    preparation, worker execution, validation and restart.
+    """
+    with job_authorization_gate(data_root, invocation,
+            controller_identity=controller_identity, clock=clock) as allowance:
+        return dict(allowance)
+
 def record_task_result(data_root, job_id, *, controller_identity, reservation_id, task_run_digest, clock=now):
     """Attach the stored M06 result; neither caller-supplied verdicts nor retries."""
     from .task_acceptance import accept_task
