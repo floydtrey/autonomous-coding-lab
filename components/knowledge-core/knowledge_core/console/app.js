@@ -59,11 +59,11 @@ function applyDraft(draft) {
   }
 }
 
-function clearDraft() {
+function clearDraft({ preserveStatus = false } = {}) {
   localStorage.removeItem(DRAFT_KEY);
   $("noteForm").reset();
   if ($("project").dataset.defaultProject) $("project").value = $("project").dataset.defaultProject;
-  setStatus($("saveStatus"), "");
+  if (!preserveStatus) setStatus($("saveStatus"), "");
 }
 
 function uncertainItems() {
@@ -202,7 +202,9 @@ async function performSave(payload, key, options = {}) {
     setStatus($("saveStatus"), "Saved. " + indexMessage, "success");
 
     const current = JSON.stringify(formPayload());
-    if (!options.retryFrozen && current === JSON.stringify(payload)) clearDraft();
+    if (!options.retryFrozen && current === JSON.stringify(payload)) {
+      clearDraft({ preserveStatus: true });
+    }
     await loadRecent(true);
     await openNote(data.note.observation_id);
   } catch (error) {
