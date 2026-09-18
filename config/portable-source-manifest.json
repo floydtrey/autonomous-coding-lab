@@ -21,7 +21,7 @@
         "tools/worker_result.py",
         "tools/worker_runtime.py"
       ],
-      "digest": "sha256:7ff5e9a652ac46e65d7f948dd9b75f9bd1b30413a5d27ddf47c328e1ec1f28f6"
+      "digest": "sha256:03c17a17e39aba142a5a0bf1085484f8dc715a1a41218cfa170d9eda8c5cc6dd"
     },
     "local-model-bench": {
       "root": "components/local-model-bench",
@@ -33,7 +33,7 @@
       "root": "components/worker-lab",
       "production_root": "worker_lab",
       "scope": "python-production-tree",
-      "digest": "sha256:1313ddce09ec5690e04f73b94c3f6298f081e11e8b5fc3abfcaaa620951358fd"
+      "digest": "sha256:e104672928e1f968263367a46b91a3d3faec654be567d45880d4d668d02a5775"
     }
   },
   "separation_policy": {
