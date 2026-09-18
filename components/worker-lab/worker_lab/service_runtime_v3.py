@@ -206,10 +206,6 @@ def authorize_invocation(
     state_root = data_root / "state"
     store = InvocationStoreV3(state_root)
     current = store.read(invocation_id)
-    from .job_admission import ATTEMPT_PREFIX
-    if current.attempt_id.startswith(ATTEMPT_PREFIX):
-        raise LabValidationError("JOB_TASK_EXECUTION_NOT_IMPLEMENTED",
-            "Job-task admission/preparation only: dependency readiness and budget enforcement require a later execution gate")
     if current.identity_digest() != _digest(expected_identity_digest, "expected invocation identity"):
         raise LabValidationError(
             "INTEGRATION_V3_IDENTITY_INVALID",
@@ -222,20 +218,29 @@ def authorize_invocation(
             "OPERATOR_CONTROLLER_MISMATCH",
             "authorization controller differs from the sealed Controller Task Packet",
         )
-    binding_store = ProviderBindingStore(state_root)
-    authorized = authorize_v3(
-        current,
-        binding_store=binding_store,
-        controller_identity=controller,
-        authorized_at=authorized_at,
-    )
-    store.save_transition(
-        authorized,
-        expected_digest=current.digest(),
-        binding_store=binding_store,
-    )
-    return authorized
 
+    def authorize_current():
+        binding_store = ProviderBindingStore(state_root)
+        authorized = authorize_v3(
+            current,
+            binding_store=binding_store,
+            controller_identity=controller,
+            authorized_at=authorized_at,
+        )
+        store.save_transition(
+            authorized,
+            expected_digest=current.digest(),
+            binding_store=binding_store,
+        )
+        return authorized
+
+    from .job_admission import ATTEMPT_PREFIX
+    if current.attempt_id.startswith(ATTEMPT_PREFIX):
+        from .job_runner import job_authorization_gate
+        with job_authorization_gate(data_root, current, controller_identity=controller,
+                clock=lambda: authorized_at):
+            return authorize_current()
+    return authorize_current()
 
 def reject_invocation(
     data_root: Path,
