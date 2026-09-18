@@ -69,7 +69,12 @@ class GovernedSourceObservationRecord(Base):
         {"schema": KC_CONTROL_SCHEMA},
     )
 
-    observation_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    observation_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            f"{KC_CONTROL_SCHEMA}.governed_source_observation.observation_id"
+        ),
+        primary_key=True,
+    )
     contract_version: Mapped[str] = mapped_column(String(64), nullable=False)
     source_identity_digest: Mapped[str] = mapped_column(
         ForeignKey(
@@ -104,14 +109,6 @@ class DirectNoteCaptureMetadataRecord(Base):
             "source_time_precision IN ('unsupplied','date','timestamp')",
             name="ck_direct_note_capture_source_time_precision",
         ),
-        ForeignKeyConstraint(
-            ["observation_id", "resource_version_ref"],
-            [
-                f"{KC_CONTROL_SCHEMA}.governed_source_observation.observation_id",
-                f"{KC_CONTROL_SCHEMA}.governed_source_observation.resource_version_ref",
-            ],
-            name="fk_direct_note_capture_observation_version",
-        ),
         {"schema": KC_CONTROL_SCHEMA},
     )
 
@@ -121,7 +118,11 @@ class DirectNoteCaptureMetadataRecord(Base):
         nullable=False,
         unique=True,
     )
-    resource_version_ref: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    resource_version_ref: Mapped[UUID] = mapped_column(
+        ForeignKey(f"{KC_SCHEMA}.resource_version.ref_id"),
+        nullable=False,
+        index=True,
+    )
     principal_ref: Mapped[str] = mapped_column(String(255), nullable=False)
     project_key: Mapped[str] = mapped_column(String(255), nullable=False)
     metadata_version: Mapped[str] = mapped_column(String(64), nullable=False)
