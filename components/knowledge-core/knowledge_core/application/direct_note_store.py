@@ -15,6 +15,7 @@ from knowledge_core.application.governed_source_evidence import (
 )
 from knowledge_core.application.direct_note_capture import (
     DirectNoteCaptureMetadataInput,
+    capture_metadata_digest,
     capture_metadata_payload,
     persist_direct_note_capture_metadata,
 )
@@ -93,6 +94,7 @@ def _submission_evidence_digest(
     project_key: str,
     content_sha256: str,
     source_event_time: datetime | None,
+    capture_metadata_digest_value: str | None = None,
 ) -> str:
     payload = {
         "content_sha256": content_sha256,
@@ -104,6 +106,8 @@ def _submission_evidence_digest(
         "source_id": source_id,
         "source_kind": DIRECT_NOTE_SOURCE_KIND,
     }
+    if capture_metadata_digest_value is not None:
+        payload["capture_metadata_digest"] = capture_metadata_digest_value
     encoded = json.dumps(
         payload,
         sort_keys=True,
@@ -284,6 +288,11 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
                             project_key=project,
                             content_sha256=content_digest,
                             source_event_time=source_event_time,
+                            capture_metadata_digest_value=(
+                                capture_metadata_digest(capture_metadata)
+                                if capture_metadata is not None
+                                else None
+                            ),
                         ),
                     ),
                 ),
