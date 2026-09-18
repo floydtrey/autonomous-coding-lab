@@ -15,7 +15,7 @@ from .canonical import canonical_digest, canonical_json
 from .controller_task_packet import build_controller_task_packet
 from .errors import LabValidationError
 from .job_plan import JobPlan, identity
-from .job_runner import JobRecord, read_job
+from .job_runner import read_job
 from .provider_binding import ProviderBindingStore
 from .storage import AtomicRecordStore
 
