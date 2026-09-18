@@ -35,7 +35,7 @@ CODING_WORKER_V2 = RuntimeRequirementV2(
     requirement_version=2,
     capability="bounded-code-task",
     profile_id="coding-worker:v2",
-    timeout_seconds=900,
+    timeout_seconds=1800,
     provider_binding_required=True,
 )
 
