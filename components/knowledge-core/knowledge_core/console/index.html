@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Knowledge Core Notebook</title>
+  <link rel="stylesheet" href="/console/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Knowledge Core</h1>
+      <p>Local notebook · canonical originals</p>
+    </div>
+    <button id="logoutButton" class="secondary hidden" type="button">Sign out</button>
+  </header>
+
+  <main>
+    <section id="loginPanel" class="card login-card">
+      <h2>Owner access</h2>
+      <p>Enter the separate KC console owner key. It is used for this login only and is not saved by the page.</p>
+      <form id="loginForm">
+        <label for="ownerKey">Owner key</label>
+        <input id="ownerKey" type="password" autocomplete="current-password" required>
+        <button type="submit">Open notebook</button>
+      </form>
+      <p id="loginStatus" class="status" role="status"></p>
+    </section>
+
+    <div id="notebook" class="hidden">
+      <section class="grid">
+        <article class="card">
+          <h2>Add note</h2>
+          <form id="noteForm">
+            <label for="content">Original content</label>
+            <textarea id="content" rows="12" required placeholder="Paste or type what you want KC to preserve."></textarea>
+
+            <div class="two-col">
+              <div>
+                <label for="title">Title <span>optional</span></label>
+                <input id="title" type="text" maxlength="500">
+              </div>
+              <div>
+                <label for="project">Project</label>
+                <select id="project"></select>
+              </div>
+            </div>
+
+            <div class="two-col">
+              <div>
+                <label for="category">Category <span>default: Note</span></label>
+                <input id="category" type="text" maxlength="128" placeholder="Note">
+              </div>
+              <div>
+                <label for="sourceDate">Original/source date <span>optional</span></label>
+                <input id="sourceDate" type="date">
+              </div>
+            </div>
+
+            <label for="sourceDescription">Source description <span>optional</span></label>
+            <textarea id="sourceDescription" rows="2" maxlength="4000"></textarea>
+
+            <label for="sourceUrls">Source URLs <span>optional, one per line</span></label>
+            <textarea id="sourceUrls" rows="2"></textarea>
+
+            <div class="actions">
+              <button id="saveButton" type="submit">Save to KC</button>
+              <button id="clearDraftButton" class="secondary" type="button">Clear draft</button>
+            </div>
+          </form>
+          <p id="saveStatus" class="status" role="status"></p>
+        </article>
+
+        <article class="card">
+          <div class="section-heading">
+            <h2>Recent notes</h2>
+            <button id="refreshButton" class="secondary" type="button">Refresh</button>
+          </div>
+          <div id="uncertainPanel" class="warning hidden">
+            <strong>Uncertain saves</strong>
+            <p>These requests may have reached KC. Retry uses the exact frozen payload and submission ID.</p>
+            <div id="uncertainList"></div>
+          </div>
+          <div id="recentList" class="recent-list"></div>
+          <button id="moreButton" class="secondary hidden" type="button">Load more</button>
+        </article>
+      </section>
+
+      <section id="detailPanel" class="card hidden">
+        <div class="section-heading">
+          <div>
+            <h2 id="detailTitle">Original</h2>
+            <p id="detailMeta" class="muted"></p>
+          </div>
+          <button id="closeDetailButton" class="secondary" type="button">Close</button>
+        </div>
+        <pre id="detailContent" class="original"></pre>
+        <dl id="detailFields" class="metadata"></dl>
+      </section>
+    </div>
+  </main>
+
+  <script src="/console/app.js" defer></script>
+</body>
+</html>
