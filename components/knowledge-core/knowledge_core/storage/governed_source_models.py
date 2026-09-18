@@ -69,12 +69,7 @@ class GovernedSourceObservationRecord(Base):
         {"schema": KC_CONTROL_SCHEMA},
     )
 
-    observation_id: Mapped[UUID] = mapped_column(
-        ForeignKey(
-            f"{KC_CONTROL_SCHEMA}.governed_source_observation.observation_id"
-        ),
-        primary_key=True,
-    )
+    observation_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
     contract_version: Mapped[str] = mapped_column(String(64), nullable=False)
     source_identity_digest: Mapped[str] = mapped_column(
         ForeignKey(
@@ -112,7 +107,12 @@ class DirectNoteCaptureMetadataRecord(Base):
         {"schema": KC_CONTROL_SCHEMA},
     )
 
-    observation_id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    observation_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            f"{KC_CONTROL_SCHEMA}.governed_source_observation.observation_id"
+        ),
+        primary_key=True,
+    )
     operation_id: Mapped[UUID] = mapped_column(
         ForeignKey(f"{KC_CONTROL_SCHEMA}.operation.operation_id"),
         nullable=False,
