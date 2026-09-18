@@ -18,7 +18,13 @@ from knowledge_core.api.console_admission import (
 from knowledge_core.api.notebook_schemas import (
     ConsoleNoteSaveRequest,
     ConsoleNoteSaveResponse,
+    ConsoleSearchEvidenceResponse,
+    ConsoleSearchHitResponse,
+    ConsoleSearchRequest,
+    ConsoleSearchResponse,
     ConsoleSessionResponse,
+    ConsoleSourceOriginalResponse,
+    ConsoleStatusResponse,
     NotebookNoteDetailResponse,
     NotebookRecentResponse,
     detail_response_from_domain,
@@ -29,6 +35,7 @@ from knowledge_core.application.direct_note_capture import (
     DirectNoteReadKnowledgeKernel,
     capture_metadata_digest,
 )
+from knowledge_core.application.consumer_read import ConsumerReadKnowledgeKernel
 from knowledge_core.application.direct_note_store import (
     DirectNoteStoreKnowledgeKernel,
     direct_note_operation_id,
@@ -46,6 +53,9 @@ from knowledge_core.authority.store import (
 _SESSION_COOKIE = "kc_console_session"
 _SESSION_PATH = "/v1/kc/console/session"
 _NOTES_PATH = "/v1/kc/console/notes"
+_SEARCH_PATH = "/v1/kc/console/search"
+_STATUS_PATH = "/v1/kc/console/status"
+_SOURCES_PATH = "/v1/kc/console/sources"
 
 
 def install_console_routes(
@@ -295,6 +305,247 @@ def install_console_routes(
                 observation_id=observation_id,
             )
         return detail_response_from_domain(note)
+
+    @app.post(
+        _SEARCH_PATH,
+        response_model=ConsoleSearchResponse,
+    )
+    def console_search(
+        body: ConsoleSearchRequest,
+        kc_console_session: str | None = Cookie(
+            default=None,
+            alias=_SESSION_COOKIE,
+        ),
+    ) -> ConsoleSearchResponse:
+        _session_record(kc_console_session)
+        try:
+            with session_factory() as session:
+                reader = ConsumerReadKnowledgeKernel(
+                    session,
+                    artifact_store=artifact_store,
+                )
+                snapshot = reader.search_text(
+                    query=body.query,
+                    limit=body.limit,
+                    include_superseded=False,
+                )
+                note_reader = DirectNoteReadKnowledgeKernel(
+                    session,
+                    artifact_store=artifact_store,
+                )
+                results: list[ConsoleSearchHitResponse] = []
+                for rank, hit in enumerate(snapshot.results, start=1):
+                    if hit.content_digest_algo != "sha256":
+                        raise RuntimeError(
+                            "console search encountered unsupported content digest"
+                        )
+                    segment = hit.segment
+                    source_kind = (
+                        segment.source_kind if segment is not None else None
+                    )
+                    source_id = (
+                        segment.item_key if segment is not None else None
+                    )
+                    projects = (
+                        list(segment.project_keys) if segment is not None else []
+                    )
+                    captured_at = (
+                        segment.source_observed_at
+                        if segment is not None
+                        else hit.observed_at
+                    )
+                    source_event_time = (
+                        segment.source_event_time
+                        if segment is not None
+                        else None
+                    )
+                    source_revision_time = (
+                        segment.source_revision_time
+                        if segment is not None
+                        else None
+                    )
+                    source_classification = (
+                        segment.source_classification
+                        if segment is not None
+                        else None
+                    )
+                    source_line_start = (
+                        segment.source_line_start if segment is not None else None
+                    )
+                    source_line_end = (
+                        segment.source_line_end if segment is not None else None
+                    )
+                    heading_path = (
+                        list(segment.heading_path) if segment is not None else []
+                    )
+
+                    note_observation_id = None
+                    category = None
+                    display_title = ""
+                    open_original_kind = "source"
+
+                    if (
+                        segment is not None
+                        and segment.source_kind == "local.user-note"
+                        and segment.origin_scope == BOOTSTRAP_PRINCIPAL_REF
+                        and segment.governed_source_observation_id is not None
+                    ):
+                        note = note_reader.read_note(
+                            principal_ref=BOOTSTRAP_PRINCIPAL_REF,
+                            observation_id=segment.governed_source_observation_id,
+                        )
+                        if note.resource_version_ref != hit.resource_version_ref:
+                            raise RuntimeError(
+                                "search note evidence resolved to a different original"
+                            )
+                        note_observation_id = note.observation_id
+                        display_title = note.display_title
+                        category = note.category
+                        source_id = note.source_id
+                        projects = list(note.project_keys)
+                        captured_at = note.captured_at
+                        source_event_time = note.source_event_time
+                        open_original_kind = "note"
+                    else:
+                        if heading_path:
+                            last_heading = heading_path[-1].get("display_text")
+                            if isinstance(last_heading, str) and last_heading.strip():
+                                display_title = last_heading.strip()
+                        if not display_title:
+                            display_title = (
+                                source_id
+                                or hit.source_path
+                                or hit.repository
+                                or "Knowledge source"
+                            )
+
+                    results.append(
+                        ConsoleSearchHitResponse(
+                            rank=rank,
+                            resource_id=hit.resource_ref,
+                            version_id=hit.resource_version_ref,
+                            sha256=hit.content_digest,
+                            lexical_score=hit.lexical_score,
+                            excerpt=hit.content,
+                            display_title=display_title,
+                            category=category,
+                            note_observation_id=note_observation_id,
+                            open_original_kind=open_original_kind,
+                            evidence=ConsoleSearchEvidenceResponse(
+                                source_kind=source_kind,
+                                source_classification=source_classification,
+                                source_id=source_id,
+                                projects=projects,
+                                captured_at=captured_at,
+                                source_event_time=source_event_time,
+                                source_revision_time=source_revision_time,
+                                repository=hit.repository,
+                                source_path=hit.source_path,
+                                source_version=hit.source_version,
+                                source_line_start=source_line_start,
+                                source_line_end=source_line_end,
+                                heading_path=heading_path,
+                                lifecycle_state=hit.lifecycle_state.value,
+                                authority_rank=hit.authority_rank,
+                            ),
+                        )
+                    )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "message": "Search is unavailable; your query was not completed.",
+                    "error_code": "CONSOLE_SEARCH_UNAVAILABLE",
+                },
+            ) from exc
+
+        return ConsoleSearchResponse(
+            query=snapshot.query,
+            retrieval_mode=snapshot.retrieval_mode,
+            generation_id=snapshot.generation_id,
+            source_revision_highwater=snapshot.source_revision_highwater,
+            results=results,
+            result_state="matches" if results else "empty",
+        )
+
+    @app.get(
+        _SOURCES_PATH + "/{resource_version_ref}",
+        response_model=ConsoleSourceOriginalResponse,
+    )
+    def console_get_source_original(
+        resource_version_ref: UUID,
+        kc_console_session: str | None = Cookie(
+            default=None,
+            alias=_SESSION_COOKIE,
+        ),
+    ) -> ConsoleSourceOriginalResponse:
+        _session_record(kc_console_session)
+        with session_factory() as session:
+            reader = ConsumerReadKnowledgeKernel(
+                session,
+                artifact_store=artifact_store,
+            )
+            item = reader.read_current_source(
+                resource_version_ref=resource_version_ref,
+            )
+        if item.content_digest_algo != "sha256":
+            raise HTTPException(
+                status_code=503,
+                detail="current source uses an unsupported content digest",
+            )
+        return ConsoleSourceOriginalResponse(
+            resource_id=item.resource_ref,
+            version_id=item.resource_version_ref,
+            sha256=item.content_digest,
+            byte_size=item.byte_size,
+            media_type=item.media_type,
+            content=item.content,
+        )
+
+    @app.get(
+        _STATUS_PATH,
+        response_model=ConsoleStatusResponse,
+    )
+    def console_status(
+        kc_console_session: str | None = Cookie(
+            default=None,
+            alias=_SESSION_COOKIE,
+        ),
+    ) -> ConsoleStatusResponse:
+        _session_record(kc_console_session)
+        try:
+            with session_factory() as session:
+                reader = ConsumerReadKnowledgeKernel(
+                    session,
+                    artifact_store=artifact_store,
+                )
+                status = reader.retrieval_status()
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "message": "Knowledge Core read status is unavailable.",
+                    "error_code": "CONSOLE_STATUS_UNAVAILABLE",
+                },
+            ) from exc
+
+        return ConsoleStatusResponse(
+            canonical_revision=status.canonical_revision,
+            text_state=status.text_state.value,
+            text_generation_id=status.text_generation_id,
+            text_source_revision_highwater=status.text_source_revision_highwater,
+            text_source_count=status.text_source_count,
+            retrieval_mode=status.retrieval_mode,
+            lineage_mode=status.lineage_mode,
+            search_state=(
+                "ready" if status.text_state.value == "ready" else "empty"
+            ),
+            write_projects=list(admission.contract.allowed_projects),
+        )
 
     console_directory = Path(__file__).resolve().parents[1] / "console"
     if not console_directory.is_dir():
