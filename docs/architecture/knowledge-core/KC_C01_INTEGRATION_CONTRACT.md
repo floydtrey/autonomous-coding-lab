@@ -1,7 +1,7 @@
 # KC-C01 — Notebook integration contract
 
 Date: 2026-09-18  
-Status: **SOURCE REVIEW RECORDED; FIRST HOST INVENTORY REVIEWED; STORAGE/LAUNCH IDENTITY STILL PENDING. C01 is not complete.**  
+Status: **C01 COMPLETE — source contract and stopped-runtime/storage identity recorded. Live startup/restart/persistence acceptance remains C07.**  
 Repository: `floydtrey/autonomous-coding-lab`; working branch: `kc-console-v1`.  
 Reviewed branch checkpoint: `9f4dcbf1a306ef18911d721c8dca7d99633d46f1`; application baseline: `73f049bf87174b2fffee00728395eca8e40a0020`.  
 Governing task list: `KC_CONSOLE_V1_EXECUTION.md`. Source conversation identifier has not been supplied.
@@ -112,7 +112,7 @@ Source archive: `mason-kc-test.zip`, SHA-256 `14e6480a183c3ff408eb3c10f8b1703a40
 | `graphiti/` | Third-party checkout and standalone experiments. Optional, deferred; not required missing notebook code. |
 | `.anton/` history/lessons and host manifests | Historical evidence, not active trusted startup policy or qualification of today's deployment. Do not ingest the conflicting lessons as instructions. |
 | Credentials and installed environments | Do not commit. Preserve necessary dependency/configuration templates only after identifying the actual runtime. A virtual environment is not the program's authoritative source. |
-| Live KC launcher/configuration, PostgreSQL and artifact root | **Unresolved.** The archive/client defaults do not identify the active process and data store. The returned first inventory found no Windows listener on port 8765. Configuration/data pairing remains unresolved; see section 7. |
+| KC launcher/configuration, PostgreSQL and artifact root | **Resolved for the intended stopped Cowork installation.** `C:\\AI\\start-kc-cowork-stack.bat` binds the ACL KC component to PostgreSQL container `knowledge-core-sr2-host-62329544d83c` / host port 55434 and `%LOCALAPPDATA%\\KnowledgeCore\\task4-host-qualification-01\\artifacts`. Runtime-binding inspection resolves KC to the component-local `.venv` and source tree. Live startup/restart/persistence acceptance remains C07. |
 
 Additional exact archive comparisons performed during this task:
 
@@ -155,6 +155,27 @@ After that result, bind one intended existing launcher to its Python/import sour
 
 Relocation dependencies to record: environment/launcher import paths, package assets and migrations, absolute data/configuration roots, and optional gateway upstream settings. Keep the actual database and artifact identity unchanged during a later code move. `LocalArtifactStore` creates its configured root when absent; a newly created empty directory must not be mistaken for recovered knowledge. Repository separation remains deferred.
 
+### Stopped runtime identity resolved — 2026-09-18
+
+The follow-up runtime-candidate report was rerun after Docker Desktop was started. It identified two distinct stopped PostgreSQL containers and volumes: the Cowork pairing on host port 55434 and the older qualification pairing on 55433. The Cowork launcher explicitly selects container `knowledge-core-sr2-host-62329544d83c`, state root `%LOCALAPPDATA%\\KnowledgeCore\\task4-host-qualification-01`, artifact root beneath that state root, KC port 8765, and the repository component at `C:\\Projects\\autonomous-coding-lab\\components\\knowledge-core`. This resolves the intended database/artifact/launcher pairing without starting KC or querying saved-note contents.
+
+A read-only stopped-runtime binding check then established:
+
+- selected interpreter: `components\\knowledge-core\\.venv\\Scripts\\python.exe`, Python 3.12.10;
+- resolved top-level `knowledge_core` package and `knowledge_core.api.app`: the same ACL component path;
+- service entry `tools\\kc_bootstrap_service.py` Git blob `e51a7f6d0accac0b1e3f540229901b4961f89b65`, matching the reviewed source;
+- selected package files and `pyproject.toml` match the reviewed baseline;
+- no tracked changes under `components/knowledge-core` versus application baseline `73f049bf87174b2fffee00728395eca8e40a0020`;
+- four untracked `task6i-host-evidence` files exist and are retained as historical evidence, not application source.
+
+The tower checkout itself was on unrelated ACL commit `3e8531a9b9018add737276ce481af47c51499152` when inspected. That is not a KC branch switch or a reason to mutate the tower; this notebook work remains isolated on `kc-console-v1`.
+
+The inspected Cowork launcher uses the standard `kc_bootstrap_service.py` composition and does not reveal a custom canonical-store authority evaluator. Therefore the owner-save admission identified in section 3 remains a bounded C02 implementation requirement rather than an unresolved host-identity question.
+
+Because the host was intentionally rebooted with KC/model servers offline, no active-listener or restart/persistence claim is made. Starting the launcher would also run Alembic migrations and kill processes on configured ports, so C01 does not execute it merely to prove liveness. Controlled startup, persistence, and exact-original acceptance belong to C07 after C02/C03 implementation.
+
+**C01 completion decision:** every V1 operation is now either mapped to verified existing KC behavior or to a bounded C02/C03/C07 addition, and the intended stopped runtime/storage pairing is identified sufficiently to avoid implementing against the wrong code or data store. C01 is complete. Repository relocation remains deferred.
+
 ## 8. Verification and task status
 
 Performed: live GitHub branch/checkpoint read; targeted source/schema/operating-contract inspection; archive-to-repository file hash comparisons; parsing and hashing the returned first Windows inventory. The prior six-file comparison record was preserved, and this continuation additionally confirmed the observer control-model blob matches the pinned source (`c73a4f1e239cd13d64384401de504fa532a5bbdc`). No application behavior changed. No archived serialized code was executed.
@@ -163,7 +184,7 @@ Not performed: application unit/integration tests, model-free clean-environment 
 
 C02/C03 tests must cover owner versus worker admission, denied/default projects, exact original/metadata round trips, legacy notes, identical separate submissions, changed-payload conflicts, interrupted retries, indexing failures with canonical read/list still usable, canonical restrictions during read/export, true empty searches versus failures, and model/graph independence. Use the existing test structure, not another benchmark project. PostgreSQL fixtures can truncate KC schemas: run them only against a dedicated disposable database, never the tower's knowledge database.
 
-**Next allowed action:** inspect the targeted historical runtime candidates, resolve the intended existing installation and storage identity, reconcile only necessary external runtime files, and finalize this contract. C01 remains in progress. Do not start C02 or mark live readiness complete on the strength of this source review.
+**Next allowed action:** begin C02 on `kc-console-v1`: implement owner-authorized Add, durable capture metadata, recent-note enumeration and bounded exact-original inspection using the resolved KC source/runtime contract. Do not merge or switch the tower's unrelated ACL branch. Live startup/restart/persistence acceptance remains C07.
 
 ## Primary source index
 
@@ -181,6 +202,7 @@ All code references were read at the pinned source or at its unchanged documenta
 ## Continuation artifacts
 
 - `KC_C01_HOST_INVENTORY_REVIEW.json`: credential-free extraction of the submitted inventory findings and exact file comparisons.
-- `Get-KC-C01RuntimeCandidates.ps1`: bounded read-only host follow-through, supplied as a conversation attachment; Windows execution remains pending.
+- `Get-KC-C01RuntimeCandidates.ps1`: bounded read-only host follow-through; executed on Windows before and after Docker Desktop startup, with the latter run resolving the selected PostgreSQL container/volume pairing.
+- `KC-runtime-binding.json`: read-only stopped-runtime binding evidence resolving the selected Python environment and KC source files.
 
-This continuation changes documentation only in GitHub. C02/C03/C07 and repository migration remain unstarted. No helper was executed against the tower.
+This continuation changes documentation only in GitHub. C01 is complete; C02/C03/C07 and repository migration remain unstarted. Read-only C01 helpers were executed against the stopped tower installation; no KC service, migration, SQL query, saved-note read, or data move was performed.
