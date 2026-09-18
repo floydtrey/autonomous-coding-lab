@@ -204,6 +204,13 @@ def run_task(data_root, task_file, *, clock, cancellation=None,
             raise LabValidationError('RUN_TASK_IDENTITY_MISMATCH', 'prior task intent differs')
         archive_limit = _archive_limit(intent.get('candidate_archive_limit_bytes')
             if intent is not None else candidate_archive_limit_bytes)
+        absolute_deadline_unix_ms = None
+        from .job_admission import ATTEMPT_PREFIX
+        if invocation.attempt_id.startswith(ATTEMPT_PREFIX):
+            from .job_runner import job_execution_allowance
+            allowance = job_execution_allowance(data_root, invocation,
+                controller_identity=invocation.authorized_by, clock=clock)
+            absolute_deadline_unix_ms = allowance['deadline_unix_ms']
         if invocation.state not in {InvocationState.AUTHORIZED, InvocationState.DISPATCHING, InvocationState.UNCERTAIN}:
             raise LabValidationError('RUN_TASK_TERMINAL', 'invocation cannot execute again')
         binding = ProviderBindingStore(records.root).require(invocation.provider_binding_id, invocation.provider_binding_digest)
@@ -252,8 +259,11 @@ def run_task(data_root, task_file, *, clock, cancellation=None,
                 artifacts['worker_result'] = path
                 # M04 ends at this existing seam. M05/M06 own validators/acceptance.
                 raise _WorkerOutcomeCaptured()
-            runner = runner_factory(state_root=records.root, workspace_root=admitted_workspace,
+            runner_options = dict(state_root=records.root, workspace_root=admitted_workspace,
                 **host, outcome_sink=sink, cancellation=cancellation)
+            if absolute_deadline_unix_ms is not None:
+                runner_options['absolute_deadline_unix_ms'] = absolute_deadline_unix_ms
+            runner = runner_factory(**runner_options)
             running = transition_attempt(attempt, AttemptState.RUNNING, occurred_at=clock(),
                 runtime_identity=prepared.identity_digest())
             attempts.save_transition(running)
