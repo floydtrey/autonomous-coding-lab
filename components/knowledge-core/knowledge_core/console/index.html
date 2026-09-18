@@ -86,6 +86,34 @@
         </article>
       </section>
 
+      <section class="card status-card">
+        <div class="section-heading">
+          <div>
+            <h2>Status</h2>
+            <p class="muted">Read readiness and write admission are reported separately.</p>
+          </div>
+          <button id="statusRefreshButton" class="secondary" type="button">Refresh</button>
+        </div>
+        <div id="statusGrid" class="status-grid">
+          <div><span>Canonical</span><strong id="canonicalStatus">Checking…</strong></div>
+          <div><span>Search</span><strong id="searchReadyStatus">Checking…</strong></div>
+          <div><span>Save admission</span><strong id="writeStatus">Checking…</strong></div>
+          <div><span>Graphiti</span><strong id="graphStatus">Checking…</strong></div>
+        </div>
+        <p id="statusMessage" class="status" role="status"></p>
+      </section>
+
+      <section class="card search-card">
+        <h2>Search</h2>
+        <p class="muted">PostgreSQL lexical search. Results are evidence excerpts, not generated answers.</p>
+        <form id="searchForm" class="search-form">
+          <input id="searchQuery" type="search" required placeholder="Find words or phrases in KC">
+          <button id="searchButton" type="submit">Search</button>
+        </form>
+        <p id="searchStatus" class="status" role="status"></p>
+        <div id="searchResults" class="search-results"></div>
+      </section>
+
       <section id="detailPanel" class="card hidden">
         <div class="section-heading">
           <div>
