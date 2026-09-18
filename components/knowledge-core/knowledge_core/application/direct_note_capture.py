@@ -106,6 +106,13 @@ class DirectNoteRecentPage:
     next_cursor: str | None
 
 
+@dataclass(frozen=True)
+class DirectNoteExportSnapshot:
+    captured_through: datetime
+    boundary_observation_id: UUID | None
+    notes: tuple[DirectNoteDetailSnapshot, ...]
+
+
 def capture_metadata_payload(
     metadata: DirectNoteCaptureMetadataInput,
 ) -> dict[str, object]:
@@ -563,4 +570,72 @@ class DirectNoteReadKnowledgeKernel(ResourceServiceKnowledgeKernel):
         return DirectNoteRecentPage(
             items=tuple(eligible[:limit]),
             next_cursor=next_cursor,
+        )
+
+
+    def export_notes(
+        self,
+        *,
+        principal_ref: str,
+    ) -> DirectNoteExportSnapshot:
+        """Read one fixed authorized direct-note set for a complete JSON export."""
+
+        rows = self.session.execute(
+            select(
+                GovernedSourceObservationRecord,
+                GovernedSourceBindingRecord,
+            )
+            .join(
+                GovernedSourceBindingRecord,
+                GovernedSourceBindingRecord.source_identity_digest
+                == GovernedSourceObservationRecord.source_identity_digest,
+            )
+            .where(
+                GovernedSourceObservationRecord.producer_id == _DIRECT_NOTE_PRODUCER_ID,
+                GovernedSourceBindingRecord.source_kind == _DIRECT_NOTE_SOURCE_KIND,
+                GovernedSourceBindingRecord.origin_scope == principal_ref,
+            )
+            .order_by(
+                GovernedSourceObservationRecord.observed_at.asc(),
+                GovernedSourceObservationRecord.observation_id.asc(),
+            )
+        ).all()
+
+        # Freeze the eligible observation identities first. New captures created
+        # after this query are intentionally outside this export. Restricted notes
+        # are not authorized serving captures and are excluded from the boundary.
+        eligible_ids: list[UUID] = []
+        captured_through = _as_utc(self._now())
+        boundary_observation_id: UUID | None = None
+        for observation, _binding in rows:
+            if not self.resource_version_serving_eligible(
+                observation.resource_version_ref
+            ):
+                continue
+            eligible_ids.append(observation.observation_id)
+            captured_through = _as_utc(observation.observed_at)
+            boundary_observation_id = observation.observation_id
+
+        notes: list[DirectNoteDetailSnapshot] = []
+        for observation_id in eligible_ids:
+            try:
+                note = self.read_note(
+                    principal_ref=principal_ref,
+                    observation_id=observation_id,
+                )
+            except KnowledgeSourceUnavailableError as exc:
+                raise KnowledgeInvariantError(
+                    "direct note became unavailable while export was being assembled"
+                ) from exc
+            notes.append(note)
+
+        if len(notes) != len(eligible_ids):
+            raise KnowledgeInvariantError(
+                "direct note export did not reproduce the frozen capture boundary"
+            )
+
+        return DirectNoteExportSnapshot(
+            captured_through=captured_through,
+            boundary_observation_id=boundary_observation_id,
+            notes=tuple(notes),
         )
