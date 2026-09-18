@@ -12,6 +12,8 @@ from knowledge_core.api.bootstrap_admission import (
     bootstrap_principal_dependency,
 )
 from knowledge_core.api.bootstrap_contract import BootstrapOperation
+from knowledge_core.api.console_admission import ConsoleOwnerAdmission
+from knowledge_core.api.console_routes import install_console_routes
 from knowledge_core.api.consumer_schemas import (
     KnowledgeGetSourceRequest,
     KnowledgeGetSourceResponse,
@@ -34,6 +36,10 @@ from knowledge_core.api.unified_retrieval_schemas import (
     unified_retrieval_response_from_domain,
 )
 from knowledge_core.application.consumer_read import ConsumerReadKnowledgeKernel
+from knowledge_core.application.direct_note_capture import (
+    DirectNoteCaptureMetadataInput,
+    capture_metadata_digest,
+)
 from knowledge_core.application.direct_note_store import (
     DirectNoteStoreKnowledgeKernel,
     direct_note_operation_id,
@@ -107,6 +113,7 @@ def create_app(
     retrieval_authority_evaluator: RetrievalAuthorityEvaluator | None = None,
     canonical_store_authority_evaluator: CanonicalStoreAuthorityEvaluator | None = None,
     bootstrap_admission: BootstrapAdmission | None = None,
+    console_owner_admission: ConsoleOwnerAdmission | None = None,
     unified_graph_search_binding: UnifiedGraphSearchBinding | None = None,
 ):
     """Compose the KC semantic API with bounded trusted-host seams.
@@ -315,6 +322,26 @@ def create_app(
                 )
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
+            capture_metadata = None
+            if any(
+                value is not None
+                for value in (
+                    body.title,
+                    body.category,
+                    body.source_description,
+                    body.source_urls,
+                    body.source_date,
+                )
+            ):
+                capture_metadata = DirectNoteCaptureMetadataInput(
+                    title=body.title,
+                    category=body.category or "Note",
+                    category_supplied=body.category is not None,
+                    source_description=body.source_description,
+                    source_urls=tuple(body.source_urls or ()),
+                    source_date=body.source_date,
+                )
+
             require_canonical_store_authority(
                 canonical_store_authority_evaluator,
                 CanonicalStoreAuthorityRequest(
@@ -324,6 +351,11 @@ def create_app(
                     content_sha256=sha256(body.content.encode("utf-8")).hexdigest(),
                     source_id=body.source_id,
                     source_event_time=body.source_event_time,
+                    capture_metadata_digest=(
+                        capture_metadata_digest(capture_metadata)
+                        if capture_metadata is not None
+                        else None
+                    ),
                 ),
             )
             canonical = kernel.store_note_operation(
@@ -333,6 +365,7 @@ def create_app(
                 project_key=body.project,
                 source_id=body.source_id,
                 source_event_time=body.source_event_time,
+                capture_metadata=capture_metadata,
             )
             publication = kernel.publish_note_text(canonical)
             return KnowledgeStoreResponse(
@@ -340,6 +373,10 @@ def create_app(
                 resource_id=canonical.resource_ref,
                 version_id=canonical.resource_version_ref,
                 sha256=canonical.content_sha256,
+                observation_id=canonical.observation_id,
+                captured_at=canonical.observed_at,
+                project=canonical.project_key,
+                capture_metadata_recorded=capture_metadata is not None,
                 text_state=publication.text_state,
                 text_generation_id=publication.generation_id,
                 text_snapshot_digest=publication.snapshot_digest,
@@ -466,5 +503,13 @@ def create_app(
                 lexical_status,
                 graph=graph_status,
             )
+
+    if console_owner_admission is not None:
+        install_console_routes(
+            app,
+            session_factory=session_factory,
+            artifact_store=artifact_store,
+            admission=console_owner_admission,
+        )
 
     return app
