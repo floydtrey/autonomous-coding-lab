@@ -232,6 +232,22 @@ def validator_environment(home):
 
 def _run_check(records, validation_id, command, approval, invocation, candidate, *, clock, cancellation, process_factory,
         absolute_deadline_unix_ms=None):
+    started = clock()
+    check_started = time.monotonic()
+    check_deadline = check_started + approval['timeout_seconds']
+    job_deadline = None if absolute_deadline_unix_ms is None else (check_started
+        + max(0, absolute_deadline_unix_ms - time.time_ns() // 1_000_000) / 1000)
+
+    def require_time():
+        # Keep both bounds: wall-clock changes cannot extend the captured
+        # remaining allowance, and each check retains its own stricter limit.
+        current = time.monotonic()
+        if job_deadline is not None and (current >= job_deadline
+                or time.time_ns() // 1_000_000 >= absolute_deadline_unix_ms):
+            raise LabValidationError('JOB_WALL_BUDGET_EXHAUSTED', 'job reservation expired during validation')
+        if current >= check_deadline:
+            raise LabValidationError('VALIDATION_TIMED_OUT', 'validator exceeded its approved check deadline')
+
     prefix = f"validation-logs/{validation_id}/{command['test_id']}"
     directory = records._target(prefix)
     directory.mkdir(parents=True, exist_ok=False)
@@ -251,7 +267,6 @@ def _run_check(records, validation_id, command, approval, invocation, candidate,
     failure = None
     creation_attempted = False
     exit_code = None
-    started = clock()
     def transition(state, **kwargs):
         nonlocal custody
         updated = transition_custody(custody, state, **kwargs)
@@ -265,25 +280,28 @@ def _run_check(records, validation_id, command, approval, invocation, candidate,
             environment = validator_environment(directory/'home')
             if cancellation is not None and cancellation.is_set():
                 raise LabValidationError('VALIDATION_CANCELLED', 'cancelled before validator creation')
-            if absolute_deadline_unix_ms is not None and time.time_ns() // 1_000_000 >= absolute_deadline_unix_ms:
-                raise LabValidationError('JOB_WALL_BUDGET_EXHAUSTED', 'job reservation expired before validator creation')
+            require_time()
             creation_attempted = True
             process = process_factory(command['argv'], cwd=Path(approval['cwd']), environment=environment,
                 stdin=stdin, stdout=stdout, stderr=stderr)
             transition(CustodyState.ASSIGNED, worker_identity=process.identity)
+            # Creation/persistence can consume the last remaining time. Never
+            # resume an already-expired suspended process. Cleanup still owns it.
+            require_time()
+            if cancellation is not None and cancellation.is_set():
+                raise LabValidationError('VALIDATION_CANCELLED', 'cancelled before validator resume')
             transition(CustodyState.DISPATCHING)
-            deadline = time.monotonic() + approval['timeout_seconds']
-            if absolute_deadline_unix_ms is not None:
-                deadline = min(deadline, time.monotonic()
-                    + max(0, absolute_deadline_unix_ms - time.time_ns() // 1_000_000) / 1000)
+            require_time()
             process.resume()
-            while (exit_code := process.poll()) is None:
+            while True:
                 if cancellation is not None and cancellation.is_set():
                     raise LabValidationError('VALIDATION_CANCELLED', 'validator cancelled')
-                if time.monotonic() >= deadline:
-                    code = 'JOB_WALL_BUDGET_EXHAUSTED' if (absolute_deadline_unix_ms is not None
-                        and time.time_ns() // 1_000_000 >= absolute_deadline_unix_ms) else 'VALIDATION_TIMED_OUT'
-                    raise LabValidationError(code, 'validator exceeded the strictest applicable deadline')
+                require_time()
+                exit_code = process.poll()
+                # A zero exit observed after the deadline is not a timely pass.
+                require_time()
+                if exit_code is not None:
+                    break
                 if sum((directory/name).stat().st_size for name in ('stdout.log','stderr.log')) > approval['output_limit_bytes']:
                     raise LabValidationError('VALIDATION_OUTPUT_LIMIT', 'validator exceeded approved log limit')
                 time.sleep(.025)
@@ -300,11 +318,11 @@ def _run_check(records, validation_id, command, approval, invocation, candidate,
                     raise LabValidationError('VALIDATION_CANCELLED', 'validator cancelled during owned-process drain')
                 if sum((directory/name).stat().st_size for name in ('stdout.log','stderr.log')) > approval['output_limit_bytes']:
                     raise LabValidationError('VALIDATION_OUTPUT_LIMIT', 'validator exceeded approved log limit')
-                if absolute_deadline_unix_ms is not None and time.time_ns() // 1_000_000 >= absolute_deadline_unix_ms:
-                    raise LabValidationError('JOB_WALL_BUDGET_EXHAUSTED', 'job reservation expired while validator children remained')
+                require_time()
                 if time.monotonic() >= drain_deadline:
                     raise LabValidationError('VALIDATION_CHILDREN_REMAINED', 'validator left owned children after cleanup deadline')
                 time.sleep(.025)
+            require_time()
             if sum((directory/name).stat().st_size for name in ('stdout.log','stderr.log')) > approval['output_limit_bytes']:
                 raise LabValidationError('VALIDATION_OUTPUT_LIMIT', 'validator exceeded approved log limit')
     except (Exception, KeyboardInterrupt) as exc:
@@ -347,6 +365,9 @@ def validate_task(data_root, *, attempt_id, expected_outcome_digest, controller_
         clock=now, cancellation=None, process_factory=OwnedWindowsProcess, absolute_deadline_unix_ms=None):
     _check(isinstance(validation_id, str) and re.fullmatch(r'VALIDATION-[A-Za-z0-9_-]{1,80}', validation_id),
         'VALIDATION_ID_INVALID', 'validation identity must be VALIDATION- followed by a unique identifier')
+    _check(absolute_deadline_unix_ms is None or (type(absolute_deadline_unix_ms) is int
+        and 0 < absolute_deadline_unix_ms <= 9_007_199_254_740_991),
+        'VALIDATION_DEADLINE_INVALID', 'absolute deadline must be a positive safe integer')
     with _exclusive_controller(data_root/'state', 'run-task.lock'), _exclusive_controller(data_root/'state'):
         records, outcome, invocation, workspace, candidate, selected, source = _base(
             data_root, attempt_id, expected_outcome_digest, controller_identity)
@@ -364,6 +385,8 @@ def validate_task(data_root, *, attempt_id, expected_outcome_digest, controller_
             outcome_digest=outcome.digest(), candidate_digest=candidate, approval_digest=canonical_digest(approval),
             test_plan_digest=invocation.test_plan_digest, source_manifest_digest=source,
             mode=MODE, resource_exposure=EXPOSURE)
+        if absolute_deadline_unix_ms is not None:
+            request['deadline_unix_ms'] = absolute_deadline_unix_ms
         existing = _optional(records, f'validation-results/{validation_id}.json')
         if existing is not None:
             _check(isinstance(existing, dict) and existing.get('request_digest') == canonical_digest(request),
@@ -401,6 +424,8 @@ def validate_task(data_root, *, attempt_id, expected_outcome_digest, controller_
         try:
             *_, catalog = _validate_dispatch_definitions(data_root, AttemptStore(records.root).read(attempt_id), invocation)
             _run_sealed_tests(invocation, catalog, workspace, execute)
+            if absolute_deadline_unix_ms is not None and time.time_ns() // 1_000_000 >= absolute_deadline_unix_ms:
+                raise LabValidationError('JOB_WALL_BUDGET_EXHAUSTED', 'reservation expired before validation completed')
         except (Exception, KeyboardInterrupt) as exc:
             exc = validation_failure or exc
             error = dict(code='VALIDATION_CANCELLED' if isinstance(exc, KeyboardInterrupt) else getattr(exc,'code','VALIDATION_FAILED'),
