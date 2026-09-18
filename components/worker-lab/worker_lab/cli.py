@@ -161,6 +161,15 @@ def _parser() -> argparse.ArgumentParser:
     command = commands.add_parser("status", help="show the durable read-only status for one job")
     command.add_argument("job_id")
     command.set_defaults(handler=_service_job_status)
+    command = commands.add_parser("stop", help="request stop for the exact active job reservation")
+    command.add_argument("job_id")
+    command.add_argument("--controller", required=True)
+    command.set_defaults(handler=_service_stop_job)
+    command = commands.add_parser("reconcile", help="finish only provable job bookkeeping without launching replacement work")
+    command.add_argument("job_id")
+    command.add_argument("--controller", required=True)
+    command.add_argument("--artifact-root", type=Path)
+    command.set_defaults(handler=_service_reconcile_job)
     command = commands.add_parser("run-task", help="run one explicitly approved task through worker, checks and acceptance")
     command.add_argument("task_file", type=Path)
     command.add_argument("--review-id")
@@ -337,6 +346,21 @@ def _service_run_job(args: argparse.Namespace) -> str:
 
 def _service_job_status(args: argparse.Namespace) -> str:
     return _service(args).job_status(args.job_id).to_json()
+
+
+def _service_stop_job(args: argparse.Namespace) -> str:
+    return _service(args).stop_job(
+        args.job_id,
+        controller_identity=args.controller,
+    ).to_json()
+
+
+def _service_reconcile_job(args: argparse.Namespace) -> str:
+    return _service(args).reconcile_job(
+        args.job_id,
+        controller_identity=args.controller,
+        artifact_root=None if args.artifact_root is None else args.artifact_root.resolve(),
+    ).to_json()
 
 
 def _service_run_task(args: argparse.Namespace) -> str:
