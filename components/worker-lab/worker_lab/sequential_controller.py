@@ -602,6 +602,9 @@ def reconcile_job(service, job_id: str, *, controller_identity: str, artifact_ro
     item = value["tasks"][task_id]
     slot = item["attempts"][-1]
 
+    if item["state"] == "pending_review":
+        return job_status(data_root, job_id)
+
     if slot["attempt_id"] is None:
         block_active_reconciliation(
             data_root,
