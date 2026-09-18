@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - architecture/knowledge-core
+      - kc-console-v1
     paths:
       - "components/knowledge-core/**"
       - ".github/workflows/knowledge-core.yml"
