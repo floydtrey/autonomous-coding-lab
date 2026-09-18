@@ -52,7 +52,8 @@ def parse_adapter_output(raw: bytes, request: bytes, worker_digest: str) -> dict
 def make_pi_dispatch_runner(*, binding_store: ProviderBindingStore, workspace_root: Path,
                             framework_root: Path, node: Path, python: Path,
                             pi_installation: Path, agent_dir: Path,
-                            launcher: Callable, outcome_sink: Callable[[dict], None]):
+                            launcher: Callable, outcome_sink: Callable[[dict], None],
+                            absolute_deadline_unix_ms: int | None = None):
     """Require an explicit launcher and sink; never silently select/run a process.
 
     launcher(argv, request_jsonl, deadline_unix_ms) returns stdout bytes. It owns
@@ -100,7 +101,10 @@ def make_pi_dispatch_runner(*, binding_store: ProviderBindingStore, workspace_ro
             if sorted(worker_request.readable_paths) != expected_readable or tuple(worker_request.writable_paths) != invocation.writable_paths:
                 raise LabValidationError('PI_DISPATCH_MISMATCH', 'AWF scope differs from admitted Pi grant')
             issued = time.time_ns() // 1_000_000
-            deadline = issued + min(config['attempt_timeout_seconds'], worker_request.timeout_seconds) * 1000
+            relative_deadline = issued + min(config['attempt_timeout_seconds'], worker_request.timeout_seconds) * 1000
+            deadline = relative_deadline if absolute_deadline_unix_ms is None else min(relative_deadline, absolute_deadline_unix_ms)
+            if deadline <= issued:
+                raise LabValidationError('JOB_WALL_BUDGET_EXHAUSTED', 'job reservation expired before worker launch')
             request = build_request(invocation=invocation, prompt=parsed.prompt, task=dict(parsed.workspace_write),
                 worker=config, worker_digest=config_digest, workspace_root=str(workspace_root),
                 issued_at_unix_ms=issued, deadline_unix_ms=deadline, execution_prompt=worker_request.prompt)
