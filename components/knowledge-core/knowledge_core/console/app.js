@@ -5,6 +5,7 @@ const NOTES_URL = "/v1/kc/console/notes";
 const SEARCH_URL = "/v1/kc/console/search";
 const STATUS_URL = "/v1/kc/console/status";
 const SOURCES_URL = "/v1/kc/console/sources";
+const EXPORT_URL = "/v1/kc/console/export";
 const DRAFT_KEY = "kc-console-draft-v1";
 const UNCERTAIN_KEY = "kc-console-uncertain-v1";
 
@@ -375,6 +376,36 @@ async function runSearch() {
   }
 }
 
+async function exportNotes() {
+  $("exportButton").disabled = true;
+  setStatus($("statusMessage"), "Building complete canonical-note export…");
+  try {
+    const response = await fetch(EXPORT_URL, { credentials: "same-origin" });
+    const data = await jsonResponse(response);
+    if (!response.ok) {
+      setStatus($("statusMessage"), detailMessage(data, "Note export is unavailable."), "error");
+      if (response.status === 401) deactivateNotebook();
+      return;
+    }
+
+    const text = JSON.stringify(data, null, 2) + "\n";
+    const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const stamp = new Date(data.exported_at).toISOString().replace(/[:.]/g, "-");
+    anchor.href = url;
+    anchor.download = "knowledge-core-notes-" + stamp + ".json";
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setStatus($("statusMessage"), "Exported " + data.note_count + " canonical note" + (data.note_count === 1 ? "" : "s") + ".", "success");
+  } catch {
+    setStatus($("statusMessage"), "Note export is unavailable; no partial export was downloaded.", "error");
+  } finally {
+    $("exportButton").disabled = false;
+  }
+}
 async function openSource(hit) {
   const response = await fetch(SOURCES_URL + "/" + encodeURIComponent(hit.version_id), { credentials: "same-origin" });
   const source = await jsonResponse(response);
@@ -469,6 +500,7 @@ $("refreshButton").addEventListener("click", () => loadRecent(true));
 $("moreButton").addEventListener("click", () => loadRecent(false));
 $("closeDetailButton").addEventListener("click", () => $("detailPanel").classList.add("hidden"));
 $("statusRefreshButton").addEventListener("click", loadStatus);
+$("exportButton").addEventListener("click", exportNotes);
 $("searchForm").addEventListener("submit", (event) => {
   event.preventDefault();
   runSearch();
