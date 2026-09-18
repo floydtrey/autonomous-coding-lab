@@ -206,11 +206,6 @@ def run_task(data_root, task_file, *, clock, cancellation=None,
             if intent is not None else candidate_archive_limit_bytes)
         absolute_deadline_unix_ms = None
         from .job_admission import ATTEMPT_PREFIX
-        if invocation.attempt_id.startswith(ATTEMPT_PREFIX):
-            from .job_runner import job_execution_allowance
-            allowance = job_execution_allowance(data_root, invocation,
-                controller_identity=invocation.authorized_by, clock=clock)
-            absolute_deadline_unix_ms = allowance['deadline_unix_ms']
         if invocation.state not in {InvocationState.AUTHORIZED, InvocationState.DISPATCHING, InvocationState.UNCERTAIN}:
             raise LabValidationError('RUN_TASK_TERMINAL', 'invocation cannot execute again')
         binding = ProviderBindingStore(records.root).require(invocation.provider_binding_id, invocation.provider_binding_digest)
@@ -230,6 +225,11 @@ def run_task(data_root, task_file, *, clock, cancellation=None,
             records.write_bytes(intent_path, (canonical_json(intent) + '\n').encode())
         dispatched = invocation.state in {InvocationState.DISPATCHING, InvocationState.UNCERTAIN}
         try:
+            if invocation.attempt_id.startswith(ATTEMPT_PREFIX):
+                from .job_runner import job_execution_allowance
+                allowance = job_execution_allowance(data_root, invocation,
+                    controller_identity=invocation.authorized_by, clock=clock)
+                absolute_deadline_unix_ms = allowance['deadline_unix_ms']
             if restarted:
                 raise LabValidationError('RUN_TASK_INTERRUPTED', 'prior controller stopped before recording an outcome; no replay')
             # Unresolved earlier run-task transactions block replacements, even if
