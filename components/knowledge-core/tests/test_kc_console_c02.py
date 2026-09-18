@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import inspect
 
 from knowledge_core.api.app import create_app
 from knowledge_core.api.bootstrap_admission import BootstrapAdmission
@@ -34,6 +35,9 @@ from knowledge_core.storage.governed_source_models import (
 
 _BOOTSTRAP_KEY = "c02-worker-bootstrap-key"
 _OWNER_KEY = "c02-console-owner-key"
+_POSTGRES_URL = os.environ.get("KNOWLEDGE_CORE_POSTGRES_TEST_URL") or os.environ.get(
+    "KNOWLEDGE_CORE_DATABASE_URL"
+)
 
 
 @pytest.fixture()
@@ -109,6 +113,11 @@ def test_c02_console_is_separate_from_worker_store_authority(c02_fixture):
     client, _sessions, _artifacts = c02_fixture
 
     assert client.get("/console/").status_code == 200
+    script = client.get("/console/app.js")
+    assert script.status_code == 200
+    assert "kc-console-uncertain-v1" in script.text
+    assert "Retry exact" in script.text
+    assert "localStorage" in script.text
     assert client.get("/v1/kc/console/notes").status_code == 401
 
     wrong = client.post(
@@ -348,3 +357,145 @@ def test_c02_legacy_note_and_serving_restriction_are_honored(c02_fixture):
 
     # Keep csrf referenced so the login itself remains part of the test boundary.
     assert csrf
+
+
+def _require_c02_postgres_engine():
+    if not _POSTGRES_URL:
+        pytest.skip("C02 PostgreSQL URL is not configured")
+    engine = create_database_engine(_POSTGRES_URL)
+    if engine.dialect.name != "postgresql":
+        engine.dispose()
+        pytest.skip("C02 PostgreSQL qualification requires PostgreSQL")
+    return engine
+
+
+def _truncate_c02_kernel_tables(engine) -> None:
+    inspector = inspect(engine)
+    preparer = engine.dialect.identifier_preparer
+    tables: list[str] = []
+    for schema in ("kc", "kc_control", "kc_derived"):
+        for table_name in inspector.get_table_names(schema=schema):
+            tables.append(
+                f"{preparer.quote_schema(schema)}.{preparer.quote(table_name)}"
+            )
+    if not tables:
+        raise AssertionError("Knowledge Core schemas are not migrated")
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "TRUNCATE TABLE "
+            + ", ".join(tables)
+            + " RESTART IDENTITY CASCADE"
+        )
+
+
+@pytest.mark.postgresql
+def test_c02_postgres_metadata_roundtrip_replays_after_app_reconstruction(
+    tmp_path: Path,
+):
+    engine = _require_c02_postgres_engine()
+    _truncate_c02_kernel_tables(engine)
+    sessions = create_session_factory(engine)
+    artifacts = LocalArtifactStore(tmp_path / "c02-postgres-artifacts")
+    bootstrap = BootstrapAdmission(
+        contract=BootstrapContract(),
+        api_key=_BOOTSTRAP_KEY,
+    )
+    console = ConsoleOwnerAdmission(
+        contract=ConsoleOwnerContract(
+            allowed_projects=("inbox", "local-ai"),
+            default_project="inbox",
+        ),
+        owner_key=_OWNER_KEY,
+    )
+
+    def build_app():
+        return create_app(
+            session_factory=sessions,
+            artifact_store=artifacts,
+            bootstrap_admission=bootstrap,
+            canonical_store_authority_evaluator=None,
+            console_owner_admission=console,
+        )
+
+    body = {
+        "content": "PostgreSQL C02 exact original π\nsecond line\n",
+        "title": "PostgreSQL C02",
+        "category": "Note",
+        "source_description": "Disposable CI PostgreSQL qualification.",
+        "source_urls": ["https://example.invalid/c02-postgres"],
+        "source_event_time": "2026-09-18T08:00:00-05:00",
+    }
+    key = "c02-postgres-reconstruction"
+
+    try:
+        with TestClient(build_app()) as client:
+            csrf = _login(client)
+            first = client.post(
+                "/v1/kc/console/notes",
+                headers=_save_headers(csrf, key),
+                json=body,
+            )
+            assert first.status_code == 201, first.text
+            first_data = first.json()
+            assert first_data["canonical_state"] == "stored"
+            assert first_data["text_state"] == "indexed"
+            first_note = first_data["note"]
+            assert first_note["content"] == body["content"]
+            assert first_note["projects"] == ["inbox"]
+            assert first_note["source_time_precision"] == "timestamp"
+            assert first_note["search_ready"] is True
+
+        # Rebuild the FastAPI application/session manager while retaining only the
+        # same durable PostgreSQL/artifact state. Exact retry must replay the settled
+        # capture rather than create a second one.
+        with TestClient(build_app()) as client:
+            csrf = _login(client)
+            replay = client.post(
+                "/v1/kc/console/notes",
+                headers=_save_headers(csrf, key),
+                json=body,
+            )
+            assert replay.status_code == 201, replay.text
+            replay_note = replay.json()["note"]
+            assert replay_note["observation_id"] == first_note["observation_id"]
+            assert replay_note["submission_id"] == first_note["submission_id"]
+            assert replay_note["version_id"] == first_note["version_id"]
+
+            recent = client.get("/v1/kc/console/notes")
+            assert recent.status_code == 200, recent.text
+            assert recent.json()["items"][0]["observation_id"] == first_note[
+                "observation_id"
+            ]
+
+            exact = client.get(
+                f"/v1/kc/console/notes/{first_note['observation_id']}"
+            )
+            assert exact.status_code == 200, exact.text
+            assert exact.json()["content"] == body["content"]
+
+        with sessions() as session:
+            row = session.get(
+                DirectNoteCaptureMetadataRecord,
+                UUID(first_note["observation_id"]),
+            )
+            assert row is not None
+            assert row.title == "PostgreSQL C02"
+            assert row.category == "Note"
+            assert row.category_supplied is True
+            assert row.source_time_precision == "timestamp"
+            assert row.source_date is None
+    finally:
+        _truncate_c02_kernel_tables(engine)
+        engine.dispose()
+
+
+def test_c02_console_env_rejects_reusing_worker_bootstrap_key():
+    with pytest.raises(RuntimeError, match="must differ"):
+        ConsoleOwnerAdmission.optional_from_env(
+            {
+                "KNOWLEDGE_CORE_CONSOLE_ENABLED": "true",
+                "KNOWLEDGE_CORE_CONSOLE_KEY": "same-secret",
+                "KNOWLEDGE_CORE_BOOTSTRAP_KEY": "same-secret",
+                "KNOWLEDGE_CORE_CONSOLE_PROJECTS": "inbox",
+            }
+        )
