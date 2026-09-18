@@ -160,6 +160,18 @@ time.sleep(60)
         unrelated.terminate();unrelated.wait(timeout=5)
 
 
+
+def test_absolute_deadline_blocks_validator_creation_and_preserves_absence(tmp_path, monkeypatch):
+    service, lab, root, outcome, checker = prepare(tmp_path, monkeypatch)
+    approve(service, outcome, checker)
+    value = validate(service, outcome, absolute_deadline_unix_ms=1,
+        process_factory=lambda *a, **kw: pytest.fail('expired deadline launched validator')).to_dict()
+    assert value['status'] == 'failed'
+    assert value['all_validators_absent'] is True
+    assert value['checks'][0]['failure'] == 'JOB_WALL_BUDGET_EXHAUSTED'
+    assert value['checks'][0]['custody']['state'] == 'ABSENCE_VERIFIED'
+
+
 def test_validator_candidate_mutation_is_not_a_pass(tmp_path,monkeypatch):
     code="from pathlib import Path\nimport sys\n(Path(sys.argv[1])/'record_ledger/models.py').write_text('changed by validator')\n"
     service,lab,root,outcome,checker=prepare(tmp_path,monkeypatch,code=code)
