@@ -256,8 +256,12 @@ def block_active_reconciliation(data_root, job_id, *, controller_identity, reser
         job = _read(records, job_id, controller_identity)
         value = job.to_dict()
         task_id, item, slot = _reservation(value, reservation_id)
-        _require(slot['run_reference'] is None,
-            'JOB_RECONCILIATION_RESULT_AVAILABLE', 'record the retained task result instead of blocking it')
+        if slot['run_reference'] is not None:
+            retained = records.read(slot['run_reference'], lambda stored: stored)
+            _require(canonical_digest(retained) == slot['run_digest']
+                and retained.get('schema_version') == 'worker-lab-task-run:v1'
+                and retained.get('status') != 'accepted',
+                'JOB_RESULT_CHANGED', 'retained non-accepted task result changed')
         safe = slot['attempt_id'] is None
         if slot['attempt_id'] is not None:
             invocation = InvocationStoreV3(records.root).read(slot['invocation_id'])
