@@ -9,7 +9,7 @@ Date: 2026-09-18
 - Isolated implementation branch: `kc-console-v1`, created from that exact baseline.
 - Source conversation: the current handoff-review conversation. A chat URL/identifier has not been supplied; do not invent one.
 - Basis: the uploaded “KC Console V1 — PostgreSQL-first implementation plan,” the external-evidence review, and the subsequent agreement to inventory the pipeline before implementing, without relocating KC yet.
-- Current task: **C01, in progress**. C02, C03 and C07 have not started. The source audit below is not a completed integration contract or a live tower qualification.
+- Current task: **C01, in progress — source contract recorded; host identity pending**. C02, C03 and C07 have not started. The current source review and proposed integration mappings are in [KC_C01_INTEGRATION_CONTRACT.md](KC_C01_INTEGRATION_CONTRACT.md). This is not live tower qualification or a completed C01 gate.
 
 ## Product and release boundary
 
@@ -23,7 +23,7 @@ Saving preserves information; it does not verify its claims or adopt it as polic
 
 | Order | Task | Status |
 | --- | --- | --- |
-| 1 | KC-C01 — Trace the required pipeline and confirm the PostgreSQL integration contract | IN PROGRESS |
+| 1 | KC-C01 — Trace the required pipeline and confirm the PostgreSQL integration contract | IN PROGRESS — host identity pending |
 | 2 | KC-C02 — Implement Add, recent notes and exact-original inspection | NOT STARTED |
 | 3 | KC-C03 — Implement Search, evidence display and basic status | NOT STARTED |
 | 4 | KC-C07 — Package daily use and verify the real workflow | NOT STARTED |
@@ -125,7 +125,7 @@ Work one task at a time. End each task with changed files, tests actually run, k
 
 All paths above are under `components/knowledge-core/`. Primary evidence is the actual pinned implementation, not claims in old planning documents.
 
-### Outstanding C01 work — do not skip
+### Outstanding C01 work at the initial checkpoint — historical progress note
 
 - Identify the actual live launcher/import environment and the safe-to-record database/artifact/configuration identities. Shell defaults and uploaded historical test settings are not substitutes.
 - Finish the required external-file inventory and determine whether an existing host-authorized save implementation can be reused.
@@ -133,4 +133,14 @@ All paths above are under `components/knowledge-core/`. Primary evidence is the 
 - Select the small console composition/authorization arrangement and document focused tests for C02/C03. Do not turn missing host authorization into a global allow-all decision.
 - Record the public-gateway privacy action and local-deployment checks for C07.
 
-No KC application behavior, database records, tower services or existing branches were changed in this checkpoint. No implementation tests or live persistence tests have been run in this task yet. Only this isolated branch and documentation checkpoint have been created.
+No KC application behavior, database records, tower services or existing branches were changed in the initial checkpoint. No implementation tests or live persistence tests had been run. That checkpoint created only this isolated branch and its initial execution document.
+
+## C01 checkpoint — source contract recorded, host identity pending
+
+The current [integration contract](KC_C01_INTEGRATION_CONTRACT.md) records verified operations, capture metadata and retry identity, owner admission/default-project requirements, bounded canonical enumeration/original read/export, console placement and the required external-file map. Proposed additions are explicitly distinguished from existing code.
+
+Six exact archive-to-repository file comparisons were performed. The installed Mason CLI/bridge match. The observer archive's API and package configuration differ from the pinned KC implementation; its artifact store and Resource models match. This is not whole-worktree synchronization or active-deployment proof.
+
+The live KC launcher, Python/import location, actual database and artifact directory, and any custom host admission remain unresolved. The previously supplied `Get-KC-C01Inventory.ps1` output ZIP has not been returned. Receive that narrow inventory, resolve only the remaining runtime facts, and finalize C01 before C02. Do not substitute archived settings or the collecting shell's environment for the service's actual configuration.
+
+Changes in this checkpoint are documentation only. No application tests, database writes/migrations, model execution, tower service changes or persistence qualification were performed. All four task boundaries and the deferred repository move remain unchanged.
