@@ -16,8 +16,16 @@ from worker_lab.pi_worker import intended_pi_worker, load_pi_worker, resolve_pi_
 from worker_lab.provider_binding import create_provider_binding
 from tests.test_dispatch_client import invocation, packet, qualification, task
 
+
+def protocol_worker(context_tokens=32768):
+    """Keep protocol/exhaustion fixtures small, separate from operating defaults."""
+    return intended_pi_worker(context_tokens=context_tokens, request_limit=8,
+        tool_calls_limit=8, tool_timeout_seconds=30, max_output_tokens=2048,
+        provider_timeout_seconds=60, attempt_timeout_seconds=180)
+
+
 NOW = 1_789_666_800_000
-WORKER_PIN = canonical_digest(intended_pi_worker(context_tokens=32768))
+WORKER_PIN = canonical_digest(protocol_worker())
 FIXTURE = Path(__file__).parent / 'fixtures' / 'pi_protocol_fixture.mjs'
 
 
@@ -38,7 +46,7 @@ def request_bytes(context_tokens=32768, *, worker=None):
     # qualification fixture grants no Pi authority and never reaches dispatch.
     binding = create_provider_binding('BINDING-0001', qualification())
     record = invocation(binding)
-    worker = worker or intended_pi_worker(context_tokens=context_tokens)
+    worker = worker or protocol_worker(context_tokens)
     return build_request(
         invocation=record, prompt=packet().to_json(), task=task(record),
         worker=worker, worker_digest=canonical_digest(worker),
@@ -83,7 +91,7 @@ def test_exact_configuration_is_fresh_and_requires_explicit_pin():
     config = intended_pi_worker(context_tokens=32768)
     assert resolve_pi_worker(config, expected_digest=canonical_digest(config)) == config
     config['runtime_settings']['request_limit'] = 999
-    assert intended_pi_worker(context_tokens=32768)['runtime_settings']['request_limit'] == 8
+    assert intended_pi_worker(context_tokens=32768)['runtime_settings']['request_limit'] == 64
     with pytest.raises(LabValidationError):
         resolve_pi_worker(intended_pi_worker(context_tokens=32768), expected_digest='sha256:' + '0' * 64)
 
@@ -94,7 +102,7 @@ def test_load_one_config_and_reject_replaced_or_duplicate_bytes(tmp_path):
     path = tmp_path / 'worker.json'
     path.write_bytes(encode_frame(config))
     assert load_pi_worker(path, expected_digest=pin) == config
-    path.write_bytes(encode_frame(intended_pi_worker(context_tokens=4096)))
+    path.write_bytes(encode_frame(protocol_worker(context_tokens=4096)))
     with pytest.raises(LabValidationError):
         load_pi_worker(path, expected_digest=pin)
     path.write_bytes(b'{"model_name":"first","model_name":"second"}')
@@ -112,14 +120,14 @@ def test_checked_in_configuration_and_lockfile_match_intended_worker():
 
 def test_s09_context_is_not_mistaken_for_production_qualification():
     with pytest.raises(LabValidationError) as error:
-        validate_effective_pi_worker(intended_pi_worker(context_tokens=32768), expected_digest=WORKER_PIN, effective_context_tokens=4096)
+        validate_effective_pi_worker(protocol_worker(), expected_digest=WORKER_PIN, effective_context_tokens=4096)
     assert error.value.code == 'PI_CONTEXT_UNQUALIFIED'
-    validate_effective_pi_worker(intended_pi_worker(context_tokens=32768), expected_digest=WORKER_PIN, effective_context_tokens=32768)
+    validate_effective_pi_worker(protocol_worker(), expected_digest=WORKER_PIN, effective_context_tokens=32768)
 
 
 @pytest.mark.parametrize('context_tokens', [4096, 8192, 32768, 65536, 131072, 262144])
 def test_explicit_context_options_round_trip_and_cannot_substitute(context_tokens):
-    config = intended_pi_worker(context_tokens=context_tokens)
+    config = protocol_worker(context_tokens)
     pin = canonical_digest(config)
     assert resolve_pi_worker(config, expected_digest=pin) == config
     validate_effective_pi_worker(config, expected_digest=pin, effective_context_tokens=context_tokens)
@@ -200,7 +208,7 @@ def test_bad_wire_frames_fail_clearly_in_both_languages(raw):
     {'schema_version': 'acl-pi-result:v999'}, {'status': 'accepted'},
     {'status': []}, {'request_digest': 'sha256:' + 'f' * 64},
     {'usage': {'input_tokens': True, 'output_tokens': 0, 'requests': 0, 'tool_calls': 0}},
-    {'usage': {'input_tokens': 0, 'output_tokens': 0, 'requests': intended_pi_worker(context_tokens=32768)['runtime_settings']['request_limit'] + 1, 'tool_calls': 0}},
+    {'usage': {'input_tokens': 0, 'output_tokens': 0, 'requests': protocol_worker()['runtime_settings']['request_limit'] + 1, 'tool_calls': 0}},
     {'usage': {'input_tokens': None, 'output_tokens': None, 'requests': 0, 'tool_calls': 0}},
     {'status': 'needs_continuation'}, {'summary': ''}, {'extra': 'unknown'},
     {'candidate': {'digest': 'sha256:' + 'a' * 64, 'artifacts': [{'path': '../outside', 'digest': 'sha256:' + 'b' * 64}]}},
