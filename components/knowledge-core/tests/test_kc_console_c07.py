@@ -298,6 +298,8 @@ def test_c07_windows_helpers_keep_daily_start_bounded():
     assert "alembic upgrade head" in migrate
     assert "Get-Content -LiteralPath $ExistingLauncherPath" in prepare
     assert "& $ExistingLauncherPath" not in prepare
+    assert '"KNOWLEDGE_CORE_CONSOLE_PROJECTS=" + (' not in prepare
+    assert '("KNOWLEDGE_CORE_CONSOLE_PROJECTS={0}" -f ($ProjectList -join ","))' in prepare
     assert "Knowledge Core.lnk" in shortcut
     assert "update --restart=no" in disable_gateway
     assert " stop $Name" in disable_gateway
