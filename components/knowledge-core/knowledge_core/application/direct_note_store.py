@@ -13,6 +13,11 @@ from knowledge_core.application.governed_snapshot_policy import (
 from knowledge_core.application.governed_source_evidence import (
     GovernedSourceEvidenceKnowledgeKernel,
 )
+from knowledge_core.application.direct_note_capture import (
+    DirectNoteCaptureMetadataInput,
+    capture_metadata_payload,
+    persist_direct_note_capture_metadata,
+)
 from knowledge_core.application.operations import _request_digest
 from knowledge_core.application.resource_service import ResourceServiceKnowledgeKernel
 from knowledge_core.application.resources import ResourceKnowledgeKernel
@@ -134,6 +139,7 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
         project_key: str,
         source_id: str | None = None,
         source_event_time: datetime | None = None,
+        capture_metadata: DirectNoteCaptureMetadataInput | None = None,
     ) -> DirectNoteCanonicalStoreResult:
         if not content or not content.strip():
             raise KnowledgeInvariantError("direct note content must be non-blank")
@@ -143,6 +149,14 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
         if len(project) > 255:
             raise KnowledgeInvariantError(
                 "direct note project must be at most 255 characters"
+            )
+        if (
+            capture_metadata is not None
+            and capture_metadata.source_date is not None
+            and source_event_time is not None
+        ):
+            raise KnowledgeInvariantError(
+                "direct note source_date and source_event_time are mutually exclusive"
             )
         effective_source_id = (
             source_id.strip()
@@ -166,6 +180,10 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
             "content_size": len(content_bytes),
             "source_event_time": source_event_time,
         }
+        # Preserve the exact legacy Task 2E request digest when no C02 metadata
+        # is supplied. Metadata-bearing notebook submissions extend the identity.
+        if capture_metadata is not None:
+            payload["capture_metadata"] = capture_metadata_payload(capture_metadata)
 
         # Reject or replay a settled parent idempotency key before touching child
         # canonical operations. A crash between child settlement and parent admission
@@ -285,6 +303,19 @@ class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
             evidence = GovernedSourceEvidenceKnowledgeKernel(self.session)
             evidence.persist_observation(observation)
             evidence.persist_decision(decision)
+            if capture_metadata is not None:
+                persist_direct_note_capture_metadata(
+                    self.session,
+                    observation_id=observation.observation_id,
+                    operation_id=operation_id,
+                    resource_version_ref=version.resource_version_ref,
+                    principal_ref=caller_principal_ref,
+                    source_id=effective_source_id,
+                    project_key=project,
+                    content_sha256=content_digest,
+                    source_event_time=source_event_time,
+                    metadata=capture_metadata,
+                )
             return DirectNoteCanonicalStoreResult(
                 source_id=effective_source_id,
                 source_identity_digest=identity.digest,
