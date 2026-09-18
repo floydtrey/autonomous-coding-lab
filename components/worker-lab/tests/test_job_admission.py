@@ -16,17 +16,28 @@ from worker_lab.integration_v3 import InvocationRecordV3
 from worker_lab.storage import AtomicRecordStore
 
 
-def setup_job(tmp_path):
+def setup_job(tmp_path, *, complete_plan=False):
     lab = tmp_path / "lab"
     target = tmp_path / "target"
     create_target(target)
-    plan = JobPlan.from_mapping(fixture())
+    plan_value = fixture()
     profiles = AtomicRecordStore(lab / "job-authorities")
-    for task in plan.tasks:
-        profile = JobAuthorityProfile.from_mapping(json.loads(
-            (FIXTURE.parent / (task.authority_ref.profile_id + ".json")).read_text()))
-        assert profile.digest() == task.authority_ref.digest
-        profiles.write(f"{task.authority_ref.profile_id}/v1.json", profile)
+    for task in plan_value["tasks"]:
+        authority = task["authority_ref"]
+        profile_value = json.loads(
+            (FIXTURE.parent / (authority["profile_id"] + ".json")).read_text(encoding="utf-8"))
+        profile = JobAuthorityProfile.from_mapping(profile_value)
+        assert profile.digest() == authority["digest"]
+        if complete_plan and authority["profile_id"] == "record-docs-authority":
+            # Like the M07 fixture, full-job registration needs a trusted mapping
+            # for B's README. Pin this copied test profile before plan approval
+            # or task admission; never rewrite an already approved authority.
+            next(test for test in profile_value["catalog"]["tests"]
+                if test["test_id"] == "T004")["path_prefixes"] = ["README.md"]
+            profile = JobAuthorityProfile.from_mapping(profile_value)
+            authority["digest"] = profile.digest()
+        profiles.write(f"{authority['profile_id']}/v{authority['version']}.json", profile)
+    plan = JobPlan.from_mapping(plan_value)
     service = WorkerLabApplicationService(lab, clock=lambda: "2026-09-17T01:00:00Z")
     return lab, target, plan, service
 
@@ -38,7 +49,7 @@ def admit(service, plan, target):
 
 @pytest.mark.parametrize("no_context", [False, True])
 def test_first_fixture_task_admits_and_prepares_without_curriculum(tmp_path, no_context):
-    lab, target, plan, service = setup_job(tmp_path)
+    lab, target, plan, service = setup_job(tmp_path, complete_plan=True)
     attempt_id = admit(service, plan, target)
     attempt = AttemptStore(lab / "state").read(attempt_id)
     definition, policy, role, context, catalog = load_task_authorities(lab, attempt)
@@ -72,6 +83,9 @@ def test_first_fixture_task_admits_and_prepares_without_curriculum(tmp_path, no_
     assert record["writable_paths"] == ["record_ledger/models.py"]
     assert "T001" in record["test_ids"]
     invocation = InvocationRecordV3.from_mapping(record)
+    with pytest.raises(LabValidationError) as missing:
+        service.authorize_invocation(prepared["identity"], invocation.identity_digest(), CONTROLLER)
+    assert missing.value.code == "JOB_RESERVATION_REQUIRED"
     job = service.create_job("JOB-AUTH", plan, approved_by=CONTROLLER, approved_plan_digest=plan.digest())
     reserved = service.reserve_next_job_task("JOB-AUTH", controller_identity=CONTROLLER,
         expected_job_digest=job.digest())
@@ -81,6 +95,18 @@ def test_first_fixture_task_admits_and_prepares_without_curriculum(tmp_path, no_
         expected_invocation_digest=invocation.identity_digest())
     authorized = service.authorize_invocation(prepared["identity"], invocation.identity_digest(), CONTROLLER)
     assert authorized.to_dict()["record"]["state"] == "AUTHORIZED"
+
+
+def test_whole_job_rejects_unmapped_later_task_before_registration(tmp_path):
+    lab, target, plan, service = setup_job(tmp_path)
+    with pytest.raises(LabValidationError) as error:
+        service.create_job("JOB-UNMAPPED", plan, approved_by=CONTROLLER,
+            approved_plan_digest=plan.digest())
+    assert error.value.code == "TEST_SELECTION_UNMAPPED"
+    assert "README.md" in str(error.value)
+    assert not (lab / "state/jobs/JOB-UNMAPPED.json").exists()
+    assert not (lab / "state/attempts").exists()
+    assert not (lab / "state/invocations").exists()
 
 
 def test_bad_approval_and_missing_profile_do_not_create_attempts(tmp_path):
