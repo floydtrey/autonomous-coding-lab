@@ -170,3 +170,85 @@ def detail_response_from_domain(
         **base,
         content=item.content,
     )
+
+
+class ConsoleSearchRequest(BaseModel):
+    query: str
+    limit: int = Field(default=10, ge=1, le=50)
+
+    @field_validator("query")
+    @classmethod
+    def query_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("query must contain non-whitespace text")
+        return value
+
+
+class ConsoleSearchEvidenceResponse(BaseModel):
+    source_kind: str | None = None
+    source_classification: str | None = None
+    source_id: str | None = None
+    projects: list[str] = Field(default_factory=list)
+    captured_at: datetime | None = None
+    source_event_time: datetime | None = None
+    source_revision_time: datetime | None = None
+    repository: str | None = None
+    source_path: str | None = None
+    source_version: str | None = None
+    source_line_start: int | None = None
+    source_line_end: int | None = None
+    heading_path: list[dict[str, object]] = Field(default_factory=list)
+    lifecycle_state: str
+    authority_rank: int | None = None
+
+
+class ConsoleSearchHitResponse(BaseModel):
+    rank: int
+    resource_id: UUID
+    version_id: UUID
+    sha256: str = Field(min_length=64, max_length=64)
+    lexical_score: float
+    excerpt: str | None
+    display_title: str
+    category: str | None = None
+    note_observation_id: UUID | None = None
+    open_original_kind: Literal["note", "source"]
+    evidence: ConsoleSearchEvidenceResponse
+
+
+class ConsoleSearchResponse(BaseModel):
+    query: str
+    retrieval_mode: str
+    generation_id: UUID | None
+    source_revision_highwater: int | None
+    results: list[ConsoleSearchHitResponse]
+    result_state: Literal["matches", "empty"]
+
+
+class ConsoleSourceOriginalResponse(BaseModel):
+    resource_id: UUID
+    version_id: UUID
+    sha256: str = Field(min_length=64, max_length=64)
+    byte_size: int
+    media_type: str | None
+    content: str
+
+
+class ConsoleStatusResponse(BaseModel):
+    service_state: Literal["available"] = "available"
+    canonical_revision: int
+    text_state: Literal["empty", "ready"]
+    text_generation_id: UUID | None
+    text_source_revision_highwater: int | None
+    text_source_count: int
+    retrieval_mode: str | None
+    lineage_mode: str | None
+    search_state: Literal["empty", "ready"]
+    write_admission_state: Literal["owner-project-scoped"] = "owner-project-scoped"
+    write_projects: list[str]
+    write_proof_note: str = (
+        "Write admission is configured; only a successful save receipt proves "
+        "durability for a specific submission."
+    )
+    graph_state: Literal["not-required-unverified"] = "not-required-unverified"
+    graph_label: str = "Not required for this release / integration unverified"
