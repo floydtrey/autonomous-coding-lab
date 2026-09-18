@@ -150,7 +150,7 @@ time.sleep(60)
         if thread:thread.start()
         value=validate(service,outcome,cancellation=cancel).to_dict()
         assert value['status']=='failed' and value['all_validators_absent'] is True,value
-        assert value['checks'][0]['failure']==('VALIDATION_TIMED_OUT' if stop=='timeout' else 'VALIDATION_CANCELLED')
+        assert value['checks'][0]['failure']==('VALIDATION_TIMED_OUT' if stop=='timeout' else 'VALIDATION_CANCELLEDLED')
         assert marker.exists()
         assert process_creation_time_for_pid(int(marker.read_text())) is None
         assert unrelated.poll() is None
@@ -162,14 +162,21 @@ time.sleep(60)
 
 
 def test_absolute_deadline_blocks_validator_creation_and_preserves_absence(tmp_path, monkeypatch):
+    from worker_lab.protected_validation import validate_task
+
     service, lab, root, outcome, checker = prepare(tmp_path, monkeypatch)
     approve(service, outcome, checker)
-    value = validate(service, outcome, absolute_deadline_unix_ms=1,
+    # Exercise the internal deadline seam. The public service does not accept
+    # caller-chosen reservation deadlines; job deadlines come from the job gate.
+    value = validate_task(service.data_root, attempt_id=outcome.to_dict()['attempt_id'],
+        expected_outcome_digest=outcome.digest(), controller_identity=CONTROLLER,
+        validation_id='VALIDATION-test', clock=service._clock, absolute_deadline_unix_ms=1,
         process_factory=lambda *a, **kw: pytest.fail('expired deadline launched validator')).to_dict()
     assert value['status'] == 'failed'
     assert value['all_validators_absent'] is True
     assert value['checks'][0]['failure'] == 'JOB_WALL_BUDGET_EXHAUSTED'
     assert value['checks'][0]['custody']['state'] == 'ABSENCE_VERIFIED'
+    assert value['checks'][0]['validator_identity'] is None
 
 
 def test_validator_candidate_mutation_is_not_a_pass(tmp_path,monkeypatch):
@@ -200,8 +207,8 @@ def test_minimal_environment_has_no_ambient_secrets_or_injection(tmp_path,monkey
         monkeypatch.setenv(key,'UNRELATED_SECRET')
     environment=validator_environment(tmp_path)
     assert not any(key in environment for key in ('PATH','PYTHONPATH','OPENAI_API_KEY','HTTP_PROXY','NODE_OPTIONS'))
-    assert environment['PYTEST_DISABLE_PLUGIN_AUTOLOAD']=='1'
     assert environment['TMP'].startswith(str(tmp_path))
+    assert environment['PYTEST_DISABLE_PLUGIN_AUTOLOAD']=='1'
 
 
 def test_cli_requires_explicit_acknowledgement_and_reports_no_acceptance(tmp_path,monkeypatch,capsys):
