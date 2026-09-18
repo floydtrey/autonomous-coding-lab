@@ -59,7 +59,9 @@ def test_pi_binding_round_trip_and_stale_configuration_rejection(tmp_path, monke
     assert store.require(record.binding_id, record.digest()) == record
     from worker_lab import pi_binding
     config = tmp_path / 'changed.json'
-    config.write_text(json.dumps(intended_pi_worker(context_tokens=4096)))
+    # Keep the substituted 4K configuration valid so this tests stale binding,
+    # not the unrelated rejection of an 8K output ceiling inside 4K context.
+    config.write_text(json.dumps(intended_pi_worker(context_tokens=4096, max_output_tokens=2048)))
     monkeypatch.setattr(pi_binding, 'CONFIG_PATH', config)
     with pytest.raises(LabValidationError):
         store.read(record.binding_id)
