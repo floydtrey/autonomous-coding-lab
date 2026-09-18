@@ -741,6 +741,30 @@ class WorkerLabApplicationService:
         self._require_present_data_root()
         return job_status(self.data_root, job_id)
 
+    def stop_job(self, job_id: str, *, controller_identity: str):
+        """Persist an exact M09C stop request for the active reservation."""
+        from .sequential_controller import stop_job
+        self._require_present_data_root()
+        return stop_job(
+            self.data_root,
+            job_id,
+            controller_identity=controller_identity,
+            clock=self._clock,
+        )
+
+    def reconcile_job(self, job_id: str, *, controller_identity: str, artifact_root=None):
+        """Finish only provable M09C bookkeeping; never launch replacement work."""
+        from .sequential_controller import reconcile_job
+        self._require_present_data_root()
+        if artifact_root is not None:
+            artifact_root = _absolute_path_argument(artifact_root, "artifact root")
+        return reconcile_job(
+            self,
+            job_id,
+            controller_identity=controller_identity,
+            artifact_root=artifact_root,
+        )
+
     def run_job(
         self, job_id: str, plan, *, approved_plan_digest: str, controller_identity: str,
         target_repository: Path, workspace_root: Path, artifact_root: Path,
