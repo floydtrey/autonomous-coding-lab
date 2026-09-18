@@ -86,6 +86,12 @@ class ConsoleOwnerAdmission:
             raise RuntimeError(
                 f"{_CONSOLE_KEY_ENV} is required when {_CONSOLE_ENABLED_ENV} is enabled"
             )
+        bootstrap_key = source.get("KNOWLEDGE_CORE_BOOTSTRAP_KEY")
+        if bootstrap_key and secrets.compare_digest(owner_key, bootstrap_key):
+            raise RuntimeError(
+                "KNOWLEDGE_CORE_CONSOLE_KEY must differ from "
+                "KNOWLEDGE_CORE_BOOTSTRAP_KEY"
+            )
         return cls(
             contract=ConsoleOwnerContract.from_env(source),
             owner_key=owner_key,
