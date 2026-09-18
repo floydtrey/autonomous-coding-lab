@@ -150,7 +150,7 @@ time.sleep(60)
         if thread:thread.start()
         value=validate(service,outcome,cancellation=cancel).to_dict()
         assert value['status']=='failed' and value['all_validators_absent'] is True,value
-        assert value['checks'][0]['failure']==('VALIDATION_TIMED_OUT' if stop=='timeout' else 'VALIDATION_CANCELLEDLED')
+        assert value['checks'][0]['failure']==('VALIDATION_TIMED_OUT' if stop=='timeout' else 'VALIDATION_CANCELLED')
         assert marker.exists()
         assert process_creation_time_for_pid(int(marker.read_text())) is None
         assert unrelated.poll() is None
@@ -207,8 +207,8 @@ def test_minimal_environment_has_no_ambient_secrets_or_injection(tmp_path,monkey
         monkeypatch.setenv(key,'UNRELATED_SECRET')
     environment=validator_environment(tmp_path)
     assert not any(key in environment for key in ('PATH','PYTHONPATH','OPENAI_API_KEY','HTTP_PROXY','NODE_OPTIONS'))
-    assert environment['TMP'].startswith(str(tmp_path))
     assert environment['PYTEST_DISABLE_PLUGIN_AUTOLOAD']=='1'
+    assert environment['TMP'].startswith(str(tmp_path))
 
 
 def test_cli_requires_explicit_acknowledgement_and_reports_no_acceptance(tmp_path,monkeypatch,capsys):
