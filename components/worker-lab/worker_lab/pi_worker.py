@@ -19,10 +19,10 @@ CONTEXT_PRESETS = (4096, 8192, 32768, 131072, 262144)
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
 
 
-def intended_pi_worker(*, context_tokens: int = 131072, request_limit: int = 8,
-                       tool_calls_limit: int = 8, tool_timeout_seconds: int = 30,
-                       max_output_tokens: int = 2048, provider_timeout_seconds: int = 60,
-                       attempt_timeout_seconds: int = 180,
+def intended_pi_worker(*, context_tokens: int = 131072, request_limit: int = 64,
+                       tool_calls_limit: int = 128, tool_timeout_seconds: int = 30,
+                       max_output_tokens: int = 8192, provider_timeout_seconds: int = 900,
+                       attempt_timeout_seconds: int = 1800,
                        endpoint: str = "http://127.0.0.1:11434/v1",
                        node_version: str = "24.19.0", pi_version: str = "0.85.1",
                        pi_lockfile_digest: str = "sha256:35727af5925cf30922c318c4a6e9a4fac89d1e1302cf1afdc755d894f30bfd64",
