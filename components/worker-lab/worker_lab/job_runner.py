@@ -18,11 +18,12 @@ from .job_plan import JobPlan, identity
 from .models import AttemptState, _timestamp
 from .operator_control import validate_controller_identity
 from .pi_supervision import _exclusive_controller, _require_resolved_launches, now
-from .process_custody import ProcessCustodyStore
+from .process_custody import CustodyState, ProcessCustodyStore
 from .protected_validation import _optional, require_resolved_validations
 from .storage import AtomicRecordStore
 
 SCHEMA = 'worker-lab-job:v1'
+STOP_RECONCILIATION_SCHEMA = 'worker-lab-job-stop-reconciliation:v1'
 TASK_STATES = {'pending', 'reserved', 'accepted', 'failed', 'blocked', 'pending_review'}
 
 
@@ -147,6 +148,145 @@ def _save(records, value, *, occurred_at):
     return result
 
 
+def _stop_reconciliation_path(attempt_id):
+    return f'job-stop-reconciliations/{identity(attempt_id, "attempt_id")}.json'
+
+
+def _verified_stop_reconciliation(records, *, invocation, worker_outcome=None):
+    proof = records.read(_stop_reconciliation_path(invocation.attempt_id), lambda value: value)
+    fields = {'schema_version', 'attempt_id', 'invocation_id', 'invocation_digest',
+        'controller_identity', 'basis', 'custody_digest', 'absence_evidence_digest',
+        'worker_outcome_digest', 'recorded_at'}
+    _require(isinstance(proof, dict) and set(proof) == fields
+        and proof['schema_version'] == STOP_RECONCILIATION_SCHEMA
+        and proof['attempt_id'] == invocation.attempt_id
+        and proof['invocation_id'] == invocation.invocation_id
+        and proof['invocation_digest'] == invocation.identity_digest()
+        and proof['controller_identity'] == invocation.authorized_by
+        and proof['basis'] in {'not-started', 'verified-absence'},
+        'JOB_STOP_RECONCILIATION_INVALID', 'stop reconciliation identity differs')
+    _timestamp(proof['recorded_at'], 'recorded_at')
+    if worker_outcome is not None:
+        _require(isinstance(worker_outcome, dict)
+            and worker_outcome.get('attempt_id') == invocation.attempt_id
+            and worker_outcome.get('invocation_id') == invocation.invocation_id
+            and worker_outcome.get('invocation_digest') == invocation.identity_digest(),
+            'JOB_STOP_RECONCILIATION_INVALID', 'worker outcome differs from stop reconciliation')
+        if proof['worker_outcome_digest'] is not None:
+            _require(proof['worker_outcome_digest'] == canonical_digest(worker_outcome),
+                'JOB_STOP_RECONCILIATION_INVALID', 'worker outcome changed after reconciliation')
+    else:
+        _require(proof['worker_outcome_digest'] is None,
+            'JOB_STOP_RECONCILIATION_INVALID', 'reconciliation names a missing worker outcome')
+    if proof['basis'] == 'not-started':
+        _require(proof['custody_digest'] is None and proof['absence_evidence_digest'] is None
+            and _optional(records, f'launch-intents/{invocation.invocation_id}.json') is None
+            and _optional(records, f'worker-outcomes/{invocation.attempt_id}.json') is None
+            and invocation.state in {InvocationState.AUTHORIZED, InvocationState.ABORTED, InvocationState.REJECTED},
+            'JOB_STOP_RECONCILIATION_INVALID', 'not-started reconciliation has execution evidence')
+    else:
+        custody = ProcessCustodyStore(records.root).read(invocation.invocation_id)
+        _require(custody.invocation_digest == invocation.identity_digest()
+            and custody.state is CustodyState.ABSENCE_VERIFIED
+            and custody.active_workload_count == 0
+            and custody.absence_evidence_digest is not None
+            and custody.digest() == proof['custody_digest']
+            and custody.absence_evidence_digest == proof['absence_evidence_digest'],
+            'JOB_STOP_RECONCILIATION_INVALID', 'verified absence evidence changed')
+    return proof
+
+
+def record_stop_reconciliation(data_root, *, invocation_id, controller_identity, clock=now):
+    """Record exact no-start/absence proof; never infer a worker result."""
+    records = AtomicRecordStore(Path(data_root) / 'state')
+    with _exclusive_controller(records.root, 'job-controller.lock'):
+        invocation = InvocationStoreV3(records.root).read(invocation_id)
+        controller = validate_controller_identity(controller_identity)
+        _require(invocation.authorized_by == controller,
+            'JOB_CONTROLLER_MISMATCH', 'reconciliation controller differs from invocation authorization')
+        run_intent = _optional(records, f'run-task-intents/{invocation.attempt_id}.json')
+        _require(isinstance(run_intent, dict)
+            and run_intent.get('invocation_id') == invocation.invocation_id
+            and run_intent.get('invocation_digest') == invocation.identity_digest(),
+            'JOB_STOP_RECONCILIATION_INVALID', 'reconciliation requires the exact durable run intent')
+        outcome = _optional(records, f'worker-outcomes/{invocation.attempt_id}.json')
+        launch = _optional(records, f'launch-intents/{invocation.invocation_id}.json')
+        custody = None
+        try:
+            custody = ProcessCustodyStore(records.root).read(invocation.invocation_id)
+        except LabValidationError as exc:
+            if exc.code != 'STORAGE_RECORD_MISSING':
+                raise
+        if launch is None and custody is None and outcome is None and invocation.state in {
+                InvocationState.AUTHORIZED, InvocationState.ABORTED, InvocationState.REJECTED}:
+            basis, custody_digest, absence_digest = 'not-started', None, None
+        else:
+            _require(custody is not None and custody.invocation_digest == invocation.identity_digest()
+                and custody.state is CustodyState.ABSENCE_VERIFIED
+                and custody.active_workload_count == 0
+                and custody.absence_evidence_digest is not None,
+                'JOB_PRIOR_UNCERTAIN', 'exact process absence is not proven')
+            basis = 'verified-absence'
+            custody_digest = custody.digest()
+            absence_digest = custody.absence_evidence_digest
+        value = dict(schema_version=STOP_RECONCILIATION_SCHEMA,
+            attempt_id=invocation.attempt_id, invocation_id=invocation.invocation_id,
+            invocation_digest=invocation.identity_digest(), controller_identity=controller,
+            basis=basis, custody_digest=custody_digest, absence_evidence_digest=absence_digest,
+            worker_outcome_digest=canonical_digest(outcome) if outcome is not None else None,
+            recorded_at=clock())
+        existing = _optional(records, _stop_reconciliation_path(invocation.attempt_id))
+        if existing is not None:
+            _verified_stop_reconciliation(records, invocation=invocation, worker_outcome=outcome)
+            immutable = {key:value[key] for key in value if key != 'recorded_at'}
+            _require({key:existing[key] for key in existing if key != 'recorded_at'} == immutable,
+                'JOB_STOP_RECONCILIATION_INVALID', 'existing stop reconciliation differs')
+            return existing
+        records.write_bytes(_stop_reconciliation_path(invocation.attempt_id),
+            (canonical_json(value) + '\n').encode('utf-8'))
+        _verified_stop_reconciliation(records, invocation=invocation, worker_outcome=outcome)
+        return value
+
+
+def block_active_reconciliation(data_root, job_id, *, controller_identity, reservation_id,
+                                code, message, clock=now):
+    """Close one consumed reservation only when no active workload remains."""
+    records = AtomicRecordStore(Path(data_root) / 'state')
+    with _exclusive_controller(records.root, 'job-controller.lock'):
+        job = _read(records, job_id, controller_identity)
+        value = job.to_dict()
+        task_id, item, slot = _reservation(value, reservation_id)
+        _require(slot['run_reference'] is None,
+            'JOB_RECONCILIATION_RESULT_AVAILABLE', 'record the retained task result instead of blocking it')
+        safe = slot['attempt_id'] is None
+        if slot['attempt_id'] is not None:
+            invocation = InvocationStoreV3(records.root).read(slot['invocation_id'])
+            _require(invocation.attempt_id == slot['attempt_id']
+                and invocation.identity_digest() == slot['invocation_digest'],
+                'JOB_INVOCATION_MISMATCH', 'reserved invocation identity changed')
+            run_intent = _optional(records, f'run-task-intents/{slot["attempt_id"]}.json')
+            launch = _optional(records, f'launch-intents/{slot["invocation_id"]}.json')
+            outcome = _optional(records, f'worker-outcomes/{slot["attempt_id"]}.json')
+            if run_intent is None and launch is None and outcome is None and invocation.state in {
+                    InvocationState.PREPARED, InvocationState.AUTHORIZED,
+                    InvocationState.REJECTED, InvocationState.ABORTED}:
+                safe = True
+            elif outcome is not None and outcome.get('stop_state') in {'absence_verified', 'not_started'}:
+                safe = True
+            elif run_intent is not None:
+                _verified_stop_reconciliation(records, invocation=invocation, worker_outcome=outcome)
+                safe = True
+        _require(safe, 'JOB_PRIOR_UNCERTAIN',
+            'active reservation lacks exact no-start or process-absence evidence')
+        blocker = dict(code=str(code), message=str(message))
+        item['state'] = 'blocked'
+        item['blocker'] = blocker
+        value['active'] = None
+        value['status'] = 'blocked'
+        value['blocker'] = dict(task_id=task_id, **blocker)
+        return _save(records, value, occurred_at=clock())
+
+
 def _stopped(records):
     _require_resolved_launches(records, ProcessCustodyStore(records.root))
     require_resolved_validations(records)
@@ -154,8 +294,13 @@ def _stopped(records):
         intent = records.read(path, lambda x: x)
         invocation = InvocationStoreV3(records.root).read(intent['invocation_id'])
         outcome = _optional(records, f'worker-outcomes/{invocation.attempt_id}.json')
-        _require(isinstance(outcome, dict) and outcome.get('stop_state') in {'absence_verified', 'not_started'},
-            'JOB_PRIOR_UNCERTAIN', 'an earlier worker transaction lacks resolved stop evidence')
+        if isinstance(outcome, dict) and outcome.get('stop_state') in {'absence_verified', 'not_started'}:
+            continue
+        try:
+            _verified_stop_reconciliation(records, invocation=invocation, worker_outcome=outcome)
+        except LabValidationError as exc:
+            raise LabValidationError('JOB_PRIOR_UNCERTAIN',
+                'an earlier worker transaction lacks resolved stop evidence') from exc
 
 
 def create_job(data_root, *, job_id, plan, approved_plan_digest, controller_identity, clock=now):
