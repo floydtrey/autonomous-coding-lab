@@ -5,6 +5,7 @@ from pathlib import Path
 
 from knowledge_core.api.app import create_app
 from knowledge_core.api.bootstrap_admission import BootstrapAdmission
+from knowledge_core.api.console_admission import ConsoleOwnerAdmission
 from knowledge_core.artifacts.store import LocalArtifactStore
 from knowledge_core.storage.database import create_database_engine, create_session_factory
 
@@ -27,10 +28,12 @@ def build_app():
     sessions = create_session_factory(engine)
     artifact_store = LocalArtifactStore(Path(artifact_root))
     admission = BootstrapAdmission.from_env()
+    console_admission = ConsoleOwnerAdmission.optional_from_env()
     app = create_app(
         session_factory=sessions,
         artifact_store=artifact_store,
         bootstrap_admission=admission,
+        console_owner_admission=console_admission,
     )
     app.state.knowledge_core_engine = engine
     return app
