@@ -158,8 +158,7 @@ def run_job(
 
     data_root = Path(service.data_root)
     records = AtomicRecordStore(data_root / "state")
-    binding = ProviderBindingStore(records.root).read(provider_binding_id)
-    current = service.create_job(
+    service.create_job(
         job_id,
         plan,
         approved_by=controller_identity,
@@ -191,6 +190,9 @@ def run_job(
         if shown["status"] != "ready":
             raise LabValidationError("JOB_NOT_RUNNABLE", "job is not ready for sequential execution")
 
+        # Validate the explicitly selected provider before consuming a reservation.
+        # Complete or durably blocked jobs therefore do not depend on provider health.
+        binding = ProviderBindingStore(records.root).read(provider_binding_id)
         current = service.read_job(job_id)
         reserved = service.reserve_next_job_task(
             job_id,
