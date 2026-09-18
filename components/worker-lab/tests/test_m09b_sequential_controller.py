@@ -198,9 +198,27 @@ def worker_factory(case, *, fail_a_validation=False):
     return factory
 
 
+class CheckingProcess(Process):
+    def __init__(self, timer, *, exit_code):
+        super().__init__(timer, poll_ms=100)
+        self.exit_code = exit_code
+
+    def poll(self):
+        if self.killed:
+            return -1
+        if not self.polled:
+            self.polled = True
+            self.timer.elapsed_ms += self.poll_ms
+        return self.exit_code
+
+
 def process_factory(case):
-    def factory(*args, **kwargs):
-        return Process(case.timer, poll_ms=100)
+    def factory(argv, **kwargs):
+        root = Path(argv[-2])
+        task = argv[-1]
+        model_ok = (root / "record_ledger/models.py").read_bytes() == b"VALUE = 2\n"
+        docs_ok = task == "A" or b"Record format: VALUE = 2" in (root / "README.md").read_bytes()
+        return CheckingProcess(case.timer, exit_code=0 if model_ok and docs_ok else 7)
     return factory
 
 
