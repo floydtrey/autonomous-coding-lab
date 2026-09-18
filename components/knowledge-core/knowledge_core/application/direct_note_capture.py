@@ -360,6 +360,44 @@ class DirectNoteReadKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 raise KnowledgeInvariantError(
                     "direct note capture metadata principal does not match source binding"
                 )
+            reconstructed_metadata = DirectNoteCaptureMetadataInput(
+                title=metadata.title,
+                category=metadata.category,
+                category_supplied=bool(metadata.category_supplied),
+                source_description=metadata.source_description,
+                source_urls=tuple(metadata.source_urls or []),
+                source_date=metadata.source_date,
+            )
+            expected_fingerprint = _capture_request_fingerprint(
+                operation_id=metadata.operation_id,
+                principal_ref=metadata.principal_ref,
+                source_id=binding.item_key,
+                project_key=metadata.project_key,
+                resource_version_ref=metadata.resource_version_ref,
+                content_sha256=version.content_digest,
+                source_event_time=observation.source_event_time,
+                metadata=reconstructed_metadata,
+            )
+            if metadata.request_fingerprint != expected_fingerprint:
+                raise KnowledgeInvariantError(
+                    "direct note capture metadata fingerprint does not match its bound capture"
+                )
+            expected_precision = (
+                "date"
+                if metadata.source_date is not None
+                else "timestamp"
+                if observation.source_event_time is not None
+                else "unsupplied"
+            )
+            if metadata.source_time_precision != expected_precision:
+                raise KnowledgeInvariantError(
+                    "direct note capture source-time precision is inconsistent"
+                )
+            if bool(metadata.title_supplied) != (metadata.title is not None):
+                raise KnowledgeInvariantError(
+                    "direct note capture title-supplied marker is inconsistent"
+                )
+
             project_keys = (metadata.project_key,)
             title = metadata.title
             title_supplied = bool(metadata.title_supplied)
