@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from hashlib import sha256
 from pathlib import Path
 from uuid import UUID
 
@@ -151,6 +152,7 @@ def install_console_routes(
     ) -> Response:
         _write_session(kc_console_session, x_kc_console_csrf)
         manager.revoke(kc_console_session)
+        response.status_code = 204
         response.delete_cookie(
             _SESSION_COOKIE,
             path="/v1/kc/console",
@@ -198,9 +200,7 @@ def install_console_routes(
                 caller_principal_ref=BOOTSTRAP_PRINCIPAL_REF,
                 operation_id=operation_id,
                 project_key=project,
-                content_sha256=__import__("hashlib").sha256(
-                    body.content.encode("utf-8")
-                ).hexdigest(),
+                content_sha256=sha256(body.content.encode("utf-8")).hexdigest(),
                 source_id=None,
                 source_event_time=body.source_event_time,
                 capture_metadata_digest=capture_metadata_digest(metadata),
