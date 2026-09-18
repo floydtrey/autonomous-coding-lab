@@ -268,6 +268,41 @@ def test_two_tasks_run_in_order_and_status_is_read_only(make_case, capsys):
     assert job_path.read_bytes() == before
 
 
+def test_run_cli_uses_the_same_sequential_service_path(make_case, tmp_path, monkeypatch, capsys):
+    case = make_case()
+    plan_file = (tmp_path / "plan.json").resolve()
+    plan_file.write_text(case.plan.to_json(), encoding="utf-8")
+
+    class CliService:
+        def run_job(self, *args, **kwargs):
+            kwargs["runner_factory"] = worker_factory(case)
+            kwargs["process_factory"] = process_factory(case)
+            return case.service.run_job(*args, **kwargs)
+
+    monkeypatch.setattr(cli_module, "_service", lambda args: CliService())
+    result = cli_module.main([
+        "run",
+        str(plan_file),
+        "--job-id", "JOB-M09B-CLI",
+        "--approved-plan-digest", case.plan.digest(),
+        "--controller", CONTROLLER,
+        "--target-repository", str(case.target),
+        "--workspace-root", str(case.workspaces),
+        "--artifact-root", str(case.artifacts),
+        "--provider-binding-id", case.binding.binding_id,
+        "--protected-file", str(case.checker),
+        "--acknowledge-unsandboxed-host-code-execution",
+        "--candidate-archive-limit-bytes", "0",
+    ])
+    assert result == 0
+    value = json.loads(capsys.readouterr().out)
+    assert value["job_id"] == "JOB-M09B-CLI"
+    assert value["status"] == "complete"
+    assert value["objective_complete"] is True
+    assert len(case.launches) == 2
+    assert case.b_saw_a is True
+
+
 def test_status_reports_drifted_evidence_without_mutating_job(make_case):
     case = make_case()
     assert run(case).to_dict()["objective_complete"] is True
