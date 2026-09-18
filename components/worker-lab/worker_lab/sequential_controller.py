@@ -58,7 +58,12 @@ def job_status(data_root: Path, job_id: str) -> JobStatusReport:
             "artifact": None if item["artifact"] is None else dict(item["artifact"]),
             "blocker": None if item["blocker"] is None else dict(item["blocker"]),
         })
-        if last is not None and last["attempt_id"] is not None:
+        if (
+            last is not None
+            and last["attempt_id"] is not None
+            and value["active"] is not None
+            and value["active"]["task_id"] == task.task_id
+        ):
             try:
                 _binding(
                     Path(data_root),
