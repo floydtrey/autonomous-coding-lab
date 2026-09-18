@@ -33,10 +33,28 @@ def test_default_coding_work_allowances_are_realistic_but_still_configurable():
     assert worker['attempt_timeout_seconds'] == 1800
     assert worker['runtime_requirement']['timeout_seconds'] == 1800
     low = intended_pi_worker(request_limit=2, tool_calls_limit=3, max_output_tokens=256,
-        provider_timeout_seconds=10, attempt_timeout_seconds=20)
+        tool_timeout_seconds=5, provider_timeout_seconds=10, attempt_timeout_seconds=20)
     assert low['runtime_settings']['request_limit'] == 2
     assert low['runtime_settings']['tool_calls_limit'] == 3
     assert low['max_output_tokens'] == 256
+    assert low['runtime_settings']['tool_timeout_seconds'] == 5
+
+
+def test_short_attempt_still_rejects_a_longer_tool_timeout():
+    with pytest.raises(LabValidationError) as error:
+        intended_pi_worker(request_limit=2, tool_calls_limit=3, max_output_tokens=256,
+            tool_timeout_seconds=30, provider_timeout_seconds=10, attempt_timeout_seconds=20)
+    assert error.value.code == 'PI_CONFIGURATION_MISMATCH'
+
+
+def test_small_context_requires_an_explicitly_smaller_output_budget():
+    with pytest.raises(LabValidationError) as error:
+        intended_pi_worker(context_tokens=4096, max_output_tokens=8192)
+    assert error.value.code == 'PI_CONFIGURATION_MISMATCH'
+    worker = intended_pi_worker(context_tokens=4096, max_output_tokens=2048)
+    assert worker['max_output_tokens'] == 2048
+    assert worker['required_effective_context_tokens'] == 4096
+
 
 def changed_worker():
     return intended_pi_worker(context_tokens=65536, request_limit=12, tool_calls_limit=16,
