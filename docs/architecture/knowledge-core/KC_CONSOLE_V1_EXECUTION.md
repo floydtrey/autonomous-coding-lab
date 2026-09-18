@@ -9,7 +9,7 @@ Date: 2026-09-18
 - Isolated implementation branch: `kc-console-v1`, created from that exact baseline.
 - Source conversation: the current handoff-review conversation. A chat URL/identifier has not been supplied; do not invent one.
 - Basis: the uploaded “KC Console V1 — PostgreSQL-first implementation plan,” the external-evidence review, and the subsequent agreement to inventory the pipeline before implementing, without relocating KC yet.
-- Current task: **C07 next — C01, C02 and C03 complete.** Core notebook Add/Recent/Original/Search/Status functionality is implementation-qualified on GitHub. The completed source/runtime contract is in [KC_C01_INTEGRATION_CONTRACT.md](KC_C01_INTEGRATION_CONTRACT.md). Live tower migration/startup/restart/persistence, export and daily-use acceptance remain C07.
+- Current task: **C07 live acceptance — implementation qualified, tower deployment pending.** C01-C03 are complete. C07 export/launcher/privacy/deployment tooling is green on GitHub; the remaining gate is controlled tower deployment plus five genuine-note restart/export acceptance.
 
 ## Product and release boundary
 
@@ -26,7 +26,7 @@ Saving preserves information; it does not verify its claims or adopt it as polic
 | 1 | KC-C01 — Trace the required pipeline and confirm the PostgreSQL integration contract | **COMPLETE** — stopped runtime/storage identity resolved; live acceptance deferred to C07 |
 | 2 | KC-C02 — Implement Add, recent notes and exact-original inspection | **COMPLETE** — GitHub implementation and disposable PostgreSQL qualification green; tower deployment deferred to C07 |
 | 3 | KC-C03 — Implement Search, evidence display and basic status | **COMPLETE** — PostgreSQL lexical search/evidence/status implementation qualified on GitHub |
-| 4 | KC-C07 — Package daily use and verify the real workflow | **NEXT — NOT STARTED** |
+| 4 | KC-C07 — Package daily use and verify the real workflow | **IN PROGRESS** — GitHub implementation qualified; live tower acceptance pending |
 
 The gaps found inside C01 belong to these tasks. Do not turn each gap into a new project or silently expand the release boundary.
 
@@ -257,3 +257,60 @@ The workflow was temporarily enabled for `kc-console-v1` to obtain this qualific
 - Repository/data relocation remains deferred.
 
 **Next allowed task: C07 — Daily launcher, export and real-use acceptance.** GitHub-first packaging/export work may proceed before the controlled tower deployment. Do not silently begin graph/model work, repository relocation or unrelated ACL changes.
+
+
+## C07 implementation checkpoint — export, launcher and privacy packaging qualified, 2026-09-18
+
+C07 is **not complete yet**. Its GitHub-side implementation is complete and qualified; live tower deployment/acceptance remains.
+
+### Implemented
+
+- Added complete owner-note JSON export (`kc-console-export-v1`) with exact original content, metadata and durable identities.
+- Export freezes the full authorized note identity set before reading originals, is not capped by Recent pagination, and fails rather than returning a successful partial export if an included original becomes unavailable.
+- Added packaged **Export notes** browser download.
+- Added Windows daily launcher `tools/windows/Start-KCConsole.ps1` that:
+  - resolves KC relative to its own deployment worktree;
+  - loads secrets/data identity from the LocalAppData console config;
+  - requires loopback binding;
+  - starts only the configured existing PostgreSQL container and KC bootstrap service;
+  - reuses an already-running valid console;
+  - refuses to kill an unknown owner of port 8765;
+  - does not run migrations;
+  - does not start Cowork, a model server or Graphiti.
+- Added bounded stop helper and Desktop shortcut installer.
+- Added one-time config preparer that reads the verified historical launcher without executing it, carries forward the existing DB/artifact/bootstrap/container identity, and generates a separate owner key.
+- Added explicit one-time migration helper; migration is deliberately absent from the daily launcher.
+- Added reversible legacy gateway privacy helpers. They stop `kc-api` / `kc-apisix` and set restart policy to `no`, while recording prior state. They do not delete the containers.
+- Added `KC_CONSOLE_V1_OPERATIONS.md` covering separate-worktree deployment, daily use, gateway privacy, five genuine-note acceptance, restart acceptance and failure handling.
+
+### Verification actually run
+
+Exact C07 implementation qualification: GitHub Actions run **35393662065**, successful.
+
+- migrations through current head: success;
+- fast suite: **227 passed, 1 skipped, 75 deselected**;
+- PostgreSQL G1-G21 suite: **72 passed, 2 skipped, 229 deselected**;
+- SR-2 G22: **1 passed, 302 deselected**;
+- RI-4 restart rehearsal: success;
+- SR-2 restart rehearsal: success.
+
+C07-specific tests prove export of **105 notes** even though Recent is capped at 100 per page, exact original/metadata presence, explicit export failure rather than partial output, PostgreSQL export survival across application reconstruction, and static/syntax boundaries for the Windows launcher/migration/gateway helpers.
+
+The temporary CI trigger for `kc-console-v1` was restored after qualification.
+
+### Remaining live gate
+
+Deploy from a separate tower worktree so the active ACL checkout is not switched. Then:
+
+1. prepare external console config from the verified existing launcher;
+2. disable the legacy public-read gateway;
+3. apply the already-tested migration to the verified existing 55434 KC database;
+4. install/start the KC-only Desktop shortcut;
+5. verify existing notes remain readable before new real saves;
+6. save five genuine notes;
+7. verify Recent, Search, exact Original and JSON Export;
+8. restart only the KC service;
+9. verify the five notes again after restart with model/Cowork/Graphiti services unnecessary;
+10. verify the prior public read URL no longer returns KC data.
+
+Do not mark C07 complete before this live gate.
