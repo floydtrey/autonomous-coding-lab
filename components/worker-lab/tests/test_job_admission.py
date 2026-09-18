@@ -71,8 +71,16 @@ def test_first_fixture_task_admits_and_prepares_without_curriculum(tmp_path, no_
     assert record["controller_task_packet_digest"] == packet.digest()
     assert record["writable_paths"] == ["record_ledger/models.py"]
     assert "T001" in record["test_ids"]
-    with pytest.raises(LabValidationError, match="admission/preparation only"):
-        service.authorize_invocation(prepared["identity"], InvocationRecordV3.from_mapping(record).identity_digest(), CONTROLLER)
+    invocation = InvocationRecordV3.from_mapping(record)
+    job = service.create_job("JOB-AUTH", plan, approved_by=CONTROLLER, approved_plan_digest=plan.digest())
+    reserved = service.reserve_next_job_task("JOB-AUTH", controller_identity=CONTROLLER,
+        expected_job_digest=job.digest())
+    reservation_id = reserved.to_dict()["active"]["reservation_id"]
+    service.bind_job_attempt("JOB-AUTH", controller_identity=CONTROLLER, reservation_id=reservation_id,
+        attempt_id=attempt_id, invocation_id=invocation.invocation_id,
+        expected_invocation_digest=invocation.identity_digest())
+    authorized = service.authorize_invocation(prepared["identity"], invocation.identity_digest(), CONTROLLER)
+    assert authorized.to_dict()["record"]["state"] == "AUTHORIZED"
 
 
 def test_bad_approval_and_missing_profile_do_not_create_attempts(tmp_path):
