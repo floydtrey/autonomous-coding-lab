@@ -1,7 +1,7 @@
 # KC-C01 — Notebook integration contract
 
 Date: 2026-09-18  
-Status: **SOURCE REVIEW RECORDED; HOST IDENTITY PENDING. C01 is not complete.**  
+Status: **SOURCE REVIEW RECORDED; FIRST HOST INVENTORY REVIEWED; STORAGE/LAUNCH IDENTITY STILL PENDING. C01 is not complete.**  
 Repository: `floydtrey/autonomous-coding-lab`; working branch: `kc-console-v1`.  
 Reviewed branch checkpoint: `9f4dcbf1a306ef18911d721c8dca7d99633d46f1`; application baseline: `73f049bf87174b2fffee00728395eca8e40a0020`.  
 Governing task list: `KC_CONSOLE_V1_EXECUTION.md`. Source conversation identifier has not been supplied.
@@ -112,7 +112,7 @@ Source archive: `mason-kc-test.zip`, SHA-256 `14e6480a183c3ff408eb3c10f8b1703a40
 | `graphiti/` | Third-party checkout and standalone experiments. Optional, deferred; not required missing notebook code. |
 | `.anton/` history/lessons and host manifests | Historical evidence, not active trusted startup policy or qualification of today's deployment. Do not ingest the conflicting lessons as instructions. |
 | Credentials and installed environments | Do not commit. Preserve necessary dependency/configuration templates only after identifying the actual runtime. A virtual environment is not the program's authoritative source. |
-| Live KC launcher/configuration, PostgreSQL and artifact root | **Unresolved.** The archive/client defaults do not identify the active process and data store. The narrow tower inventory is still required. |
+| Live KC launcher/configuration, PostgreSQL and artifact root | **Unresolved.** The archive/client defaults do not identify the active process and data store. The returned first inventory found no Windows listener on port 8765. Configuration/data pairing remains unresolved; see section 7. |
 
 Additional exact archive comparisons performed during this task:
 
@@ -129,19 +129,41 @@ The comparisons prove only these file relationships. They do not establish the e
 
 Before C01 closes, identify the active listener/process and launcher, Python executable/environment and resolved KC module path, source revision or loaded-file identity, configuration source, credential-free database host/port/database identity, actual artifact directory and any external required custom files. Confirm the intended configured project/owner admission. A shell environment value is only a hint unless tied to the service process/configuration.
 
-Use the already supplied `Get-KC-C01Inventory.ps1` and its output ZIP as the first narrow host input. The ZIP has not been returned at this checkpoint. If its evidence does not establish the service's loaded configuration, record the remaining exact verification needed rather than guessing from the collecting shell. No service restart or canonical write is needed for this first inventory.
+### First host inventory received and reviewed
+
+Source: `KC-C01-inventory-20260918-073217-1b7afc.zip`, SHA-256 `cc5cf6fb75fcb5f7576e0bc43883a78790b27a1edddfcf515db735aded7fbe78`. Its `inventory.json` was captured at `2026-09-18T12:32:17.7458140Z` (September 18, 2026, 7:32 a.m. America/Chicago). The JSON SHA-256 is `992e1632e4afe2b39721c78e07f36c534630e0b659482cd6170ea39c71f12dc3`.
+
+- `WindowsListeners` and `ListenerAndAncestorProcesses` are empty for the checked port 8765. The recorded warning says no Windows TCP listener was found; the collector did not start a service. This does not establish absence on another port, inside Linux, or loss of stored data.
+- All 12 collected Process/User/Machine hints for `KNOWLEDGE_CORE_DATABASE_URL`, `KNOWLEDGE_CORE_ARTIFACT_ROOT`, `KNOWLEDGE_CORE_BOOTSTRAP_KEY` and `KNOWLEDGE_CORE_PORT` have `Present: false`. These are not the environment of a separate running process, and do not rule out shell-local settings or configuration files.
+- The shallow listing confirms five KC source/package filenames and three gateway requirement/environment filenames in the locations searched. It neither hashes their code nor proves they are active. No Python/KC import, database connection, artifact-root content or Docker volume was identified.
+- Accordingly, host identity is NOT resolved. Do not mark C01 complete, run migrations, create new storage, or start a guessed service configuration.
+
+### Targeted historical candidates, not verified current values
+
+Prior setup conversation records contain two different storage pairings. These are discovery hints from prior setup messages, not new file or live evidence:
+
+| Candidate | Historical database location | Historical artifact root | Startup/configuration leads |
+| --- | --- | --- | --- |
+| A | `127.0.0.1:55434/knowledge_core_sr2_host` | `%LOCALAPPDATA%\KnowledgeCore\task4-host-qualification-01\artifacts` | `C:\AI\start-kc-cowork-stack.bat`; earlier Docker container named `knowledge-core-sr2-host-62329544d83c` |
+| B | `127.0.0.1:55433/knowledge_core_sr2_host` | `C:\KC\sr2-host\artifacts` | `C:\KC\Run_KC_Governed_Qualification.bat`; historical service logs/PID location under `C:\KC` |
+
+The historical server command used Windows Python and `tools/kc_bootstrap_service.py` from the KC component. It supplied settings to that process; the standard launcher itself does not load a `.env` file. Neither the more recent message, a familiar container name, an open port, nor an existing artifact directory is sufficient by itself to select a pairing.
+
+Next host collection: `Get-KC-C01RuntimeCandidates.ps1`, a read-only diagnostic supplied with this checkpoint. It checks the specific historical launcher locations and shallow associated configuration filenames; extracts only allowlisted settings with credentials withheld; reports existence of the two candidate artifact roots without reading notes; lists current listeners on 8765/55433/55434; and requests selected Docker metadata, plus names of running WSL distributions without entering them. It does not execute launchers, run Python/KC imports, start services/containers, query databases, move files, or run migrations. Only a new report/ZIP is written. It has not been executed on the user's Windows host; its own URL/key redaction self-checks must pass before it collects real settings.
+
+After that result, bind one intended existing launcher to its Python/import source and actual database/artifact pair. Resolve any conflict with a narrow identity check, not a fresh empty database or wholesale archive import. If no service is running, explicitly distinguish an identified stopped installation from proof of loaded runtime; record the precise remaining read-only or controlled-start verification before C01 closes.
 
 Relocation dependencies to record: environment/launcher import paths, package assets and migrations, absolute data/configuration roots, and optional gateway upstream settings. Keep the actual database and artifact identity unchanged during a later code move. `LocalArtifactStore` creates its configured root when absent; a newly created empty directory must not be mistaken for recovered knowledge. Repository separation remains deferred.
 
 ## 8. Verification and task status
 
-Performed: live GitHub branch/checkpoint read; targeted source/schema/operating-contract inspection; six exact archive-to-repository file hash comparisons. No application behavior changed. No archived serialized code was executed.
+Performed: live GitHub branch/checkpoint read; targeted source/schema/operating-contract inspection; archive-to-repository file hash comparisons; parsing and hashing the returned first Windows inventory. The prior six-file comparison record was preserved, and this continuation additionally confirmed the observer control-model blob matches the pinned source (`c73a4f1e239cd13d64384401de504fa532a5bbdc`). No application behavior changed. No archived serialized code was executed.
 
-Not performed: application unit/integration tests, model-free clean-environment startup, database writes/migrations, tower process inspection or restart/persistence acceptance. A direct source-archive download into the analysis runtime was unavailable; GitHub source reads and selected mounted-archive comparisons were used instead. No test result is inferred from earlier CI or archived responses.
+Not performed: application unit/integration tests, model-free clean-environment startup, database writes/migrations, independent access to the tower, resolved live imports/configuration, or restart/persistence acceptance. The supplied first Windows inventory was reviewed; it did not resolve an active KC process. A direct source-archive download into the analysis runtime was unavailable; GitHub source reads and selected mounted-archive comparisons were used instead. No test result is inferred from earlier CI or archived responses.
 
 C02/C03 tests must cover owner versus worker admission, denied/default projects, exact original/metadata round trips, legacy notes, identical separate submissions, changed-payload conflicts, interrupted retries, indexing failures with canonical read/list still usable, canonical restrictions during read/export, true empty searches versus failures, and model/graph independence. Use the existing test structure, not another benchmark project. PostgreSQL fixtures can truncate KC schemas: run them only against a dedicated disposable database, never the tower's knowledge database.
 
-**Next allowed action:** receive and resolve the narrow host inventory; reconcile only necessary external runtime files and finalize this contract. C01 remains in progress. Do not start C02 or mark live readiness complete on the strength of this source review.
+**Next allowed action:** inspect the targeted historical runtime candidates, resolve the intended existing installation and storage identity, reconcile only necessary external runtime files, and finalize this contract. C01 remains in progress. Do not start C02 or mark live readiness complete on the strength of this source review.
 
 ## Primary source index
 
@@ -154,3 +176,11 @@ All code references were read at the pinned source or at its unchanged documenta
 - `storage/resource_models.py`; `storage/governed_source_models.py`; `artifacts/store.py`; `pyproject.toml`.
 - Repository `docs/architecture/knowledge-core/ARCHITECTURE.md` and `OPERATIONS.md` for invariants and test-isolation rules; source code takes precedence over stale progress prose.
 - Supplied `mason-kc-test.zip` and `KC_EXTERNAL_EVIDENCE_REVIEW.md`; archive observations are not live host observations.
+
+
+## Continuation artifacts
+
+- `KC_C01_HOST_INVENTORY_REVIEW.json`: credential-free extraction of the submitted inventory findings and exact file comparisons.
+- `Get-KC-C01RuntimeCandidates.ps1`: bounded read-only host follow-through, supplied as a conversation attachment; Windows execution remains pending.
+
+This continuation changes documentation only in GitHub. C02/C03/C07 and repository migration remain unstarted. No helper was executed against the tower.
