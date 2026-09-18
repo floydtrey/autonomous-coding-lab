@@ -31,6 +31,9 @@ service = [
 include = ["knowledge_core*"]
 exclude = ["migrations*", "tests*"]
 
+[tool.setuptools.package-data]
+knowledge_core = ["console/*.html", "console/*.css", "console/*.js"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
