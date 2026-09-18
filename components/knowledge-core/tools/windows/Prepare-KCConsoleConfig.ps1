@@ -27,7 +27,7 @@ function Expand-BatchValue {
 
     $Expanded = $Value
     for ($Pass = 0; $Pass -lt 20; $Pass++) {
-        if ($Expanded -notmatch '%([^%]+)%') {
+        if ($Expanded -notmatch '%([A-Za-z_][A-Za-z0-9_]*)%') {
             break
         }
         $Name = $Matches[1]
@@ -45,7 +45,7 @@ function Expand-BatchValue {
         $Expanded = $Expanded.Replace($Token, $Replacement)
     }
 
-    if ($Expanded -match '%[^%]+%') {
+    if ($Expanded -match '%[A-Za-z_][A-Za-z0-9_]*%') {
         throw "Unresolved batch variable remains in KC launcher value."
     }
     return $Expanded
