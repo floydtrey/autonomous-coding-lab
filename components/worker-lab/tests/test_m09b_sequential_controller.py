@@ -268,6 +268,25 @@ def test_two_tasks_run_in_order_and_status_is_read_only(make_case, capsys):
     assert job_path.read_bytes() == before
 
 
+def test_status_reports_drifted_evidence_without_mutating_job(make_case):
+    case = make_case()
+    assert run(case).to_dict()["objective_complete"] is True
+    job_path = case.lab / "state" / "jobs" / "JOB-M09B.json"
+    before_job = job_path.read_bytes()
+    status = case.service.job_status("JOB-M09B").to_dict()
+    acceptance_path = case.lab / "state" / status["tasks"][0]["acceptance"]["path"]
+    changed = json.loads(acceptance_path.read_text(encoding="utf-8"))
+    changed["candidate"]["content_digest"] = "sha256:" + "b" * 64
+    acceptance_path.write_text(canonical_json(changed), encoding="utf-8")
+
+    drifted = case.service.job_status("JOB-M09B").to_dict()
+    assert drifted["status"] == "complete"
+    assert drifted["objective_complete"] is False
+    assert drifted["runnable"] is False
+    assert any(item["task_id"] == "A" for item in drifted["evidence_gaps"])
+    assert job_path.read_bytes() == before_job
+
+
 def test_failed_a_blocks_b_without_promotion_or_second_worker(make_case):
     case = make_case()
     value = run(case, fail_a_validation=True).to_dict()
