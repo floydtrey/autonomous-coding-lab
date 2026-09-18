@@ -15,7 +15,7 @@ from .canonical import canonical_digest, canonical_json
 from .controller_task_packet import build_controller_task_packet
 from .errors import LabValidationError
 from .job_plan import JobPlan, identity
-from .job_runner import read_job
+from .job_runner import _accepted, _artifact, _binding, read_job
 from .provider_binding import ProviderBindingStore
 from .storage import AtomicRecordStore
 
@@ -44,6 +44,7 @@ def job_status(data_root: Path, job_id: str) -> JobStatusReport:
     plan = JobPlan.from_mapping(value["plan"])
     tasks = []
     evidence_gaps = []
+    records = AtomicRecordStore(Path(data_root) / "state")
     for task in plan.tasks:
         item = value["tasks"][task.task_id]
         last = item["attempts"][-1] if item["attempts"] else None
@@ -57,12 +58,59 @@ def job_status(data_root: Path, job_id: str) -> JobStatusReport:
             "artifact": None if item["artifact"] is None else dict(item["artifact"]),
             "blocker": None if item["blocker"] is None else dict(item["blocker"]),
         })
-        if item["state"] == "accepted" and item["artifact"] is None:
-            evidence_gaps.append({
-                "task_id": task.task_id,
-                "code": "JOB_INPUT_PROMOTION_REQUIRED",
-                "message": "accepted task has no attached verified snapshot",
-            })
+        if last is not None and last["attempt_id"] is not None:
+            try:
+                _binding(
+                    Path(data_root),
+                    value,
+                    task.task_id,
+                    last["attempt_id"],
+                    last["invocation_id"],
+                )
+            except LabValidationError as exc:
+                evidence_gaps.append({
+                    "task_id": task.task_id,
+                    "code": exc.code,
+                    "message": exc.summary,
+                })
+        if last is not None and last["run_reference"] is not None:
+            try:
+                retained = records.read(last["run_reference"], lambda stored: stored)
+                if canonical_digest(retained) != last["run_digest"]:
+                    raise LabValidationError(
+                        "JOB_RESULT_CHANGED",
+                        "retained task result differs from the job reference",
+                    )
+            except LabValidationError as exc:
+                evidence_gaps.append({
+                    "task_id": task.task_id,
+                    "code": exc.code,
+                    "message": exc.summary,
+                })
+        if item["state"] == "accepted":
+            try:
+                _accepted(records, item)
+            except LabValidationError as exc:
+                evidence_gaps.append({
+                    "task_id": task.task_id,
+                    "code": exc.code,
+                    "message": exc.summary,
+                })
+            if item["artifact"] is None:
+                evidence_gaps.append({
+                    "task_id": task.task_id,
+                    "code": "JOB_INPUT_PROMOTION_REQUIRED",
+                    "message": "accepted task has no attached verified snapshot",
+                })
+            else:
+                try:
+                    _artifact(Path(data_root), item)
+                except LabValidationError as exc:
+                    evidence_gaps.append({
+                        "task_id": task.task_id,
+                        "code": exc.code,
+                        "message": exc.summary,
+                    })
     objective_complete = (
         value["status"] == "complete"
         and value["active"] is None
