@@ -20,6 +20,24 @@ from worker_lab.runtime_settings import RuntimeSettingsProfile
 from tests.test_pi_protocol import NOW, node, request_bytes
 
 
+
+def test_default_coding_work_allowances_are_realistic_but_still_configurable():
+    worker = intended_pi_worker()
+    assert worker['required_effective_context_tokens'] == 131072
+    assert worker['runtime_settings']['request_limit'] == 64
+    assert worker['runtime_settings']['tool_calls_limit'] == 128
+    assert worker['runtime_settings']['tool_timeout_seconds'] == 30
+    assert worker['runtime_settings']['max_concurrency'] == 1
+    assert worker['max_output_tokens'] == 8192
+    assert worker['provider_timeout_seconds'] == 900
+    assert worker['attempt_timeout_seconds'] == 1800
+    assert worker['runtime_requirement']['timeout_seconds'] == 1800
+    low = intended_pi_worker(request_limit=2, tool_calls_limit=3, max_output_tokens=256,
+        provider_timeout_seconds=10, attempt_timeout_seconds=20)
+    assert low['runtime_settings']['request_limit'] == 2
+    assert low['runtime_settings']['tool_calls_limit'] == 3
+    assert low['max_output_tokens'] == 256
+
 def changed_worker():
     return intended_pi_worker(context_tokens=65536, request_limit=12, tool_calls_limit=16,
         tool_timeout_seconds=45, max_output_tokens=4096, provider_timeout_seconds=120,
@@ -139,7 +157,7 @@ def test_repin_cannot_enable_unsupported_transport(endpoint):
 @pytest.mark.parametrize('mutate', [
     lambda w: w.update(max_output_tokens=0), lambda w: w.update(max_output_tokens=True),
     lambda w: w.update(max_output_tokens=1.5), lambda w: w.update(max_output_tokens=131073),
-    lambda w: w.update(provider_timeout_seconds=181), lambda w: w.update(attempt_timeout_seconds=901),
+    lambda w: w.update(provider_timeout_seconds=1801), lambda w: w.update(attempt_timeout_seconds=1801),
     lambda w: w.update(attempt_timeout_seconds=-1), lambda w: w.update(node_version='latest'),
     lambda w: w.update(pi_version='*'), lambda w: w.update(model_digest='unverified'),
     lambda w: w.update(provider_kind='other'), lambda w: w.update(api='responses'),
@@ -147,7 +165,7 @@ def test_repin_cannot_enable_unsupported_transport(endpoint):
     lambda w: w.update(automatic_retry=True), lambda w: w.update(model_fallback=True),
     lambda w: w.update(automatic_compaction=0), lambda w: w.update(extra=True),
     lambda w: w['runtime_requirement'].update(timeout_seconds=1000),
-    lambda w: w['runtime_settings'].update(tool_timeout_seconds=181),
+    lambda w: w['runtime_settings'].update(tool_timeout_seconds=1801),
     lambda w: w['runtime_settings'].update(tool_timeout_seconds=0),
     lambda w: w['runtime_settings'].update(request_limit=9_007_199_254_740_992),
     lambda w: w['runtime_settings'].update(tool_retries=1),
