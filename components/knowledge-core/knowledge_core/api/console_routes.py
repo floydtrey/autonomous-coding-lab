@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 from uuid import UUID
@@ -16,6 +17,7 @@ from knowledge_core.api.console_admission import (
     ConsoleSessionManager,
 )
 from knowledge_core.api.notebook_schemas import (
+    ConsoleExportResponse,
     ConsoleNoteSaveRequest,
     ConsoleNoteSaveResponse,
     ConsoleSearchEvidenceResponse,
@@ -56,6 +58,7 @@ _NOTES_PATH = "/v1/kc/console/notes"
 _SEARCH_PATH = "/v1/kc/console/search"
 _STATUS_PATH = "/v1/kc/console/status"
 _SOURCES_PATH = "/v1/kc/console/sources"
+_EXPORT_PATH = "/v1/kc/console/export"
 
 
 def install_console_routes(
@@ -502,6 +505,48 @@ def install_console_routes(
             byte_size=item.byte_size,
             media_type=item.media_type,
             content=item.content,
+        )
+
+    @app.get(
+        _EXPORT_PATH,
+        response_model=ConsoleExportResponse,
+    )
+    def console_export_notes(
+        kc_console_session: str | None = Cookie(
+            default=None,
+            alias=_SESSION_COOKIE,
+        ),
+    ) -> ConsoleExportResponse:
+        _session_record(kc_console_session)
+        try:
+            with session_factory() as session:
+                reader = DirectNoteReadKnowledgeKernel(
+                    session,
+                    artifact_store=artifact_store,
+                )
+                export = reader.export_notes(
+                    principal_ref=BOOTSTRAP_PRINCIPAL_REF,
+                )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "message": "Note export is unavailable; no partial export was returned.",
+                    "error_code": "CONSOLE_EXPORT_UNAVAILABLE",
+                },
+            ) from exc
+
+        return ConsoleExportResponse(
+            exported_at=datetime.now(timezone.utc),
+            captured_through=export.captured_through,
+            boundary_observation_id=export.boundary_observation_id,
+            note_count=len(export.notes),
+            notes=[
+                detail_response_from_domain(note)
+                for note in export.notes
+            ],
         )
 
     @app.get(
