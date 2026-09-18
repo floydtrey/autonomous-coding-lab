@@ -61,9 +61,32 @@ button.secondary { background: #e2e8f0; color: #1e293b; }
 .metadata dd { margin: 0; overflow-wrap: anywhere; }
 #moreButton { margin-top: 12px; }
 @media (max-width: 820px) {
-  .grid, .two-col { grid-template-columns: 1fr; }
+  .grid, .two-col, .status-grid, .search-form { grid-template-columns: 1fr; }
   .topbar { padding: 15px 18px; }
   main { padding: 14px; }
   .metadata { grid-template-columns: 1fr; gap: 2px; }
   .metadata dd { margin-bottom: 8px; }
 }
+
+.status-card, .search-card, #detailPanel { margin-top: 20px; }
+.status-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
+}
+.status-grid div {
+  border: 1px solid #e2e8f0; border-radius: 8px; padding: 11px; background: #f8fafc;
+}
+.status-grid span { display: block; color: #64748b; font-size: .8rem; margin-bottom: 4px; }
+.status-grid strong { display: block; overflow-wrap: anywhere; }
+.search-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.search-results { display: grid; gap: 12px; margin-top: 12px; }
+.search-hit {
+  border: 1px solid #dbe2ea; border-radius: 9px; padding: 14px; background: #fff;
+}
+.search-hit h3 { margin: 0 0 5px; font-size: 1rem; }
+.search-hit .hit-meta { color: #64748b; font-size: .82rem; margin-bottom: 9px; }
+.search-hit .excerpt {
+  white-space: pre-wrap; overflow-wrap: anywhere; background: #f8fafc;
+  border-radius: 7px; padding: 10px; margin: 8px 0 10px;
+}
+.search-hit .evidence-line { color: #475569; font-size: .82rem; margin: 3px 0; overflow-wrap: anywhere; }
+.search-hit .hit-actions { margin-top: 10px; }
