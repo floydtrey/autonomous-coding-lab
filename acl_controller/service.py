@@ -28,7 +28,16 @@ from .configuration import ProfileResolver, ProfileSelector, RoleProfile
 from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher
 from .gates import GateRecord, GateService, JsonGateStore
 from .inspection import InspectionReport, InspectionService
-from .planner import ControllerPlannerRuntimeBackend, PlannerDispositionOutcome, PlannerDispositionService
+from .planner import (
+    ControllerPlannerRuntimeBackend,
+    JsonPlannerConsultationStore,
+    PlannerConsultationConfig,
+    PlannerConsultationOutcome,
+    PlannerConsultationRecord,
+    PlannerConsultationService,
+    PlannerDispositionOutcome,
+    PlannerDispositionService,
+)
 from .recovery import JsonStopStore, RecoveryService, StopRecord
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
 from .workflow import (
@@ -60,6 +69,7 @@ class ControllerService:
         filesystem_authority: FilesystemAuthorityCoordinator,
         planner_runtime: PlannerRuntimeService,
         planner_disposition: PlannerDispositionService,
+        planner_consultation: PlannerConsultationService,
         clarification: ClarificationService,
         gates: GateService,
         retries: RetryService,
@@ -76,6 +86,7 @@ class ControllerService:
         self.filesystem_authority = filesystem_authority
         self.planner_runtime = planner_runtime
         self.planner_disposition = planner_disposition
+        self.planner_consultation = planner_consultation
         self.clarification = clarification
         self.gates = gates
         self.retries = retries
@@ -138,6 +149,15 @@ class ControllerService:
                 state=state_service,
                 clarification=clarification,
             )
+            planner_consultation = PlannerConsultationService(
+                state=state_service,
+                runtime=planner_runtime,
+                clarification=clarification,
+                store=JsonPlannerConsultationStore(state_root),
+                config=PlannerConsultationConfig.load(
+                    config_root / "planner_consultation.json"
+                ),
+            )
             gates = GateService(
                 state_service,
                 JsonGateStore(state_root),
@@ -189,6 +209,7 @@ class ControllerService:
                 filesystem_authority=filesystem_authority,
                 planner_runtime=planner_runtime,
                 planner_disposition=planner_disposition,
+                planner_consultation=planner_consultation,
                 clarification=clarification,
                 gates=gates,
                 retries=retries,
@@ -390,6 +411,86 @@ class ControllerService:
             grant_id=grant_id,
             metadata=metadata,
         )
+
+    def start_planner_consultation(
+        self,
+        workflow_id: str,
+        *,
+        plan_id: str,
+        pass_id: str,
+        routing_context: Mapping[str, Any],
+        question: str,
+        reason: str,
+        current_state_summary: str,
+        task_id: str | None = None,
+        relevant_reference_ids=(),
+        relevant_evidence=(),
+        grant_id: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> PlannerConsultationOutcome:
+        """Start a bounded synthetic Worker-to-Planner consultation."""
+        return self.planner_consultation.start(
+            workflow_id,
+            plan_id=plan_id,
+            pass_id=pass_id,
+            routing_context=routing_context,
+            question=question,
+            reason=reason,
+            current_state_summary=current_state_summary,
+            task_id=task_id,
+            relevant_reference_ids=relevant_reference_ids,
+            relevant_evidence=relevant_evidence,
+            authority_grant_id=grant_id,
+            metadata=metadata,
+        )
+
+    def continue_planner_consultation(
+        self,
+        consultation_id: str,
+        *,
+        question: str,
+        reason: str,
+        current_state_summary: str,
+        task_id: str | None = None,
+        relevant_reference_ids=(),
+        relevant_evidence=(),
+    ) -> PlannerConsultationOutcome:
+        """Submit another Worker question within the consultation budget."""
+        return self.planner_consultation.ask(
+            consultation_id,
+            question=question,
+            reason=reason,
+            current_state_summary=current_state_summary,
+            task_id=task_id,
+            relevant_reference_ids=relevant_reference_ids,
+            relevant_evidence=relevant_evidence,
+        )
+
+    def resume_planner_consultation_elevation(
+        self,
+        clarification_id: str,
+        *,
+        answer: Mapping[str, Any],
+        answered_by: str,
+    ) -> PlannerConsultationOutcome:
+        """Resume an elevated Worker-to-Planner exchange after operator input."""
+        return self.planner_consultation.resume_elevation(
+            clarification_id,
+            answer=answer,
+            answered_by=answered_by,
+        )
+
+    def planner_consultation_status(
+        self,
+        consultation_id: str,
+    ) -> PlannerConsultationRecord:
+        return self.planner_consultation.read(consultation_id)
+
+    def close_planner_consultation(
+        self,
+        consultation_id: str,
+    ) -> PlannerConsultationRecord:
+        return self.planner_consultation.close(consultation_id)
 
     def create_workflow(
         self,
