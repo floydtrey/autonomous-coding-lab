@@ -330,3 +330,29 @@ If a particular job requires source-control or repository-hosting operations, Pl
 those as ordinary required tools/services/resources and ACL may provide an appropriate configured
 implementation. A local folder, non-Git workspace, another VCS, or another hosting provider must
 remain valid without contract changes.
+
+
+## Fast non-Worker dispositions
+
+ACL exposes a Planner fast path through `ControllerService.run_planner(...)`.
+
+The fast path never starts a Worker or Reviewer:
+
+- `DIRECT_RESPONSE` returns the Planner answer and completes the workflow.
+- `QUERY_RESPONSE` returns the Planner's permitted lightweight-query answer and completes the workflow.
+- `ELEVATION_REQUIRED` creates a durable clarification record and places the workflow in `WAITING`.
+- `EXECUTION_PLAN` returns `PLAN_READY` with the semantic plan intact; no Worker is started. Plan persistence/intake belongs to PL10.
+- `CANNOT_PLAN` blocks the workflow with the Planner reason codes/notes rather than silently falling through to execution.
+
+A newly created workflow is mechanically moved to `READY` before Planner invocation. The generic
+Controller state machine permits a `READY` workflow to complete without entering Worker execution,
+because a direct/query Planner answer is a valid terminal workflow outcome.
+
+For elevation, the clarification context retains the Planner input, Planner result, and runtime
+metadata needed by the resume path. The clarification mechanism remains the same generic ACL
+WAITING/READY mechanism used elsewhere; Planner does not create a second approval system.
+
+`QUERY_RESPONSE` describes the outcome, not a special Worker. Any lightweight file/KC/search/tool
+access used to produce that answer must come from Planner's authorized tools/runtime. If the Planner
+cannot answer with its permitted resources, it should elevate, return `CANNOT_PLAN`, or produce an
+execution plan as appropriate.
