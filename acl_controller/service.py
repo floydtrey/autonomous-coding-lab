@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from acl_core import AuthorityEnvelope, AuthorityRequest, CoreServices, FilesystemOperation
+from acl_roles.worker import WorkerRuntimeService
 from acl_roles.planner import (
     ExecutionPlan,
     PlannerDisposition,
@@ -56,6 +57,13 @@ from .planner import (
 )
 from .recovery import JsonStopStore, RecoveryService, StopRecord
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
+from .worker import (
+    ControllerWorkerRuntimeBackend,
+    JsonWorkerRunStore,
+    WorkerExecutionOutcome,
+    WorkerExecutionService,
+    WorkerRunRecord,
+)
 from .workflow import (
     EngineReport,
     JsonProgramStore,
@@ -90,6 +98,8 @@ class ControllerService:
         authority: AuthorityCoordinator,
         filesystem_authority: FilesystemAuthorityCoordinator,
         planner_runtime: PlannerRuntimeService,
+        worker_runtime: WorkerRuntimeService,
+        worker_execution: WorkerExecutionService,
         planner_correction_policy: PlannerCorrectionPolicy,
         planner_disposition: PlannerDispositionService,
         planner_consultation: PlannerConsultationService,
@@ -111,6 +121,8 @@ class ControllerService:
         self.authority = authority
         self.filesystem_authority = filesystem_authority
         self.planner_runtime = planner_runtime
+        self.worker_runtime = worker_runtime
+        self.worker_execution = worker_execution
         self.planner_correction_policy = planner_correction_policy
         self.planner_disposition = planner_disposition
         self.planner_consultation = planner_consultation
@@ -132,6 +144,7 @@ class ControllerService:
         project_root: Path | None = None,
         core: CoreServices | None = None,
         planner_runtime: PlannerRuntimeService | None = None,
+        worker_runtime: WorkerRuntimeService | None = None,
     ) -> "ControllerService":
         with controller_span(
             "service.create",
@@ -180,6 +193,14 @@ class ControllerService:
                     authority=authority,
                 )
             )
+            resolved_worker_runtime = worker_runtime or WorkerRuntimeService(
+                ControllerWorkerRuntimeBackend(
+                    state=state_service,
+                    profiles=profiles,
+                    role_dispatch=role_dispatch,
+                    authority=authority,
+                )
+            )
             planner_correction_policy = load_planner_correction_policy(config_root)
             clarification = ClarificationService(
                 state_service,
@@ -211,6 +232,13 @@ class ControllerService:
                 state=state_service,
                 store=JsonPlannerPlanStore(state_root),
                 filesystem_authority=filesystem_authority,
+            )
+            worker_execution = WorkerExecutionService(
+                state=state_service,
+                planner_plan=planner_plan,
+                runtime=resolved_worker_runtime,
+                residency=runtime_residency,
+                store=JsonWorkerRunStore(state_root),
             )
             gates = GateService(
                 state_service,
@@ -265,6 +293,8 @@ class ControllerService:
                 authority=authority,
                 filesystem_authority=filesystem_authority,
                 planner_runtime=resolved_planner_runtime,
+                worker_runtime=resolved_worker_runtime,
+                worker_execution=worker_execution,
                 planner_correction_policy=planner_correction_policy,
                 planner_disposition=planner_disposition,
                 planner_consultation=planner_consultation,
