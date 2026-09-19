@@ -136,7 +136,7 @@ class RoleDispatcher:
                 )
             lease = (
                 None
-                if self.residency is None
+                if self.residency is None or not self.residency.config.enabled
                 else self.residency.prepare_role(
                     workflow_id=request.workflow_id,
                     attempt_id=request.attempt_id,
