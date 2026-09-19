@@ -17,11 +17,18 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Mapping
 
-from acl_core import CoreIdentity
+from acl_core import CoreIdentity, FilesystemOperation
 from acl_core.canonical import canonical_digest, canonical_json
 from acl_core.diagnostics import emit
-from acl_roles.planner import ExecutionPlan, PassSpec
+from acl_roles.planner import (
+    ExecutionPlan,
+    PassSpec,
+    PlannerDisposition,
+    PlannerResult,
+    validate_planner_result,
+)
 
+from ..authority import FilesystemAuthorityCoordinator
 from ..diagnostics import controller_span
 from ..errors import ControllerError
 from ..models import WorkflowStatus, utc_now
@@ -173,14 +180,14 @@ class PlannerPlanRecord:
                 "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
                 "plan_id is invalid",
             )
-        if (
-            isinstance(self.plan_version, bool)
-            or not isinstance(self.plan_version, int)
-            or self.plan_version < 1
-        ):
+        if self.plan_version != PLAN_VERSION:
             raise ControllerError(
                 "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
-                "plan_version must be a positive integer",
+                "Planner V1 plan_version is unsupported",
+                {
+                    "expected": PLAN_VERSION,
+                    "observed": self.plan_version,
+                },
             )
         if not isinstance(self.semantic_plan, ExecutionPlan):
             raise ControllerError(
@@ -208,12 +215,12 @@ class PlannerPlanRecord:
                 "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
                 "plan must contain Pass state",
             )
-        semantic_ids = tuple(
-            pass_spec.pass_id
-            for pass_spec, _ in _ordered_passes(self.semantic_plan)
-        )
+        ordered = _ordered_passes(self.semantic_plan)
+        semantic_ids = tuple(pass_spec.pass_id for pass_spec, _ in ordered)
+        semantic_stage_ids = tuple(stage_id for _, stage_id in ordered)
         state_ids = tuple(item.pass_id for item in self.pass_states)
-        if semantic_ids != state_ids:
+        state_stage_ids = tuple(item.stage_id for item in self.pass_states)
+        if semantic_ids != state_ids or semantic_stage_ids != state_stage_ids:
             raise ControllerError(
                 "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
                 "persisted Pass state order differs from semantic plan",
@@ -221,6 +228,8 @@ class PlannerPlanRecord:
                     "plan_id": self.plan_id,
                     "semantic_pass_ids": list(semantic_ids),
                     "state_pass_ids": list(state_ids),
+                    "semantic_stage_ids": list(semantic_stage_ids),
+                    "state_stage_ids": list(state_stage_ids),
                 },
             )
         if not isinstance(self.metadata, Mapping):
@@ -412,9 +421,11 @@ class PlannerPlanService:
         *,
         state: WorkflowStateService,
         store: JsonPlannerPlanStore,
+        filesystem_authority: FilesystemAuthorityCoordinator,
     ) -> None:
         self.state = state
         self.store = store
+        self.filesystem_authority = filesystem_authority
 
     def intake(
         self,
@@ -433,6 +444,13 @@ class PlannerPlanService:
                 "CONTROLLER_PLANNER_PLAN_INVALID",
                 "plan intake requires ExecutionPlan",
             )
+        validate_planner_result(
+            PlannerResult(
+                disposition=PlannerDisposition.EXECUTION_PLAN,
+                plan=plan,
+            )
+        )
+        self._require_filesystem_authority(plan)
         with controller_span(
             "planner_plan.intake",
             workflow_id=workflow_id,
@@ -799,6 +817,38 @@ class PlannerPlanService:
                 failure_reason=failure_reason,
             )
             return updated
+
+    def _require_filesystem_authority(self, plan: ExecutionPlan) -> None:
+        """Apply deterministic authority only; never judge semantic necessity."""
+        for pass_spec, _ in _ordered_passes(plan):
+            for task in pass_spec.tasks:
+                filesystem = task.filesystem
+                for path in filesystem.read_paths:
+                    self.filesystem_authority.require_allowed(
+                        FilesystemOperation.READ,
+                        path,
+                    )
+                for path in filesystem.write_paths:
+                    self.filesystem_authority.require_allowed(
+                        FilesystemOperation.WRITE,
+                        path,
+                    )
+                for path in filesystem.create_paths:
+                    self.filesystem_authority.require_allowed(
+                        FilesystemOperation.CREATE,
+                        path,
+                    )
+                for path in filesystem.delete_paths:
+                    self.filesystem_authority.require_allowed(
+                        FilesystemOperation.DELETE,
+                        path,
+                    )
+                for move in filesystem.move_paths:
+                    self.filesystem_authority.require_allowed(
+                        FilesystemOperation.MOVE,
+                        move.source,
+                        destination=move.destination,
+                    )
 
     @staticmethod
     def _blockers(
