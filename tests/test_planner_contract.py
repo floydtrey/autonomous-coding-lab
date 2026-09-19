@@ -86,6 +86,7 @@ def _plan(*, staged: bool = False) -> dict:
         "decomposition_reason": None,
     }
     if staged:
+        common["decomposition_reason"] = "The work has a distinct implementation stage."
         common.update(
             {
                 "plan_type": "STAGED",
