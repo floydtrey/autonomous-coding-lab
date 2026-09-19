@@ -24,7 +24,9 @@
       "Do not use GENERAL merely because two specialized routes are close.",
       "Return UNKNOWN only when no configured work type is meaningfully applicable.",
       "Complexity is optional; when supplied it must use a configured complexity level.",
-      "Keep reason codes and notes concise. Do not provide hidden chain-of-thought."
+      "Keep reason codes and notes concise. Do not provide hidden chain-of-thought.",
+      "If the objective contains an answered clarification with an explicit selected work_type_id, treat that operator choice as binding for this routing decision and do not reopen the same clarification.",
+      "When honoring an operator-selected work_type_id, return it as the top candidate with score 1.0 and keep any alternate candidate score at 0.0 so the deterministic lead policy does not override the operator choice."
     ],
     "must_not": [
       "Do not plan the work.",
