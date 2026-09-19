@@ -180,6 +180,13 @@ class RoleDispatcher:
                     raw_response=envelope,
                     error=exc,
                 )
+                cause_details = {}
+                to_dict = getattr(exc, "to_dict", None)
+                if callable(to_dict):
+                    try:
+                        cause_details = to_dict()
+                    except Exception:
+                        cause_details = {}
                 raise ControllerError(
                     "CONTROLLER_ROLE_RESPONSE_INVALID",
                     "role response normalization failed",
@@ -190,6 +197,7 @@ class RoleDispatcher:
                         "profile_id": request.profile.profile_id,
                         "exception_type": type(exc).__name__,
                         "message": str(exc),
+                        "cause": cause_details,
                     },
                 ) from exc
             try:
@@ -204,6 +212,13 @@ class RoleDispatcher:
                     raw_response=envelope,
                     error=exc,
                 )
+                cause_details = {}
+                to_dict = getattr(exc, "to_dict", None)
+                if callable(to_dict):
+                    try:
+                        cause_details = to_dict()
+                    except Exception:
+                        cause_details = {}
                 raise ControllerError(
                     "CONTROLLER_ROLE_RESPONSE_INVALID",
                     "role response does not match the common role contract",
@@ -214,6 +229,8 @@ class RoleDispatcher:
                         "profile_id": request.profile.profile_id,
                         "exception_type": type(exc).__name__,
                         "message": str(exc),
+                        "cause": cause_details,
+                        "normalized_keys": sorted(str(key) for key in envelope),
                     },
                 ) from exc
             validator = request.profile.metadata.get("response_validator")
@@ -234,6 +251,13 @@ class RoleDispatcher:
                     raw_response=envelope,
                     error=exc,
                 )
+                cause_details = {}
+                to_dict = getattr(exc, "to_dict", None)
+                if callable(to_dict):
+                    try:
+                        cause_details = to_dict()
+                    except Exception:
+                        cause_details = {}
                 raise ControllerError(
                     "CONTROLLER_ROLE_RESPONSE_INVALID",
                     "role-specific response validation failed",
@@ -244,6 +268,7 @@ class RoleDispatcher:
                         "profile_id": request.profile.profile_id,
                         "exception_type": type(exc).__name__,
                         "message": str(exc),
+                        "cause": cause_details,
                     },
                 ) from exc
             if validation:
