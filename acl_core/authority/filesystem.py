@@ -332,7 +332,10 @@ class FilesystemAuthorityService:
             raise CoreError("FILESYSTEM_AUTHORITY_INVALID", "filesystem path is required")
         raw = os.path.expandvars(raw.strip())
 
-        if self._looks_windows(raw):
+        use_windows = self._looks_windows(raw) or (
+            not posixpath.isabs(raw) and self._project_root.style == "windows"
+        )
+        if use_windows:
             style = "windows"
             if _WINDOWS_DRIVE_RELATIVE.match(raw):
                 raise CoreError(
