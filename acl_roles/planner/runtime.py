@@ -15,6 +15,7 @@ from acl_core.diagnostics import emit, span
 from acl_roles.common.errors import RoleContractError
 
 from .contract import PlannerInput, PlannerResult
+from .validation import validate_planner_result
 
 
 @dataclass(frozen=True)
@@ -162,6 +163,18 @@ class PlannerRuntimeService:
                     "backend returned an invalid Planner runtime response",
                     {"backend_id": self.backend.backend_id},
                 )
+            validation = validate_planner_result(
+                response.result,
+                planner_input=request.planner_input,
+            )
+            runtime_metadata = {
+                **dict(response.runtime_metadata),
+                "planner_validation": validation,
+            }
+            validated = PlannerRuntimeResponse(
+                result=response.result,
+                runtime_metadata=runtime_metadata,
+            )
             emit(
                 "INFO",
                 self.component,
@@ -169,10 +182,10 @@ class PlannerRuntimeService:
                 "planner_runtime_finished",
                 backend_id=self.backend.backend_id,
                 workflow_id=request.workflow_id,
-                disposition=str(response.result.disposition),
-                runtime_metadata=dict(response.runtime_metadata),
+                disposition=str(validated.result.disposition),
+                runtime_metadata=runtime_metadata,
             )
-            return response
+            return validated
 
 
 @dataclass
