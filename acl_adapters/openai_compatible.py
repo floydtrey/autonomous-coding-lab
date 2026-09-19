@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 import os
+from pathlib import Path
 from typing import Any, Mapping
 from urllib import error as urlerror
 from urllib import request as urlrequest
@@ -304,6 +305,22 @@ class OpenAICompatibleChatAdapter:
         env_name = runtime.get("api_key_env")
         if isinstance(env_name, str) and env_name:
             value = os.getenv(env_name)
+            if value:
+                return value
+        file_value = runtime.get("api_key_file")
+        file_env = runtime.get("api_key_file_env")
+        if not file_value and isinstance(file_env, str) and file_env:
+            file_value = os.getenv(file_env)
+        if isinstance(file_value, str) and file_value.strip():
+            path = Path(file_value.strip()).expanduser()
+            try:
+                value = path.read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                raise CoreError(
+                    "ADAPTER_API_KEY_FILE_FAILED",
+                    "configured API-key file could not be read",
+                    {"path": str(path)},
+                ) from exc
             if value:
                 return value
         return None
