@@ -6,24 +6,15 @@ provider/harness transport. Controller interprets only the small role envelope.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
 from typing import Any, Mapping
 
 from acl_core import AdapterRequest, AuthorityGrant, CoreIdentity, CoreServices
 from acl_core.diagnostics import emit
+from acl_roles.common import InstructionSet, RoleDiagnostics, RoleRequest, RoleResponse, RoleStatus
 
 from ..configuration import RoleProfile
 from ..diagnostics import controller_span
 from ..errors import ControllerError
-
-
-class RoleStatus(StrEnum):
-    COMPLETE = "COMPLETE"
-    NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
-    NEEDS_CONTINUATION = "NEEDS_CONTINUATION"
-    NEEDS_RETRY = "NEEDS_RETRY"
-    BLOCKED = "BLOCKED"
-    FAILED = "FAILED"
 
 
 @dataclass(frozen=True)
@@ -36,14 +27,38 @@ class RoleDispatchRequest:
     operation: str = "role.invoke"
     attempt_id: str = field(default_factory=lambda: CoreIdentity.new("attempt").value)
 
+    def to_role_request(self) -> RoleRequest:
+        instructions = InstructionSet.from_profile(
+            profile_id=self.profile.profile_id,
+            instructions=self.profile.instructions,
+        )
+        return RoleRequest.create(
+            workflow_id=self.workflow_id,
+            attempt_id=self.attempt_id,
+            role=self.role,
+            profile_id=self.profile.profile_id,
+            objective=dict(self.payload),
+            instructions=instructions,
+            authority_grant_id=None if self.grant is None else self.grant.grant_id,
+            tool_ids=() if self.grant is None else self.grant.authority.tool_scopes,
+            execution=self.profile.settings,
+            metadata={
+                "adapter_id": self.profile.adapter_id,
+                "tool_profile": self.profile.tool_profile,
+                "profile_metadata": dict(self.profile.metadata),
+                "operation": self.operation,
+            },
+        )
+
     def to_adapter_payload(self) -> dict[str, Any]:
+        role_request = self.to_role_request()
         return {
-            "workflow_id": self.workflow_id,
-            "attempt_id": self.attempt_id,
-            "role": self.role,
-            "profile": self.profile.to_dict(),
-            "input": dict(self.payload),
-            "authority_grant": None if self.grant is None else self.grant.to_dict(),
+            "role_request": role_request.to_dict(),
+            "authority": {
+                "grant_id": None if self.grant is None else self.grant.grant_id,
+                "grant_digest": None if self.grant is None else self.grant.digest(),
+                "authority": None if self.grant is None else self.grant.authority.to_dict(),
+            },
         }
 
 
@@ -98,6 +113,11 @@ class RoleDispatcher:
                         "profile_role": request.profile.role,
                     },
                 )
+            role_request = request.to_role_request()
+            RoleDiagnostics.invocation(
+                role_request,
+                adapter_id=request.profile.adapter_id,
+            )
             adapter_request = AdapterRequest(
                 operation=request.operation,
                 payload=request.to_adapter_payload(),
@@ -124,6 +144,11 @@ class RoleDispatcher:
             )
             response = self.core.adapters.invoke(request.profile.adapter_id, adapter_request)
             if not response.ok:
+                RoleDiagnostics.adapter_error(
+                    role_request,
+                    adapter_id=request.profile.adapter_id,
+                    error=dict(response.error or {}),
+                )
                 raise ControllerError(
                     "CONTROLLER_ROLE_ADAPTER_FAILED",
                     "role adapter returned failure",
@@ -137,7 +162,36 @@ class RoleDispatcher:
                     },
                 )
             envelope = self.core.normalization.mapping(response.payload)
-            role_response = self.parse_response(request, envelope)
+            try:
+                common_response = RoleResponse.from_mapping(envelope)
+            except Exception as exc:
+                RoleDiagnostics.parse_error(
+                    workflow_id=request.workflow_id,
+                    attempt_id=request.attempt_id,
+                    role=request.role,
+                    profile_id=request.profile.profile_id,
+                    adapter_id=request.profile.adapter_id,
+                    raw_response=envelope,
+                    error=exc,
+                )
+                raise ControllerError(
+                    "CONTROLLER_ROLE_RESPONSE_INVALID",
+                    "role response does not match the common role contract",
+                    {
+                        "workflow_id": request.workflow_id,
+                        "attempt_id": request.attempt_id,
+                        "role": request.role,
+                        "profile_id": request.profile.profile_id,
+                        "exception_type": type(exc).__name__,
+                        "message": str(exc),
+                    },
+                ) from exc
+            RoleDiagnostics.response(
+                role_request,
+                common_response,
+                adapter_id=request.profile.adapter_id,
+            )
+            role_response = self.from_common_response(request, common_response)
             emit(
                 "INFO",
                 self.component,
@@ -153,49 +207,47 @@ class RoleDispatcher:
             return role_response
 
     @staticmethod
-    def parse_response(
+    def from_common_response(
         request: RoleDispatchRequest,
-        value: Mapping[str, Any],
+        response: RoleResponse,
     ) -> RoleDispatchResponse:
-        status_raw = value.get("status")
-        try:
-            status = RoleStatus(status_raw)
-        except (TypeError, ValueError) as exc:
-            raise ControllerError(
-                "CONTROLLER_ROLE_RESPONSE_INVALID",
-                "role response has an unsupported status",
-                {
-                    "workflow_id": request.workflow_id,
-                    "attempt_id": request.attempt_id,
-                    "observed_status": status_raw,
-                },
-            ) from exc
-        payload = value.get("payload", {})
-        if not isinstance(payload, Mapping):
-            raise ControllerError(
-                "CONTROLLER_ROLE_RESPONSE_INVALID",
-                "role response payload must be a mapping",
-                {"workflow_id": request.workflow_id, "attempt_id": request.attempt_id},
-            )
-        reference = value.get("reference")
-        if reference is not None and not isinstance(reference, str):
-            raise ControllerError(
-                "CONTROLLER_ROLE_RESPONSE_INVALID",
-                "role response reference must be text when present",
-            )
-        metadata = value.get("metadata", {})
-        if not isinstance(metadata, Mapping):
-            raise ControllerError(
-                "CONTROLLER_ROLE_RESPONSE_INVALID",
-                "role response metadata must be a mapping",
-            )
         return RoleDispatchResponse(
             workflow_id=request.workflow_id,
             attempt_id=request.attempt_id,
             role=request.role,
             profile_id=request.profile.profile_id,
-            status=status,
-            payload=dict(payload),
-            reference=reference,
-            metadata=dict(metadata),
+            status=response.status,
+            payload=dict(response.payload),
+            reference=response.reference,
+            metadata=dict(response.metadata),
         )
+
+    @staticmethod
+    def parse_response(
+        request: RoleDispatchRequest,
+        value: Mapping[str, Any],
+    ) -> RoleDispatchResponse:
+        """Compatibility parser used by recovery for already-normalized responses."""
+        try:
+            response = RoleResponse.from_mapping(value)
+        except Exception as exc:
+            RoleDiagnostics.parse_error(
+                workflow_id=request.workflow_id,
+                attempt_id=request.attempt_id,
+                role=request.role,
+                profile_id=request.profile.profile_id,
+                adapter_id=request.profile.adapter_id,
+                raw_response=value,
+                error=exc,
+            )
+            raise ControllerError(
+                "CONTROLLER_ROLE_RESPONSE_INVALID",
+                "role response does not match the common role contract",
+                {
+                    "workflow_id": request.workflow_id,
+                    "attempt_id": request.attempt_id,
+                    "exception_type": type(exc).__name__,
+                    "message": str(exc),
+                },
+            ) from exc
+        return RoleDispatcher.from_common_response(request, response)
