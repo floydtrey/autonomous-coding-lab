@@ -192,12 +192,18 @@ class OpenAICompatibleChatAdapter:
         merged = dict(self.settings)
         merged.update(dict(execution))
 
-        base_url = merged.get("base_url")
-        model = merged.get("model")
-        if not isinstance(base_url, str) or not base_url.strip():
-            raise CoreError("ADAPTER_SETTINGS_INVALID", "base_url is required")
-        if not isinstance(model, str) or not model.strip():
-            raise CoreError("ADAPTER_SETTINGS_INVALID", "model is required")
+        base_url = self._value_or_env(
+            merged,
+            literal_key="base_url",
+            env_key="base_url_env",
+            required=True,
+        )
+        model = self._value_or_env(
+            merged,
+            literal_key="model",
+            env_key="model_env",
+            required=True,
+        )
 
         endpoint = merged.get("endpoint", "/chat/completions")
         if not isinstance(endpoint, str) or not endpoint.startswith("/"):
@@ -266,6 +272,29 @@ class OpenAICompatibleChatAdapter:
                 if key not in body:
                     body[key] = value
         return body
+
+    @staticmethod
+    def _value_or_env(
+        runtime: Mapping[str, Any],
+        *,
+        literal_key: str,
+        env_key: str,
+        required: bool,
+    ) -> str | None:
+        literal = runtime.get(literal_key)
+        if isinstance(literal, str) and literal.strip():
+            return literal.strip()
+        env_name = runtime.get(env_key)
+        if isinstance(env_name, str) and env_name.strip():
+            value = os.getenv(env_name.strip())
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        if required:
+            raise CoreError(
+                "ADAPTER_SETTINGS_INVALID",
+                f"{literal_key} is required directly or through {env_key}",
+            )
+        return None
 
     @staticmethod
     def _resolve_api_key(runtime: Mapping[str, Any]) -> str | None:
