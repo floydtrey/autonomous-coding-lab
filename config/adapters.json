@@ -1,0 +1,15 @@
+{
+  "schema_version": "acl-adapters:v1",
+  "adapters": [
+    {
+      "adapter_id": "openai-compatible.chat",
+      "implementation": "acl_adapters.openai_compatible:OpenAICompatibleChatAdapter",
+      "enabled": true,
+      "settings": {
+        "base_url": "http://127.0.0.1:9931/v1",
+        "timeout_seconds": 120,
+        "api_key_env": "ACL_OPENAI_COMPAT_API_KEY"
+      }
+    }
+  ]
+}
