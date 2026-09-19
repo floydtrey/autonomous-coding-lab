@@ -21,7 +21,7 @@ ROUTING_SCHEMA = "acl-controller-routing:v1"
 @dataclass(frozen=True)
 class ProfileSelector:
     role: str
-    work_type: str
+    work_type: str | None = None
     complexity: str | None = None
 
     def to_dict(self) -> dict[str, str | None]:
@@ -75,21 +75,24 @@ class RoleProfile:
 @dataclass(frozen=True)
 class RouteRule:
     role: str
-    work_type: str
     profile_id: str
+    work_type: str | None = None
     complexity: str | None = None
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "RouteRule":
         if not isinstance(value, Mapping):
             raise ControllerError("CONTROLLER_ROUTING_INVALID", "routing rule must be a mapping")
-        for key in ("role", "work_type", "profile_id"):
+        for key in ("role", "profile_id"):
             if not isinstance(value.get(key), str) or not value[key].strip():
                 raise ControllerError("CONTROLLER_ROUTING_INVALID", f"{key} is required")
+        work_type = value.get("work_type")
+        if work_type is not None and (not isinstance(work_type, str) or not work_type.strip()):
+            raise ControllerError("CONTROLLER_ROUTING_INVALID", "work_type must be nonblank text when present")
         complexity = value.get("complexity")
         if complexity is not None and (not isinstance(complexity, str) or not complexity.strip()):
             raise ControllerError("CONTROLLER_ROUTING_INVALID", "complexity must be nonblank text when present")
-        return cls(value["role"], value["work_type"], value["profile_id"], complexity)
+        return cls(value["role"], value["profile_id"], work_type, complexity)
 
 
 class ProfileResolver:
