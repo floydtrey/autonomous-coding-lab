@@ -54,7 +54,7 @@ class WorkflowEngine:
         profiles: ProfileResolver,
         routing: ActionRegistry,
         role_dispatch: RoleDispatcher,
-        runtime_residency: SerialRuntimeResidencyService,
+        runtime_residency: SerialRuntimeResidencyService | None = None,
         authority: AuthorityCoordinator,
         clarification: ClarificationService,
         gates: GateService,
@@ -275,10 +275,11 @@ class WorkflowEngine:
                 reference=response.reference,
                 metadata=response.metadata,
             )
-            self.runtime_residency.complete_role(
-                workflow_id,
-                response.attempt_id,
-            )
+            if self.runtime_residency is not None:
+                self.runtime_residency.complete_role(
+                    workflow_id,
+                    response.attempt_id,
+                )
             self._apply_result(program, step, result)
             return self._report(self.state.read(workflow_id), 0, result.result_id)
 
@@ -326,10 +327,11 @@ class WorkflowEngine:
             reference=response.reference,
             metadata=response.metadata,
         )
-        self.runtime_residency.complete_role(
-            workflow.workflow_id,
-            response.attempt_id,
-        )
+        if self.runtime_residency is not None:
+            self.runtime_residency.complete_role(
+                workflow.workflow_id,
+                response.attempt_id,
+            )
         return result
 
     def _execute_action(
