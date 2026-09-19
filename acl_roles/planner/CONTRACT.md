@@ -202,3 +202,29 @@ ACL's existing clarification store remains the durable pause/resume mechanism. T
 clarification record holds the questions and opaque context, the workflow enters `WAITING`, and
 answering the clarification returns the same workflow stage to `READY`. The original request is
 therefore not re-entered by the operator.
+
+
+## Development observability
+
+Planner development must be highly observable without making diagnostics part of Planner semantics.
+
+ACL owns this instrumentation. It must be possible to reduce or disable it later without changing
+Planner prompts, the Planner result schema, or execution behavior.
+
+During development, retain high-signal structured diagnostics for at least:
+
+- workflow, attempt, role, profile, adapter/harness, runtime, and model identity;
+- Planner invocation mode and semantic disposition;
+- validation/normalization/correction events and error codes;
+- clarification/elevation pause and resume events;
+- model/server load, unload, startup, retry, and failure events when available;
+- wall-clock/model/adapter timing when available;
+- prompt/input tokens, completion/output tokens, and total tokens when the runtime reports them;
+- cumulative token totals at useful workflow/role boundaries without requiring Benchmark Lab.
+
+Raw prompt/response artifacts remain a separate deeper-debug option because they are noisier and may
+contain sensitive project content. Turning raw artifacts off must not disable ordinary high-level
+diagnostics or token/timing telemetry.
+
+A provider that does not report token usage may leave token fields unknown; ACL must not invent token
+counts. Token/runtime telemetry is observational only and must not alter Planner semantic output.
