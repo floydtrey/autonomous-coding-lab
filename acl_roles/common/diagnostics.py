@@ -106,6 +106,12 @@ class RoleDiagnostics:
         normalization: Mapping[str, Any] | None = None,
     ) -> None:
         value = response.to_dict()
+        adapter_telemetry = response.metadata.get("adapter_telemetry")
+        adapter_telemetry = (
+            dict(adapter_telemetry)
+            if isinstance(adapter_telemetry, Mapping)
+            else {}
+        )
         emit(
             "INFO",
             cls.component,
@@ -121,6 +127,14 @@ class RoleDiagnostics:
             response_bytes=len(canonical_json(value).encode("utf-8")),
             reference=response.reference,
             normalization=dict(normalization or {}),
+            model=adapter_telemetry.get("model"),
+            prompt_tokens=adapter_telemetry.get("prompt_tokens"),
+            completion_tokens=adapter_telemetry.get("completion_tokens"),
+            total_tokens=adapter_telemetry.get("total_tokens"),
+            context_window=adapter_telemetry.get("context_window"),
+            context_utilization=adapter_telemetry.get("context_utilization"),
+            http_elapsed_ms=adapter_telemetry.get("http_elapsed_ms"),
+            finish_reason=adapter_telemetry.get("finish_reason"),
         )
         cls._write_raw(
             request.workflow_id,
