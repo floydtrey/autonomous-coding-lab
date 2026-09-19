@@ -137,7 +137,7 @@ class RoleDispatcher:
                     },
                 )
             envelope = self.core.normalization.mapping(response.payload)
-            role_response = self._parse_response(request, envelope)
+            role_response = self.parse_response(request, envelope)
             emit(
                 "INFO",
                 self.component,
@@ -153,7 +153,7 @@ class RoleDispatcher:
             return role_response
 
     @staticmethod
-    def _parse_response(
+    def parse_response(
         request: RoleDispatchRequest,
         value: Mapping[str, Any],
     ) -> RoleDispatchResponse:
