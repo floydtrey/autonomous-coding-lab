@@ -95,6 +95,8 @@ class PlannerTelemetryRecord:
     planner_elapsed_ms: float | None = None
     model_load_ms: float | None = None
     model_unload_ms: float | None = None
+    tool_calls: int | None = None
+    turns: int | None = None
     request_bytes: int | None = None
     response_bytes: int | None = None
     finish_reason: str | None = None
@@ -129,6 +131,8 @@ class PlannerTelemetryRecord:
             "planner_elapsed_ms": self.planner_elapsed_ms,
             "model_load_ms": self.model_load_ms,
             "model_unload_ms": self.model_unload_ms,
+            "tool_calls": self.tool_calls,
+            "turns": self.turns,
             "request_bytes": self.request_bytes,
             "response_bytes": self.response_bytes,
             "finish_reason": self.finish_reason,
@@ -173,6 +177,8 @@ class PlannerTelemetryRecord:
                 planner_elapsed_ms=_optional_float(value.get("planner_elapsed_ms")),
                 model_load_ms=_optional_float(value.get("model_load_ms")),
                 model_unload_ms=_optional_float(value.get("model_unload_ms")),
+                tool_calls=_optional_int(value.get("tool_calls")),
+                turns=_optional_int(value.get("turns")),
                 request_bytes=_optional_int(value.get("request_bytes")),
                 response_bytes=_optional_int(value.get("response_bytes")),
                 finish_reason=value.get("finish_reason"),
@@ -321,9 +327,18 @@ class PlannerTelemetryService:
             attempt_id=_text(runtime_metadata.get("attempt_id")),
             backend_id=_text(runtime_metadata.get("backend_id")),
             profile_id=_text(runtime_metadata.get("profile_id")),
-            adapter_id=_text(adapter.get("adapter_id")),
-            runtime_family=_text(adapter.get("runtime_family")),
-            model=_text(adapter.get("model")),
+            adapter_id=(
+                _text(adapter.get("adapter_id"))
+                or _text(runtime_metadata.get("adapter_id"))
+            ),
+            runtime_family=(
+                _text(adapter.get("runtime_family"))
+                or _text(runtime_metadata.get("runtime_family"))
+            ),
+            model=(
+                _text(adapter.get("model"))
+                or _text(runtime_metadata.get("model"))
+            ),
             prompt_tokens=_optional_int(adapter.get("prompt_tokens")),
             completion_tokens=_optional_int(adapter.get("completion_tokens")),
             total_tokens=_optional_int(adapter.get("total_tokens")),
@@ -333,6 +348,8 @@ class PlannerTelemetryService:
             planner_elapsed_ms=_optional_float(runtime_metadata.get("planner_elapsed_ms")),
             model_load_ms=_optional_float(adapter.get("model_load_ms")),
             model_unload_ms=_optional_float(adapter.get("model_unload_ms")),
+            tool_calls=_optional_int(adapter.get("tool_calls")),
+            turns=_optional_int(adapter.get("turns")),
             request_bytes=_optional_int(adapter.get("request_bytes")),
             response_bytes=_optional_int(adapter.get("response_bytes")),
             finish_reason=_text(adapter.get("finish_reason")),
@@ -443,6 +460,18 @@ class PlannerTelemetryService:
                     if item.http_elapsed_ms is not None
                 ),
                 3,
+            ),
+            "tool_calls": sum(
+                item.tool_calls for item in records if item.tool_calls is not None
+            ),
+            "tool_call_reports": sum(
+                1 for item in records if item.tool_calls is not None
+            ),
+            "turns": sum(
+                item.turns for item in records if item.turns is not None
+            ),
+            "turn_reports": sum(
+                1 for item in records if item.turns is not None
             ),
             "models": sorted(
                 {item.model for item in records if item.model is not None}
