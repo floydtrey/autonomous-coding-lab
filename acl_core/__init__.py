@@ -4,7 +4,17 @@ Core provides mechanisms only. It does not plan, route workflows, choose models,
 operate Git, manage KC semantics, or perform role reasoning.
 """
 from .adapters import AdapterRegistry, AdapterRequest, AdapterResponse, CoreAdapter
-from .authority import AuthorityEnvelope, AuthorityGrant, AuthorityRequest, AuthorityService
+from .authority import (
+    AuthorityEnvelope,
+    AuthorityGrant,
+    AuthorityRequest,
+    AuthorityService,
+    FilesystemAuthorityService,
+    FilesystemDecision,
+    FilesystemOperation,
+    ProtectedPath,
+    ProtectionLayer,
+)
 from .diagnostics import DiagnosticConfig, config as diagnostic_config, configure as configure_diagnostics
 from .errors import CoreError
 from .identity import Correlation, CoreIdentity, current_correlation, pop_correlation, push_correlation
@@ -25,9 +35,14 @@ __all__ = [
     "CoreError",
     "CoreIdentity",
     "CoreServices",
+    "FilesystemAuthorityService",
+    "FilesystemDecision",
+    "FilesystemOperation",
     "Correlation",
     "DiagnosticConfig",
     "NormalizationService",
+    "ProtectedPath",
+    "ProtectionLayer",
     "ResourceRef",
     "ResourceRegistry",
     "TargetRef",
