@@ -8,7 +8,19 @@ from .clarification import ClarificationRecord, ClarificationService, Clarificat
 from .configuration import ProfileResolver, ProfileSelector, RoleProfile
 from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher, RoleStatus
 from .gates import GateRecord, GateService, GateStatus, JsonGateStore
+from .inspection import InspectionReport, InspectionService
+from .recovery import JsonStopStore, RecoveryService, StopRecord, StopStatus
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
+from .workflow import (
+    EngineReport,
+    JsonProgramStore,
+    JsonResultStore,
+    StepExecutor,
+    StepResultRecord,
+    WorkflowEngine,
+    WorkflowProgram,
+    WorkflowStep,
+)
 from .errors import ControllerError
 from .models import ControllerStatus, RequestRecord, ResultReference, WorkflowRecord, WorkflowStatus
 from .routing import ActionRegistry, ActionRequest, ActionResponse
@@ -26,13 +38,19 @@ __all__ = [
     "ControllerError",
     "ControllerService",
     "ControllerStatus",
+    "EngineReport",
     "GateRecord",
     "GateService",
     "GateStatus",
     "JsonClarificationStore",
     "JsonGateStore",
     "JsonGrantStore",
+    "InspectionReport",
+    "InspectionService",
+    "JsonProgramStore",
+    "JsonResultStore",
     "JsonRetryStore",
+    "JsonStopStore",
     "JsonWorkflowStore",
     "ProfileResolver",
     "ProfileSelector",
@@ -44,9 +62,17 @@ __all__ = [
     "RoleDispatchResponse",
     "RoleDispatcher",
     "RoleStatus",
+    "RecoveryService",
+    "StepExecutor",
+    "StepResultRecord",
+    "StopRecord",
+    "StopStatus",
     "ResultReference",
     "RoleProfile",
+    "WorkflowEngine",
+    "WorkflowProgram",
     "WorkflowRecord",
+    "WorkflowStep",
     "WorkflowStateService",
     "WorkflowStatus",
 ]
