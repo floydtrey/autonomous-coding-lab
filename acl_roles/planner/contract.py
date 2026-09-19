@@ -605,6 +605,21 @@ class ExecutionPlan:
                 "PLANNER_CONTRACT_INVALID",
                 "STAGED plan_type must contain stages",
             )
+        if self.plan_type is PlanType.SINGLE_PASS and len(self.passes) != 1:
+            raise RoleContractError(
+                "PLANNER_CONTRACT_INVALID",
+                "SINGLE_PASS plan_type requires exactly one top-level pass",
+            )
+        if self.plan_type is PlanType.MULTI_PASS and len(self.passes) < 2:
+            raise RoleContractError(
+                "PLANNER_CONTRACT_INVALID",
+                "MULTI_PASS plan_type requires at least two top-level passes",
+            )
+        if self.plan_type in {PlanType.MULTI_PASS, PlanType.STAGED} and self.decomposition_reason is None:
+            raise RoleContractError(
+                "PLANNER_CONTRACT_INVALID",
+                "decomposed plans require decomposition_reason",
+            )
         all_passes = list(self.passes)
         for stage in self.stages:
             all_passes.extend(stage.passes)
