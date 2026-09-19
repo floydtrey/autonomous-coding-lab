@@ -1,4 +1,11 @@
 {
   "schema_version": "acl-controller-routing:v1",
-  "routes": []
+  "routes": [
+    {
+      "role": "determiner",
+      "work_type": null,
+      "complexity": null,
+      "profile_id": "determiner-general"
+    }
+  ]
 }
