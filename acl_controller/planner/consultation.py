@@ -43,6 +43,7 @@ from ..clarification import ClarificationService, ClarificationStatus
 from ..diagnostics import controller_span
 from ..errors import ControllerError
 from ..models import WorkflowStatus, utc_now
+from ..runtime import SerialRuntimeResidencyService
 from ..state import WorkflowStateService
 from .telemetry import PlannerTelemetryService
 
@@ -458,6 +459,7 @@ class PlannerConsultationService:
         config: PlannerConsultationConfig,
         telemetry: PlannerTelemetryService,
         correction_policy: PlannerCorrectionPolicy,
+        runtime_residency: SerialRuntimeResidencyService,
     ) -> None:
         self.state = state
         self.runtime = runtime
@@ -466,6 +468,7 @@ class PlannerConsultationService:
         self.config = config
         self.telemetry = telemetry
         self.correction_policy = correction_policy
+        self.runtime_residency = runtime_residency
 
     def start(
         self,
@@ -503,6 +506,21 @@ class PlannerConsultationService:
                     "requested_grant_id": authority_grant_id,
                 },
             )
+
+        if (
+            workflow.status is WorkflowStatus.RUNNING
+            and workflow.active_attempt_id is not None
+            and workflow.active_role is not None
+        ):
+            checkpoint = self.runtime_residency.checkpoint(workflow_id)
+            if (
+                checkpoint is not None
+                and checkpoint.attempt_id == workflow.active_attempt_id
+            ):
+                self.runtime_residency.pause_for_role_switch(
+                    workflow_id,
+                    attempt_id=workflow.active_attempt_id,
+                )
 
         record = PlannerConsultationRecord.create(
             workflow_id=workflow_id,
