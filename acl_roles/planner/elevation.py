@@ -184,5 +184,6 @@ def resume_planner_input(
         routing_context=dict(original.routing_context),
         consultation=original.consultation,
         elevation_answers=merged,
+        correction=original.correction,
         metadata=dict(original.metadata),
     )
