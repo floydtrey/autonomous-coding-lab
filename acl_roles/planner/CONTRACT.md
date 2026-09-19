@@ -511,3 +511,34 @@ Missing measurements remain `null` rather than being reported as zero.
 
 PL11 reserves load/unload telemetry fields now, but actual serial Worker/Planner model switching is
 still deferred until the Worker integration phase.
+
+
+## Durable runtime residency and recovery target
+
+Serial role-model residency is now backed by a durable Controller checkpoint.
+
+Determiner is a bootstrap role for a genuinely new workflow, not a universal
+restart model. Before a role invocation ACL resolves the selected role profile,
+captures the exact resolved model/runtime target, verifies that the configured
+OpenAI-compatible endpoint is actually serving that model, and persists the
+target under Controller state.
+
+For an interrupted in-flight role, ACL restores the checkpoint target before
+attempt recovery. A stateless/unqueryable attempt is marked
+`RECOVERY_REQUIRED` before workflow active-role fields are released for rerun.
+The rerun is then pinned to the checkpoint's exact model even if the current
+environment/profile model value has changed.
+
+A healthy inference endpoint is therefore insufficient by itself. The resident
+model must match the role's required model. If it does not and no role-specific
+launcher is configured, ACL fails closed with a model-mismatch error rather
+than sending the role request to the wrong model.
+
+Temporary role switches can persist a return target. This is the basis for the
+future live Worker -> Planner -> Worker path: the Worker model/profile can be
+marked `PAUSED_FOR_SWITCH`, Planner can run serially, and the exact Worker
+target becomes `RETURN_REQUIRED` afterward.
+
+The generic local-service bootstrap does not choose the model server anymore.
+Model-server launch/switch responsibility belongs to runtime residency plus the
+selected role profile's external launcher configuration.
