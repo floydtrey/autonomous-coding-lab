@@ -33,6 +33,15 @@ class OpenAICompatibleChatAdapter:
             raise CoreError("ADAPTER_INVALID", "adapter settings must be a mapping")
         self.settings = dict(self.settings)
 
+    @property
+    def recovery_capabilities(self) -> Mapping[str, Any]:
+        policy = self.settings.get("interrupted_attempt_policy", "block")
+        return {
+            "status_query": False,
+            "cancel": False,
+            "interrupted_attempt_policy": policy,
+        }
+
     def invoke(self, request: AdapterRequest) -> AdapterResponse:
         with span(
             "adapter.openai_compatible",
