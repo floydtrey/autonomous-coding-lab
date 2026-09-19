@@ -97,8 +97,10 @@ class WorkflowRecord:
     request: RequestRecord
     status: WorkflowStatus
     stage: str
+    program_id: str | None = None
     active_action: str | None = None
     active_role: str | None = None
+    active_profile_id: str | None = None
     active_attempt_id: str | None = None
     authority_grant_id: str | None = None
     retry_count: int = 0
@@ -154,8 +156,10 @@ class WorkflowRecord:
                 request=request,
                 status=WorkflowStatus(value["status"]),
                 stage=value["stage"],
+                program_id=value.get("program_id"),
                 active_action=value.get("active_action"),
                 active_role=value.get("active_role"),
+                active_profile_id=value.get("active_profile_id"),
                 active_attempt_id=value.get("active_attempt_id"),
                 authority_grant_id=value.get("authority_grant_id"),
                 retry_count=int(value.get("retry_count", 0)),
