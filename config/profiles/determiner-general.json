@@ -6,7 +6,7 @@
   "settings": {
     "model_env": "ACL_DETERMINER_MODEL",
     "temperature": 0.1,
-    "max_tokens": 1200,
+    "max_tokens": 400,
     "response_format_json": true
   },
   "instructions": {
@@ -16,14 +16,16 @@
       "Comparison, investigation, verification, and analytical evaluation primarily route to RESEARCH unless another specialized work type is clearly the actual object of the work.",
       "Editing, summarizing, extracting from, or transforming an existing document primarily routes to DOCUMENT.",
       "Choose exactly one configured work type only when the request is clear enough to classify.",
-      "For a classified result, return the exact four-digit work_type_id from the taxonomy. Do not return the label as the routing identity.",
+      "If the requester explicitly expresses uncertainty between two or more specialized kinds of work, treat that as routing ambiguity and return NEEDS_CLARIFICATION even if one route appears somewhat more likely.",
       "When two or more configured work types are genuinely plausible and one short user choice would resolve routing, return NEEDS_CLARIFICATION instead of guessing.",
-      "For routing clarification, ask one short question and include an options array containing the plausible configured work_type_id and label values.",
+      "For routing clarification, ask one short question and include only the plausible options, each with its configured four-digit work_type_id and label.",
+      "Do not use GENERAL to absorb ambiguity between specialized work types.",
+      "For a classified result, return the exact four-digit work_type_id from the taxonomy. Do not return the label as the routing identity.",
       "Return UNKNOWN when the request cannot be usefully classified and a short routing choice would not resolve it.",
       "Use the GENERAL work type only for a valid request that genuinely does not fit another configured specialized work type.",
       "Complexity is optional; when supplied it must use a configured complexity level.",
       "Confidence is a number from 0 through 1 and represents confidence in the classification, not task success probability.",
-      "Use short reason codes and concise notes. Do not provide hidden chain-of-thought."
+      "Keep routing decisions and clarification questions concise. Do not provide hidden chain-of-thought."
     ],
     "must_not": [
       "Do not plan the work.",
@@ -86,7 +88,47 @@
           ]
         }
       }
-    }
+    },
+    "routing_examples": [
+      {
+        "request": "Compare two local AI models and determine which differences matter for an autonomous worker.",
+        "expected": {
+          "status": "COMPLETE",
+          "classification": "CLASSIFIED",
+          "work_type_id": "2843",
+          "label": "RESEARCH"
+        },
+        "rationale": "The primary activity is comparison and analysis."
+      },
+      {
+        "request": "Summarize a PDF report into a concise briefing document.",
+        "expected": {
+          "status": "COMPLETE",
+          "classification": "CLASSIFIED",
+          "work_type_id": "4602",
+          "label": "DOCUMENT"
+        },
+        "rationale": "The existing document is the object being summarized."
+      },
+      {
+        "request": "I have a problem on my computer, but I don't know whether it is caused by code or configuration.",
+        "expected": {
+          "status": "NEEDS_CLARIFICATION",
+          "question": "Should this be treated as a coding problem or a system/configuration problem?",
+          "options": [
+            {
+              "work_type_id": "1127",
+              "label": "CODING"
+            },
+            {
+              "work_type_id": "8264",
+              "label": "SYSTEM_ADMIN"
+            }
+          ]
+        },
+        "rationale": "The requester explicitly identifies uncertainty between two specialized routes, so the Determiner must escalate instead of guessing."
+      }
+    ]
   },
   "tool_profile": null,
   "metadata": {
