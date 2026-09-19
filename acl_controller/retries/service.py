@@ -234,6 +234,11 @@ class RetryService:
                 self.state.transition(
                     workflow_id,
                     WorkflowStatus.BLOCKED,
+                    active_action=None,
+                    active_role=None,
+                    active_profile_id=None,
+                    active_attempt_id=None,
+                    waiting_for=None,
                     blocker={
                         "code": "RETRY_BUDGET_EXHAUSTED" if kind == "retry" else "CONTINUATION_BUDGET_EXHAUSTED",
                         "kind": kind,
@@ -269,6 +274,10 @@ class RetryService:
             self.state.transition(
                 workflow_id,
                 WorkflowStatus.READY,
+                active_action=None,
+                active_role=None,
+                active_profile_id=None,
+                active_attempt_id=None,
                 waiting_for=None,
                 blocker=None,
             )
