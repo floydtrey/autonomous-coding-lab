@@ -359,3 +359,48 @@ answers against the pending Planner questions, restores the same Planner input w
 access used to produce that answer must come from Planner's authorized tools/runtime. If the Planner
 cannot answer with its permitted resources, it should elevate, return `CANNOT_PLAN`, or produce an
 execution plan as appropriate.
+
+
+## Bounded Worker-to-Planner consultation
+
+PL09 establishes the advisory conversation path without wiring a real Worker.
+
+A synthetic or future real Worker question is represented as `WORKER_CONSULTATION` and includes
+the active plan/pass/task identity, the Worker question, why guidance is needed, a concise current
+state summary, relevant reference IDs/evidence, and the bounded prior consultation exchanges needed
+to understand follow-up questions.
+
+ACL persists each consultation independently under Controller state and owns the exchange budget.
+The default is currently four Worker-to-Planner exchanges and is editable in
+`config/planner_consultation.json`.
+
+One exchange means:
+
+`Worker question -> Planner's eventual answer`.
+
+If Planner returns `ELEVATION_REQUIRED`, ACL asks the operator through the existing clarification
+mechanism. The operator answer resumes Planner and completes the **same** Worker-to-Planner exchange;
+it does not consume another exchange.
+
+Allowed consultation outcomes are:
+
+- `DIRECT_RESPONSE` or `QUERY_RESPONSE`: guidance is returned for relay to the Worker;
+- `ELEVATION_REQUIRED`: consultation pauses in `WAITING_USER` until operator input;
+- `CANNOT_PLAN`: ACL returns a recognizable `CANNOT_ANSWER` consultation outcome;
+- exchange ceiling reached: ACL returns `EXCHANGE_LIMIT_REACHED` and does not invoke Planner again.
+
+An `EXECUTION_PLAN` is invalid during `WORKER_CONSULTATION` in V1. Consultation may advise the
+active work; it does not silently replace the approved plan.
+
+Consultation does not complete the workflow when Planner answers. It is advisory traffic inside an
+existing execution flow. Only operator elevation changes workflow state, using the generic
+`WAITING -> READY` clarification path.
+
+PL09 does not load or execute a Worker. `ControllerService.create(...)` accepts an optional
+`PlannerRuntimeService` override so the consultation flow can be exercised with the deterministic
+function Planner backend before a real Planner model is selected. The same interface will be used
+when Worker integration arrives.
+
+Serial Planner/Worker model unload/reload remains deferred until a real Worker is connected. At that
+point ACL will preserve Worker session state, unload the Worker model, invoke Planner, then restore
+the Worker role as previously agreed.
