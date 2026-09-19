@@ -40,6 +40,7 @@ from ..diagnostics import controller_span
 from ..errors import ControllerError
 from ..models import WorkflowStatus, utc_now
 from ..state import WorkflowStateService
+from .telemetry import PlannerTelemetryService
 
 
 CONSULTATION_CONFIG_SCHEMA = "acl-planner-consultation:v1"
@@ -451,12 +452,14 @@ class PlannerConsultationService:
         clarification: ClarificationService,
         store: JsonPlannerConsultationStore,
         config: PlannerConsultationConfig,
+        telemetry: PlannerTelemetryService,
     ) -> None:
         self.state = state
         self.runtime = runtime
         self.clarification = clarification
         self.store = store
         self.config = config
+        self.telemetry = telemetry
 
     def start(
         self,
@@ -649,18 +652,17 @@ class PlannerConsultationService:
                 task_id=exchange.task_id,
                 prior_exchange_count=len(planner_input.consultation.prior_exchanges),
             )
-            response = self.runtime.invoke(
-                PlannerRuntimeRequest(
-                    workflow_id=record.workflow_id,
-                    planner_input=planner_input,
-                    authority_grant_id=record.authority_grant_id,
-                    metadata={
-                        "consultation_id": record.consultation_id,
-                        "exchange_number": exchange_number,
-                        **dict(record.metadata),
-                    },
-                )
+            runtime_request = PlannerRuntimeRequest(
+                workflow_id=record.workflow_id,
+                planner_input=planner_input,
+                authority_grant_id=record.authority_grant_id,
+                metadata={
+                    "consultation_id": record.consultation_id,
+                    "exchange_number": exchange_number,
+                    **dict(record.metadata),
+                },
             )
+            response = self._invoke_runtime(runtime_request)
             return self._apply_response(
                 record,
                 planner_input=planner_input,
@@ -735,19 +737,18 @@ class PlannerConsultationService:
                 },
             )
 
-        response = self.runtime.invoke(
-            PlannerRuntimeRequest(
-                workflow_id=record.workflow_id,
-                planner_input=resumed_input,
-                authority_grant_id=record.authority_grant_id,
-                metadata={
-                    "consultation_id": record.consultation_id,
-                    "exchange_number": record.exchanges[-1].exchange_number,
-                    "resumed_from_clarification_id": clarification_id,
-                    **dict(record.metadata),
-                },
-            )
+        runtime_request = PlannerRuntimeRequest(
+            workflow_id=record.workflow_id,
+            planner_input=resumed_input,
+            authority_grant_id=record.authority_grant_id,
+            metadata={
+                "consultation_id": record.consultation_id,
+                "exchange_number": record.exchanges[-1].exchange_number,
+                "resumed_from_clarification_id": clarification_id,
+                **dict(record.metadata),
+            },
         )
+        response = self._invoke_runtime(runtime_request)
         return self._apply_response(
             record,
             planner_input=resumed_input,
@@ -766,6 +767,18 @@ class PlannerConsultationService:
 
     def read(self, consultation_id: str) -> PlannerConsultationRecord:
         return self.store.read(consultation_id)
+
+    def _invoke_runtime(
+        self,
+        request: PlannerRuntimeRequest,
+    ) -> PlannerRuntimeResponse:
+        try:
+            response = self.runtime.invoke(request)
+        except Exception as exc:
+            self.telemetry.record(request, error=exc)
+            raise
+        self.telemetry.record(request, response=response)
+        return response
 
     def _planner_input(
         self,
