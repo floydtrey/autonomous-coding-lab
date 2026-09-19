@@ -80,6 +80,7 @@ class ControllerService:
         *,
         state_root: Path,
         config_root: Path,
+        project_root: Path | None = None,
         core: CoreServices | None = None,
     ) -> "ControllerService":
         with controller_span(
@@ -90,6 +91,11 @@ class ControllerService:
             resolved_core = core or CoreServices.create()
             state_root = Path(state_root).expanduser().resolve()
             config_root = Path(config_root).expanduser().resolve()
+            project_root = (
+                config_root.parent
+                if project_root is None
+                else Path(project_root).expanduser().resolve()
+            )
             loaded_adapters = AdapterLoader.load_file(
                 resolved_core,
                 config_root / "adapters.json",
@@ -104,7 +110,7 @@ class ControllerService:
                 JsonGrantStore(state_root),
             )
             filesystem_authority = FilesystemAuthorityCoordinator.create(
-                project_root=config_root.parent,
+                project_root=project_root,
                 state_root=state_root,
                 config_root=config_root,
             )
@@ -183,6 +189,7 @@ class ControllerService:
                 "controller_created",
                 state_root=str(state_root),
                 config_root=str(config_root),
+                project_root=str(project_root),
                 loaded_adapters=list(loaded_adapters),
                 filesystem_authority_policy=str(filesystem_authority.policy_path),
                 user_protected_path_count=len(filesystem_authority.service.user_protections),
