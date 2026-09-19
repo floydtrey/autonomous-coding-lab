@@ -174,3 +174,31 @@ The executable schema lives in `acl_roles/planner/contract.py`.
 - `required_tools` and `required_services` are semantic requirements, not granted access.
 - `unresolved_questions` on an executable plan are non-blocking notes only. A material question that could change the intended work must use `ELEVATION_REQUIRED` instead.
 - Planner result payloads do not echo ACL's invocation mode. ACL already owns the invocation context; requiring the model to repeat it would create an unnecessary conflict surface.
+
+
+## Elevation/resume transport
+
+Planner's semantic disposition and ACL's shared role status are intentionally separate:
+
+- `ELEVATION_REQUIRED` is wrapped as shared `NEEDS_CLARIFICATION`.
+- Other valid Planner dispositions are wrapped as shared `COMPLETE`; the Planner payload still tells ACL what semantic result was produced.
+- The shared status and Planner disposition must agree. A mismatch is a contract error rather than something ACL guesses around.
+
+Planner elevation answers are persisted as a mapping keyed by the exact Planner `question_id`:
+
+```json
+{
+  "Q01": "Replace existing"
+}
+```
+
+A resume answer must cover every question in that elevation and may not introduce unknown question IDs. Answer values are semantically opaque to Controller; Planner interprets them.
+
+Resume preserves the original `PlannerInput` fields and adds the answered question values to
+`elevation_answers`. A previously recorded answer may be replayed idempotently but must not be
+silently replaced with a different value.
+
+ACL's existing clarification store remains the durable pause/resume mechanism. The pending
+clarification record holds the questions and opaque context, the workflow enters `WAITING`, and
+answering the clarification returns the same workflow stage to `READY`. The original request is
+therefore not re-entered by the operator.
