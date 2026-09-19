@@ -16,6 +16,7 @@ from ..gates import GateService, GateStatus
 from ..models import ResultReference, TERMINAL_STATUSES, WorkflowRecord, WorkflowStatus
 from ..retries import RetryBudget, RetryService
 from ..routing import ActionRegistry, ActionRequest, ActionResponse
+from ..runtime import SerialRuntimeResidencyService
 from ..state import WorkflowStateService
 from .models import StepExecutor, WorkflowProgram, WorkflowStep
 from .store import JsonProgramStore, JsonResultStore, StepResultRecord
@@ -53,6 +54,7 @@ class WorkflowEngine:
         profiles: ProfileResolver,
         routing: ActionRegistry,
         role_dispatch: RoleDispatcher,
+        runtime_residency: SerialRuntimeResidencyService,
         authority: AuthorityCoordinator,
         clarification: ClarificationService,
         gates: GateService,
@@ -64,6 +66,7 @@ class WorkflowEngine:
         self.profiles = profiles
         self.routing = routing
         self.role_dispatch = role_dispatch
+        self.runtime_residency = runtime_residency
         self.authority = authority
         self.clarification = clarification
         self.gates = gates
@@ -272,6 +275,10 @@ class WorkflowEngine:
                 reference=response.reference,
                 metadata=response.metadata,
             )
+            self.runtime_residency.complete_role(
+                workflow_id,
+                response.attempt_id,
+            )
             self._apply_result(program, step, result)
             return self._report(self.state.read(workflow_id), 0, result.result_id)
 
@@ -308,7 +315,7 @@ class WorkflowEngine:
             blocker=None,
         )
         response = self.role_dispatch.dispatch(request)
-        return self._persist_result(
+        result = self._persist_result(
             workflow=workflow,
             program=program,
             step=step,
@@ -319,6 +326,11 @@ class WorkflowEngine:
             reference=response.reference,
             metadata=response.metadata,
         )
+        self.runtime_residency.complete_role(
+            workflow.workflow_id,
+            response.attempt_id,
+        )
+        return result
 
     def _execute_action(
         self,
