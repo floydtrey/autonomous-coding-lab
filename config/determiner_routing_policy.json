@@ -1,0 +1,7 @@
+{
+  "schema_version": "acl-determiner-routing-policy:v1",
+  "candidate_count": 2,
+  "minimum_top_score": 0.70,
+  "minimum_lead": 0.15,
+  "clarification_option_count": 2
+}
