@@ -1,4 +1,4 @@
-name: Planner Contract Check
+name: Planner Development Check
 
 on:
   push:
@@ -7,7 +7,14 @@ on:
     paths:
       - "acl_roles/planner/**"
       - "acl_roles/__init__.py"
+      - "acl_core/authority/**"
+      - "acl_core/__init__.py"
+      - "acl_controller/authority/**"
+      - "acl_controller/service.py"
+      - "acl_controller/__init__.py"
+      - "config/filesystem_authority.json"
       - "tests/test_planner_*.py"
+      - "tests/test_filesystem_authority.py"
       - ".github/workflows/planner-contract-check.yml"
   workflow_dispatch:
 
@@ -23,8 +30,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile Planner contract
-        run: python -m py_compile acl_roles/planner/contract.py acl_roles/planner/__init__.py acl_roles/__init__.py
+      - name: Compile Planner and authority modules
+        run: >-
+          python -m py_compile
+          acl_roles/planner/contract.py
+          acl_roles/planner/elevation.py
+          acl_roles/planner/__init__.py
+          acl_roles/__init__.py
+          acl_core/authority/filesystem.py
+          acl_core/authority/__init__.py
+          acl_controller/authority/filesystem.py
+          acl_controller/service.py
 
-      - name: Run Planner contract self-checks
+      - name: Run Planner self-checks
         run: python -m unittest discover -s tests -p "test_planner_*.py" -v
+
+      - name: Run filesystem authority self-checks
+        run: python -m unittest discover -s tests -p "test_filesystem_authority.py" -v
