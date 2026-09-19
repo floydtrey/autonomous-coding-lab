@@ -2,8 +2,13 @@
   "schema_version": "acl-controller-profile:v1",
   "profile_id": "determiner-general",
   "role": "determiner",
-  "adapter_id": "unbound.determiner",
-  "settings": {},
+  "adapter_id": "openai-compatible.chat",
+  "settings": {
+    "model_env": "ACL_DETERMINER_MODEL",
+    "temperature": 0.1,
+    "max_tokens": 1200,
+    "response_format_json": true
+  },
   "instructions": {
     "purpose": "Classify the incoming request using only the configured work-type taxonomy and optionally estimate complexity.",
     "rules": [
@@ -69,8 +74,14 @@
   },
   "tool_profile": null,
   "metadata": {
-    "lifecycle": "FOUNDATION_UNBOUND",
+    "lifecycle": "INTEGRATION_BOUND",
     "taxonomy_path": "config/work_types.json",
-    "notes": "Runtime adapter and model settings are intentionally deferred to the Determiner integration pass."
-  }
+    "notes": "Runtime transport is OpenAI-compatible and model selection remains external through ACL_DETERMINER_MODEL."
+  },
+  "instruction_sources": [
+    {
+      "key": "taxonomy",
+      "path": "../work_types.json"
+    }
+  ]
 }
