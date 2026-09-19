@@ -186,3 +186,59 @@ The next pass is deliberately limited to:
 
 It will **not** yet add a concrete runtime/provider adapter or perform live model
 runs. Those belong to the following Determiner integration pass.
+
+
+## Determiner Foundation Pass
+
+The Determiner foundation is now defined, but intentionally not connected to a
+real model/runtime yet.
+
+Implemented:
+
+- Determiner-specific input contract;
+- Determiner-specific result contract;
+- CLASSIFIED and UNKNOWN classification outcomes;
+- structured clarification responses through the shared role envelope;
+- optional SMALL / MEDIUM / LARGE complexity classification;
+- confidence and concise reason-code fields;
+- externally loaded work-type taxonomy;
+- Determiner-specific result parsing and diagnostics;
+- pre-classification Controller routing using `work_type: null`;
+- an unbound `determiner-general` role profile containing Determiner instructions.
+
+Initial configured work types:
+
+- CODING
+- RESEARCH
+- DOCUMENT
+- VIDEO
+- KNOWLEDGE
+- SYSTEM_ADMIN
+- GENERAL
+
+`UNKNOWN` is an outcome, not a work type. `NEEDS_CLARIFICATION` remains a
+shared role status rather than a taxonomy category.
+
+NETWORKING is deliberately deferred. It can be added later as an external
+taxonomy entry when network/endpoint/integration work becomes common enough to
+benefit from a distinct route. Adding it must not require Controller or Determiner
+source changes.
+
+The Determiner instructions explicitly prohibit planning, execution, model/harness
+selection, authority expansion, tool selection, inventing categories, and simple
+keyword-only classification.
+
+The profile's adapter is currently `unbound.determiner`; this is intentional and
+prevents the foundation pass from silently choosing a provider or local model.
+
+### Next pass — Determiner integration
+
+The next pass is limited to:
+
+1. choose/implement the first concrete local runtime adapter needed for Determiner;
+2. bind `determiner-general` to that adapter and external runtime settings;
+3. construct the first Controller workflow containing a Determiner role step;
+4. run a small set of real classification requests with DEBUG diagnostics enabled;
+5. fix only generic Core/Controller/adapter gaps exposed by those real runs.
+
+It will **not** begin Planner implementation.
