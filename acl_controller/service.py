@@ -8,10 +8,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
-from acl_core import CoreServices
+from acl_core import AuthorityEnvelope, AuthorityRequest, CoreServices
 from acl_core.diagnostics import emit
 
+from .authority import AuthorityCoordinator, JsonGrantStore
+from .clarification import ClarificationRecord, ClarificationService, JsonClarificationStore
 from .configuration import ProfileResolver, ProfileSelector, RoleProfile
+from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher
+from .gates import GateRecord, GateService, JsonGateStore
+from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
 from .diagnostics import controller_span
 from .models import ControllerStatus, RequestRecord, WorkflowRecord, WorkflowStatus
 from .routing import ActionRegistry, ActionRequest, ActionResponse
@@ -28,11 +33,21 @@ class ControllerService:
         state: WorkflowStateService,
         profiles: ProfileResolver,
         routing: ActionRegistry,
+        role_dispatch: RoleDispatcher,
+        authority: AuthorityCoordinator,
+        clarification: ClarificationService,
+        gates: GateService,
+        retries: RetryService,
     ) -> None:
         self.core = core
         self.state = state
         self.profiles = profiles
         self.routing = routing
+        self.role_dispatch = role_dispatch
+        self.authority = authority
+        self.clarification = clarification
+        self.gates = gates
+        self.retries = retries
 
     @classmethod
     def create(
@@ -48,19 +63,39 @@ class ControllerService:
             config_root=str(Path(config_root).expanduser()),
         ):
             resolved_core = core or CoreServices.create()
+            state_root = Path(state_root).expanduser().resolve()
+            config_root = Path(config_root).expanduser().resolve()
+            state_service = WorkflowStateService(JsonWorkflowStore(state_root))
             service = cls(
                 core=resolved_core,
-                state=WorkflowStateService(JsonWorkflowStore(state_root)),
+                state=state_service,
                 profiles=ProfileResolver(config_root),
                 routing=ActionRegistry(),
+                role_dispatch=RoleDispatcher(resolved_core),
+                authority=AuthorityCoordinator(
+                    resolved_core.authority,
+                    JsonGrantStore(state_root),
+                ),
+                clarification=ClarificationService(
+                    state_service,
+                    JsonClarificationStore(state_root),
+                ),
+                gates=GateService(
+                    state_service,
+                    JsonGateStore(state_root),
+                ),
+                retries=RetryService(
+                    state_service,
+                    JsonRetryStore(state_root),
+                ),
             )
             emit(
                 "INFO",
                 cls.component,
                 "create",
                 "controller_created",
-                state_root=str(Path(state_root).expanduser().resolve()),
-                config_root=str(Path(config_root).expanduser().resolve()),
+                state_root=str(state_root),
+                config_root=str(config_root),
             )
             return service
 
@@ -149,3 +184,195 @@ class ControllerService:
                 action_type=request.action_type,
             )
             return self.routing.dispatch(request)
+
+
+    def issue_authority(
+        self,
+        workflow_id: str,
+        *,
+        ceiling: AuthorityEnvelope,
+        request: AuthorityRequest,
+        issuer: str,
+        subject: str,
+    ):
+        with controller_span(
+            "service.issue_authority",
+            workflow_id=workflow_id,
+            issuer=issuer,
+            subject=subject,
+        ):
+            workflow = self.state.read(workflow_id)
+            grant = self.authority.issue(
+                ceiling=ceiling,
+                request=request,
+                issuer=issuer,
+                subject=subject,
+            )
+            self.state.transition(
+                workflow_id,
+                workflow.status,
+                authority_grant_id=grant.grant_id,
+            )
+            return grant
+
+    def narrow_authority(
+        self,
+        workflow_id: str,
+        parent_grant_id: str,
+        *,
+        request: AuthorityRequest,
+        issuer: str,
+        subject: str,
+    ):
+        with controller_span(
+            "service.narrow_authority",
+            workflow_id=workflow_id,
+            grant_id=parent_grant_id,
+            issuer=issuer,
+            subject=subject,
+        ):
+            workflow = self.state.read(workflow_id)
+            grant = self.authority.narrow(
+                parent_grant_id,
+                request=request,
+                issuer=issuer,
+                subject=subject,
+            )
+            self.state.transition(
+                workflow_id,
+                workflow.status,
+                authority_grant_id=grant.grant_id,
+            )
+            return grant
+
+    def dispatch_role(
+        self,
+        workflow_id: str,
+        *,
+        role: str,
+        work_type: str,
+        payload: Mapping[str, Any],
+        complexity: str | None = None,
+        grant_id: str | None = None,
+        operation: str = "role.invoke",
+    ) -> RoleDispatchResponse:
+        with controller_span(
+            "service.dispatch_role",
+            workflow_id=workflow_id,
+            grant_id=grant_id,
+            role=role,
+            work_type=work_type,
+            complexity=complexity,
+            operation=operation,
+        ):
+            self.state.read(workflow_id)
+            profile = self.resolve_profile(
+                role=role,
+                work_type=work_type,
+                complexity=complexity,
+            )
+            grant = None if grant_id is None else self.authority.grant(grant_id)
+            request = RoleDispatchRequest(
+                workflow_id=workflow_id,
+                role=role,
+                profile=profile,
+                payload=payload,
+                grant=grant,
+                operation=operation,
+            )
+            return self.role_dispatch.dispatch(request)
+
+    def request_clarification(
+        self,
+        workflow_id: str,
+        *,
+        requested_by: str,
+        questions,
+        context: Mapping[str, Any] | None = None,
+    ) -> ClarificationRecord:
+        return self.clarification.request(
+            workflow_id,
+            requested_by=requested_by,
+            questions=questions,
+            context=context,
+        )
+
+    def answer_clarification(
+        self,
+        clarification_id: str,
+        *,
+        answer: Mapping[str, Any],
+        answered_by: str,
+    ) -> ClarificationRecord:
+        return self.clarification.answer(
+            clarification_id,
+            answer=answer,
+            answered_by=answered_by,
+        )
+
+    def request_gate(
+        self,
+        workflow_id: str,
+        *,
+        gate_type: str,
+        requested_by: str,
+        payload: Mapping[str, Any],
+    ) -> GateRecord:
+        return self.gates.request(
+            workflow_id,
+            gate_type=gate_type,
+            requested_by=requested_by,
+            payload=payload,
+        )
+
+    def decide_gate(
+        self,
+        gate_id: str,
+        *,
+        approved: bool,
+        decision_by: str,
+        note: str | None = None,
+    ) -> GateRecord:
+        return self.gates.decide(
+            gate_id,
+            approved=approved,
+            decision_by=decision_by,
+            note=note,
+        )
+
+    def configure_retry_budget(
+        self,
+        workflow_id: str,
+        budget: RetryBudget,
+    ) -> RetryRecord:
+        return self.retries.configure(workflow_id, budget)
+
+    def request_retry(
+        self,
+        workflow_id: str,
+        *,
+        budget: RetryBudget,
+        requested_by: str,
+        reason: str | None = None,
+    ) -> RetryRecord:
+        return self.retries.request_retry(
+            workflow_id,
+            budget=budget,
+            requested_by=requested_by,
+            reason=reason,
+        )
+
+    def request_continuation(
+        self,
+        workflow_id: str,
+        *,
+        budget: RetryBudget,
+        requested_by: str,
+        reason: str | None = None,
+    ) -> RetryRecord:
+        return self.retries.request_continuation(
+            workflow_id,
+            budget=budget,
+            requested_by=requested_by,
+            reason=reason,
+        )
