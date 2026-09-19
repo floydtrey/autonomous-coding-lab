@@ -157,3 +157,20 @@ Planner V1 does not implement:
 
 The contract should remain extensible enough that these features do not require redefining the
 core Planner/ACL ownership boundary.
+
+
+## V1 machine-contract conventions
+
+The executable schema lives in `acl_roles/planner/contract.py`.
+
+- `work_type_id` preserves the configured Determiner route when one exists.
+- `task_type` is the Planner's semantic description of the work and must not name a concrete model.
+- `SINGLE_PASS` contains exactly one top-level Pass.
+- `MULTI_PASS` contains at least two top-level Passes.
+- `STAGED` contains Stages, each containing one or more Passes.
+- Every execution plan explicitly declares a Worker working directory and output directory.
+- Every Pass declares completion criteria and continuation instructions.
+- Task filesystem intent is the source of requested read/write/create/delete/move operations; ACL may aggregate those declarations when constructing Pass authority.
+- `required_tools` and `required_services` are semantic requirements, not granted access.
+- `unresolved_questions` on an executable plan are non-blocking notes only. A material question that could change the intended work must use `ELEVATION_REQUIRED` instead.
+- Planner result payloads do not echo ACL's invocation mode. ACL already owns the invocation context; requiring the model to repeat it would create an unnecessary conflict surface.
