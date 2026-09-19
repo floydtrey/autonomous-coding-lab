@@ -64,6 +64,7 @@ from .worker import (
     WorkerExecutionService,
     WorkerReviewPacket,
     WorkerRunRecord,
+    WorkerRunStatus,
 )
 from .workflow import (
     EngineReport,
@@ -787,6 +788,52 @@ class ControllerService:
     def worker_review_packet(self, worker_run_id: str) -> WorkerReviewPacket:
         """Build the immutable Reviewer intake packet for a ready Worker run."""
         return self.worker_execution.review_packet(worker_run_id)
+
+    def start_worker_planner_consultation(
+        self,
+        worker_run_id: str,
+        *,
+        grant_id: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> PlannerConsultationOutcome:
+        """Route a persisted NEEDS_PLANNER Worker result into Planner consultation."""
+        run = self.worker_execution.read(worker_run_id)
+        if (
+            run.status is not WorkerRunStatus.NEEDS_PLANNER
+            or run.result is None
+            or run.result.planner_request is None
+        ):
+            raise ControllerError(
+                "CONTROLLER_WORKER_PLANNER_REQUEST_INVALID",
+                "Worker run does not contain a Planner consultation request",
+                {
+                    "worker_run_id": worker_run_id,
+                    "status": str(run.status),
+                },
+            )
+        request = run.result.planner_request
+        work_type_id = run.worker_input.plan_context.get("work_type_id")
+        routing_context = {
+            "work_type_id": work_type_id,
+            "complexity": run.worker_input.pass_spec.complexity,
+        }
+        return self.start_planner_consultation(
+            run.workflow_id,
+            plan_id=run.plan_id,
+            pass_id=run.pass_id,
+            routing_context=routing_context,
+            question=request.question,
+            reason=request.reason,
+            current_state_summary=request.current_state_summary,
+            task_id=request.task_id,
+            relevant_reference_ids=request.relevant_reference_ids,
+            relevant_evidence=request.relevant_evidence,
+            grant_id=grant_id,
+            metadata={
+                **dict(metadata or {}),
+                "worker_run_id": run.worker_run_id,
+            },
+        )
 
     def runtime_checkpoint(self, workflow_id: str):
         return self.runtime_residency.checkpoint(workflow_id)
