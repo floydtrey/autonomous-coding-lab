@@ -11,5 +11,8 @@ dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["acl_core*", "acl_controller*", "acl_roles*", "acl_adapters*"]
+include = ["acl_core*", "acl_controller*", "acl_roles*", "acl_adapters*", "acl_runtime*"]
 namespaces = false
+
+[project.scripts]
+acl-run-workflow = "acl_runtime.runner:main"
