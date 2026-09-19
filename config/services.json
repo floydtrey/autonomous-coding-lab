@@ -3,7 +3,7 @@
   "services": [
     {
       "service_id": "openai-compatible-local",
-      "enabled": true,
+      "enabled": false,
       "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
       "health_path": "/models",
       "probe_timeout_seconds": 3,
@@ -14,7 +14,8 @@
       "api_key_file_env": "ACL_OPENAI_COMPAT_API_KEY_FILE",
       "startup_transient_status_codes": [
         503
-      ]
+      ],
+      "notes": "Model-server startup is owned by runtime_residency.json and role profile launchers so ACL can select the correct resident model."
     }
   ]
 }
