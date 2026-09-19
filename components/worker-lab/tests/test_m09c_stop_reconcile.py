@@ -155,11 +155,14 @@ def test_reconcile_records_retained_accepted_run_then_waits_for_explicit_run(mak
     assert len(case.launches) == 2
 
 
-def test_stop_and_reconcile_cli_route_through_service(make_case, capsys):
+def test_stop_and_reconcile_cli_route_through_service(make_case, monkeypatch, capsys):
     from worker_lab import cli as cli_module
 
     case = make_case()
     _reserve_a(case)
+    # Route CLI parsing/handlers into the same deterministic service/clock used
+    # to create this fixture job, matching the M09B CLI seam.
+    monkeypatch.setattr(cli_module, "_service", lambda args: case.service)
 
     assert cli_module.main([
         "--root", str(case.lab),
