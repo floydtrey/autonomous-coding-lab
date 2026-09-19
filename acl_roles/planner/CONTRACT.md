@@ -298,3 +298,35 @@ correction loop to rewrite or bypass filesystem Authority policy.
 The correction policy is loaded from `config/planner_corrections.json`. ACL's control-config
 directory is permanently protected from Worker mutation; later operator/GUI configuration may edit
 these prompts outside Worker authority.
+
+
+## Runtime and path neutrality
+
+Planner runtime is exposed through one stable semantic port:
+
+`PlannerRuntimeRequest -> PlannerRuntimeBackend -> PlannerRuntimeResponse`.
+
+The request contains Planner semantic input plus ACL correlation/authority identifiers. It does not
+contain a provider name, model name, server URL, port, quantization, harness name, or transport
+format. The Controller-backed implementation resolves the configured Planner profile and uses the
+existing generic role/adapter boundary. A deterministic function backend implements the same port,
+so fake and real Planner implementations can be exchanged without changing Planner semantics.
+
+Concrete runtime/model/harness choices remain external configuration. Runtime metadata may report
+which configured implementation actually ran, but that information is observational and is not part
+of the semantic plan.
+
+Machine-specific absolute paths are never defaults in the Planner runtime contract. Project,
+workspace, output, artifact, reference, state, and configuration locations come from caller input,
+Planner semantic output, or configuration. ACL package-protection paths are derived from the
+installed package locations at runtime rather than assuming a particular drive or repository path.
+
+The Controller accepts an explicit `project_root`. The traditional layout where `config/` lives
+directly beneath the project root remains only a compatibility default; it is not required by the
+Planner contract.
+
+Source control is optional. Git and GitHub are not Planner, Controller, or runtime prerequisites.
+If a particular job requires source-control or repository-hosting operations, Planner may declare
+those as ordinary required tools/services/resources and ACL may provide an appropriate configured
+implementation. A local folder, non-Git workspace, another VCS, or another hosting provider must
+remain valid without contract changes.
