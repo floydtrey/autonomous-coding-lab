@@ -478,6 +478,12 @@ class StageSpec:
             "acceptance_criteria",
             _text_tuple(self.acceptance_criteria, "stage acceptance_criteria"),
         )
+        if not self.acceptance_criteria:
+            raise RoleContractError(
+                "PLANNER_CONTRACT_INVALID",
+                "stage requires acceptance criteria",
+                {"stage_id": self.stage_id},
+            )
 
     def to_dict(self) -> dict[str, Any]:
         return {
