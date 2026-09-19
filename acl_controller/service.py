@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from acl_core import AuthorityEnvelope, AuthorityRequest, CoreServices, FilesystemOperation
+from acl_roles.planner import PlannerInput, PlannerRuntimeRequest, PlannerRuntimeResponse, PlannerRuntimeService
 from acl_core.diagnostics import emit
 from acl_adapters import AdapterLoader
 
@@ -20,6 +21,7 @@ from .configuration import ProfileResolver, ProfileSelector, RoleProfile
 from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher
 from .gates import GateRecord, GateService, JsonGateStore
 from .inspection import InspectionReport, InspectionService
+from .planner import ControllerPlannerRuntimeBackend
 from .recovery import JsonStopStore, RecoveryService, StopRecord
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
 from .workflow import (
@@ -49,6 +51,7 @@ class ControllerService:
         role_dispatch: RoleDispatcher,
         authority: AuthorityCoordinator,
         filesystem_authority: FilesystemAuthorityCoordinator,
+        planner_runtime: PlannerRuntimeService,
         clarification: ClarificationService,
         gates: GateService,
         retries: RetryService,
@@ -63,6 +66,7 @@ class ControllerService:
         self.role_dispatch = role_dispatch
         self.authority = authority
         self.filesystem_authority = filesystem_authority
+        self.planner_runtime = planner_runtime
         self.clarification = clarification
         self.gates = gates
         self.retries = retries
@@ -125,6 +129,7 @@ class ControllerService:
                 role_dispatch=role_dispatch,
                 authority=authority,
                 filesystem_authority=filesystem_authority,
+                planner_runtime=planner_runtime,
                 clarification=clarification,
                 gates=gates,
                 retries=retries,
@@ -149,6 +154,13 @@ class ControllerService:
                 gates=gates,
                 retries=retries,
                 stops=stops,
+            )
+            planner_runtime = PlannerRuntimeService(
+                ControllerPlannerRuntimeBackend(
+                    profiles=profiles,
+                    role_dispatch=role_dispatch,
+                    authority=authority,
+                )
             )
             service = cls(
                 core=resolved_core,
@@ -204,6 +216,35 @@ class ControllerService:
             operation,
             path,
             destination=destination,
+        )
+
+    def invoke_planner(
+        self,
+        workflow_id: str,
+        *,
+        planner_input: PlannerInput,
+        grant_id: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> PlannerRuntimeResponse:
+        """Invoke Planner through the provider-neutral runtime port."""
+        workflow = self.state.read(workflow_id)
+        if grant_id is not None and workflow.authority_grant_id != grant_id:
+            raise ControllerError(
+                "CONTROLLER_WORKFLOW_GRANT_MISMATCH",
+                "Planner runtime grant differs from the workflow's active grant",
+                {
+                    "workflow_id": workflow_id,
+                    "workflow_grant_id": workflow.authority_grant_id,
+                    "requested_grant_id": grant_id,
+                },
+            )
+        return self.planner_runtime.invoke(
+            PlannerRuntimeRequest(
+                workflow_id=workflow_id,
+                planner_input=planner_input,
+                authority_grant_id=grant_id,
+                metadata=dict(metadata or {}),
+            )
         )
 
     def create_workflow(
