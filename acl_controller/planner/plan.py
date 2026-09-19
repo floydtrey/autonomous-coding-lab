@@ -20,6 +20,7 @@ from typing import Any, Mapping
 from acl_core import CoreIdentity, FilesystemOperation
 from acl_core.canonical import canonical_digest, canonical_json
 from acl_core.diagnostics import emit
+from acl_roles.common.errors import RoleContractError
 from acl_roles.planner import (
     ExecutionPlan,
     PassSpec,
@@ -271,6 +272,32 @@ class PlannerPlanRecord:
                 "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
                 "plan metadata must be a mapping",
             )
+        statuses = tuple(item.status for item in self.pass_states)
+        if self.status is PlannerPlanStatus.COMPLETE and any(
+            value is not PlannerPassStatus.COMPLETE for value in statuses
+        ):
+            raise ControllerError(
+                "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
+                "COMPLETE plan contains an incomplete Pass",
+                {"plan_id": self.plan_id},
+            )
+        if self.status is PlannerPlanStatus.BLOCKED and not any(
+            value is PlannerPassStatus.FAILED for value in statuses
+        ):
+            raise ControllerError(
+                "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
+                "BLOCKED plan contains no failed Pass",
+                {"plan_id": self.plan_id},
+            )
+        if self.status is PlannerPlanStatus.ACTIVE and (
+            any(value is PlannerPassStatus.FAILED for value in statuses)
+            or all(value is PlannerPassStatus.COMPLETE for value in statuses)
+        ):
+            raise ControllerError(
+                "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
+                "ACTIVE plan has terminal Pass-state composition",
+                {"plan_id": self.plan_id},
+            )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -313,7 +340,7 @@ class PlannerPlanRecord:
                 created_at=value["created_at"],
                 updated_at=value["updated_at"],
             )
-        except (KeyError, TypeError, ValueError) as exc:
+        except (KeyError, TypeError, ValueError, RoleContractError) as exc:
             raise ControllerError(
                 "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
                 "Planner plan state is malformed",
