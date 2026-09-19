@@ -70,3 +70,20 @@ loop. ACL may make up to the configured correction-attempt ceiling in
 
 The correction loop is not allowed to repair Authority denial or Controller
 policy by prompting the model around it.
+
+
+## Residency note
+
+PL12 now uses Controller runtime residency rather than the generic service
+bootstrap to choose the model server. A healthy server is reused only when
+`/models` reports the exact configured Planner model. Otherwise the
+`planner-model-a` profile may launch the model through
+`ACL_PLANNER_LAUNCHER` (and optional `ACL_PLANNER_LAUNCHER_CWD`).
+
+If no Planner launcher is configured while another model is resident, the run
+fails with a model-mismatch error. This is intentional: ACL must not silently
+run Planner on whichever model happened to survive a prior Worker/Determiner
+session.
+
+Runtime checkpoints preserve the resolved in-flight model so disconnect
+recovery does not bootstrap Determiner or adopt a newly edited model setting.
