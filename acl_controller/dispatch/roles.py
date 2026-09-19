@@ -240,6 +240,7 @@ class RoleDispatcher:
                     implementation=validator,
                     instructions=request.profile.instructions,
                     profile_metadata=request.profile.metadata,
+                    request=role_request,
                 )
             except Exception as exc:
                 RoleDiagnostics.parse_error(
