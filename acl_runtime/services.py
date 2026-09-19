@@ -48,6 +48,7 @@ class LocalServiceConfig:
     api_key_file_env: str | None = None
     probe_timeout_seconds: float = 3.0
     startup_timeout_seconds: float = 180.0
+    startup_transient_status_codes: tuple[int, ...] = ()
     command: tuple[str, ...] = ()
     command_json_env: str | None = None
     launcher_env: str | None = None
@@ -95,6 +96,27 @@ class LocalServiceConfig:
             "startup_timeout_seconds",
         )
 
+        transient_statuses_raw = value.get("startup_transient_status_codes", [])
+        if (
+            not isinstance(transient_statuses_raw, list)
+            or any(
+                isinstance(item, bool)
+                or not isinstance(item, int)
+                or item < 100
+                or item > 599
+                for item in transient_statuses_raw
+            )
+        ):
+            raise CoreError(
+                "LOCAL_SERVICE_CONFIG_INVALID",
+                "startup_transient_status_codes must be a list of HTTP status integers",
+            )
+        if len(transient_statuses_raw) != len(set(transient_statuses_raw)):
+            raise CoreError(
+                "LOCAL_SERVICE_CONFIG_INVALID",
+                "startup_transient_status_codes must be unique",
+            )
+
         command_raw = value.get("command", [])
         if not isinstance(command_raw, list) or any(not isinstance(item, str) for item in command_raw):
             raise CoreError("LOCAL_SERVICE_CONFIG_INVALID", "command must be a list of strings")
@@ -124,6 +146,7 @@ class LocalServiceConfig:
             api_key_file_env=api_key_file_env,
             probe_timeout_seconds=probe_timeout,
             startup_timeout_seconds=startup_timeout,
+            startup_transient_status_codes=tuple(transient_statuses_raw),
             command=tuple(command_raw),
             command_json_env=command_json_env,
             launcher_env=launcher_env,
@@ -311,6 +334,20 @@ class LocalServiceSupervisor:
                             "log_path": str(log_path),
                         }
                     if last_probe.state is ProbeState.REACHABLE_ERROR:
+                        if last_probe.status_code in config.startup_transient_status_codes:
+                            emit(
+                                "DEBUG",
+                                self.component,
+                                "ensure",
+                                "service_startup_transient_health",
+                                service_id=config.service_id,
+                                pid=process.pid,
+                                url=last_probe.url,
+                                status_code=last_probe.status_code,
+                                details=dict(last_probe.details),
+                            )
+                            time.sleep(0.5)
+                            continue
                         tail = self._log_tail(log_path)
                         reason = last_probe.details.get("reason")
                         raise CoreError(

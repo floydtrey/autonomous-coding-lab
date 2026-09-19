@@ -11,7 +11,10 @@
       "cwd_env": "ACL_OPENAI_COMPAT_START_CWD",
       "log_path": "logs/services/openai-compatible-local.log",
       "launcher_env": "ACL_OPENAI_COMPAT_LAUNCHER",
-      "api_key_file_env": "ACL_OPENAI_COMPAT_API_KEY_FILE"
+      "api_key_file_env": "ACL_OPENAI_COMPAT_API_KEY_FILE",
+      "startup_transient_status_codes": [
+        503
+      ]
     }
   ]
 }
