@@ -543,6 +543,30 @@ class PlannerTelemetryService:
         }
 
 
+    def summary_safely(self, workflow_id: str) -> dict[str, Any]:
+        try:
+            return self.summary(workflow_id)
+        except Exception as exc:
+            emit(
+                "ERROR",
+                self.component,
+                "summary_safely",
+                "planner_telemetry_summary_failed",
+                workflow_id=workflow_id,
+                exception_type=type(exc).__name__,
+                exception_message=str(exc),
+            )
+            return {
+                "telemetry_enabled": self.config.enabled,
+                "workflow_id": workflow_id,
+                "summary_available": False,
+                "error": {
+                    "exception_type": type(exc).__name__,
+                    "message": str(exc),
+                },
+            }
+
+
 def _raise_telemetry_value_error(message: str):
     raise ValueError(message)
 
