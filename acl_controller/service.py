@@ -196,7 +196,7 @@ class ControllerService:
         self,
         *,
         role: str,
-        work_type: str,
+        work_type: str | None,
         complexity: str | None = None,
     ) -> RoleProfile:
         with controller_span(
@@ -312,7 +312,7 @@ class ControllerService:
         workflow_id: str,
         *,
         role: str,
-        work_type: str,
+        work_type: str | None,
         payload: Mapping[str, Any],
         complexity: str | None = None,
         grant_id: str | None = None,
