@@ -21,7 +21,7 @@ from .configuration import ProfileResolver, ProfileSelector, RoleProfile
 from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher
 from .gates import GateRecord, GateService, JsonGateStore
 from .inspection import InspectionReport, InspectionService
-from .planner import ControllerPlannerRuntimeBackend
+from .planner import ControllerPlannerRuntimeBackend, PlannerDispositionOutcome, PlannerDispositionService
 from .recovery import JsonStopStore, RecoveryService, StopRecord
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
 from .workflow import (
@@ -52,6 +52,7 @@ class ControllerService:
         authority: AuthorityCoordinator,
         filesystem_authority: FilesystemAuthorityCoordinator,
         planner_runtime: PlannerRuntimeService,
+        planner_disposition: PlannerDispositionService,
         clarification: ClarificationService,
         gates: GateService,
         retries: RetryService,
@@ -67,6 +68,7 @@ class ControllerService:
         self.authority = authority
         self.filesystem_authority = filesystem_authority
         self.planner_runtime = planner_runtime
+        self.planner_disposition = planner_disposition
         self.clarification = clarification
         self.gates = gates
         self.retries = retries
@@ -125,6 +127,10 @@ class ControllerService:
                 state_service,
                 JsonClarificationStore(state_root),
             )
+            planner_disposition = PlannerDispositionService(
+                state=state_service,
+                clarification=clarification,
+            )
             gates = GateService(
                 state_service,
                 JsonGateStore(state_root),
@@ -175,6 +181,7 @@ class ControllerService:
                 authority=authority,
                 filesystem_authority=filesystem_authority,
                 planner_runtime=planner_runtime,
+                planner_disposition=planner_disposition,
                 clarification=clarification,
                 gates=gates,
                 retries=retries,
@@ -252,6 +259,52 @@ class ControllerService:
                 authority_grant_id=grant_id,
                 metadata=dict(metadata or {}),
             )
+        )
+
+    def run_planner(
+        self,
+        workflow_id: str,
+        *,
+        planner_input: PlannerInput,
+        grant_id: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> PlannerDispositionOutcome:
+        """Invoke Planner and apply only the current V1 disposition behavior.
+
+        DIRECT_RESPONSE and QUERY_RESPONSE complete without Worker startup.
+        ELEVATION_REQUIRED pauses on the shared clarification path.
+        EXECUTION_PLAN is returned as PLAN_READY for PL10 intake.
+        """
+        workflow = self.state.read(workflow_id)
+        if workflow.status is WorkflowStatus.NEW:
+            self.state.transition(
+                workflow_id,
+                WorkflowStatus.READY,
+                stage="planner",
+                waiting_for=None,
+                blocker=None,
+            )
+        elif workflow.status is not WorkflowStatus.READY:
+            raise ControllerError(
+                "CONTROLLER_PLANNER_RUN_STATE_INVALID",
+                "Planner can only start from a NEW or READY workflow",
+                {
+                    "workflow_id": workflow_id,
+                    "status": str(workflow.status),
+                    "stage": workflow.stage,
+                },
+            )
+
+        response = self.invoke_planner(
+            workflow_id,
+            planner_input=planner_input,
+            grant_id=grant_id,
+            metadata=metadata,
+        )
+        return self.planner_disposition.apply(
+            workflow_id,
+            planner_input=planner_input,
+            response=response,
         )
 
     def create_workflow(
