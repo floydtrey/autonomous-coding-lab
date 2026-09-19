@@ -282,17 +282,27 @@ class RecoveryService:
                 return self.state.read(workflow_id)
 
             profile = self.profiles.profile(workflow.active_profile_id)
-            response = self._invoke_role_control(
-                profile.adapter_id,
-                "role.status",
-                workflow,
-                {
-                    "workflow_id": workflow.workflow_id,
-                    "attempt_id": workflow.active_attempt_id,
-                    "role": workflow.active_role,
-                    "profile_id": workflow.active_profile_id,
-                },
-            )
+            try:
+                response = self._invoke_role_control(
+                    profile.adapter_id,
+                    "role.status",
+                    workflow,
+                    {
+                        "workflow_id": workflow.workflow_id,
+                        "attempt_id": workflow.active_attempt_id,
+                        "role": workflow.active_role,
+                        "profile_id": workflow.active_profile_id,
+                    },
+                )
+            except (ControllerError, CoreError) as exc:
+                self._block_uncertain(
+                    workflow,
+                    code="RECOVERY_STATUS_QUERY_FAILED",
+                    message="active role status could not be confirmed",
+                    exception_type=type(exc).__name__,
+                    exception_message=str(exc),
+                )
+                return self.state.read(workflow_id)
             state = response.get("state")
             emit(
                 "INFO",
@@ -449,7 +459,9 @@ class RecoveryService:
                 waiting_for=f"stop:{stop.stop_id}",
                 blocker=None,
             )
-            return replace(stop, response=dict(response))
+            pending = replace(stop, response=dict(response))
+            self.stops.save(pending)
+            return pending
         self._block_uncertain(
             workflow,
             code="STOP_STATUS_UNKNOWN",
