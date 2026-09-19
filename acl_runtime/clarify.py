@@ -93,6 +93,7 @@ def answer_and_resume(
         "recovery": recovery,
         "engine": report.to_dict(),
         "inspection": inspection.to_dict(),
+        "planner_telemetry": controller.planner_telemetry_summary(clarification.workflow_id),
     }
 
 
