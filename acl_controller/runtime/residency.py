@@ -35,6 +35,7 @@ RUNTIME_CHECKPOINT_SCHEMA = "acl-runtime-checkpoint:v1"
 
 
 class RuntimeCheckpointState(StrEnum):
+    PREPARING = "PREPARING"
     ACTIVE = "ACTIVE"
     RESPONSE_RECEIVED = "RESPONSE_RECEIVED"
     RECOVERY_REQUIRED = "RECOVERY_REQUIRED"
@@ -394,6 +395,7 @@ class SerialRuntimeResidencyService:
 
         current = self.store.read(workflow_id)
         if current is not None and current.state in {
+            RuntimeCheckpointState.PREPARING,
             RuntimeCheckpointState.ACTIVE,
             RuntimeCheckpointState.RESPONSE_RECEIVED,
             RuntimeCheckpointState.RECOVERY_REQUIRED,
@@ -435,7 +437,6 @@ class SerialRuntimeResidencyService:
             )
 
         target = self._resolve_target(role, profile)
-        self._ensure_target(target)
         switching = (
             current is not None
             and current.state is RuntimeCheckpointState.PAUSED_FOR_SWITCH
@@ -443,7 +444,7 @@ class SerialRuntimeResidencyService:
         checkpoint = RuntimeCheckpoint(
             workflow_id=workflow_id,
             attempt_id=attempt_id,
-            state=RuntimeCheckpointState.ACTIVE,
+            state=RuntimeCheckpointState.PREPARING,
             target=target,
             return_target=(
                 current.target
@@ -468,6 +469,13 @@ class SerialRuntimeResidencyService:
                 if current is None or current.state is RuntimeCheckpointState.COMPLETE
                 else current.created_at
             ),
+            updated_at=utc_now(),
+        )
+        self.store.save(checkpoint)
+        self._ensure_target(target)
+        checkpoint = replace(
+            checkpoint,
+            state=RuntimeCheckpointState.ACTIVE,
             updated_at=utc_now(),
         )
         self.store.save(checkpoint)
