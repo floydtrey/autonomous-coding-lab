@@ -156,9 +156,14 @@ def _deepest_failure(value: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(details, Mapping):
             return current
         cause = details.get("cause")
-        if not isinstance(cause, Mapping) or not isinstance(cause.get("code"), str):
-            return current
-        current = dict(cause)
+        if isinstance(cause, Mapping) and isinstance(cause.get("code"), str):
+            current = dict(cause)
+            continue
+        adapter_error = details.get("adapter_error")
+        if isinstance(adapter_error, Mapping) and isinstance(adapter_error.get("code"), str):
+            current = dict(adapter_error)
+            continue
+        return current
 
 
 def planner_failure_from_error(error: BaseException | Mapping[str, Any]) -> dict[str, Any]:
