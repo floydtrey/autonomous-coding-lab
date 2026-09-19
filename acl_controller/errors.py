@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 
-@dataclass(frozen=True)
+@dataclass
 class ControllerError(Exception):
     code: str
     message: str
