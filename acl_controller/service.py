@@ -545,8 +545,8 @@ class ControllerService:
                 },
             )
         combined_metadata = {
-            "planner_runtime": dict(outcome.runtime_metadata),
             **dict(metadata or {}),
+            "planner_runtime": dict(outcome.runtime_metadata),
         }
         return self.planner_plan.intake(
             outcome.workflow_id,
