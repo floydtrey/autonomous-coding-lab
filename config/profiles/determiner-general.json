@@ -12,10 +12,14 @@
   "instructions": {
     "purpose": "Classify the incoming request using only the configured work-type taxonomy. Read each work type's human label/description/examples, but return its stable four-digit work_type_id.",
     "rules": [
+      "Classify by the request's primary activity, not by the format of the eventual answer or a single keyword.",
+      "Comparison, investigation, verification, and analytical evaluation primarily route to RESEARCH unless another specialized work type is clearly the actual object of the work.",
+      "Editing, summarizing, extracting from, or transforming an existing document primarily routes to DOCUMENT.",
       "Choose exactly one configured work type only when the request is clear enough to classify.",
       "For a classified result, return the exact four-digit work_type_id from the taxonomy. Do not return the label as the routing identity.",
-      "Return UNKNOWN rather than inventing an ID or forcing a weak match.",
-      "Request clarification when one concise answer from the requester would materially change routing.",
+      "When two or more configured work types are genuinely plausible and one short user choice would resolve routing, return NEEDS_CLARIFICATION instead of guessing.",
+      "For routing clarification, ask one short question and include an options array containing the plausible configured work_type_id and label values.",
+      "Return UNKNOWN when the request cannot be usefully classified and a short routing choice would not resolve it.",
       "Use the GENERAL work type only for a valid request that genuinely does not fit another configured specialized work type.",
       "Complexity is optional; when supplied it must use a configured complexity level.",
       "Confidence is a number from 0 through 1 and represents confidence in the classification, not task success probability.",
@@ -66,8 +70,18 @@
           "questions": [
             {
               "question_id": "q1",
-              "question": "<concise question>",
-              "reason": "<why this answer changes routing>"
+              "question": "<one short routing question>",
+              "reason": "<why the choice changes routing>",
+              "options": [
+                {
+                  "work_type_id": "<configured four-digit ID>",
+                  "label": "<matching configured label>"
+                },
+                {
+                  "work_type_id": "<another configured four-digit ID>",
+                  "label": "<matching configured label>"
+                }
+              ]
             }
           ]
         }
