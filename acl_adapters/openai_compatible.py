@@ -228,7 +228,6 @@ class OpenAICompatibleChatAdapter:
             "adapter.openai_compatible",
             "invoke_role",
             "runtime_telemetry",
-            adapter_id=self.adapter_id,
             request_id=request.request_id,
             **telemetry,
         )
