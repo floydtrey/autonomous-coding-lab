@@ -177,11 +177,11 @@ class FilesystemAuthorityService:
 
     @property
     def permanent_protections(self) -> tuple[ProtectedPath, ...]:
-        return self._permanent
+        return tuple(item[1] for item in self._permanent)
 
     @property
     def user_protections(self) -> tuple[ProtectedPath, ...]:
-        return self._user
+        return tuple(item[1] for item in self._user)
 
     def evaluate(
         self,
