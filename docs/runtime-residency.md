@@ -104,3 +104,16 @@ This keeps host paths, quantization choices, and model download sources outside
 Python source and outside mandatory repository configuration. Other operating
 systems can provide different launcher commands using the same Controller
 interface.
+
+
+### llama.cpp fit and reasoning defaults
+
+The Windows switch launcher leaves `--gpu-layers` unset by default and enables
+`--fit on`, allowing llama.cpp to choose a VRAM-safe offload instead of forcing
+all layers onto a device that cannot hold them. An explicit `-GpuLayers` value
+remains available for controlled experiments.
+
+For ACL role execution the launcher also uses `--reasoning off`,
+`--no-reasoning-preserve`, and `--reasoning-budget 0`. Planner contract
+correction already carries the rejected structured response explicitly, so
+retaining hidden reasoning history is unnecessary and can increase context/use.
