@@ -55,6 +55,7 @@ class PlannerCorrectionPolicy:
     default_instruction: str
     repeated_failure_instruction: str
     rules: tuple[PlannerCorrectionRule, ...]
+    max_correction_attempts: int = 3
     repairable_prefixes: tuple[str, ...] = ("PLANNER_",)
     non_repairable_codes: tuple[str, ...] = ()
 
@@ -68,6 +69,15 @@ class PlannerCorrectionPolicy:
                     "PLANNER_CORRECTION_POLICY_INVALID",
                     f"{label} must be trimmed nonblank text",
                 )
+        if (
+            isinstance(self.max_correction_attempts, bool)
+            or not isinstance(self.max_correction_attempts, int)
+            or self.max_correction_attempts < 0
+        ):
+            raise RoleContractError(
+                "PLANNER_CORRECTION_POLICY_INVALID",
+                "max_correction_attempts must be a nonnegative integer",
+            )
         if not isinstance(self.rules, tuple) or any(
             not isinstance(item, PlannerCorrectionRule) for item in self.rules
         ):
@@ -108,6 +118,7 @@ class PlannerCorrectionPolicy:
         default_instruction = value.get("default_instruction")
         repeated = value.get("repeated_failure_instruction")
         rules_raw = value.get("rules", {})
+        max_correction_attempts = value.get("max_correction_attempts", 3)
         prefixes_raw = value.get("repairable_prefixes", ["PLANNER_"])
         non_repairable_raw = value.get("non_repairable_codes", [])
         if not isinstance(rules_raw, Mapping):
@@ -133,6 +144,7 @@ class PlannerCorrectionPolicy:
             default_instruction=default_instruction,
             repeated_failure_instruction=repeated,
             rules=rules,
+            max_correction_attempts=max_correction_attempts,
             repairable_prefixes=tuple(prefixes_raw),
             non_repairable_codes=tuple(non_repairable_raw),
         )
@@ -239,6 +251,37 @@ def planner_failure_from_error(error: BaseException | Mapping[str, Any]) -> dict
         "details": dict(details),
         "location": location if isinstance(location, str) and location.strip() else None,
     }
+
+
+def planner_previous_response_from_error(error: BaseException | Mapping[str, Any]) -> Any | None:
+    """Find the rejected model response preserved by Controller validation layers."""
+    if isinstance(error, Mapping):
+        current: Any = dict(error)
+    else:
+        to_dict = getattr(error, "to_dict", None)
+        if callable(to_dict):
+            current = to_dict()
+        else:
+            return None
+
+    visited = 0
+    while isinstance(current, Mapping) and visited < 12:
+        details = current.get("details")
+        if isinstance(details, Mapping):
+            if "previous_response" in details:
+                return details.get("previous_response")
+            cause = details.get("cause")
+            if isinstance(cause, Mapping):
+                current = cause
+                visited += 1
+                continue
+            adapter_error = details.get("adapter_error")
+            if isinstance(adapter_error, Mapping):
+                current = adapter_error
+                visited += 1
+                continue
+        break
+    return None
 
 
 def _digest_previous_response(value: Any) -> str | None:
