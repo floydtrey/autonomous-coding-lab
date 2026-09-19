@@ -6,7 +6,7 @@ from enum import StrEnum
 from typing import Any, Mapping, Sequence
 
 from acl_core.canonical import canonical_digest
-from acl_core.diagnostics import emit
+from acl_core.diagnostics import emit, span
 
 from acl_roles.common import RoleResponse, RoleStatus
 from acl_roles.common.errors import RoleContractError
@@ -76,6 +76,19 @@ class DeterminerResult:
 
 
 def parse_determiner_response(
+    response: RoleResponse,
+    taxonomy: DeterminerTaxonomy,
+) -> DeterminerResult:
+    with span(
+        "roles.determiner",
+        "parse_response",
+        role_status=str(response.status),
+        taxonomy_digest=taxonomy.digest(),
+    ):
+        return _parse_determiner_response(response, taxonomy)
+
+
+def _parse_determiner_response(
     response: RoleResponse,
     taxonomy: DeterminerTaxonomy,
 ) -> DeterminerResult:
