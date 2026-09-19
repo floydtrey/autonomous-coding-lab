@@ -409,6 +409,7 @@ class PlannerTelemetryService:
             profile_id=record.profile_id,
             adapter_id=record.adapter_id,
             model=record.model,
+            harness_id=record.harness_id,
             prompt_tokens=record.prompt_tokens,
             completion_tokens=record.completion_tokens,
             total_tokens=record.total_tokens,
