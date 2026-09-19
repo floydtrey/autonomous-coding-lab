@@ -197,7 +197,7 @@ def main() -> int:
             enabled=True,
             level="DEBUG",
             path=Path(args.log_path),
-            stderr=False,
+            stderr=True,
         )
     if args.raw_role_artifacts:
         RoleDiagnostics.configure_raw_artifacts(
