@@ -108,6 +108,13 @@ class ControllerService:
                 state_root=state_root,
                 config_root=config_root,
             )
+            planner_runtime = PlannerRuntimeService(
+                ControllerPlannerRuntimeBackend(
+                    profiles=profiles,
+                    role_dispatch=role_dispatch,
+                    authority=authority,
+                )
+            )
             clarification = ClarificationService(
                 state_service,
                 JsonClarificationStore(state_root),
@@ -154,13 +161,6 @@ class ControllerService:
                 gates=gates,
                 retries=retries,
                 stops=stops,
-            )
-            planner_runtime = PlannerRuntimeService(
-                ControllerPlannerRuntimeBackend(
-                    profiles=profiles,
-                    role_dispatch=role_dispatch,
-                    authority=authority,
-                )
             )
             service = cls(
                 core=resolved_core,
