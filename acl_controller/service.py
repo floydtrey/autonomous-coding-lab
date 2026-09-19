@@ -31,12 +31,17 @@ from .inspection import InspectionReport, InspectionService
 from .planner import (
     ControllerPlannerRuntimeBackend,
     JsonPlannerConsultationStore,
+    JsonPlannerPlanStore,
     PlannerConsultationConfig,
     PlannerConsultationOutcome,
     PlannerConsultationRecord,
     PlannerConsultationService,
     PlannerDispositionOutcome,
     PlannerDispositionService,
+    PlannerNextPass,
+    PlannerPlanIntakeOutcome,
+    PlannerPlanRecord,
+    PlannerPlanService,
 )
 from .recovery import JsonStopStore, RecoveryService, StopRecord
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
@@ -70,6 +75,7 @@ class ControllerService:
         planner_runtime: PlannerRuntimeService,
         planner_disposition: PlannerDispositionService,
         planner_consultation: PlannerConsultationService,
+        planner_plan: PlannerPlanService,
         clarification: ClarificationService,
         gates: GateService,
         retries: RetryService,
@@ -87,6 +93,7 @@ class ControllerService:
         self.planner_runtime = planner_runtime
         self.planner_disposition = planner_disposition
         self.planner_consultation = planner_consultation
+        self.planner_plan = planner_plan
         self.clarification = clarification
         self.gates = gates
         self.retries = retries
@@ -159,6 +166,10 @@ class ControllerService:
                     config_root / "planner_consultation.json"
                 ),
             )
+            planner_plan = PlannerPlanService(
+                state=state_service,
+                store=JsonPlannerPlanStore(state_root),
+            )
             gates = GateService(
                 state_service,
                 JsonGateStore(state_root),
@@ -211,6 +222,7 @@ class ControllerService:
                 planner_runtime=resolved_planner_runtime,
                 planner_disposition=planner_disposition,
                 planner_consultation=planner_consultation,
+                planner_plan=planner_plan,
                 clarification=clarification,
                 gates=gates,
                 retries=retries,
@@ -492,6 +504,85 @@ class ControllerService:
         consultation_id: str,
     ) -> PlannerConsultationRecord:
         return self.planner_consultation.close(consultation_id)
+
+    def intake_planner_plan(
+        self,
+        workflow_id: str,
+        *,
+        plan,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> PlannerPlanIntakeOutcome:
+        """Persist an accepted Planner execution plan without starting a Worker."""
+        return self.planner_plan.intake(
+            workflow_id,
+            plan=plan,
+            metadata=metadata,
+        )
+
+    def intake_planner_outcome(
+        self,
+        outcome: PlannerDispositionOutcome,
+        *,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> PlannerPlanIntakeOutcome:
+        """Persist a PLAN_READY outcome returned by run_planner()."""
+        if outcome.plan is None:
+            raise ControllerError(
+                "CONTROLLER_PLANNER_PLAN_MISSING",
+                "Planner disposition outcome does not contain an execution plan",
+                {
+                    "workflow_id": outcome.workflow_id,
+                    "outcome_status": str(outcome.status),
+                    "disposition": str(outcome.disposition),
+                },
+            )
+        combined_metadata = {
+            "planner_runtime": dict(outcome.runtime_metadata),
+            **dict(metadata or {}),
+        }
+        return self.planner_plan.intake(
+            outcome.workflow_id,
+            plan=outcome.plan,
+            metadata=combined_metadata,
+        )
+
+    def planner_plan_status(
+        self,
+        plan_id: str,
+    ) -> PlannerPlanRecord:
+        return self.planner_plan.read(plan_id)
+
+    def planner_plan_for_workflow(
+        self,
+        workflow_id: str,
+    ) -> PlannerPlanRecord | None:
+        return self.planner_plan.for_workflow(workflow_id)
+
+    def next_planner_pass(
+        self,
+        plan_id: str,
+    ) -> PlannerNextPass:
+        return self.planner_plan.next_pass(plan_id)
+
+    def mark_planner_pass_complete(
+        self,
+        plan_id: str,
+        pass_id: str,
+    ) -> PlannerPlanRecord:
+        return self.planner_plan.mark_pass_complete(plan_id, pass_id)
+
+    def mark_planner_pass_failed(
+        self,
+        plan_id: str,
+        pass_id: str,
+        *,
+        reason: str,
+    ) -> PlannerPlanRecord:
+        return self.planner_plan.mark_pass_failed(
+            plan_id,
+            pass_id,
+            reason=reason,
+        )
 
     def create_workflow(
         self,
