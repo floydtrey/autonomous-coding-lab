@@ -303,6 +303,7 @@ class PlannerTelemetryService:
 
         error_code = None
         error_message = None
+        error_details: dict[str, Any] = {}
         if error is not None:
             error_code = getattr(error, "code", None)
             error_message = getattr(error, "message", None)
@@ -313,6 +314,7 @@ class PlannerTelemetryService:
 
             details = getattr(error, "details", None)
             if isinstance(details, Mapping):
+                error_details = dict(details)
                 observed_runtime = details.get("runtime_metadata")
                 if isinstance(observed_runtime, Mapping):
                     runtime_metadata = dict(observed_runtime)
@@ -337,12 +339,22 @@ class PlannerTelemetryService:
             disposition=(
                 None if response is None else str(response.result.disposition)
             ),
-            attempt_id=_text(runtime_metadata.get("attempt_id")),
-            backend_id=_text(runtime_metadata.get("backend_id")),
-            profile_id=_text(runtime_metadata.get("profile_id")),
+            attempt_id=(
+                _text(runtime_metadata.get("attempt_id"))
+                or _text(error_details.get("attempt_id"))
+            ),
+            backend_id=(
+                _text(runtime_metadata.get("backend_id"))
+                or _text(request.metadata.get("runtime_backend_id"))
+            ),
+            profile_id=(
+                _text(runtime_metadata.get("profile_id"))
+                or _text(error_details.get("profile_id"))
+            ),
             adapter_id=(
                 _text(adapter.get("adapter_id"))
                 or _text(runtime_metadata.get("adapter_id"))
+                or _text(error_details.get("adapter_id"))
             ),
             runtime_family=(
                 _text(adapter.get("runtime_family"))
