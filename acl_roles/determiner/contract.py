@@ -241,3 +241,93 @@ def validate_determiner_role_response(
         "question_count": len(result.questions),
         "taxonomy_digest": taxonomy.digest(),
     }
+
+
+def normalize_determiner_role_response(
+    value: Mapping[str, Any],
+    *,
+    instructions: Mapping[str, Any],
+    profile_metadata: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    taxonomy_raw = instructions.get("taxonomy")
+    if not isinstance(taxonomy_raw, Mapping):
+        raise RoleContractError(
+            "DETERMINER_TAXONOMY_MISSING",
+            "Determiner profile instructions do not contain the configured taxonomy",
+        )
+    taxonomy = DeterminerTaxonomy.from_mapping(taxonomy_raw)
+    configured_types = set(taxonomy.work_type_ids)
+    repairs: list[str] = []
+
+    envelope = dict(value)
+    if "status" in envelope:
+        payload_raw = envelope.get("payload", {})
+        if not isinstance(payload_raw, Mapping):
+            return envelope, {}
+        payload = dict(payload_raw)
+    else:
+        payload = dict(envelope)
+        envelope = {}
+
+    classification = payload.get("classification")
+    work_type = payload.get("work_type")
+
+    if isinstance(classification, str) and classification in configured_types:
+        if work_type is not None and work_type != classification:
+            raise RoleContractError(
+                "DETERMINER_NORMALIZATION_AMBIGUOUS",
+                "classification names a configured work type but conflicts with work_type",
+                {"classification": classification, "work_type": work_type},
+            )
+        payload["work_type"] = classification
+        payload["classification"] = str(ClassificationStatus.CLASSIFIED)
+        repairs.append("classification_work_type_moved")
+
+    if "classification" not in payload and isinstance(work_type, str) and work_type in configured_types:
+        payload["classification"] = str(ClassificationStatus.CLASSIFIED)
+        repairs.append("classification_added_from_work_type")
+
+    recognized_result = (
+        payload.get("schema_version") == DETERMINER_RESULT_SCHEMA
+        or payload.get("classification") in {
+            str(ClassificationStatus.CLASSIFIED),
+            str(ClassificationStatus.UNKNOWN),
+        }
+        or (
+            isinstance(payload.get("work_type"), str)
+            and payload.get("work_type") in configured_types
+        )
+    )
+    questions = payload.get("questions")
+    recognized_questions = (
+        isinstance(questions, list)
+        and bool(questions)
+        and all(isinstance(item, Mapping) for item in questions)
+    )
+
+    if "status" not in envelope:
+        if recognized_questions and not recognized_result:
+            envelope["status"] = str(RoleStatus.NEEDS_CLARIFICATION)
+            envelope["payload"] = payload
+            repairs.append("shared_status_added_for_clarification")
+        elif recognized_result:
+            envelope["status"] = str(RoleStatus.COMPLETE)
+            envelope["payload"] = payload
+            repairs.append("shared_complete_envelope_added")
+        else:
+            raise RoleContractError(
+                "DETERMINER_NORMALIZATION_AMBIGUOUS",
+                "response lacks shared status and is not an unambiguous Determiner result",
+                {"observed_keys": sorted(str(key) for key in payload)},
+            )
+    else:
+        envelope["payload"] = payload
+
+    if repairs and payload.get("schema_version") is None and recognized_result:
+        payload["schema_version"] = DETERMINER_RESULT_SCHEMA
+        repairs.append("determiner_schema_added")
+
+    return envelope, {
+        "changed": bool(repairs),
+        "repairs": repairs,
+    }
