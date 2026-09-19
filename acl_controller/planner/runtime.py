@@ -68,6 +68,10 @@ class ControllerPlannerRuntimeBackend:
                 metadata=dict(dispatched.metadata),
             )
             result = parse_planner_role_response(common_response)
+            self.role_dispatch.complete_runtime(
+                request.workflow_id,
+                dispatched.attempt_id,
+            )
             adapter_telemetry = dispatched.metadata.get("adapter_telemetry")
             adapter_telemetry = (
                 dict(adapter_telemetry)
