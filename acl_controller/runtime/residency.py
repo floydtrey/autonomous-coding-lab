@@ -38,6 +38,7 @@ class RuntimeCheckpointState(StrEnum):
     ACTIVE = "ACTIVE"
     RESPONSE_RECEIVED = "RESPONSE_RECEIVED"
     RECOVERY_REQUIRED = "RECOVERY_REQUIRED"
+    PAUSED_FOR_SWITCH = "PAUSED_FOR_SWITCH"
     RETURN_REQUIRED = "RETURN_REQUIRED"
     COMPLETE = "COMPLETE"
 
@@ -243,6 +244,7 @@ class RuntimeCheckpoint:
     state: RuntimeCheckpointState
     target: RuntimeTarget
     return_target: RuntimeTarget | None = None
+    return_attempt_id: str | None = None
     created_at: str = field(default_factory=utc_now)
     updated_at: str = field(default_factory=utc_now)
 
@@ -256,6 +258,7 @@ class RuntimeCheckpoint:
             "return_target": (
                 None if self.return_target is None else self.return_target.to_dict()
             ),
+            "return_attempt_id": self.return_attempt_id,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -281,6 +284,7 @@ class RuntimeCheckpoint:
                     if value.get("return_target") is None
                     else RuntimeTarget.from_mapping(value["return_target"])
                 ),
+                return_attempt_id=value.get("return_attempt_id"),
                 created_at=value["created_at"],
                 updated_at=value["updated_at"],
             )
@@ -386,7 +390,10 @@ class SerialRuntimeResidencyService:
             )
 
         current = self.store.read(workflow_id)
-        if current is not None and current.state is RuntimeCheckpointState.RECOVERY_REQUIRED:
+        if current is not None and current.state in {
+            RuntimeCheckpointState.RECOVERY_REQUIRED,
+            RuntimeCheckpointState.RETURN_REQUIRED,
+        }:
             self._require_same_recovery_target(
                 current.target,
                 role=role,
@@ -400,6 +407,7 @@ class SerialRuntimeResidencyService:
                 state=RuntimeCheckpointState.ACTIVE,
                 target=target,
                 return_target=current.return_target,
+                return_attempt_id=current.return_attempt_id,
                 created_at=current.created_at,
                 updated_at=utc_now(),
             )
@@ -445,15 +453,32 @@ class SerialRuntimeResidencyService:
             )
 
         self._ensure_target(target)
+        switching = (
+            current is not None
+            and current.state is RuntimeCheckpointState.PAUSED_FOR_SWITCH
+        )
         checkpoint = RuntimeCheckpoint(
             workflow_id=workflow_id,
             attempt_id=attempt_id,
             state=RuntimeCheckpointState.ACTIVE,
             target=target,
             return_target=(
-                None
-                if current is None or current.state is RuntimeCheckpointState.COMPLETE
-                else current.return_target
+                current.target
+                if switching
+                else (
+                    None
+                    if current is None or current.state is RuntimeCheckpointState.COMPLETE
+                    else current.return_target
+                )
+            ),
+            return_attempt_id=(
+                current.attempt_id
+                if switching
+                else (
+                    None
+                    if current is None or current.state is RuntimeCheckpointState.COMPLETE
+                    else current.return_attempt_id
+                )
             ),
             created_at=(
                 utc_now()
@@ -499,10 +524,11 @@ class SerialRuntimeResidencyService:
         if current.return_target is not None:
             restored = RuntimeCheckpoint(
                 workflow_id=workflow_id,
-                attempt_id=current.attempt_id,
+                attempt_id=current.return_attempt_id or current.attempt_id,
                 state=RuntimeCheckpointState.RETURN_REQUIRED,
                 target=current.return_target,
                 return_target=None,
+                return_attempt_id=None,
                 created_at=current.created_at,
                 updated_at=utc_now(),
             )
@@ -525,6 +551,57 @@ class SerialRuntimeResidencyService:
                 updated_at=utc_now(),
             )
         )
+
+    def pause_for_role_switch(
+        self,
+        workflow_id: str,
+        *,
+        attempt_id: str,
+    ) -> RuntimeCheckpoint:
+        """Persist the exact role/model that must be restored after a temporary switch."""
+        current = self.store.read(workflow_id)
+        if current is None or current.attempt_id != attempt_id:
+            raise ControllerError(
+                "CONTROLLER_RUNTIME_SWITCH_TARGET_MISSING",
+                "cannot pause runtime because the active checkpoint does not match",
+                {
+                    "workflow_id": workflow_id,
+                    "attempt_id": attempt_id,
+                    "checkpoint_attempt_id": (
+                        None if current is None else current.attempt_id
+                    ),
+                },
+            )
+        if current.state not in {
+            RuntimeCheckpointState.ACTIVE,
+            RuntimeCheckpointState.RESPONSE_RECEIVED,
+        }:
+            raise ControllerError(
+                "CONTROLLER_RUNTIME_SWITCH_STATE_INVALID",
+                "runtime checkpoint is not in a switchable state",
+                {
+                    "workflow_id": workflow_id,
+                    "state": str(current.state),
+                },
+            )
+        paused = replace(
+            current,
+            state=RuntimeCheckpointState.PAUSED_FOR_SWITCH,
+            updated_at=utc_now(),
+        )
+        self.store.save(paused)
+        emit(
+            "INFO",
+            self.component,
+            "pause_for_role_switch",
+            "runtime_return_target_persisted",
+            workflow_id=workflow_id,
+            attempt_id=attempt_id,
+            role=current.target.role,
+            profile_id=current.target.profile_id,
+            model=current.target.model,
+        )
+        return paused
 
     def mark_recovery_required(
         self,
