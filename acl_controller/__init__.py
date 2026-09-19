@@ -1,7 +1,8 @@
-"""ACL Next Controller Pass 1.
+"""ACL Next Controller.
 
-Controller owns orchestration state and mechanical routing. It does not perform AI
-role reasoning or choose models semantically.
+Controller owns mechanical orchestration state, routing, role dispatch, gates,
+clarification, retry budgets, workflow execution, recovery, and inspection. It
+does not perform AI role reasoning or choose models semantically.
 """
 from .authority import AuthorityCoordinator, JsonGrantStore
 from .clarification import ClarificationRecord, ClarificationService, ClarificationStatus, JsonClarificationStore
