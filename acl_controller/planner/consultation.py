@@ -775,9 +775,9 @@ class PlannerConsultationService:
         try:
             response = self.runtime.invoke(request)
         except Exception as exc:
-            self.telemetry.record(request, error=exc)
+            self.telemetry.record_safely(request, error=exc)
             raise
-        self.telemetry.record(request, response=response)
+        self.telemetry.record_safely(request, response=response)
         return response
 
     def _planner_input(
