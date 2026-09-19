@@ -64,6 +64,17 @@ from .workflow import (
 from .errors import ControllerError
 from .models import ControllerStatus, RequestRecord, ResultReference, WorkflowRecord, WorkflowStatus
 from .routing import ActionRegistry, ActionRequest, ActionResponse
+from .runtime import (
+    RUNTIME_CHECKPOINT_SCHEMA,
+    RUNTIME_RESIDENCY_CONFIG_SCHEMA,
+    JsonRuntimeCheckpointStore,
+    RuntimeCheckpoint,
+    RuntimeCheckpointState,
+    RuntimeLease,
+    RuntimeResidencyConfig,
+    RuntimeTarget,
+    SerialRuntimeResidencyService,
+)
 from .service import ControllerService
 from .state import JsonWorkflowStore, WorkflowStateService
 
@@ -127,6 +138,15 @@ __all__ = [
     "ProfileResolver",
     "ProfileSelector",
     "RequestRecord",
+    "RUNTIME_CHECKPOINT_SCHEMA",
+    "RUNTIME_RESIDENCY_CONFIG_SCHEMA",
+    "JsonRuntimeCheckpointStore",
+    "RuntimeCheckpoint",
+    "RuntimeCheckpointState",
+    "RuntimeLease",
+    "RuntimeResidencyConfig",
+    "RuntimeTarget",
+    "SerialRuntimeResidencyService",
     "RetryBudget",
     "RetryRecord",
     "RetryService",
