@@ -282,7 +282,7 @@ class WorkflowEngine:
         step: WorkflowStep,
     ) -> StepResultRecord:
         profile = self.profiles.resolve(
-            ProfileSelector(step.role or "", step.work_type or "", step.complexity)
+            ProfileSelector(step.role or "", step.work_type, step.complexity)
         )
         grant = (
             None
