@@ -1,5 +1,5 @@
 {
-  "schema_version": "acl-determiner-taxonomy:v1",
+  "schema_version": "acl-determiner-taxonomy:v2",
   "complexity_levels": [
     "SMALL",
     "MEDIUM",
@@ -7,7 +7,8 @@
   ],
   "work_types": [
     {
-      "work_type": "CODING",
+      "work_type_id": "1127",
+      "label": "CODING",
       "description": "Create, modify, diagnose, review, or reason about source code, scripts, software projects, APIs, or program behavior.",
       "examples": [
         "fix a Python bug",
@@ -16,7 +17,8 @@
       ]
     },
     {
-      "work_type": "RESEARCH",
+      "work_type_id": "2843",
+      "label": "RESEARCH",
       "description": "Gather, compare, verify, synthesize, or analyze information from sources when the primary output is knowledge rather than a document artifact.",
       "examples": [
         "compare AI models",
@@ -25,7 +27,8 @@
       ]
     },
     {
-      "work_type": "DOCUMENT",
+      "work_type_id": "4602",
+      "label": "DOCUMENT",
       "description": "Create, edit, transform, summarize, extract from, or analyze document-like content where the document or written artifact is the main object of work.",
       "examples": [
         "summarize a PDF",
@@ -34,7 +37,8 @@
       ]
     },
     {
-      "work_type": "VIDEO",
+      "work_type_id": "7017",
+      "label": "VIDEO",
       "description": "Create, edit, transform, inspect, script, or coordinate video and audiovisual project work.",
       "examples": [
         "build an explainer video",
@@ -43,7 +47,8 @@
       ]
     },
     {
-      "work_type": "KNOWLEDGE",
+      "work_type_id": "5931",
+      "label": "KNOWLEDGE",
       "description": "Store, retrieve, curate, reconcile, or structure durable knowledge in Knowledge Core or another knowledge system.",
       "examples": [
         "store this note in KC",
@@ -52,7 +57,8 @@
       ]
     },
     {
-      "work_type": "SYSTEM_ADMIN",
+      "work_type_id": "8264",
+      "label": "SYSTEM_ADMIN",
       "description": "Operate, configure, inspect, or troubleshoot local operating-system, process, service, runtime, package, device, or host-level state when software development is not the primary task.",
       "examples": [
         "start a local service",
@@ -61,7 +67,8 @@
       ]
     },
     {
-      "work_type": "GENERAL",
+      "work_type_id": "9001",
+      "label": "GENERAL",
       "description": "A valid request that does not fit another configured specialized work type closely enough to justify specialized routing.",
       "examples": [
         "general reasoning",
