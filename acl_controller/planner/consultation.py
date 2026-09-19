@@ -120,6 +120,56 @@ class PlannerConsultationExchange:
     created_at: str = field(default_factory=utc_now)
     resolved_at: str | None = None
 
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.exchange_number, bool)
+            or not isinstance(self.exchange_number, int)
+            or self.exchange_number < 1
+        ):
+            raise ControllerError(
+                "CONTROLLER_PLANNER_CONSULTATION_INVALID",
+                "exchange_number must be a positive integer",
+            )
+        for value, label in (
+            (self.question, "question"),
+            (self.reason, "reason"),
+            (self.current_state_summary, "current_state_summary"),
+        ):
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise ControllerError(
+                    "CONTROLLER_PLANNER_CONSULTATION_INVALID",
+                    f"{label} must be trimmed nonblank text",
+                )
+        if self.task_id is not None and (
+            not isinstance(self.task_id, str)
+            or not self.task_id.strip()
+            or self.task_id != self.task_id.strip()
+        ):
+            raise ControllerError(
+                "CONTROLLER_PLANNER_CONSULTATION_INVALID",
+                "task_id must be trimmed nonblank text when present",
+            )
+        for values, label in (
+            (self.relevant_reference_ids, "relevant_reference_ids"),
+            (self.relevant_evidence, "relevant_evidence"),
+            (self.sources, "sources"),
+            (self.references, "references"),
+            (self.reason_codes, "reason_codes"),
+        ):
+            if not isinstance(values, tuple) or any(
+                not isinstance(item, str) or not item.strip()
+                for item in values
+            ):
+                raise ControllerError(
+                    "CONTROLLER_PLANNER_CONSULTATION_INVALID",
+                    f"{label} must contain nonblank text values",
+                )
+        if not isinstance(self.runtime_metadata, Mapping):
+            raise ControllerError(
+                "CONTROLLER_PLANNER_CONSULTATION_INVALID",
+                "runtime_metadata must be a mapping",
+            )
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "exchange_number": self.exchange_number,
@@ -378,6 +428,7 @@ class PlannerConsultationOutcome:
             "exchange_number": self.exchange_number,
             "exchanges_used": self.exchanges_used,
             "max_exchanges": self.max_exchanges,
+            "remaining_exchanges": max(0, self.max_exchanges - self.exchanges_used),
             "answer": self.answer,
             "sources": list(self.sources),
             "references": list(self.references),
@@ -487,16 +538,46 @@ class PlannerConsultationService:
                     "Planner consultation is waiting for operator input",
                     {"consultation_id": consultation_id},
                 )
-            if record.status in {
-                PlannerConsultationStatus.EXHAUSTED,
-                PlannerConsultationStatus.CLOSED,
-            }:
+            if record.status is PlannerConsultationStatus.EXHAUSTED:
+                return PlannerConsultationOutcome(
+                    consultation_id=consultation_id,
+                    workflow_id=record.workflow_id,
+                    status=PlannerConsultationOutcomeStatus.EXCHANGE_LIMIT_REACHED,
+                    exchange_number=None,
+                    exchanges_used=record.exchanges_used,
+                    max_exchanges=record.max_exchanges,
+                )
+            if record.status is PlannerConsultationStatus.CLOSED:
                 raise ControllerError(
                     "CONTROLLER_PLANNER_CONSULTATION_CLOSED",
-                    "Planner consultation is not open for another exchange",
+                    "Planner consultation has been closed",
                     {
                         "consultation_id": consultation_id,
                         "status": str(record.status),
+                    },
+                )
+            workflow = self.state.read(record.workflow_id)
+            if workflow.status not in {WorkflowStatus.READY, WorkflowStatus.RUNNING}:
+                raise ControllerError(
+                    "CONTROLLER_PLANNER_CONSULTATION_STATE_INVALID",
+                    "Planner consultation can continue only from READY or RUNNING workflow state",
+                    {
+                        "consultation_id": consultation_id,
+                        "workflow_id": record.workflow_id,
+                        "status": str(workflow.status),
+                    },
+                )
+            if (
+                record.authority_grant_id is not None
+                and workflow.authority_grant_id != record.authority_grant_id
+            ):
+                raise ControllerError(
+                    "CONTROLLER_WORKFLOW_GRANT_MISMATCH",
+                    "stored Planner consultation grant differs from workflow authority",
+                    {
+                        "consultation_id": consultation_id,
+                        "workflow_grant_id": workflow.authority_grant_id,
+                        "consultation_grant_id": record.authority_grant_id,
                     },
                 )
             if record.exchanges_used >= record.max_exchanges:
@@ -679,6 +760,18 @@ class PlannerConsultationService:
                 current_state_summary=exchange.current_state_summary,
                 relevant_reference_ids=exchange.relevant_reference_ids,
                 relevant_evidence=exchange.relevant_evidence,
+                prior_exchanges=tuple(
+                    {
+                        "exchange_number": item.exchange_number,
+                        "question": item.question,
+                        "planner_disposition": item.planner_disposition,
+                        "answer": item.answer,
+                        "reason_codes": list(item.reason_codes),
+                        "notes": item.notes,
+                    }
+                    for item in record.exchanges[:-1]
+                    if item.resolved_at is not None
+                ),
             ),
             metadata={
                 "consultation_id": record.consultation_id,
@@ -831,6 +924,18 @@ class PlannerConsultationService:
                 updated_at=utc_now(),
             )
             self.store.save(updated)
+            emit(
+                "INFO",
+                self.component,
+                "apply_response",
+                "planner_consultation_cannot_answer",
+                consultation_id=record.consultation_id,
+                workflow_id=record.workflow_id,
+                exchange_number=resolved.exchange_number,
+                exchanges_used=updated.exchanges_used,
+                max_exchanges=updated.max_exchanges,
+                reason_codes=list(result.reason_codes),
+            )
             return PlannerConsultationOutcome(
                 consultation_id=record.consultation_id,
                 workflow_id=record.workflow_id,
