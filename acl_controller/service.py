@@ -743,6 +743,46 @@ class ControllerService:
             reason=reason,
         )
 
+    def run_next_worker_pass(
+        self,
+        plan_id: str,
+        *,
+        grant_id: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> WorkerExecutionOutcome:
+        """Execute the deterministic next Planner Pass through Worker V1."""
+        return self.worker_execution.start_next_pass(
+            plan_id,
+            authority_grant_id=grant_id,
+            metadata=metadata,
+        )
+
+    def continue_worker_pass(
+        self,
+        worker_run_id: str,
+        *,
+        guidance: Mapping[str, Any] | None = None,
+        grant_id: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> WorkerExecutionOutcome:
+        """Continue a Worker Pass after explicit continuation or Planner guidance."""
+        return self.worker_execution.continue_pass(
+            worker_run_id,
+            guidance=guidance,
+            authority_grant_id=grant_id,
+            metadata=metadata,
+        )
+
+    def worker_run_status(self, worker_run_id: str) -> WorkerRunRecord:
+        return self.worker_execution.read(worker_run_id)
+
+    def worker_runs_for_pass(
+        self,
+        plan_id: str,
+        pass_id: str,
+    ) -> tuple[WorkerRunRecord, ...]:
+        return self.worker_execution.runs_for_pass(plan_id, pass_id)
+
     def runtime_checkpoint(self, workflow_id: str):
         return self.runtime_residency.checkpoint(workflow_id)
 
