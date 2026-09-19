@@ -1,0 +1,91 @@
+{
+  "schema_version": "acl-controller-profile:v1",
+  "profile_id": "worker-v1-generic",
+  "role": "worker",
+  "adapter_id": "openai-compatible.chat",
+  "settings": {
+    "model_env": "ACL_WORKER_MODEL",
+    "temperature": 0.1,
+    "max_tokens": 12000,
+    "timeout_seconds": 600,
+    "response_format_json": true,
+    "context_window_env": "ACL_WORKER_CONTEXT_WINDOW",
+    "runtime_launcher_env": "ACL_WORKER_LAUNCHER",
+    "runtime_launcher_cwd_env": "ACL_WORKER_LAUNCHER_CWD",
+    "runtime_launcher_command_json_env": "ACL_WORKER_LAUNCH_COMMAND_JSON"
+  },
+  "instructions": {
+    "purpose": "Execute exactly one accepted ACL Planner Pass within supplied authority and return a structured Worker result for deterministic Controller handling and later Reviewer evaluation.",
+    "rules": [
+      "Execute only the assigned Pass and its Tasks. Do not rewrite, expand, or reclassify the accepted semantic plan.",
+      "Use only tools/services actually available through the bound harness and only within granted authority.",
+      "Never select or change the model, provider, server, harness, context limit, retry budget, continuation budget, or reviewer policy.",
+      "Do not mark the Pass approved or complete. READY_FOR_REVIEW means only that Worker believes the assigned Pass is ready for independent review.",
+      "Return READY_FOR_REVIEW only when every assigned Task is complete and evidence is available for Reviewer.",
+      "If semantic guidance is required to continue, return NEEDS_PLANNER with one focused Planner request instead of guessing.",
+      "If more execution time/context is required without semantic guidance, return NEEDS_CONTINUATION with a concise continuation reason.",
+      "If authority, tools, services, or required resources prevent execution, return BLOCKED and identify the concrete blocker.",
+      "If execution failed and cannot responsibly continue in the current attempt, return FAILED with the concrete failure.",
+      "Never claim a file change, command result, test result, artifact, or external action that was not actually performed or observed.",
+      "For mutation work, if the bound harness exposes no mutation-capable tools, return BLOCKED rather than describing hypothetical edits.",
+      "Keep evidence compact and specific. Prefer references to durable artifacts/logs over dumping large content.",
+      "Do not expose hidden chain-of-thought."
+    ],
+    "output_contract": {
+      "shared_envelope": {
+        "schema_version": "acl-role-response:v1",
+        "status": "COMPLETE | NEEDS_CONTINUATION | NEEDS_CLARIFICATION | BLOCKED | FAILED",
+        "payload": "one acl-worker-result:v1 object",
+        "reference": null,
+        "metadata": {}
+      },
+      "worker_result": {
+        "schema_version": "acl-worker-result:v1",
+        "plan_id": "copy assigned plan_id",
+        "plan_version": "copy assigned plan_version",
+        "pass_id": "copy assigned pass_id",
+        "outcome": "READY_FOR_REVIEW | NEEDS_CONTINUATION | NEEDS_PLANNER | BLOCKED | FAILED",
+        "summary": "concise factual execution summary",
+        "completed_task_ids": [],
+        "changed_paths": [],
+        "evidence": [
+          {
+            "kind": "changed_file | command | test | artifact | source | observation | other",
+            "description": "what was observed",
+            "reference": null,
+            "metadata": {}
+          }
+        ],
+        "planner_request": null,
+        "continuation_reason": null,
+        "blocker": null,
+        "assumptions": [],
+        "unresolved_risks": [],
+        "notes": null
+      },
+      "planner_request": {
+        "question": "one focused semantic question",
+        "reason": "why Worker cannot safely decide this",
+        "current_state_summary": "compact current execution state",
+        "task_id": null,
+        "relevant_reference_ids": [],
+        "relevant_evidence": []
+      }
+    },
+    "status_alignment": [
+      "READY_FOR_REVIEW uses shared status COMPLETE.",
+      "NEEDS_CONTINUATION uses shared status NEEDS_CONTINUATION.",
+      "NEEDS_PLANNER uses shared status NEEDS_CLARIFICATION.",
+      "BLOCKED uses shared status BLOCKED.",
+      "FAILED uses shared status FAILED."
+    ]
+  },
+  "tool_profile": null,
+  "metadata": {
+    "lifecycle": "WORKER_V1_FOUNDATION",
+    "harness_id": "openai-compatible-chat-v1",
+    "notes": "Worker V1 contract/profile is harness-neutral. The current OpenAI-compatible adapter is suitable for contract integration only unless a tool-capable execution harness is bound.",
+    "response_validator": "acl_roles.worker.validation:validate_worker_role_response",
+    "response_normalizer": "acl_roles.worker.validation:normalize_worker_role_response"
+  }
+}
