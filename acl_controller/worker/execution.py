@@ -34,6 +34,7 @@ from ..state import WorkflowStateService
 
 
 WORKER_RUN_SCHEMA = "acl-worker-run:v1"
+WORKER_REVIEW_PACKET_SCHEMA = "acl-worker-review-packet:v1"
 
 
 class WorkerRunStatus(StrEnum):
@@ -178,6 +179,39 @@ class WorkerRunRecord:
                 "CONTROLLER_WORKER_RUN_INVALID",
                 "Worker run record is malformed",
             ) from exc
+
+
+@dataclass(frozen=True)
+class WorkerReviewPacket:
+    workflow_id: str
+    plan_id: str
+    plan_version: int
+    semantic_plan_digest: str
+    pass_id: str
+    stage_id: str | None
+    pass_spec: Mapping[str, Any]
+    plan_context: Mapping[str, Any]
+    worker_run_id: str
+    worker_result: Mapping[str, Any]
+    worker_runtime: Mapping[str, Any]
+    prior_worker_results: tuple[Mapping[str, Any], ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": WORKER_REVIEW_PACKET_SCHEMA,
+            "workflow_id": self.workflow_id,
+            "plan_id": self.plan_id,
+            "plan_version": self.plan_version,
+            "semantic_plan_digest": self.semantic_plan_digest,
+            "pass_id": self.pass_id,
+            "stage_id": self.stage_id,
+            "pass": dict(self.pass_spec),
+            "plan_context": dict(self.plan_context),
+            "worker_run_id": self.worker_run_id,
+            "worker_result": dict(self.worker_result),
+            "worker_runtime": dict(self.worker_runtime),
+            "prior_worker_results": [dict(item) for item in self.prior_worker_results],
+        }
 
 
 @dataclass(frozen=True)
@@ -393,6 +427,37 @@ class WorkerExecutionService:
 
     def read(self, worker_run_id: str) -> WorkerRunRecord:
         return self.store.read(worker_run_id)
+
+    def review_packet(self, worker_run_id: str) -> WorkerReviewPacket:
+        run = self.store.read(worker_run_id)
+        if run.status is not WorkerRunStatus.READY_FOR_REVIEW or run.result is None:
+            raise ControllerError(
+                "CONTROLLER_WORKER_REVIEW_NOT_READY",
+                "Worker run is not ready for Reviewer intake",
+                {
+                    "worker_run_id": worker_run_id,
+                    "status": str(run.status),
+                },
+            )
+        prior = tuple(
+            item.result.to_dict()
+            for item in self.store.for_pass(run.plan_id, run.pass_id)
+            if item.worker_run_id != run.worker_run_id and item.result is not None
+        )
+        return WorkerReviewPacket(
+            workflow_id=run.workflow_id,
+            plan_id=run.plan_id,
+            plan_version=run.plan_version,
+            semantic_plan_digest=run.worker_input.semantic_plan_digest,
+            pass_id=run.pass_id,
+            stage_id=run.stage_id,
+            pass_spec=run.worker_input.pass_spec.to_dict(),
+            plan_context=dict(run.worker_input.plan_context),
+            worker_run_id=run.worker_run_id,
+            worker_result=run.result.to_dict(),
+            worker_runtime=dict(run.runtime_metadata),
+            prior_worker_results=prior,
+        )
 
     def runs_for_pass(self, plan_id: str, pass_id: str) -> tuple[WorkerRunRecord, ...]:
         return self.store.for_pass(plan_id, pass_id)
