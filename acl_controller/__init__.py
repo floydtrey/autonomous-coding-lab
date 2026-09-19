@@ -16,6 +16,7 @@ from .configuration import ProfileResolver, ProfileSelector, RoleProfile
 from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher, RoleStatus
 from .gates import GateRecord, GateService, GateStatus, JsonGateStore
 from .inspection import InspectionReport, InspectionService
+from .planner import ControllerPlannerRuntimeBackend, require_planner_runtime_backend
 from .recovery import JsonStopStore, RecoveryService, StopRecord, StopStatus
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
 from .workflow import (
@@ -45,6 +46,7 @@ __all__ = [
     "ControllerError",
     "ControllerService",
     "ControllerStatus",
+    "ControllerPlannerRuntimeBackend",
     "EngineReport",
     "FILESYSTEM_AUTHORITY_SCHEMA",
     "FilesystemAuthorityCoordinator",
@@ -85,4 +87,5 @@ __all__ = [
     "WorkflowStateService",
     "UserProtectedPath",
     "WorkflowStatus",
+    "require_planner_runtime_backend",
 ]
