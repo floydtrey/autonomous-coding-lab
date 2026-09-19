@@ -242,3 +242,52 @@ The next pass is limited to:
 5. fix only generic Core/Controller/adapter gaps exposed by those real runs.
 
 It will **not** begin Planner implementation.
+
+
+## Determiner Integration Build
+
+The Determiner integration build now uses the same replaceable runtime boundary
+intended for all ACL roles.
+
+Implemented:
+
+- configuration-driven adapter plug-in loader;
+- generic OpenAI-compatible chat-completions adapter;
+- endpoint, API key, model, temperature, token budget, timeout, and JSON-mode
+  behavior supplied through configuration/environment rather than role code;
+- Controller bootstrap loads adapters from `config/adapters.json` without naming
+  specific adapter implementations in Controller logic;
+- generic profile `instruction_sources` support so external JSON such as the
+  Determiner taxonomy remains single-source;
+- generic configured role-response validator plug-in boundary;
+- Determiner profile validates its payload through its own small contract validator
+  without adding Determiner branches to Controller;
+- generic reusable `acl-run-workflow` runner;
+- first single-step Determiner workflow configuration.
+
+Runtime configuration for the first local integration:
+
+- `ACL_OPENAI_COMPAT_BASE_URL` selects the compatible server endpoint;
+- `ACL_OPENAI_COMPAT_API_KEY` supplies an API key when required;
+- `ACL_DETERMINER_MODEL` selects the model exposed by that server.
+
+Changing a compatible model or endpoint requires configuration/environment changes
+only. A new incompatible transport requires one new adapter implementation, not
+changes to Determiner, Controller, or the shared role contract.
+
+The integration build intentionally does not hardcode a particular local model.
+The remaining acceptance activity for this pass is a real local model invocation
+with DEBUG diagnostics enabled.
+
+### Following pass after live Determiner integration
+
+After the first real Determiner runs succeed and generic integration gaps are
+corrected, the next pass will be **Planner foundation only**:
+
+1. Planner input/output contract;
+2. compact new task-plan representation;
+3. Planner instructions;
+4. externally configured Planner profiles/routes;
+5. plan-approval gate binding.
+
+Worker implementation remains out of scope for that pass.
