@@ -617,7 +617,7 @@ class ControllerService:
         return self.planner_telemetry.records(workflow_id)
 
     def planner_telemetry_summary(self, workflow_id: str) -> dict[str, Any]:
-        return self.planner_telemetry.summary(workflow_id)
+        return self.planner_telemetry.summary_safely(workflow_id)
 
     def create_workflow(
         self,
