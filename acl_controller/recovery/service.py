@@ -295,6 +295,29 @@ class RecoveryService:
                     },
                 )
             except (ControllerError, CoreError) as exc:
+                if self._can_rerun_unqueryable_attempt(profile.adapter_id, exc):
+                    prior_attempt_id = workflow.active_attempt_id
+                    recovered = self.state.transition(
+                        workflow_id,
+                        WorkflowStatus.READY,
+                        active_action=None,
+                        active_role=None,
+                        active_profile_id=None,
+                        active_attempt_id=None,
+                        waiting_for=None,
+                        blocker=None,
+                    )
+                    emit(
+                        "INFO",
+                        self.component,
+                        "recover",
+                        "unqueryable_attempt_released_for_rerun",
+                        workflow_id=workflow_id,
+                        adapter_id=profile.adapter_id,
+                        prior_attempt_id=prior_attempt_id,
+                        stage=workflow.stage,
+                    )
+                    return recovered
                 self._block_uncertain(
                     workflow,
                     code="RECOVERY_STATUS_QUERY_FAILED",
@@ -470,6 +493,26 @@ class RecoveryService:
             observed_state=state,
         )
         return self._resolve_stop(stop, StopStatus.UNCERTAIN, response)
+
+    def _can_rerun_unqueryable_attempt(
+        self,
+        adapter_id: str,
+        exc: BaseException,
+    ) -> bool:
+        if not isinstance(exc, ControllerError) or exc.code != "CONTROLLER_RECOVERY_ADAPTER_FAILED":
+            return False
+        details = exc.details if isinstance(exc.details, Mapping) else {}
+        adapter_error = details.get("error")
+        if not isinstance(adapter_error, Mapping) or adapter_error.get("code") != "ADAPTER_OPERATION_UNSUPPORTED":
+            return False
+
+        adapter = self.core.adapters.adapter(adapter_id)
+        capabilities = getattr(adapter, "recovery_capabilities", {})
+        if callable(capabilities):
+            capabilities = capabilities()
+        if not isinstance(capabilities, Mapping):
+            return False
+        return capabilities.get("interrupted_attempt_policy") == "rerun_if_unqueryable"
 
     def _invoke_role_control(
         self,
