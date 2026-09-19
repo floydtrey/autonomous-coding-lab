@@ -85,6 +85,35 @@ class PlannerPassState:
                 "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
                 "pass status is invalid",
             )
+        if self.status is PlannerPassStatus.PENDING:
+            if any(
+                value is not None
+                for value in (self.completed_at, self.failed_at, self.failure_reason)
+            ):
+                raise ControllerError(
+                    "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
+                    "PENDING Pass must not contain terminal state metadata",
+                    {"pass_id": self.pass_id},
+                )
+        elif self.status is PlannerPassStatus.COMPLETE:
+            if self.completed_at is None or self.failed_at is not None or self.failure_reason is not None:
+                raise ControllerError(
+                    "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
+                    "COMPLETE Pass state metadata is inconsistent",
+                    {"pass_id": self.pass_id},
+                )
+        elif self.status is PlannerPassStatus.FAILED:
+            if (
+                self.failed_at is None
+                or not isinstance(self.failure_reason, str)
+                or not self.failure_reason.strip()
+                or self.completed_at is not None
+            ):
+                raise ControllerError(
+                    "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
+                    "FAILED Pass state metadata is inconsistent",
+                    {"pass_id": self.pass_id},
+                )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -179,6 +208,11 @@ class PlannerPlanRecord:
             raise ControllerError(
                 "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
                 "plan_id is invalid",
+            )
+        if not isinstance(self.workflow_id, str) or not self.workflow_id.startswith("workflow:"):
+            raise ControllerError(
+                "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
+                "workflow_id is invalid",
             )
         if self.plan_version != PLAN_VERSION:
             raise ControllerError(
@@ -721,16 +755,6 @@ class PlannerPlanService:
             pass_status=str(status),
         ):
             record = self.store.read(plan_id)
-            if record.status is not PlannerPlanStatus.ACTIVE:
-                raise ControllerError(
-                    "CONTROLLER_PLANNER_PLAN_NOT_ACTIVE",
-                    "Pass state can change only while the plan is ACTIVE",
-                    {
-                        "plan_id": plan_id,
-                        "plan_status": str(record.status),
-                    },
-                )
-
             target = next(
                 (item for item in record.pass_states if item.pass_id == pass_id),
                 None,
@@ -743,7 +767,32 @@ class PlannerPlanService:
                 )
 
             if target.status is status:
+                if (
+                    status is PlannerPassStatus.FAILED
+                    and target.failure_reason != failure_reason
+                ):
+                    raise ControllerError(
+                        "CONTROLLER_PLANNER_PASS_STATE_CONFLICT",
+                        "failed Pass replay has a different failure reason",
+                        {
+                            "plan_id": plan_id,
+                            "pass_id": pass_id,
+                            "recorded_reason": target.failure_reason,
+                            "requested_reason": failure_reason,
+                        },
+                    )
                 return record
+
+            if record.status is not PlannerPlanStatus.ACTIVE:
+                raise ControllerError(
+                    "CONTROLLER_PLANNER_PLAN_NOT_ACTIVE",
+                    "Pass state can change only while the plan is ACTIVE",
+                    {
+                        "plan_id": plan_id,
+                        "plan_status": str(record.status),
+                    },
+                )
+
             if target.status is not PlannerPassStatus.PENDING:
                 raise ControllerError(
                     "CONTROLLER_PLANNER_PASS_STATE_CONFLICT",
