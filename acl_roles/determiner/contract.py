@@ -297,14 +297,77 @@ def normalize_determiner_role_response(
     repairs: list[str] = []
 
     envelope = dict(value)
-    if "status" in envelope:
-        payload_raw = envelope.get("payload", {})
-        if not isinstance(payload_raw, Mapping):
-            return envelope, {}
-        payload = dict(payload_raw)
+    shared_status_values = {str(item) for item in RoleStatus}
+    top_status = envelope.get("status")
+
+    if top_status in shared_status_values:
+        payload_raw = envelope.get("payload")
+        if payload_raw is None:
+            payload_keys = {
+                "schema_version",
+                "classification",
+                "work_type_id",
+                "work_type",
+                "complexity",
+                "confidence",
+                "reason_codes",
+                "notes",
+                "questions",
+                "question",
+            }
+            payload = {
+                key: envelope.pop(key)
+                for key in list(envelope)
+                if key in payload_keys and key != "status"
+            }
+            envelope["payload"] = payload
+            if payload:
+                repairs.append("top_level_role_fields_moved_to_payload")
+        elif not isinstance(payload_raw, Mapping):
+            raise RoleContractError(
+                "DETERMINER_NORMALIZATION_AMBIGUOUS",
+                "shared status is present but payload is not a mapping",
+                {"payload_type": type(payload_raw).__name__},
+            )
+        else:
+            payload = dict(payload_raw)
+            envelope["payload"] = payload
     else:
         payload = dict(envelope)
         envelope = {}
+
+        resolved_status_id = taxonomy.resolve_id(top_status)
+        if resolved_status_id is not None:
+            payload.pop("status", None)
+            payload["work_type_id"] = resolved_status_id
+            payload["classification"] = str(ClassificationStatus.CLASSIFIED)
+            repairs.append("top_level_status_work_type_moved_to_id")
+        elif top_status in {
+            str(ClassificationStatus.CLASSIFIED),
+            str(ClassificationStatus.UNKNOWN),
+        }:
+            payload.pop("status", None)
+            payload["classification"] = top_status
+            repairs.append("top_level_status_moved_to_classification")
+        elif top_status is not None:
+            raise RoleContractError(
+                "DETERMINER_NORMALIZATION_AMBIGUOUS",
+                "top-level status is not a shared role status, classification state, or configured work type",
+                {"status": top_status},
+            )
+
+    if isinstance(payload.get("question"), str) and payload["question"].strip():
+        if "questions" in payload:
+            raise RoleContractError(
+                "DETERMINER_NORMALIZATION_AMBIGUOUS",
+                "response contains both question and questions fields",
+            )
+        payload["questions"] = [{
+            "question_id": "q1",
+            "question": payload.pop("question").strip(),
+            "reason": "model requested clarification",
+        }]
+        repairs.append("single_question_normalized")
 
     classification_raw = payload.get("classification")
     canonical_classification = (
@@ -401,7 +464,13 @@ def normalize_determiner_role_response(
             raise RoleContractError(
                 "DETERMINER_NORMALIZATION_AMBIGUOUS",
                 "response lacks shared status and is not an unambiguous Determiner result",
-                {"observed_keys": sorted(str(key) for key in payload)},
+                {
+                    "observed_keys": sorted(str(key) for key in payload),
+                    "classification": payload.get("classification"),
+                    "work_type_id": payload.get("work_type_id"),
+                    "legacy_work_type": payload.get("work_type"),
+                    "has_questions": isinstance(payload.get("questions"), list),
+                },
             )
     else:
         envelope["payload"] = payload
