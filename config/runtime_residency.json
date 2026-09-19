@@ -6,6 +6,6 @@
   "models_path": "/models",
   "api_key_file_env": "ACL_OPENAI_COMPAT_API_KEY_FILE",
   "probe_timeout_seconds": 3,
-  "switch_timeout_seconds": 300,
+  "switch_timeout_seconds": 1800,
   "poll_interval_seconds": 0.5
 }
