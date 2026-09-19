@@ -177,6 +177,7 @@ class PlannerRuntimeService:
                     exc.message,
                     {
                         **dict(exc.details or {}),
+                        "previous_response": response.result.to_dict(),
                         "runtime_metadata": {
                             **dict(response.runtime_metadata),
                             "planner_elapsed_ms": elapsed_ms,
