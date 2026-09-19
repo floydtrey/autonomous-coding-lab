@@ -58,6 +58,7 @@ def run_program(
         "services": list(service_status),
         "engine": report.to_dict(),
         "inspection": inspection.to_dict(),
+        "planner_telemetry": controller.planner_telemetry_summary(workflow.workflow_id),
     }
 
 
