@@ -57,3 +57,45 @@ Not built yet:
 
 Controller contains no Planner/Worker/Reviewer reasoning and no Git/GitHub target
 assumptions.
+
+
+## Controller Pass 2
+
+The second Controller construction pass adds the execution-control mechanisms that
+the later workflow engine will compose:
+
+- generic role dispatch through Core adapters;
+- persisted Core authority grants and narrowing;
+- clarification pause/answer records;
+- external approval gates with self-approval rejection;
+- separate retry and continuation budgets.
+
+Role dispatch understands only a small generic result envelope:
+
+- `COMPLETE`
+- `NEEDS_CLARIFICATION`
+- `NEEDS_CONTINUATION`
+- `BLOCKED`
+- `FAILED`
+
+It does not interpret role-specific content. Pass 3 will decide how the workflow
+engine reacts to those structured statuses.
+
+Authority remains Core-owned. Controller persists and references Core grants but
+cannot enlarge a supplied ceiling or parent grant.
+
+Clarifications, gates, grants, and retry accounting are persisted under Controller
+state so later recovery can reconstruct why a workflow is waiting or blocked.
+
+Diagnostics remain intentionally verbose during the rebuild. Role dispatch,
+adapter identity, grant issue/narrow operations, questions, answers, gate
+decisions, retry consumption/exhaustion, workflow IDs, attempt IDs, and correlated
+failures are emitted through the shared Core diagnostic stream when enabled.
+
+Not built yet:
+
+- workflow engine;
+- stop/cancel/recovery service;
+- final inspection/status aggregation;
+- AI role implementations;
+- validation subsystem.
