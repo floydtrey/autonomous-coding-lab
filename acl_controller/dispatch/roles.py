@@ -10,7 +10,7 @@ from typing import Any, Mapping
 
 from acl_core import AdapterRequest, AuthorityGrant, CoreIdentity, CoreServices
 from acl_core.diagnostics import emit
-from acl_roles.common import InstructionSet, RoleDiagnostics, RoleRequest, RoleResponse, RoleStatus, validate_configured_response
+from acl_roles.common import InstructionSet, RoleDiagnostics, RoleRequest, RoleResponse, RoleStatus, normalize_configured_response, validate_configured_response
 
 from ..configuration import RoleProfile
 from ..diagnostics import controller_span
@@ -162,6 +162,36 @@ class RoleDispatcher:
                     },
                 )
             envelope = self.core.normalization.mapping(response.payload)
+            normalizer = request.profile.metadata.get("response_normalizer")
+            try:
+                envelope, normalization = normalize_configured_response(
+                    envelope,
+                    implementation=normalizer,
+                    instructions=request.profile.instructions,
+                    profile_metadata=request.profile.metadata,
+                )
+            except Exception as exc:
+                RoleDiagnostics.parse_error(
+                    workflow_id=request.workflow_id,
+                    attempt_id=request.attempt_id,
+                    role=request.role,
+                    profile_id=request.profile.profile_id,
+                    adapter_id=request.profile.adapter_id,
+                    raw_response=envelope,
+                    error=exc,
+                )
+                raise ControllerError(
+                    "CONTROLLER_ROLE_RESPONSE_INVALID",
+                    "role response normalization failed",
+                    {
+                        "workflow_id": request.workflow_id,
+                        "attempt_id": request.attempt_id,
+                        "role": request.role,
+                        "profile_id": request.profile.profile_id,
+                        "exception_type": type(exc).__name__,
+                        "message": str(exc),
+                    },
+                ) from exc
             try:
                 common_response = RoleResponse.from_mapping(envelope)
             except Exception as exc:
@@ -230,6 +260,7 @@ class RoleDispatcher:
                 role_request,
                 common_response,
                 adapter_id=request.profile.adapter_id,
+                normalization=normalization,
             )
             role_response = self.from_common_response(request, common_response)
             emit(
