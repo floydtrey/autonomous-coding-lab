@@ -16,7 +16,16 @@ from .clarification import ClarificationRecord, ClarificationService, JsonClarif
 from .configuration import ProfileResolver, ProfileSelector, RoleProfile
 from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher
 from .gates import GateRecord, GateService, JsonGateStore
+from .inspection import InspectionReport, InspectionService
+from .recovery import JsonStopStore, RecoveryService, StopRecord
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
+from .workflow import (
+    EngineReport,
+    JsonProgramStore,
+    JsonResultStore,
+    WorkflowEngine,
+    WorkflowProgram,
+)
 from .diagnostics import controller_span
 from .errors import ControllerError
 from .models import ControllerStatus, RequestRecord, WorkflowRecord, WorkflowStatus
@@ -39,6 +48,9 @@ class ControllerService:
         clarification: ClarificationService,
         gates: GateService,
         retries: RetryService,
+        engine: WorkflowEngine,
+        recovery: RecoveryService,
+        inspection: InspectionService,
     ) -> None:
         self.core = core
         self.state = state
@@ -49,6 +61,9 @@ class ControllerService:
         self.clarification = clarification
         self.gates = gates
         self.retries = retries
+        self.engine = engine
+        self.recovery = recovery
+        self.inspection = inspection
 
     @classmethod
     def create(
@@ -66,29 +81,73 @@ class ControllerService:
             resolved_core = core or CoreServices.create()
             state_root = Path(state_root).expanduser().resolve()
             config_root = Path(config_root).expanduser().resolve()
+
             state_service = WorkflowStateService(JsonWorkflowStore(state_root))
+            profiles = ProfileResolver(config_root)
+            routing = ActionRegistry()
+            role_dispatch = RoleDispatcher(resolved_core)
+            authority = AuthorityCoordinator(
+                resolved_core.authority,
+                JsonGrantStore(state_root),
+            )
+            clarification = ClarificationService(
+                state_service,
+                JsonClarificationStore(state_root),
+            )
+            gates = GateService(
+                state_service,
+                JsonGateStore(state_root),
+            )
+            retries = RetryService(
+                state_service,
+                JsonRetryStore(state_root),
+            )
+            programs = JsonProgramStore(state_root)
+            results = JsonResultStore(state_root)
+            engine = WorkflowEngine(
+                state=state_service,
+                profiles=profiles,
+                routing=routing,
+                role_dispatch=role_dispatch,
+                authority=authority,
+                clarification=clarification,
+                gates=gates,
+                retries=retries,
+                programs=programs,
+                results=results,
+            )
+            stops = JsonStopStore(state_root)
+            recovery = RecoveryService(
+                core=resolved_core,
+                state=state_service,
+                profiles=profiles,
+                engine=engine,
+                stops=stops,
+            )
+            inspection = InspectionService(
+                state=state_service,
+                programs=programs,
+                results=results,
+                authority=authority,
+                profiles=profiles,
+                clarification=clarification,
+                gates=gates,
+                retries=retries,
+                stops=stops,
+            )
             service = cls(
                 core=resolved_core,
                 state=state_service,
-                profiles=ProfileResolver(config_root),
-                routing=ActionRegistry(),
-                role_dispatch=RoleDispatcher(resolved_core),
-                authority=AuthorityCoordinator(
-                    resolved_core.authority,
-                    JsonGrantStore(state_root),
-                ),
-                clarification=ClarificationService(
-                    state_service,
-                    JsonClarificationStore(state_root),
-                ),
-                gates=GateService(
-                    state_service,
-                    JsonGateStore(state_root),
-                ),
-                retries=RetryService(
-                    state_service,
-                    JsonRetryStore(state_root),
-                ),
+                profiles=profiles,
+                routing=routing,
+                role_dispatch=role_dispatch,
+                authority=authority,
+                clarification=clarification,
+                gates=gates,
+                retries=retries,
+                engine=engine,
+                recovery=recovery,
+                inspection=inspection,
             )
             emit(
                 "INFO",
@@ -387,3 +446,53 @@ class ControllerService:
             requested_by=requested_by,
             reason=reason,
         )
+
+
+    def install_program(self, program: WorkflowProgram) -> WorkflowProgram:
+        with controller_span("service.install_program", program_id=program.program_id):
+            return self.engine.install_program(program)
+
+    def bind_program(self, workflow_id: str, program_id: str) -> WorkflowRecord:
+        with controller_span(
+            "service.bind_program",
+            workflow_id=workflow_id,
+            program_id=program_id,
+        ):
+            return self.engine.bind_program(workflow_id, program_id)
+
+    def run_workflow(
+        self,
+        workflow_id: str,
+        *,
+        max_operations: int = 32,
+    ) -> EngineReport:
+        with controller_span(
+            "service.run_workflow",
+            workflow_id=workflow_id,
+            max_operations=max_operations,
+        ):
+            return self.engine.run(workflow_id, max_operations=max_operations)
+
+    def stop_workflow(
+        self,
+        workflow_id: str,
+        *,
+        requested_by: str,
+    ) -> StopRecord:
+        with controller_span(
+            "service.stop_workflow",
+            workflow_id=workflow_id,
+            requested_by=requested_by,
+        ):
+            return self.recovery.request_stop(
+                workflow_id,
+                requested_by=requested_by,
+            )
+
+    def recover_workflow(self, workflow_id: str):
+        with controller_span("service.recover_workflow", workflow_id=workflow_id):
+            return self.recovery.recover(workflow_id)
+
+    def inspect_workflow(self, workflow_id: str) -> InspectionReport:
+        with controller_span("service.inspect_workflow", workflow_id=workflow_id):
+            return self.inspection.inspect(workflow_id)
