@@ -659,6 +659,7 @@ class PlannerConsultationService:
                 metadata={
                     "consultation_id": record.consultation_id,
                     "exchange_number": exchange_number,
+                    "runtime_backend_id": self.runtime.backend.backend_id,
                     **dict(record.metadata),
                 },
             )
@@ -745,6 +746,7 @@ class PlannerConsultationService:
                 "consultation_id": record.consultation_id,
                 "exchange_number": record.exchanges[-1].exchange_number,
                 "resumed_from_clarification_id": clarification_id,
+                "runtime_backend_id": self.runtime.backend.backend_id,
                 **dict(record.metadata),
             },
         )
