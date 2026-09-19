@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 
 from acl_core.canonical import canonical_digest
 from acl_core.diagnostics import emit, span
@@ -14,8 +14,9 @@ from acl_roles.common.errors import RoleContractError
 from .taxonomy import DeterminerTaxonomy
 
 
-DETERMINER_INPUT_SCHEMA = "acl-determiner-input:v1"
-DETERMINER_RESULT_SCHEMA = "acl-determiner-result:v1"
+DETERMINER_INPUT_SCHEMA = "acl-determiner-input:v2"
+DETERMINER_RESULT_SCHEMA = "acl-determiner-result:v2"
+_LEGACY_RESULT_SCHEMA = "acl-determiner-result:v1"
 
 
 class ClassificationStatus(StrEnum):
@@ -31,7 +32,10 @@ class DeterminerInput:
 
     def __post_init__(self) -> None:
         if not isinstance(self.request, Mapping) or not isinstance(self.metadata, Mapping):
-            raise RoleContractError("DETERMINER_INPUT_INVALID", "request and metadata must be mappings")
+            raise RoleContractError(
+                "DETERMINER_INPUT_INVALID",
+                "request and metadata must be mappings",
+            )
 
     def to_objective(self) -> dict[str, Any]:
         return {
@@ -49,7 +53,8 @@ class DeterminerInput:
 class DeterminerResult:
     role_status: RoleStatus
     classification: ClassificationStatus | None = None
-    work_type: str | None = None
+    work_type_id: str | None = None
+    work_type_label: str | None = None
     complexity: str | None = None
     confidence: float | None = None
     reason_codes: tuple[str, ...] = ()
@@ -62,7 +67,8 @@ class DeterminerResult:
             "schema_version": DETERMINER_RESULT_SCHEMA,
             "role_status": str(self.role_status),
             "classification": None if self.classification is None else str(self.classification),
-            "work_type": self.work_type,
+            "work_type_id": self.work_type_id,
+            "work_type_label": self.work_type_label,
             "complexity": self.complexity,
             "confidence": self.confidence,
             "reason_codes": list(self.reason_codes),
@@ -96,7 +102,9 @@ def _parse_determiner_response(
 
     if response.status is RoleStatus.NEEDS_CLARIFICATION:
         questions = payload.get("questions")
-        if not isinstance(questions, list) or not questions or any(not isinstance(item, Mapping) for item in questions):
+        if not isinstance(questions, list) or not questions or any(
+            not isinstance(item, Mapping) for item in questions
+        ):
             raise RoleContractError(
                 "DETERMINER_RESULT_INVALID",
                 "clarification response requires one or more structured questions",
@@ -134,7 +142,7 @@ def _parse_determiner_response(
             "completed Determiner response has an invalid classification status",
         ) from exc
 
-    work_type = payload.get("work_type")
+    work_type_id = payload.get("work_type_id")
     complexity = payload.get("complexity")
     confidence = payload.get("confidence")
     reason_codes_raw = payload.get("reason_codes", [])
@@ -143,42 +151,68 @@ def _parse_determiner_response(
     if not isinstance(reason_codes_raw, list) or any(
         not isinstance(item, str) or not item.strip() for item in reason_codes_raw
     ):
-        raise RoleContractError("DETERMINER_RESULT_INVALID", "reason_codes must be a list of nonblank strings")
+        raise RoleContractError(
+            "DETERMINER_RESULT_INVALID",
+            "reason_codes must be a list of nonblank strings",
+        )
     reason_codes = tuple(reason_codes_raw)
     if len(reason_codes) != len(set(reason_codes)):
-        raise RoleContractError("DETERMINER_RESULT_INVALID", "reason_codes must be unique")
+        raise RoleContractError(
+            "DETERMINER_RESULT_INVALID",
+            "reason_codes must be unique",
+        )
     if notes is not None and not isinstance(notes, str):
-        raise RoleContractError("DETERMINER_RESULT_INVALID", "notes must be text when present")
+        raise RoleContractError(
+            "DETERMINER_RESULT_INVALID",
+            "notes must be text when present",
+        )
 
+    work_type_label = None
     if classification is ClassificationStatus.CLASSIFIED:
-        if not isinstance(work_type, str) or not taxonomy.contains_work_type(work_type):
+        if not isinstance(work_type_id, str) or not taxonomy.contains_work_type_id(work_type_id):
             raise RoleContractError(
                 "DETERMINER_RESULT_INVALID",
-                "classified result must use a configured work type",
-                {"work_type": work_type, "allowed": list(taxonomy.work_type_ids)},
+                "classified result must use a configured four-digit work_type_id",
+                {
+                    "work_type_id": work_type_id,
+                    "allowed": list(taxonomy.work_type_ids),
+                },
             )
+        work_type_label = taxonomy.label_for_id(work_type_id)
         if complexity is not None and (
-            not isinstance(complexity, str) or not taxonomy.contains_complexity(complexity)
+            not isinstance(complexity, str)
+            or not taxonomy.contains_complexity(complexity)
         ):
             raise RoleContractError(
                 "DETERMINER_RESULT_INVALID",
                 "complexity must use a configured complexity level",
-                {"complexity": complexity, "allowed": list(taxonomy.complexity_levels)},
+                {
+                    "complexity": complexity,
+                    "allowed": list(taxonomy.complexity_levels),
+                },
             )
-        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= float(confidence) <= 1:
+        if (
+            isinstance(confidence, bool)
+            or not isinstance(confidence, (int, float))
+            or not 0 <= float(confidence) <= 1
+        ):
             raise RoleContractError(
                 "DETERMINER_RESULT_INVALID",
                 "classified result confidence must be a number from 0 through 1",
             )
         confidence = float(confidence)
     else:
-        if work_type is not None or complexity is not None:
+        if work_type_id is not None or complexity is not None:
             raise RoleContractError(
                 "DETERMINER_RESULT_INVALID",
-                "UNKNOWN classification must not claim work_type or complexity",
+                "UNKNOWN classification must not claim work_type_id or complexity",
             )
         if confidence is not None:
-            if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= float(confidence) <= 1:
+            if (
+                isinstance(confidence, bool)
+                or not isinstance(confidence, (int, float))
+                or not 0 <= float(confidence) <= 1
+            ):
                 raise RoleContractError(
                     "DETERMINER_RESULT_INVALID",
                     "UNKNOWN confidence must be a number from 0 through 1 when present",
@@ -188,7 +222,8 @@ def _parse_determiner_response(
     result = DeterminerResult(
         role_status=response.status,
         classification=classification,
-        work_type=work_type,
+        work_type_id=work_type_id,
+        work_type_label=work_type_label,
         complexity=complexity,
         confidence=confidence,
         reason_codes=reason_codes,
@@ -207,7 +242,8 @@ def _emit_result(result: DeterminerResult, taxonomy: DeterminerTaxonomy) -> None
         "determiner_result_parsed",
         role_status=str(result.role_status),
         classification=None if result.classification is None else str(result.classification),
-        work_type=result.work_type,
+        work_type_id=result.work_type_id,
+        work_type_label=result.work_type_label,
         complexity=result.complexity,
         confidence=result.confidence,
         reason_codes=list(result.reason_codes),
@@ -235,7 +271,8 @@ def validate_determiner_role_response(
         "contract": DETERMINER_RESULT_SCHEMA,
         "result_digest": result.digest(),
         "classification": None if result.classification is None else str(result.classification),
-        "work_type": result.work_type,
+        "work_type_id": result.work_type_id,
+        "work_type_label": result.work_type_label,
         "complexity": result.complexity,
         "confidence": result.confidence,
         "question_count": len(result.questions),
@@ -249,6 +286,7 @@ def normalize_determiner_role_response(
     instructions: Mapping[str, Any],
     profile_metadata: Mapping[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Repair only exact, unambiguous Determiner shape drift."""
     taxonomy_raw = instructions.get("taxonomy")
     if not isinstance(taxonomy_raw, Mapping):
         raise RoleContractError(
@@ -256,7 +294,6 @@ def normalize_determiner_role_response(
             "Determiner profile instructions do not contain the configured taxonomy",
         )
     taxonomy = DeterminerTaxonomy.from_mapping(taxonomy_raw)
-    configured_types = set(taxonomy.work_type_ids)
     repairs: list[str] = []
 
     envelope = dict(value)
@@ -269,34 +306,80 @@ def normalize_determiner_role_response(
         payload = dict(envelope)
         envelope = {}
 
-    classification = payload.get("classification")
-    work_type = payload.get("work_type")
-
-    if isinstance(classification, str) and classification in configured_types:
-        if work_type is not None and work_type != classification:
-            raise RoleContractError(
-                "DETERMINER_NORMALIZATION_AMBIGUOUS",
-                "classification names a configured work type but conflicts with work_type",
-                {"classification": classification, "work_type": work_type},
-            )
-        payload["work_type"] = classification
-        payload["classification"] = str(ClassificationStatus.CLASSIFIED)
-        repairs.append("classification_work_type_moved")
-
-    if "classification" not in payload and isinstance(work_type, str) and work_type in configured_types:
-        payload["classification"] = str(ClassificationStatus.CLASSIFIED)
-        repairs.append("classification_added_from_work_type")
-
-    recognized_result = (
-        payload.get("schema_version") == DETERMINER_RESULT_SCHEMA
-        or payload.get("classification") in {
+    classification_raw = payload.get("classification")
+    canonical_classification = (
+        classification_raw
+        if classification_raw in {
             str(ClassificationStatus.CLASSIFIED),
             str(ClassificationStatus.UNKNOWN),
         }
-        or (
-            isinstance(payload.get("work_type"), str)
-            and payload.get("work_type") in configured_types
+        else None
+    )
+
+    candidate_values = []
+    if "work_type_id" in payload:
+        candidate_values.append(("work_type_id", payload.get("work_type_id")))
+    if "work_type" in payload:
+        candidate_values.append(("legacy_work_type", payload.get("work_type")))
+    if classification_raw is not None and canonical_classification is None:
+        candidate_values.append(("classification", classification_raw))
+
+    resolved_candidates: list[tuple[str, str]] = []
+    for source, candidate in candidate_values:
+        resolved = taxonomy.resolve_id(candidate)
+        if resolved is not None:
+            resolved_candidates.append((source, resolved))
+
+    candidate_ids = {item[1] for item in resolved_candidates}
+    if len(candidate_ids) > 1:
+        raise RoleContractError(
+            "DETERMINER_NORMALIZATION_AMBIGUOUS",
+            "response contains conflicting work type identities",
+            {
+                "candidates": [
+                    {"source": source, "work_type_id": work_type_id}
+                    for source, work_type_id in resolved_candidates
+                ]
+            },
         )
+
+    resolved_work_type_id = next(iter(candidate_ids), None)
+
+    if classification_raw is not None and canonical_classification is None:
+        resolved_from_classification = taxonomy.resolve_id(classification_raw)
+        if resolved_from_classification is not None:
+            payload["classification"] = str(ClassificationStatus.CLASSIFIED)
+            canonical_classification = str(ClassificationStatus.CLASSIFIED)
+            repairs.append("classification_work_type_moved_to_id")
+
+    if resolved_work_type_id is not None:
+        if payload.get("work_type_id") != resolved_work_type_id:
+            payload["work_type_id"] = resolved_work_type_id
+            repairs.append("work_type_id_canonicalized")
+        if "work_type" in payload:
+            payload.pop("work_type", None)
+            repairs.append("legacy_work_type_removed")
+        if canonical_classification is None:
+            payload["classification"] = str(ClassificationStatus.CLASSIFIED)
+            canonical_classification = str(ClassificationStatus.CLASSIFIED)
+            repairs.append("classification_added_from_work_type_id")
+
+    if canonical_classification == str(ClassificationStatus.UNKNOWN):
+        if resolved_work_type_id is not None:
+            raise RoleContractError(
+                "DETERMINER_NORMALIZATION_AMBIGUOUS",
+                "UNKNOWN classification conflicts with a configured work type",
+                {"work_type_id": resolved_work_type_id},
+            )
+        payload["work_type_id"] = None
+
+    recognized_result = (
+        payload.get("schema_version") in {DETERMINER_RESULT_SCHEMA, _LEGACY_RESULT_SCHEMA}
+        or canonical_classification in {
+            str(ClassificationStatus.CLASSIFIED),
+            str(ClassificationStatus.UNKNOWN),
+        }
+        or resolved_work_type_id is not None
     )
     questions = payload.get("questions")
     recognized_questions = (
@@ -323,9 +406,9 @@ def normalize_determiner_role_response(
     else:
         envelope["payload"] = payload
 
-    if repairs and payload.get("schema_version") is None and recognized_result:
+    if recognized_result and payload.get("schema_version") != DETERMINER_RESULT_SCHEMA:
         payload["schema_version"] = DETERMINER_RESULT_SCHEMA
-        repairs.append("determiner_schema_added")
+        repairs.append("determiner_schema_upgraded")
 
     return envelope, {
         "changed": bool(repairs),
