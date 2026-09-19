@@ -247,6 +247,20 @@ class PlannerContractTests(unittest.TestCase):
         self.assertEqual(plan.stages[0].stage_id, "S01")
         self.assertEqual(plan.stages[0].passes[0].pass_id, "P01")
 
+    def test_multi_pass_execution_plan(self) -> None:
+        value = _plan()
+        value["plan_type"] = "MULTI_PASS"
+        value["decomposition_reason"] = "The second pass depends on the first pass."
+        value["passes"].append(
+            _pass(
+                "P02",
+                _task("T02", "Run the follow-up verification."),
+                depends_on=["P01"],
+            )
+        )
+        plan = ExecutionPlan.from_mapping(value)
+        self.assertEqual([item.pass_id for item in plan.passes], ["P01", "P02"])
+
     def test_execution_plan_requires_output_directory(self) -> None:
         value = _plan()
         value["workspace"]["output_directory"] = None
