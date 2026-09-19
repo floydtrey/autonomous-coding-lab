@@ -88,25 +88,25 @@ def emit(level: str, component: str, operation: str, event: str, **details: Any)
         return
 
 
-def error(component: str, operation: str, exc: BaseException, **details: Any) -> None:
+def error(component: str, operation_name: str, exc: BaseException, **details: Any) -> None:
     details = dict(details)
     details.update(
         exception_type=type(exc).__name__,
         exception_message=str(exc),
     )
-    emit("ERROR", component, operation, "error", **details)
+    emit("ERROR", component, operation_name, "error", **details)
 
 
 @contextmanager
-def span(component: str, operation: str, **details: Any) -> Iterator[None]:
+def span(component: str, operation_name: str, **details: Any) -> Iterator[None]:
     started = perf_counter()
-    emit("DEBUG", component, operation, "begin", **details)
+    emit("DEBUG", component, operation_name, "begin", **details)
     try:
         yield
     except Exception as exc:
         error(
             component,
-            operation,
+            operation_name,
             exc,
             elapsed_ms=round((perf_counter() - started) * 1000, 3),
             **details,
@@ -116,7 +116,7 @@ def span(component: str, operation: str, **details: Any) -> Iterator[None]:
         emit(
             "DEBUG",
             component,
-            operation,
+            operation_name,
             "success",
             elapsed_ms=round((perf_counter() - started) * 1000, 3),
             **details,
