@@ -506,6 +506,18 @@ class PlannerConsultationService:
             metadata=metadata,
         )
         self.store.create(record)
+        emit(
+            "INFO",
+            self.component,
+            "start",
+            "planner_consultation_started",
+            consultation_id=record.consultation_id,
+            workflow_id=record.workflow_id,
+            plan_id=record.plan_id,
+            pass_id=record.pass_id,
+            max_exchanges=record.max_exchanges,
+            authority_grant_id=record.authority_grant_id,
+        )
         return self.ask(
             record.consultation_id,
             question=question,
@@ -624,6 +636,19 @@ class PlannerConsultationService:
             self.store.save(record)
 
             planner_input = self._planner_input(record, exchange)
+            emit(
+                "INFO",
+                self.component,
+                "ask",
+                "planner_consultation_exchange_started",
+                consultation_id=record.consultation_id,
+                workflow_id=record.workflow_id,
+                exchange_number=exchange_number,
+                exchanges_used=record.exchanges_used,
+                max_exchanges=record.max_exchanges,
+                task_id=exchange.task_id,
+                prior_exchange_count=len(planner_input.consultation.prior_exchanges),
+            )
             response = self.runtime.invoke(
                 PlannerRuntimeRequest(
                     workflow_id=record.workflow_id,
