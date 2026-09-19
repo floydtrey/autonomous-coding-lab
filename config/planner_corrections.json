@@ -1,8 +1,7 @@
 {
   "schema_version": "acl-planner-corrections:v1",
   "repairable_prefixes": [
-    "PLANNER_",
-    "ROLE_"
+    "PLANNER_"
   ],
   "default_instruction": "Your previous Planner response failed deterministic validation. Preserve every valid section and the original user intent. Correct only the identified contract defect and any directly dependent fields. Return one complete corrected acl-planner-result:v1 response, not a patch, explanation, or partial fragment.",
   "repeated_failure_instruction": "The prior correction attempt made no progress: the same validation failure occurred against the same response shape. Do not repeat the previous response. Re-read the error code, location, original request, and accepted routing context; reconstruct the affected section and return one complete corrected acl-planner-result:v1 response.",
@@ -26,5 +25,17 @@
     "NORMALIZATION_INVALID": "The previous model output was not an unambiguous JSON object. Preserve the intended semantic result, but return exactly one complete JSON object matching the shared ACL role envelope and Planner contract. Do not use Markdown fences or prose outside JSON.",
     "RUNTIME_RESPONSE_INVALID": "The runtime returned model content that could not be used as the required structured response. Return exactly one complete JSON object matching the shared ACL role envelope and Planner contract, with no Markdown fence or surrounding prose.",
     "CONTROLLER_ROLE_RESPONSE_INVALID": "The previous response could not pass the shared role/Planner response boundary. Use the supplied failure details to repair the response shape while preserving valid semantic content. Return one complete corrected structured response."
-  }
+  },
+  "non_repairable_codes": [
+    "PLANNER_INPUT_INVALID",
+    "PLANNER_VALIDATION_INPUT_INVALID",
+    "PLANNER_CORRECTION_INVALID",
+    "PLANNER_CORRECTION_POLICY_INVALID",
+    "PLANNER_CORRECTION_POLICY_MISSING",
+    "PLANNER_CORRECTION_FAILURE_INVALID",
+    "PLANNER_CORRECTION_NOT_REPAIRABLE",
+    "PLANNER_ELEVATION_INVALID",
+    "PLANNER_ELEVATION_ANSWER_INVALID",
+    "PLANNER_ELEVATION_ANSWER_CONFLICT"
+  ]
 }
