@@ -69,7 +69,7 @@
     {
       "work_type_id": "9001",
       "label": "GENERAL",
-      "description": "A valid request that does not fit another configured specialized work type closely enough to justify specialized routing.",
+      "description": "A valid request whose primary activity genuinely does not fit another configured specialized work type. GENERAL must not be used merely because the request is ambiguous between two or more specialized routes.",
       "examples": [
         "general reasoning",
         "simple non-specialized assistance"
