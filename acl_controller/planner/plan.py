@@ -187,6 +187,11 @@ class PlannerPlanRecord:
                 "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
                 "semantic_plan must be ExecutionPlan",
             )
+        if not isinstance(self.status, PlannerPlanStatus):
+            raise ControllerError(
+                "CONTROLLER_PLANNER_PLAN_STATE_INVALID",
+                "plan status is invalid",
+            )
         observed_digest = canonical_digest(self.semantic_plan.to_dict())
         if self.semantic_digest != observed_digest:
             raise ControllerError(
@@ -423,6 +428,11 @@ class PlannerPlanService:
         V1 does not support semantic replanning/version increments. Re-intaking
         the identical semantic plan is idempotent; a different plan conflicts.
         """
+        if not isinstance(plan, ExecutionPlan):
+            raise ControllerError(
+                "CONTROLLER_PLANNER_PLAN_INVALID",
+                "plan intake requires ExecutionPlan",
+            )
         with controller_span(
             "planner_plan.intake",
             workflow_id=workflow_id,
@@ -464,6 +474,17 @@ class PlannerPlanService:
                             "requested_digest": digest,
                         },
                     )
+                self.state.transition(
+                    workflow_id,
+                    WorkflowStatus.READY,
+                    stage="plan-ready",
+                    active_action=None,
+                    active_role=None,
+                    active_profile_id=None,
+                    active_attempt_id=None,
+                    waiting_for=None,
+                    blocker=None,
+                )
                 return PlannerPlanIntakeOutcome(
                     plan=current,
                     next_pass=self.next_pass(current.plan_id),
@@ -714,6 +735,23 @@ class PlannerPlanService:
                         "pass_id": pass_id,
                         "existing_status": str(target.status),
                         "requested_status": str(status),
+                    },
+                )
+
+            eligible = self.next_pass(plan_id)
+            if (
+                eligible.status is not PlannerNextPassStatus.READY
+                or eligible.pass_id != pass_id
+            ):
+                raise ControllerError(
+                    "CONTROLLER_PLANNER_PASS_NOT_ELIGIBLE",
+                    "only the deterministic next eligible Pass may change execution state",
+                    {
+                        "plan_id": plan_id,
+                        "requested_pass_id": pass_id,
+                        "next_pass_status": str(eligible.status),
+                        "next_pass_id": eligible.pass_id,
+                        "blocked_by": list(eligible.blocked_by),
                     },
                 )
 
