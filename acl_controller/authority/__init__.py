@@ -1,3 +1,14 @@
+from .filesystem import (
+    FILESYSTEM_AUTHORITY_SCHEMA,
+    FilesystemAuthorityCoordinator,
+    UserProtectedPath,
+)
 from .enforcement import AuthorityCoordinator, JsonGrantStore
 
-__all__ = ["AuthorityCoordinator", "JsonGrantStore"]
+__all__ = [
+    "AuthorityCoordinator",
+    "FILESYSTEM_AUTHORITY_SCHEMA",
+    "FilesystemAuthorityCoordinator",
+    "JsonGrantStore",
+    "UserProtectedPath",
+]
