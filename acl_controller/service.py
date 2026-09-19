@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 from acl_core import AuthorityEnvelope, AuthorityRequest, CoreServices
 from acl_core.diagnostics import emit
+from acl_adapters import AdapterLoader
 
 from .authority import AuthorityCoordinator, JsonGrantStore
 from .clarification import ClarificationRecord, ClarificationService, JsonClarificationStore
@@ -83,6 +84,10 @@ class ControllerService:
             resolved_core = core or CoreServices.create()
             state_root = Path(state_root).expanduser().resolve()
             config_root = Path(config_root).expanduser().resolve()
+            loaded_adapters = AdapterLoader.load_file(
+                resolved_core,
+                config_root / "adapters.json",
+            )
 
             state_service = WorkflowStateService(JsonWorkflowStore(state_root))
             profiles = ProfileResolver(config_root)
@@ -158,6 +163,7 @@ class ControllerService:
                 "controller_created",
                 state_root=str(state_root),
                 config_root=str(config_root),
+                loaded_adapters=list(loaded_adapters),
             )
             return service
 
