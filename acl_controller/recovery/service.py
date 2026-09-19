@@ -18,6 +18,7 @@ from ..configuration import ProfileResolver
 from ..diagnostics import controller_span
 from ..errors import ControllerError
 from ..models import TERMINAL_STATUSES, WorkflowRecord, WorkflowStatus, utc_now
+from ..runtime import SerialRuntimeResidencyService
 from ..state import WorkflowStateService
 from ..workflow import EngineReport, WorkflowEngine
 
@@ -177,12 +178,14 @@ class RecoveryService:
         profiles: ProfileResolver,
         engine: WorkflowEngine,
         stops: JsonStopStore,
+        runtime_residency: SerialRuntimeResidencyService,
     ) -> None:
         self.core = core
         self.state = state
         self.profiles = profiles
         self.engine = engine
         self.stops = stops
+        self.runtime_residency = runtime_residency
 
     def request_stop(self, workflow_id: str, *, requested_by: str) -> StopRecord:
         with controller_span("recovery.request_stop", workflow_id=workflow_id, requested_by=requested_by):
@@ -282,6 +285,12 @@ class RecoveryService:
                 return self.state.read(workflow_id)
 
             profile = self.profiles.profile(workflow.active_profile_id)
+            self.runtime_residency.ensure_recovery_target(
+                workflow_id=workflow.workflow_id,
+                attempt_id=workflow.active_attempt_id,
+                role=workflow.active_role,
+                profile=profile,
+            )
             try:
                 response = self._invoke_role_control(
                     profile.adapter_id,
@@ -297,6 +306,10 @@ class RecoveryService:
             except (ControllerError, CoreError) as exc:
                 if self._can_rerun_unqueryable_attempt(profile.adapter_id, exc):
                     prior_attempt_id = workflow.active_attempt_id
+                    self.runtime_residency.mark_recovery_required(
+                        workflow_id,
+                        attempt_id=prior_attempt_id,
+                    )
                     recovered = self.state.transition(
                         workflow_id,
                         WorkflowStatus.READY,
@@ -341,6 +354,10 @@ class RecoveryService:
             if state == "running":
                 return workflow
             if state in {"cancelled", "stopped"}:
+                self.runtime_residency.complete_role(
+                    workflow_id,
+                    workflow.active_attempt_id,
+                )
                 self.state.transition(
                     workflow_id,
                     WorkflowStatus.CANCELLED,
@@ -358,6 +375,10 @@ class RecoveryService:
             if state == "absent":
                 latest = self.stops.latest_for_workflow(workflow_id)
                 if latest is not None and latest.status is StopStatus.REQUESTED:
+                    self.runtime_residency.complete_role(
+                        workflow_id,
+                        workflow.active_attempt_id,
+                    )
                     self.state.transition(
                         workflow_id,
                         WorkflowStatus.CANCELLED,
@@ -396,6 +417,10 @@ class RecoveryService:
                         workflow_id,
                         response_payload=result,
                     )
+                self.runtime_residency.complete_role(
+                    workflow_id,
+                    workflow.active_attempt_id,
+                )
                 self.state.transition(
                     workflow_id,
                     WorkflowStatus.FAILED,
