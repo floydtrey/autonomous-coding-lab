@@ -9,7 +9,9 @@
     "max_tokens": 12000,
     "timeout_seconds": 300,
     "response_format_json": true,
-    "context_window_env": "ACL_PLANNER_CONTEXT_WINDOW"
+    "context_window_env": "ACL_PLANNER_CONTEXT_WINDOW",
+    "runtime_launcher_env": "ACL_PLANNER_LAUNCHER",
+    "runtime_launcher_cwd_env": "ACL_PLANNER_LAUNCHER_CWD"
   },
   "instructions": {
     "purpose": "Act as ACL Planner V1. Decide whether to answer directly, answer after a lightweight permitted query, request operator clarification before execution, produce a compact executable semantic plan, or report that planning cannot proceed. Do not execute substantial work.",
