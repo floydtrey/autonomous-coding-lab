@@ -207,6 +207,22 @@
           "reason_codes": [],
           "notes": null
         }
+      },
+      "stage_shape": {
+        "stage_id": "S01",
+        "name": "concise milestone name",
+        "objective": "Stage objective",
+        "depends_on": [],
+        "acceptance_criteria": [
+          "observable Stage completion criterion"
+        ],
+        "passes": [
+          "one or more Pass objects using the Pass shape from execution_plan_shape"
+        ]
+      },
+      "filesystem_move_shape": {
+        "source": "source filesystem path",
+        "destination": "destination filesystem path"
       }
     }
   },
