@@ -18,6 +18,7 @@ from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher
 from .gates import GateRecord, GateService, JsonGateStore
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
 from .diagnostics import controller_span
+from .errors import ControllerError
 from .models import ControllerStatus, RequestRecord, WorkflowRecord, WorkflowStatus
 from .routing import ActionRegistry, ActionRequest, ActionResponse
 from .state import JsonWorkflowStore, WorkflowStateService
@@ -265,7 +266,17 @@ class ControllerService:
             complexity=complexity,
             operation=operation,
         ):
-            self.state.read(workflow_id)
+            workflow = self.state.read(workflow_id)
+            if grant_id is not None and workflow.authority_grant_id != grant_id:
+                raise ControllerError(
+                    "CONTROLLER_WORKFLOW_GRANT_MISMATCH",
+                    "role dispatch grant differs from the workflow's active grant",
+                    {
+                        "workflow_id": workflow_id,
+                        "workflow_grant_id": workflow.authority_grant_id,
+                        "requested_grant_id": grant_id,
+                    },
+                )
             profile = self.resolve_profile(
                 role=role,
                 work_type=work_type,
