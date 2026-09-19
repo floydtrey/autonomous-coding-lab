@@ -224,14 +224,21 @@
         "source": "source filesystem path",
         "destination": "destination filesystem path"
       }
-    }
+    },
+    "return_format_rules": [
+      "Return the ACL role envelope itself as the top-level JSON object.",
+      "The top-level keys must be schema_version, status, payload, reference, and metadata.",
+      "Do not return instructional labels such as shared_envelope, planner_result_common, direct_or_query, execution_plan_shape, stage_shape, or filesystem_move_shape as JSON keys around the response.",
+      "Do not wrap the role envelope inside another object."
+    ]
   },
   "tool_profile": null,
   "metadata": {
     "lifecycle": "PL12_MODEL_A",
     "harness_id": "openai-compatible-chat-v1",
     "notes": "Planner Model A uses the provider-neutral OpenAI-compatible adapter. The actual model is selected externally through ACL_PLANNER_MODEL.",
-    "response_validator": "acl_roles.planner.validation:validate_planner_role_response"
+    "response_validator": "acl_roles.planner.validation:validate_planner_role_response",
+    "response_normalizer": "acl_roles.planner.validation:normalize_planner_role_response"
   },
   "instruction_sources": [
     {
