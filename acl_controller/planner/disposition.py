@@ -85,6 +85,7 @@ class PlannerDispositionService:
         *,
         planner_input: PlannerInput,
         response: PlannerRuntimeResponse,
+        authority_grant_id: str | None = None,
     ) -> PlannerDispositionOutcome:
         if not isinstance(planner_input, PlannerInput):
             raise ControllerError(
@@ -179,6 +180,7 @@ class PlannerDispositionService:
                         "planner_input": planner_input.to_objective(),
                         "planner_result": result.to_dict(),
                         "runtime_metadata": dict(response.runtime_metadata),
+                        "authority_grant_id": authority_grant_id,
                     },
                 )
                 outcome = PlannerDispositionOutcome(
