@@ -282,6 +282,18 @@ class PlannerTelemetryService:
 
             details = getattr(error, "details", None)
             if isinstance(details, Mapping):
+                observed_runtime = details.get("runtime_metadata")
+                if isinstance(observed_runtime, Mapping):
+                    runtime_metadata = dict(observed_runtime)
+                    observed_role = runtime_metadata.get("role_metadata")
+                    role_metadata = (
+                        dict(observed_role)
+                        if isinstance(observed_role, Mapping)
+                        else {}
+                    )
+                    observed_adapter = role_metadata.get("adapter_telemetry")
+                    if isinstance(observed_adapter, Mapping):
+                        adapter = dict(observed_adapter)
                 observed = details.get("adapter_telemetry")
                 if isinstance(observed, Mapping):
                     adapter = dict(observed)
