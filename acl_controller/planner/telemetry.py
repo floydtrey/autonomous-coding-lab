@@ -86,6 +86,7 @@ class PlannerTelemetryRecord:
     adapter_id: str | None = None
     runtime_family: str | None = None
     model: str | None = None
+    harness_id: str | None = None
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     total_tokens: int | None = None
@@ -122,6 +123,7 @@ class PlannerTelemetryRecord:
             "adapter_id": self.adapter_id,
             "runtime_family": self.runtime_family,
             "model": self.model,
+            "harness_id": self.harness_id,
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
             "total_tokens": self.total_tokens,
@@ -160,7 +162,11 @@ class PlannerTelemetryRecord:
                 telemetry_id=value["telemetry_id"],
                 workflow_id=value["workflow_id"],
                 invocation_mode=value["invocation_mode"],
-                success=bool(value["success"]),
+                success=(
+                    value["success"]
+                    if isinstance(value["success"], bool)
+                    else (_raise_telemetry_value_error("success must be boolean"))
+                ),
                 disposition=value.get("disposition"),
                 attempt_id=value.get("attempt_id"),
                 backend_id=value.get("backend_id"),
@@ -168,6 +174,7 @@ class PlannerTelemetryRecord:
                 adapter_id=value.get("adapter_id"),
                 runtime_family=value.get("runtime_family"),
                 model=value.get("model"),
+                harness_id=value.get("harness_id"),
                 prompt_tokens=_optional_int(value.get("prompt_tokens")),
                 completion_tokens=_optional_int(value.get("completion_tokens")),
                 total_tokens=_optional_int(value.get("total_tokens")),
@@ -287,6 +294,12 @@ class PlannerTelemetryService:
         role_metadata = dict(role_metadata) if isinstance(role_metadata, Mapping) else {}
         adapter = role_metadata.get("adapter_telemetry")
         adapter = dict(adapter) if isinstance(adapter, Mapping) else {}
+        profile_metadata = runtime_metadata.get("profile_metadata")
+        profile_metadata = (
+            dict(profile_metadata)
+            if isinstance(profile_metadata, Mapping)
+            else {}
+        )
 
         error_code = None
         error_message = None
@@ -338,6 +351,10 @@ class PlannerTelemetryService:
             model=(
                 _text(adapter.get("model"))
                 or _text(runtime_metadata.get("model"))
+            ),
+            harness_id=(
+                _text(profile_metadata.get("harness_id"))
+                or _text(runtime_metadata.get("harness_id"))
             ),
             prompt_tokens=_optional_int(adapter.get("prompt_tokens")),
             completion_tokens=_optional_int(adapter.get("completion_tokens")),
@@ -413,6 +430,33 @@ class PlannerTelemetryService:
     def summary(self, workflow_id: str) -> dict[str, Any]:
         records = self.records(workflow_id)
         successful = tuple(item for item in records if item.success)
+        prompt_values = tuple(
+            item.prompt_tokens for item in records if item.prompt_tokens is not None
+        )
+        completion_values = tuple(
+            item.completion_tokens
+            for item in records
+            if item.completion_tokens is not None
+        )
+        total_values = tuple(
+            item.total_tokens for item in records if item.total_tokens is not None
+        )
+        tool_values = tuple(
+            item.tool_calls for item in records if item.tool_calls is not None
+        )
+        turn_values = tuple(
+            item.turns for item in records if item.turns is not None
+        )
+        planner_time_values = tuple(
+            item.planner_elapsed_ms
+            for item in records
+            if item.planner_elapsed_ms is not None
+        )
+        http_time_values = tuple(
+            item.http_elapsed_ms
+            for item in records
+            if item.http_elapsed_ms is not None
+        )
         return {
             "telemetry_enabled": self.config.enabled,
             "workflow_id": workflow_id,
@@ -425,56 +469,31 @@ class PlannerTelemetryService:
             "consultation_invocations": sum(
                 1 for item in records if item.consultation_id is not None
             ),
-            "prompt_tokens": sum(
-                item.prompt_tokens for item in records if item.prompt_tokens is not None
+            "prompt_tokens": None if not prompt_values else sum(prompt_values),
+            "prompt_token_reports": len(prompt_values),
+            "completion_tokens": (
+                None if not completion_values else sum(completion_values)
             ),
-            "prompt_token_reports": sum(
-                1 for item in records if item.prompt_tokens is not None
+            "completion_token_reports": len(completion_values),
+            "total_tokens": None if not total_values else sum(total_values),
+            "total_token_reports": len(total_values),
+            "planner_elapsed_ms": (
+                None
+                if not planner_time_values
+                else round(sum(planner_time_values), 3)
             ),
-            "completion_tokens": sum(
-                item.completion_tokens
-                for item in records
-                if item.completion_tokens is not None
+            "http_elapsed_ms": (
+                None if not http_time_values else round(sum(http_time_values), 3)
             ),
-            "completion_token_reports": sum(
-                1 for item in records if item.completion_tokens is not None
-            ),
-            "total_tokens": sum(
-                item.total_tokens for item in records if item.total_tokens is not None
-            ),
-            "total_token_reports": sum(
-                1 for item in records if item.total_tokens is not None
-            ),
-            "planner_elapsed_ms": round(
-                sum(
-                    item.planner_elapsed_ms
-                    for item in records
-                    if item.planner_elapsed_ms is not None
-                ),
-                3,
-            ),
-            "http_elapsed_ms": round(
-                sum(
-                    item.http_elapsed_ms
-                    for item in records
-                    if item.http_elapsed_ms is not None
-                ),
-                3,
-            ),
-            "tool_calls": sum(
-                item.tool_calls for item in records if item.tool_calls is not None
-            ),
-            "tool_call_reports": sum(
-                1 for item in records if item.tool_calls is not None
-            ),
-            "turns": sum(
-                item.turns for item in records if item.turns is not None
-            ),
-            "turn_reports": sum(
-                1 for item in records if item.turns is not None
-            ),
+            "tool_calls": None if not tool_values else sum(tool_values),
+            "tool_call_reports": len(tool_values),
+            "turns": None if not turn_values else sum(turn_values),
+            "turn_reports": len(turn_values),
             "models": sorted(
                 {item.model for item in records if item.model is not None}
+            ),
+            "harnesses": sorted(
+                {item.harness_id for item in records if item.harness_id is not None}
             ),
             "adapters": sorted(
                 {item.adapter_id for item in records if item.adapter_id is not None}
@@ -483,6 +502,10 @@ class PlannerTelemetryService:
                 {item.backend_id for item in records if item.backend_id is not None}
             ),
         }
+
+
+def _raise_telemetry_value_error(message: str):
+    raise ValueError(message)
 
 
 def _optional_int(value: Any) -> int | None:
