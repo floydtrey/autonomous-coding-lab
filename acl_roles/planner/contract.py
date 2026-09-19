@@ -864,6 +864,7 @@ class WorkerConsultation:
     task_id: str | None = None
     relevant_reference_ids: tuple[str, ...] = ()
     relevant_evidence: tuple[str, ...] = ()
+    prior_exchanges: tuple[Mapping[str, Any], ...] = ()
 
     def __post_init__(self) -> None:
         _text(self.plan_id, "consultation plan_id")
@@ -883,6 +884,18 @@ class WorkerConsultation:
             "relevant_evidence",
             _text_tuple(self.relevant_evidence, "consultation relevant_evidence"),
         )
+        if not isinstance(self.prior_exchanges, tuple) or any(
+            not isinstance(item, Mapping) for item in self.prior_exchanges
+        ):
+            raise RoleContractError(
+                "PLANNER_CONTRACT_INVALID",
+                "consultation prior_exchanges must contain mappings",
+            )
+        object.__setattr__(
+            self,
+            "prior_exchanges",
+            tuple(dict(item) for item in self.prior_exchanges),
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -894,6 +907,7 @@ class WorkerConsultation:
             "current_state_summary": self.current_state_summary,
             "relevant_reference_ids": list(self.relevant_reference_ids),
             "relevant_evidence": list(self.relevant_evidence),
+            "prior_exchanges": [dict(item) for item in self.prior_exchanges],
         }
 
     @classmethod
@@ -913,6 +927,11 @@ class WorkerConsultation:
             relevant_evidence=_text_tuple(
                 value.get("relevant_evidence", []),
                 "consultation relevant_evidence",
+            ),
+            prior_exchanges=tuple(
+                dict(item)
+                for item in value.get("prior_exchanges", [])
+                if isinstance(item, Mapping)
             ),
         )
 
