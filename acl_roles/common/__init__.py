@@ -4,7 +4,7 @@ from .errors import RoleContractError
 from .instructions import InstructionSet
 from .request import RoleRequest
 from .response import RoleResponse, RoleStatus
-from .validation import validate_configured_response
+from .validation import normalize_configured_response, validate_configured_response
 
 __all__ = [
     "ContextReference",
@@ -15,5 +15,6 @@ __all__ = [
     "RoleRequest",
     "RoleResponse",
     "RoleStatus",
+    "normalize_configured_response",
     "validate_configured_response",
 ]
