@@ -11,12 +11,19 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from acl_core import AuthorityEnvelope, AuthorityRequest, CoreServices, FilesystemOperation
-from acl_roles.planner import PlannerInput, PlannerRuntimeRequest, PlannerRuntimeResponse, PlannerRuntimeService
+from acl_roles.planner import (
+    PlannerInput,
+    PlannerResult,
+    PlannerRuntimeRequest,
+    PlannerRuntimeResponse,
+    PlannerRuntimeService,
+    resume_planner_input,
+)
 from acl_core.diagnostics import emit
 from acl_adapters import AdapterLoader
 
 from .authority import AuthorityCoordinator, FilesystemAuthorityCoordinator, JsonGrantStore
-from .clarification import ClarificationRecord, ClarificationService, JsonClarificationStore
+from .clarification import ClarificationRecord, ClarificationService, ClarificationStatus, JsonClarificationStore
 from .configuration import ProfileResolver, ProfileSelector, RoleProfile
 from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher
 from .gates import GateRecord, GateService, JsonGateStore
@@ -305,6 +312,83 @@ class ControllerService:
             workflow_id,
             planner_input=planner_input,
             response=response,
+            authority_grant_id=grant_id,
+        )
+
+    def resume_planner_elevation(
+        self,
+        clarification_id: str,
+        *,
+        answer: Mapping[str, Any],
+        answered_by: str,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> PlannerDispositionOutcome:
+        """Answer a Planner elevation and resume the same Planner invocation."""
+        current = self.clarification.read(clarification_id)
+        context = current.context
+        if context.get("kind") != "planner_elevation":
+            raise ControllerError(
+                "CONTROLLER_PLANNER_ELEVATION_INVALID",
+                "clarification is not a Planner elevation",
+                {"clarification_id": clarification_id},
+            )
+
+        try:
+            original = PlannerInput.from_mapping(context["planner_input"])
+            elevation = PlannerResult.from_mapping(context["planner_result"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ControllerError(
+                "CONTROLLER_PLANNER_ELEVATION_INVALID",
+                "Planner elevation context is incomplete or malformed",
+                {"clarification_id": clarification_id},
+            ) from exc
+
+        resumed_input = resume_planner_input(
+            original,
+            elevation,
+            answer,
+        )
+
+        if current.status is ClarificationStatus.PENDING:
+            self.answer_clarification(
+                clarification_id,
+                answer=dict(answer),
+                answered_by=answered_by,
+            )
+        elif current.status is ClarificationStatus.ANSWERED:
+            if dict(current.answer or {}) != dict(answer):
+                raise ControllerError(
+                    "CONTROLLER_CLARIFICATION_ANSWER_CONFLICT",
+                    "Planner elevation is already answered with a different response",
+                    {
+                        "clarification_id": clarification_id,
+                        "recorded_answer": dict(current.answer or {}),
+                        "requested_answer": dict(answer),
+                    },
+                )
+        else:
+            raise ControllerError(
+                "CONTROLLER_PLANNER_ELEVATION_NOT_RESUMABLE",
+                "Planner elevation cannot be resumed from its current state",
+                {
+                    "clarification_id": clarification_id,
+                    "status": str(current.status),
+                },
+            )
+
+        grant_id = context.get("authority_grant_id")
+        if grant_id is not None and not isinstance(grant_id, str):
+            raise ControllerError(
+                "CONTROLLER_PLANNER_ELEVATION_INVALID",
+                "stored Planner authority grant ID is invalid",
+                {"clarification_id": clarification_id},
+            )
+
+        return self.run_planner(
+            current.workflow_id,
+            planner_input=resumed_input,
+            grant_id=grant_id,
+            metadata=metadata,
         )
 
     def create_workflow(
