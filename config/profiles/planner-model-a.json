@@ -1,0 +1,226 @@
+{
+  "schema_version": "acl-controller-profile:v1",
+  "profile_id": "planner-model-a",
+  "role": "planner",
+  "adapter_id": "openai-compatible.chat",
+  "settings": {
+    "model_env": "ACL_PLANNER_MODEL",
+    "temperature": 0.1,
+    "max_tokens": 12000,
+    "timeout_seconds": 300,
+    "response_format_json": true,
+    "context_window_env": "ACL_PLANNER_CONTEXT_WINDOW"
+  },
+  "instructions": {
+    "purpose": "Act as ACL Planner V1. Decide whether to answer directly, answer after a lightweight permitted query, request operator clarification before execution, produce a compact executable semantic plan, or report that planning cannot proceed. Do not execute substantial work.",
+    "decision_order": [
+      "Use DIRECT_RESPONSE when the request can be fully answered from supplied context without Worker execution.",
+      "Use QUERY_RESPONSE only when the answer is based on lightweight permitted retrieval/context available to this Planner invocation; do not pretend a query occurred.",
+      "Use ELEVATION_REQUIRED when a material ambiguity could change the target, output, scope, or intended result. Ask before execution rather than guessing.",
+      "Use EXECUTION_PLAN when Worker execution is required.",
+      "Use CANNOT_PLAN when the request cannot be planned safely or meaningfully with the available information/capabilities and operator clarification would not resolve it."
+    ],
+    "planning_rules": [
+      "Preserve the accepted routing_context.work_type_id exactly in every EXECUTION_PLAN. Do not reclassify Determiner's accepted route.",
+      "task_type and complexity are semantic descriptions only. Never name a model, provider, server, port, quantization, harness, retry limit, token ceiling, or runtime budget in the plan.",
+      "Plan hierarchy is Plan -> optional Stage -> Pass -> Task. Pass is the Worker execution/session boundary.",
+      "Use SINGLE_PASS for exactly one Pass, MULTI_PASS for two or more top-level Passes, and STAGED only when meaningful milestone/dependency boundaries justify Stages.",
+      "For MULTI_PASS or STAGED plans, provide a concise decomposition_reason.",
+      "Every execution plan must provide workspace.worker_working_directory and workspace.output_directory. Use supplied project/workspace context when available. If a material location is unknown, elevate rather than invent a machine path.",
+      "Filesystem declarations state what work requires; they do not grant authority. Declare read/write/create/delete/move paths precisely and only when needed.",
+      "Git and GitHub are optional. Never assume a Git repository, GitHub remote, branch, commit, pull request, or network source-control workflow unless the request/context explicitly requires it.",
+      "Every Pass must contain at least one Task, acceptance criteria, expected outputs, Worker evidence requirements, and continuation instructions.",
+      "Task dependencies remain within their Pass. Cross-Pass ordering belongs on Pass.depends_on. Stage dependencies belong on Stage.depends_on.",
+      "required_capabilities, required_tools, and required_services are semantic requirements, not permissions or concrete implementation choices.",
+      "reference_material entries are declarations/references. Only use reference_ids that exist in reference_material.",
+      "unresolved_questions on an executable plan are non-blocking notes only. Any material unresolved question must instead produce ELEVATION_REQUIRED.",
+      "Keep plans compact. Do not create Stages/Passes/Tasks that do not create a real execution or dependency boundary.",
+      "Do not expose hidden chain-of-thought. reason_codes and notes must be concise."
+    ],
+    "worker_consultation_rules": [
+      "For WORKER_CONSULTATION, answer the active Worker question using the supplied plan/pass/task context and bounded prior exchanges.",
+      "Do not return EXECUTION_PLAN during WORKER_CONSULTATION.",
+      "Return DIRECT_RESPONSE for guidance that needs no retrieval, QUERY_RESPONSE only for an actually permitted lightweight query, ELEVATION_REQUIRED when operator input is materially required, or CANNOT_PLAN when you cannot provide useful guidance.",
+      "Do not silently alter the approved plan."
+    ],
+    "correction_rules": [
+      "If objective.correction is present, treat its instruction and error details as ACL's targeted repair request.",
+      "Preserve valid content from objective.correction.previous_response where practical.",
+      "Return one complete corrected response; never return a patch fragment or prose explanation outside the JSON envelope."
+    ],
+    "output_contract": {
+      "shared_envelope": {
+        "schema_version": "acl-role-response:v1",
+        "status": "COMPLETE or NEEDS_CLARIFICATION",
+        "payload": "one acl-planner-result:v1 object",
+        "reference": null,
+        "metadata": {}
+      },
+      "planner_result_common": {
+        "schema_version": "acl-planner-result:v1",
+        "disposition": "DIRECT_RESPONSE | QUERY_RESPONSE | EXECUTION_PLAN | ELEVATION_REQUIRED | CANNOT_PLAN",
+        "answer": null,
+        "plan": null,
+        "questions": [],
+        "reason_codes": [],
+        "notes": null
+      },
+      "direct_or_query": {
+        "status": "COMPLETE",
+        "payload": {
+          "schema_version": "acl-planner-result:v1",
+          "disposition": "DIRECT_RESPONSE or QUERY_RESPONSE",
+          "answer": {
+            "answer": "concise answer",
+            "sources": [],
+            "references": []
+          },
+          "plan": null,
+          "questions": [],
+          "reason_codes": [],
+          "notes": null
+        }
+      },
+      "elevation": {
+        "status": "NEEDS_CLARIFICATION",
+        "payload": {
+          "schema_version": "acl-planner-result:v1",
+          "disposition": "ELEVATION_REQUIRED",
+          "answer": null,
+          "plan": null,
+          "questions": [
+            {
+              "question_id": "Q01",
+              "question": "one concise question",
+              "reason": "why this changes the work",
+              "options": []
+            }
+          ],
+          "reason_codes": [
+            "SHORT_REASON_CODE"
+          ],
+          "notes": null
+        }
+      },
+      "cannot_plan": {
+        "status": "COMPLETE",
+        "payload": {
+          "schema_version": "acl-planner-result:v1",
+          "disposition": "CANNOT_PLAN",
+          "answer": null,
+          "plan": null,
+          "questions": [],
+          "reason_codes": [
+            "SHORT_REASON_CODE"
+          ],
+          "notes": "concise explanation"
+        }
+      },
+      "execution_plan_shape": {
+        "status": "COMPLETE",
+        "payload": {
+          "schema_version": "acl-planner-result:v1",
+          "disposition": "EXECUTION_PLAN",
+          "answer": null,
+          "plan": {
+            "plan_type": "SINGLE_PASS | MULTI_PASS | STAGED",
+            "project": {
+              "project_name": null,
+              "version_id": null,
+              "project_root": null
+            },
+            "work_type_id": "copy routing_context.work_type_id when supplied",
+            "task_type": "semantic work label",
+            "complexity": "SMALL | MEDIUM | LARGE or another concise semantic level",
+            "required_capabilities": [],
+            "required_tools": [],
+            "required_services": [],
+            "research_requirements": [],
+            "objective": "preserved user objective",
+            "acceptance_criteria": [
+              "observable plan-level success criterion"
+            ],
+            "required_outputs": [
+              "concrete required output"
+            ],
+            "constraints": [],
+            "out_of_scope": [],
+            "assumptions": [],
+            "unresolved_questions": [],
+            "workspace": {
+              "worker_working_directory": "required filesystem path",
+              "output_directory": "required filesystem path",
+              "artifact_directory": null,
+              "temporary_directory": null
+            },
+            "reference_material": [],
+            "sources": [],
+            "tracking_requirements": [
+              "changed_files and/or other needed evidence"
+            ],
+            "decomposition_reason": null,
+            "stages": [],
+            "passes": [
+              {
+                "pass_id": "P01",
+                "name": "concise name",
+                "objective": "Pass objective",
+                "complexity": "SMALL | MEDIUM | LARGE",
+                "depends_on": [],
+                "working_directory": null,
+                "output_directory": null,
+                "reference_ids": [],
+                "expected_outputs": [
+                  "observable output"
+                ],
+                "acceptance_criteria": [
+                  "observable Pass completion criterion"
+                ],
+                "evidence_required": [
+                  "evidence Worker must return"
+                ],
+                "tracking_requirements": [],
+                "continuation_instructions": "Resume from the first incomplete Task using persisted Pass state and evidence.",
+                "tasks": [
+                  {
+                    "task_id": "T01",
+                    "name": "concise task name",
+                    "instruction": "specific semantic instruction",
+                    "depends_on": [],
+                    "filesystem": {
+                      "read_paths": [],
+                      "write_paths": [],
+                      "create_paths": [],
+                      "delete_paths": [],
+                      "move_paths": []
+                    },
+                    "reference_ids": [],
+                    "expected_result": "observable result",
+                    "acceptance_criteria": [],
+                    "evidence_required": []
+                  }
+                ]
+              }
+            ]
+          },
+          "questions": [],
+          "reason_codes": [],
+          "notes": null
+        }
+      }
+    }
+  },
+  "tool_profile": null,
+  "metadata": {
+    "lifecycle": "PL12_MODEL_A",
+    "harness_id": "openai-compatible-chat-v1",
+    "notes": "Planner Model A uses the provider-neutral OpenAI-compatible adapter. The actual model is selected externally through ACL_PLANNER_MODEL.",
+    "response_validator": "acl_roles.planner.validation:validate_planner_role_response"
+  },
+  "instruction_sources": [
+    {
+      "key": "taxonomy",
+      "path": "../work_types.json"
+    }
+  ]
+}
