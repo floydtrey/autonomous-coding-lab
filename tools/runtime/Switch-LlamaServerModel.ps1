@@ -97,7 +97,10 @@ $Args += @(
     "--parallel", "$Parallel",
     "--flash-attn", $FlashAttention,
     "--cont-batching",
+    "--fit", "on",
     "--reasoning", $Reasoning,
+    "--no-reasoning-preserve",
+    "--reasoning-budget", "0",
     "--temp", "$Temperature",
     "--no-mmproj"
 )
