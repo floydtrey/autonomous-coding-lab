@@ -36,28 +36,40 @@ class PlannerTelemetryConfig:
         path = Path(path).expanduser().resolve()
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
-        except FileNotFoundError as exc:
-            raise ControllerError(
-                "CONTROLLER_PLANNER_TELEMETRY_CONFIG_MISSING",
-                "Planner telemetry configuration is missing",
-                {"path": str(path)},
-            ) from exc
+        except FileNotFoundError:
+            emit(
+                "ERROR",
+                "controller.planner.telemetry",
+                "load_config",
+                "planner_telemetry_config_missing",
+                path=str(path),
+            )
+            return cls(enabled=False)
         except (OSError, json.JSONDecodeError) as exc:
-            raise ControllerError(
-                "CONTROLLER_PLANNER_TELEMETRY_CONFIG_INVALID",
-                "Planner telemetry configuration cannot be read",
-                {"path": str(path)},
-            ) from exc
+            emit(
+                "ERROR",
+                "controller.planner.telemetry",
+                "load_config",
+                "planner_telemetry_config_invalid",
+                path=str(path),
+                exception_type=type(exc).__name__,
+                exception_message=str(exc),
+            )
+            return cls(enabled=False)
         if (
             not isinstance(value, Mapping)
             or value.get("schema_version") != PLANNER_TELEMETRY_CONFIG_SCHEMA
             or not isinstance(value.get("enabled"), bool)
         ):
-            raise ControllerError(
-                "CONTROLLER_PLANNER_TELEMETRY_CONFIG_INVALID",
-                "Planner telemetry configuration schema is invalid",
-                {"path": str(path)},
+            emit(
+                "ERROR",
+                "controller.planner.telemetry",
+                "load_config",
+                "planner_telemetry_config_invalid",
+                path=str(path),
+                reason="schema",
             )
+            return cls(enabled=False)
         return cls(enabled=value["enabled"])
 
 
@@ -335,7 +347,20 @@ class PlannerTelemetryService:
             error_message=error_message,
             runtime_metadata=runtime_metadata,
         )
-        self.store.save(record)
+        try:
+            self.store.save(record)
+        except Exception as exc:
+            emit(
+                "ERROR",
+                self.component,
+                "record",
+                "planner_telemetry_persist_failed",
+                workflow_id=request.workflow_id,
+                telemetry_id=record.telemetry_id,
+                exception_type=type(exc).__name__,
+                exception_message=str(exc),
+            )
+            return None
         emit(
             "INFO" if record.success else "ERROR",
             self.component,
