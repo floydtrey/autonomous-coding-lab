@@ -713,6 +713,9 @@ class ControllerService:
             reason=reason,
         )
 
+    def runtime_checkpoint(self, workflow_id: str):
+        return self.runtime_residency.checkpoint(workflow_id)
+
     def planner_telemetry_records(self, workflow_id: str):
         return self.planner_telemetry.records(workflow_id)
 
