@@ -12,6 +12,8 @@ from typing import Any, Mapping
 
 from acl_core import AuthorityEnvelope, AuthorityRequest, CoreServices, FilesystemOperation
 from acl_roles.planner import (
+    ExecutionPlan,
+    PlannerDisposition,
     PlannerInput,
     PlannerResult,
     PlannerRuntimeRequest,
@@ -38,6 +40,7 @@ from .planner import (
     PlannerConsultationService,
     PlannerDispositionOutcome,
     PlannerDispositionService,
+    PlannerOutcomeStatus,
     PlannerNextPass,
     PlannerPlanIntakeOutcome,
     PlannerPlanRecord,
@@ -509,7 +512,7 @@ class ControllerService:
         self,
         workflow_id: str,
         *,
-        plan,
+        plan: ExecutionPlan,
         metadata: Mapping[str, Any] | None = None,
     ) -> PlannerPlanIntakeOutcome:
         """Persist an accepted Planner execution plan without starting a Worker."""
@@ -526,10 +529,14 @@ class ControllerService:
         metadata: Mapping[str, Any] | None = None,
     ) -> PlannerPlanIntakeOutcome:
         """Persist a PLAN_READY outcome returned by run_planner()."""
-        if outcome.plan is None:
+        if (
+            outcome.status is not PlannerOutcomeStatus.PLAN_READY
+            or outcome.disposition is not PlannerDisposition.EXECUTION_PLAN
+            or outcome.plan is None
+        ):
             raise ControllerError(
                 "CONTROLLER_PLANNER_PLAN_MISSING",
-                "Planner disposition outcome does not contain an execution plan",
+                "Planner disposition outcome is not a PLAN_READY execution plan",
                 {
                     "workflow_id": outcome.workflow_id,
                     "outcome_status": str(outcome.status),
