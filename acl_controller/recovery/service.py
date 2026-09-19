@@ -178,7 +178,7 @@ class RecoveryService:
         profiles: ProfileResolver,
         engine: WorkflowEngine,
         stops: JsonStopStore,
-        runtime_residency: SerialRuntimeResidencyService,
+        runtime_residency: SerialRuntimeResidencyService | None = None,
     ) -> None:
         self.core = core
         self.state = state
@@ -285,12 +285,13 @@ class RecoveryService:
                 return self.state.read(workflow_id)
 
             profile = self.profiles.profile(workflow.active_profile_id)
-            self.runtime_residency.ensure_recovery_target(
-                workflow_id=workflow.workflow_id,
-                attempt_id=workflow.active_attempt_id,
-                role=workflow.active_role,
-                profile=profile,
-            )
+            if self.runtime_residency is not None:
+                self.runtime_residency.ensure_recovery_target(
+                    workflow_id=workflow.workflow_id,
+                    attempt_id=workflow.active_attempt_id,
+                    role=workflow.active_role,
+                    profile=profile,
+                )
             try:
                 response = self._invoke_role_control(
                     profile.adapter_id,
@@ -306,10 +307,11 @@ class RecoveryService:
             except (ControllerError, CoreError) as exc:
                 if self._can_rerun_unqueryable_attempt(profile.adapter_id, exc):
                     prior_attempt_id = workflow.active_attempt_id
-                    self.runtime_residency.mark_recovery_required(
-                        workflow_id,
-                        attempt_id=prior_attempt_id,
-                    )
+                    if self.runtime_residency is not None:
+                        self.runtime_residency.mark_recovery_required(
+                            workflow_id,
+                            attempt_id=prior_attempt_id,
+                        )
                     recovered = self.state.transition(
                         workflow_id,
                         WorkflowStatus.READY,
@@ -354,10 +356,12 @@ class RecoveryService:
             if state == "running":
                 return workflow
             if state in {"cancelled", "stopped"}:
-                self.runtime_residency.complete_role(
-                    workflow_id,
-                    workflow.active_attempt_id,
-                )
+                if self.runtime_residency is not None:
+                    if self.runtime_residency is not None:
+                        self.runtime_residency.complete_role(
+                            workflow_id,
+                            workflow.active_attempt_id,
+                        )
                 self.state.transition(
                     workflow_id,
                     WorkflowStatus.CANCELLED,
