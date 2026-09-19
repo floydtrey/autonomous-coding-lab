@@ -149,7 +149,10 @@ class ProfileResolver:
     def _load_profile(self, profile_id: str) -> RoleProfile:
         if not isinstance(profile_id, str) or not profile_id.strip() or any(ch in profile_id for ch in "\\/:"):
             raise ControllerError("CONTROLLER_PROFILE_INVALID", "profile ID is invalid")
-        profile = RoleProfile.from_mapping(self._read_json(self.root / "profiles" / f"{profile_id}.json"))
+        profile_path = self.root / "profiles" / f"{profile_id}.json"
+        raw_profile = self._read_json(profile_path)
+        raw_profile = self._resolve_instruction_sources(raw_profile, profile_path=profile_path)
+        profile = RoleProfile.from_mapping(raw_profile)
         if profile.profile_id != profile_id:
             raise ControllerError(
                 "CONTROLLER_PROFILE_ID_MISMATCH",
