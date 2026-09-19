@@ -219,11 +219,23 @@ class WorkflowEngine:
     ) -> EngineReport:
         with controller_span("workflow.consume_recovered_role_response", workflow_id=workflow_id):
             workflow = self.state.read(workflow_id)
-            if workflow.status is not WorkflowStatus.RUNNING or workflow.active_attempt_id is None:
+            recoverable_status = (
+                workflow.status is WorkflowStatus.RUNNING
+                or (
+                    workflow.status is WorkflowStatus.WAITING
+                    and isinstance(workflow.waiting_for, str)
+                    and workflow.waiting_for.startswith("stop:")
+                )
+            )
+            if not recoverable_status or workflow.active_attempt_id is None:
                 raise ControllerError(
                     "CONTROLLER_RECOVERY_INVALID",
-                    "workflow has no active role execution to recover",
-                    {"workflow_id": workflow_id, "status": str(workflow.status)},
+                    "workflow has no recoverable active role execution",
+                    {
+                        "workflow_id": workflow_id,
+                        "status": str(workflow.status),
+                        "waiting_for": workflow.waiting_for,
+                    },
                 )
             if workflow.program_id is None:
                 raise ControllerError("CONTROLLER_PROGRAM_MISSING", "workflow has no bound program")
