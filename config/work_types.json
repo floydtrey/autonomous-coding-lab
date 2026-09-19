@@ -19,7 +19,7 @@
     {
       "work_type_id": "2843",
       "label": "RESEARCH",
-      "description": "Gather, compare, verify, synthesize, or analyze information from sources when the primary output is knowledge rather than a document artifact.",
+      "description": "Compare, investigate, verify, synthesize, or analyze information when the primary activity is research or evaluation. Comparison and analytical evaluation route here even when the eventual answer will be written as a report or recommendation.",
       "examples": [
         "compare AI models",
         "research current software options",
@@ -29,7 +29,7 @@
     {
       "work_type_id": "4602",
       "label": "DOCUMENT",
-      "description": "Create, edit, transform, summarize, extract from, or analyze document-like content where the document or written artifact is the main object of work.",
+      "description": "Create, edit, summarize, extract from, or transform document-like content when an existing document or the document artifact itself is the primary object of work.",
       "examples": [
         "summarize a PDF",
         "rewrite a report",
