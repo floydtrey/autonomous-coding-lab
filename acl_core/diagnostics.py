@@ -57,7 +57,7 @@ def config() -> DiagnosticConfig:
     return _config
 
 
-def emit(level: str, component: str, operation: str, event: str, **details: Any) -> None:
+def emit(level: str, component: str, operation_name: str, event: str, **details: Any) -> None:
     cfg = _config
     level = level.upper()
     if not cfg.enabled or _LEVELS.get(level, 999) < _LEVELS[cfg.level]:
@@ -66,7 +66,7 @@ def emit(level: str, component: str, operation: str, event: str, **details: Any)
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
         "level": level,
         "component": component,
-        "operation": operation,
+        "operation": operation_name,
         "event": event,
         "correlation": current_correlation().to_dict(),
         "details": details,
