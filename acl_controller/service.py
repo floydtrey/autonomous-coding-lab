@@ -205,6 +205,7 @@ class ControllerService:
                 ),
                 telemetry=planner_telemetry,
                 correction_policy=planner_correction_policy,
+                runtime_residency=runtime_residency,
             )
             planner_plan = PlannerPlanService(
                 state=state_service,
