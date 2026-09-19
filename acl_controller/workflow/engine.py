@@ -248,7 +248,7 @@ class WorkflowEngine:
                 ),
                 attempt_id=workflow.active_attempt_id,
             )
-            response = self.role_dispatch._parse_response(fake_request, normalized)
+            response = self.role_dispatch.parse_response(fake_request, normalized)
             result = self._persist_result(
                 workflow=workflow,
                 program=program,
