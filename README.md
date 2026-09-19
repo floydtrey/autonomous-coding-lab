@@ -142,3 +142,47 @@ Still not implemented:
 - concrete provider/harness adapters;
 - user interface;
 - dedicated test campaign.
+
+
+## Roles Foundation Pass
+
+The first AI-role pass establishes only the shared role contract and diagnostics.
+It does not implement Determiner, Planner, Worker, Reviewer, or Validator behavior.
+
+Implemented under `acl_roles/common/`:
+
+- canonical `RoleRequest` envelope;
+- canonical `RoleResponse` envelope;
+- shared `RoleStatus` values;
+- provider-neutral context references;
+- externally supplied instruction-set identity/digests;
+- authority-grant identity and available tool IDs in the model-facing request;
+- adapter-only trusted authority envelope kept separate from the model request;
+- common request/response digests and byte counts;
+- instruction/context/tool/profile/adapter diagnostics;
+- explicit response parse-error and adapter-error diagnostics;
+- optional raw deep-debug request/response artifacts.
+
+Raw role payloads are **not** written to the normal diagnostic log. Full request
+and response artifacts are stored only when explicitly enabled:
+
+- `ACL_ROLE_DEBUG_ARTIFACTS=1`
+- `ACL_ROLE_DEBUG_PATH=<path>`
+
+This keeps ordinary DEBUG logging detailed without automatically persisting full
+prompt/context content.
+
+Controller role dispatch now consumes the shared role contract rather than owning
+a separate role-status/parser definition.
+
+### Next pass — Determiner foundation
+
+The next pass is deliberately limited to:
+
+1. Determiner input/output contract;
+2. Determiner instructions;
+3. externally configured work-type taxonomy;
+4. Determiner profile/configuration skeleton.
+
+It will **not** yet add a concrete runtime/provider adapter or perform live model
+runs. Those belong to the following Determiner integration pass.
