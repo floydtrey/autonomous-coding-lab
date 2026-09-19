@@ -68,12 +68,23 @@ class ControllerPlannerRuntimeBackend:
                 metadata=dict(dispatched.metadata),
             )
             result = parse_planner_role_response(common_response)
+            adapter_telemetry = dispatched.metadata.get("adapter_telemetry")
+            adapter_telemetry = (
+                dict(adapter_telemetry)
+                if isinstance(adapter_telemetry, dict)
+                else {}
+            )
             return PlannerRuntimeResponse(
                 result=result,
                 runtime_metadata={
                     "backend_id": self.backend_id,
                     "attempt_id": dispatched.attempt_id,
                     "profile_id": dispatched.profile_id,
+                    "adapter_id": profile.adapter_id,
+                    "tool_profile": profile.tool_profile,
+                    "profile_metadata": dict(profile.metadata),
+                    "model": adapter_telemetry.get("model"),
+                    "runtime_family": adapter_telemetry.get("runtime_family"),
                     "reference": dispatched.reference,
                     "role_metadata": dict(dispatched.metadata),
                 },
