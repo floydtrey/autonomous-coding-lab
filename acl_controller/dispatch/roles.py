@@ -108,7 +108,7 @@ class RoleDispatcher:
         self,
         core: CoreServices,
         *,
-        residency: SerialRuntimeResidencyService,
+        residency: SerialRuntimeResidencyService | None = None,
     ) -> None:
         self.core = core
         self.residency = residency
@@ -134,14 +134,20 @@ class RoleDispatcher:
                         "profile_role": request.profile.role,
                     },
                 )
-            lease = self.residency.prepare_role(
-                workflow_id=request.workflow_id,
-                attempt_id=request.attempt_id,
-                role=request.role,
-                profile=request.profile,
+            lease = (
+                None
+                if self.residency is None
+                else self.residency.prepare_role(
+                    workflow_id=request.workflow_id,
+                    attempt_id=request.attempt_id,
+                    role=request.role,
+                    profile=request.profile,
+                )
             )
             role_request = request.to_role_request(
-                execution_overrides=lease.execution_overrides,
+                execution_overrides=(
+                    None if lease is None else lease.execution_overrides
+                ),
             )
             RoleDiagnostics.invocation(
                 role_request,
@@ -364,10 +370,11 @@ class RoleDispatcher:
                         "role_validation": validation,
                     },
                 )
-            self.residency.response_received(
-                request.workflow_id,
-                request.attempt_id,
-            )
+            if self.residency is not None:
+                self.residency.response_received(
+                    request.workflow_id,
+                    request.attempt_id,
+                )
             RoleDiagnostics.response(
                 role_request,
                 common_response,
@@ -391,10 +398,11 @@ class RoleDispatcher:
             return role_response
 
     def complete_runtime(self, workflow_id: str, attempt_id: str) -> None:
-        self.residency.complete_role(workflow_id, attempt_id)
+        if self.residency is not None:
+            self.residency.complete_role(workflow_id, attempt_id)
 
     def runtime_checkpoint(self, workflow_id: str):
-        return self.residency.checkpoint(workflow_id)
+        return None if self.residency is None else self.residency.checkpoint(workflow_id)
 
     @staticmethod
     def from_common_response(
