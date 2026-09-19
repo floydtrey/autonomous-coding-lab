@@ -1,3 +1,16 @@
+from .plan import (
+    PLAN_STATE_SCHEMA,
+    PLAN_VERSION,
+    JsonPlannerPlanStore,
+    PlannerNextPass,
+    PlannerNextPassStatus,
+    PlannerPassState,
+    PlannerPassStatus,
+    PlannerPlanIntakeOutcome,
+    PlannerPlanRecord,
+    PlannerPlanService,
+    PlannerPlanStatus,
+)
 from .consultation import (
     CONSULTATION_CONFIG_SCHEMA,
     JsonPlannerConsultationStore,
@@ -18,6 +31,17 @@ from .runtime import ControllerPlannerRuntimeBackend, require_planner_runtime_ba
 
 __all__ = [
     "CONSULTATION_CONFIG_SCHEMA",
+    "PLAN_STATE_SCHEMA",
+    "PLAN_VERSION",
+    "JsonPlannerPlanStore",
+    "PlannerNextPass",
+    "PlannerNextPassStatus",
+    "PlannerPassState",
+    "PlannerPassStatus",
+    "PlannerPlanIntakeOutcome",
+    "PlannerPlanRecord",
+    "PlannerPlanService",
+    "PlannerPlanStatus",
     "ControllerPlannerRuntimeBackend",
     "JsonPlannerConsultationStore",
     "PlannerConsultationConfig",
