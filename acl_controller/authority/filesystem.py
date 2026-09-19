@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+import acl_core
+
 from acl_core import (
     FilesystemAuthorityService,
     FilesystemDecision,
@@ -74,11 +76,23 @@ class FilesystemAuthorityCoordinator:
         policy_path = config_root / "filesystem_authority.json"
         protected = cls._load_user_protections(policy_path)
 
+        core_package_root = Path(acl_core.__file__).resolve().parent
+        controller_package_root = Path(__file__).resolve().parents[1]
         service = FilesystemAuthorityService.for_acl(
             project_root=project_root,
             state_root=state_root,
             control_config_root=config_root,
             authority_config_path=policy_path,
+            permanent_acl_paths=(
+                (
+                    core_package_root,
+                    "ACL Core is permanently protected from Worker mutation",
+                ),
+                (
+                    controller_package_root,
+                    "ACL Controller is permanently protected from Worker mutation",
+                ),
+            ),
             user_protected_paths=((item.path, item.reason) for item in protected),
         )
         return cls(service=service, policy_path=policy_path)
