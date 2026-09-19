@@ -319,9 +319,9 @@ class ControllerService:
         try:
             response = self.planner_runtime.invoke(runtime_request)
         except Exception as exc:
-            self.planner_telemetry.record(runtime_request, error=exc)
+            self.planner_telemetry.record_safely(runtime_request, error=exc)
             raise
-        self.planner_telemetry.record(runtime_request, response=response)
+        self.planner_telemetry.record_safely(runtime_request, response=response)
         return response
 
     def run_planner(
