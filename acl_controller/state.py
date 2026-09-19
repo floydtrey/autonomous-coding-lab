@@ -7,12 +7,15 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Mapping, Protocol
 
-from acl_core import canonical
+from acl_core.canonical import canonical_json
 from acl_core.diagnostics import emit
 
 from .diagnostics import controller_span
 from .errors import ControllerError
 from .models import ResultReference, TERMINAL_STATUSES, WorkflowRecord, WorkflowStatus
+
+
+_UNCHANGED = object()
 
 
 _ALLOWED_TRANSITIONS: dict[WorkflowStatus, frozenset[WorkflowStatus]] = {
@@ -103,7 +106,7 @@ class JsonWorkflowStore:
     def _write(self, path: Path, workflow: WorkflowRecord) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         temp = path.with_suffix(path.suffix + ".tmp")
-        raw = canonical.canonical_json(workflow.to_dict()) + "\n"
+        raw = canonical_json(workflow.to_dict()) + "\n"
         try:
             temp.write_text(raw, encoding="utf-8")
             os.replace(temp, path)
@@ -146,12 +149,12 @@ class WorkflowStateService:
         status: WorkflowStatus,
         *,
         stage: str | None = None,
-        active_action: str | None = None,
-        active_role: str | None = None,
-        active_attempt_id: str | None = None,
-        authority_grant_id: str | None = None,
-        waiting_for: str | None = None,
-        blocker: Mapping[str, Any] | None = None,
+        active_action: str | None | object = _UNCHANGED,
+        active_role: str | None | object = _UNCHANGED,
+        active_attempt_id: str | None | object = _UNCHANGED,
+        authority_grant_id: str | None | object = _UNCHANGED,
+        waiting_for: str | None | object = _UNCHANGED,
+        blocker: Mapping[str, Any] | None | object = _UNCHANGED,
     ) -> WorkflowRecord:
         with controller_span("state.transition", workflow_id=workflow_id, target_status=str(status), target_stage=stage):
             current = self.store.read(workflow_id)
@@ -170,12 +173,16 @@ class WorkflowStateService:
             updated = current.evolved(
                 status=status,
                 stage=current.stage if stage is None else stage,
-                active_action=active_action,
-                active_role=active_role,
-                active_attempt_id=active_attempt_id,
-                authority_grant_id=authority_grant_id,
-                waiting_for=waiting_for,
-                blocker=dict(blocker) if blocker is not None else None,
+                active_action=current.active_action if active_action is _UNCHANGED else active_action,
+                active_role=current.active_role if active_role is _UNCHANGED else active_role,
+                active_attempt_id=current.active_attempt_id if active_attempt_id is _UNCHANGED else active_attempt_id,
+                authority_grant_id=current.authority_grant_id if authority_grant_id is _UNCHANGED else authority_grant_id,
+                waiting_for=current.waiting_for if waiting_for is _UNCHANGED else waiting_for,
+                blocker=(
+                    current.blocker
+                    if blocker is _UNCHANGED
+                    else (dict(blocker) if blocker is not None else None)
+                ),
             )
             saved = self.store.save(updated, expected_generation=current.generation)
             emit(
