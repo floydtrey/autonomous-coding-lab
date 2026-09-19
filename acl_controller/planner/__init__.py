@@ -1,3 +1,11 @@
+from .telemetry import (
+    PLANNER_TELEMETRY_CONFIG_SCHEMA,
+    PLANNER_TELEMETRY_RECORD_SCHEMA,
+    JsonPlannerTelemetryStore,
+    PlannerTelemetryConfig,
+    PlannerTelemetryRecord,
+    PlannerTelemetryService,
+)
 from .plan import (
     PLAN_STATE_SCHEMA,
     PLAN_VERSION,
@@ -30,6 +38,12 @@ from .disposition import (
 from .runtime import ControllerPlannerRuntimeBackend, require_planner_runtime_backend
 
 __all__ = [
+    "PLANNER_TELEMETRY_CONFIG_SCHEMA",
+    "PLANNER_TELEMETRY_RECORD_SCHEMA",
+    "JsonPlannerTelemetryStore",
+    "PlannerTelemetryConfig",
+    "PlannerTelemetryRecord",
+    "PlannerTelemetryService",
     "CONSULTATION_CONFIG_SCHEMA",
     "PLAN_STATE_SCHEMA",
     "PLAN_VERSION",
