@@ -404,3 +404,57 @@ when Worker integration arrives.
 Serial Planner/Worker model unload/reload remains deferred until a real Worker is connected. At that
 point ACL will preserve Worker session state, unload the Worker model, invoke Planner, then restore
 the Worker role as previously agreed.
+
+
+## Execution-plan intake and next-Pass state
+
+PL10 converts a validated semantic `EXECUTION_PLAN` into durable ACL-owned execution state without
+starting a Worker.
+
+ACL assigns:
+
+- an opaque canonical `plan_id`;
+- `plan_version = 1` for Planner V1;
+- the workflow association;
+- a digest of the immutable semantic Planner plan;
+- ordered Pass execution state.
+
+The complete semantic `Plan -> Stage -> Pass -> Task` structure is persisted unchanged. ACL does
+not rewrite Planner's tasks or invent a different decomposition during intake.
+
+Before persistence, ACL re-applies deterministic Planner semantic validation and separately checks
+all declared filesystem operations through the filesystem Authority layer. This is an authority
+check only. ACL still does not decide whether a permitted file *should* be changed.
+
+Planner V1 intentionally supports one accepted semantic plan per workflow. Re-intaking the identical
+plan is idempotent and returns the same ACL plan identity. Attempting to replace it with a different
+semantic plan is a conflict. Dynamic replanning/version increments remain deferred.
+
+Pass execution state is mechanical:
+
+- `PENDING`
+- `COMPLETE`
+- `FAILED`
+
+ACL resolves the next Pass deterministically in declaration order. A Pass is eligible only when its
+declared Pass dependencies are complete and, for staged plans, every Pass belonging to each declared
+Stage dependency is complete. Independent eligible Passes are still serialized in V1: the first
+eligible Pass is the one ACL exposes as `READY`.
+
+Only that deterministic next eligible Pass may be marked complete or failed. This prevents a caller
+from skipping ahead in plan state. Terminal updates are idempotent when replayed with the same value.
+
+A failed Pass puts the persisted plan into `BLOCKED`. Completing all Passes puts the persisted plan
+into `COMPLETE`. These are plan-state facts only; PL10 does not start a Worker, invoke Reviewer, or
+decide retry/recovery policy.
+
+`next_planner_pass(...)` produces one of:
+
+- `READY` with the full semantic Pass and optional Stage ID;
+- `PLAN_COMPLETE`;
+- `BLOCKED` with failed Pass IDs;
+- `NO_ELIGIBLE_PASS` with dependency blockers if persisted state cannot currently advance.
+
+Plan state lives beneath the configured Controller state root. It contains no Git/GitHub requirement
+and no machine-specific repository path assumption beyond paths already supplied semantically by the
+Planner/caller.
