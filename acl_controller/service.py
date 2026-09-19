@@ -62,6 +62,7 @@ from .worker import (
     JsonWorkerRunStore,
     WorkerExecutionOutcome,
     WorkerExecutionService,
+    WorkerReviewPacket,
     WorkerRunRecord,
 )
 from .workflow import (
@@ -782,6 +783,10 @@ class ControllerService:
         pass_id: str,
     ) -> tuple[WorkerRunRecord, ...]:
         return self.worker_execution.runs_for_pass(plan_id, pass_id)
+
+    def worker_review_packet(self, worker_run_id: str) -> WorkerReviewPacket:
+        """Build the immutable Reviewer intake packet for a ready Worker run."""
+        return self.worker_execution.review_packet(worker_run_id)
 
     def runtime_checkpoint(self, workflow_id: str):
         return self.runtime_residency.checkpoint(workflow_id)
