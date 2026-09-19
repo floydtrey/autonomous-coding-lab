@@ -24,7 +24,8 @@
     "PLANNER_CONSULTATION_REPLAN_DENIED": "This invocation is WORKER_CONSULTATION. Do not replace the execution plan. Answer the Worker, perform an allowed query response, elevate a material question to the operator, or return CANNOT_PLAN.",
     "NORMALIZATION_INVALID": "The previous model output was not an unambiguous JSON object. Preserve the intended semantic result, but return exactly one complete JSON object matching the shared ACL role envelope and Planner contract. Do not use Markdown fences or prose outside JSON.",
     "RUNTIME_RESPONSE_INVALID": "The runtime returned model content that could not be used as the required structured response. Return exactly one complete JSON object matching the shared ACL role envelope and Planner contract, with no Markdown fence or surrounding prose.",
-    "CONTROLLER_ROLE_RESPONSE_INVALID": "The previous response could not pass the shared role/Planner response boundary. Use the supplied failure details to repair the response shape while preserving valid semantic content. Return one complete corrected structured response."
+    "CONTROLLER_ROLE_RESPONSE_INVALID": "The previous response could not pass the shared role/Planner response boundary. Use the supplied failure details to repair the response shape while preserving valid semantic content. Return one complete corrected structured response.",
+    "PLANNER_CONTRACT_INCOMPLETE": "The execution plan omitted required machine-contract fields. Read details.missing_fields and restore every listed field in one response. Keep valid semantic content unchanged. Use empty lists or null only where the contract permits them; required evidence/criteria/output fields must contain meaningful values. Return one complete ACL role envelope with one complete acl-planner-result:v1 payload."
   },
   "non_repairable_codes": [
     "PLANNER_INPUT_INVALID",
