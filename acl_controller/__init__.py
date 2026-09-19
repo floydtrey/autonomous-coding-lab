@@ -4,7 +4,13 @@ Controller owns mechanical orchestration state, routing, role dispatch, gates,
 clarification, retry budgets, workflow execution, recovery, and inspection. It
 does not perform AI role reasoning or choose models semantically.
 """
-from .authority import AuthorityCoordinator, JsonGrantStore
+from .authority import (
+    AuthorityCoordinator,
+    FILESYSTEM_AUTHORITY_SCHEMA,
+    FilesystemAuthorityCoordinator,
+    JsonGrantStore,
+    UserProtectedPath,
+)
 from .clarification import ClarificationRecord, ClarificationService, ClarificationStatus, JsonClarificationStore
 from .configuration import ProfileResolver, ProfileSelector, RoleProfile
 from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher, RoleStatus
@@ -40,6 +46,8 @@ __all__ = [
     "ControllerService",
     "ControllerStatus",
     "EngineReport",
+    "FILESYSTEM_AUTHORITY_SCHEMA",
+    "FilesystemAuthorityCoordinator",
     "GateRecord",
     "GateService",
     "GateStatus",
@@ -75,5 +83,6 @@ __all__ = [
     "WorkflowRecord",
     "WorkflowStep",
     "WorkflowStateService",
+    "UserProtectedPath",
     "WorkflowStatus",
 ]
