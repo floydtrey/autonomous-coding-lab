@@ -391,6 +391,8 @@ class SerialRuntimeResidencyService:
 
         current = self.store.read(workflow_id)
         if current is not None and current.state in {
+            RuntimeCheckpointState.ACTIVE,
+            RuntimeCheckpointState.RESPONSE_RECEIVED,
             RuntimeCheckpointState.RECOVERY_REQUIRED,
             RuntimeCheckpointState.RETURN_REQUIRED,
         }:
@@ -416,7 +418,7 @@ class SerialRuntimeResidencyService:
                 "INFO",
                 self.component,
                 "prepare_role",
-                "runtime_recovery_target_restored",
+                "runtime_inflight_target_restored",
                 workflow_id=workflow_id,
                 prior_attempt_id=current.attempt_id,
                 attempt_id=attempt_id,
@@ -430,28 +432,6 @@ class SerialRuntimeResidencyService:
             )
 
         target = self._resolve_target(role, profile)
-        if (
-            current is not None
-            and current.state is RuntimeCheckpointState.ACTIVE
-            and current.attempt_id != attempt_id
-            and (
-                current.target.role != role
-                or current.target.profile_id != profile.profile_id
-            )
-        ):
-            raise ControllerError(
-                "CONTROLLER_RUNTIME_ACTIVE_TARGET_CONFLICT",
-                "cannot replace an active runtime target without an explicit role switch",
-                {
-                    "workflow_id": workflow_id,
-                    "active_attempt_id": current.attempt_id,
-                    "active_role": current.target.role,
-                    "active_profile_id": current.target.profile_id,
-                    "requested_role": role,
-                    "requested_profile_id": profile.profile_id,
-                },
-            )
-
         self._ensure_target(target)
         switching = (
             current is not None
