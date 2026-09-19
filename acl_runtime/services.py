@@ -45,10 +45,12 @@ class LocalServiceConfig:
     base_url_env: str
     health_path: str = "/models"
     api_key_env: str | None = None
+    api_key_file_env: str | None = None
     probe_timeout_seconds: float = 3.0
     startup_timeout_seconds: float = 180.0
     command: tuple[str, ...] = ()
     command_json_env: str | None = None
+    launcher_env: str | None = None
     cwd: str | None = None
     cwd_env: str | None = None
     log_path: str | None = None
@@ -76,10 +78,13 @@ class LocalServiceConfig:
             raise CoreError("LOCAL_SERVICE_CONFIG_INVALID", "health_path must begin with '/'")
 
         api_key_env = value.get("api_key_env")
-        if api_key_env is not None and (
-            not isinstance(api_key_env, str) or not api_key_env.strip()
+        api_key_file_env = value.get("api_key_file_env")
+        for item, label in (
+            (api_key_env, "api_key_env"),
+            (api_key_file_env, "api_key_file_env"),
         ):
-            raise CoreError("LOCAL_SERVICE_CONFIG_INVALID", "api_key_env must be text")
+            if item is not None and (not isinstance(item, str) or not item.strip()):
+                raise CoreError("LOCAL_SERVICE_CONFIG_INVALID", f"{label} must be text")
 
         probe_timeout = cls._positive_number(
             value.get("probe_timeout_seconds", 3),
@@ -95,10 +100,13 @@ class LocalServiceConfig:
             raise CoreError("LOCAL_SERVICE_CONFIG_INVALID", "command must be a list of strings")
 
         command_json_env = value.get("command_json_env")
-        if command_json_env is not None and (
-            not isinstance(command_json_env, str) or not command_json_env.strip()
+        launcher_env = value.get("launcher_env")
+        for item, label in (
+            (command_json_env, "command_json_env"),
+            (launcher_env, "launcher_env"),
         ):
-            raise CoreError("LOCAL_SERVICE_CONFIG_INVALID", "command_json_env must be text")
+            if item is not None and (not isinstance(item, str) or not item.strip()):
+                raise CoreError("LOCAL_SERVICE_CONFIG_INVALID", f"{label} must be text")
 
         cwd = value.get("cwd")
         cwd_env = value.get("cwd_env")
@@ -113,10 +121,12 @@ class LocalServiceConfig:
             base_url_env=base_url_env,
             health_path=health_path,
             api_key_env=api_key_env,
+            api_key_file_env=api_key_file_env,
             probe_timeout_seconds=probe_timeout,
             startup_timeout_seconds=startup_timeout,
             command=tuple(command_raw),
             command_json_env=command_json_env,
+            launcher_env=launcher_env,
             cwd=cwd,
             cwd_env=cwd_env,
             log_path=log_path,
@@ -333,10 +343,9 @@ class LocalServiceSupervisor:
     def _probe(self, config: LocalServiceConfig, base_url: str) -> ProbeResult:
         url = base_url.rstrip("/") + config.health_path
         headers: dict[str, str] = {}
-        if config.api_key_env:
-            api_key = os.getenv(config.api_key_env)
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
+        api_key = self._resolve_probe_api_key(config)
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         req = urlrequest.Request(url, headers=headers, method="GET")
         try:
             with urlrequest.urlopen(req, timeout=config.probe_timeout_seconds) as response:
@@ -404,6 +413,40 @@ class LocalServiceSupervisor:
                     {"service_id": config.service_id},
                 )
             return [self._expand_env(item) for item in value]
+        if config.launcher_env:
+            raw_launcher = os.getenv(config.launcher_env)
+            if not raw_launcher or not raw_launcher.strip():
+                raise CoreError(
+                    "LOCAL_SERVICE_START_COMMAND_MISSING",
+                    "service is down and launcher path is not configured",
+                    {
+                        "service_id": config.service_id,
+                        "required_env": config.launcher_env,
+                    },
+                )
+            launcher = Path(self._expand_env(raw_launcher.strip())).expanduser().resolve()
+            if not launcher.exists():
+                raise CoreError(
+                    "LOCAL_SERVICE_START_COMMAND_INVALID",
+                    "configured launcher does not exist",
+                    {
+                        "service_id": config.service_id,
+                        "launcher": str(launcher),
+                    },
+                )
+            suffix = launcher.suffix.lower()
+            if os.name == "nt" and suffix in {".bat", ".cmd"}:
+                return ["cmd.exe", "/d", "/c", str(launcher)]
+            if os.name == "nt" and suffix == ".ps1":
+                return [
+                    "powershell.exe",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(launcher),
+                ]
+            return [str(launcher)]
         raise CoreError(
             "LOCAL_SERVICE_START_COMMAND_MISSING",
             "service is down and no startup command is configured",
@@ -434,6 +477,28 @@ class LocalServiceSupervisor:
         if not path.is_absolute():
             path = self.project_root / path
         return path.resolve()
+
+    @staticmethod
+    def _resolve_probe_api_key(config: LocalServiceConfig) -> str | None:
+        if config.api_key_env:
+            value = os.getenv(config.api_key_env)
+            if value and value.strip():
+                return value.strip()
+        if config.api_key_file_env:
+            path_value = os.getenv(config.api_key_file_env)
+            if path_value and path_value.strip():
+                path = Path(path_value.strip()).expanduser()
+                try:
+                    value = path.read_text(encoding="utf-8").strip()
+                except OSError as exc:
+                    raise CoreError(
+                        "LOCAL_SERVICE_API_KEY_FILE_FAILED",
+                        "configured API-key file could not be read",
+                        {"path": str(path)},
+                    ) from exc
+                if value:
+                    return value
+        return None
 
     @staticmethod
     def _required_env(name: str) -> str:
