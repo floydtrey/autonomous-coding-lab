@@ -116,6 +116,7 @@ class FilesystemAuthorityService:
         *,
         project_root: str | Path,
         state_root: str | Path | None = None,
+        control_config_root: str | Path | None = None,
         authority_config_path: str | Path | None = None,
         user_protected_paths: Iterable[tuple[str, str]] = (),
         system_roots: Sequence[str] | None = None,
@@ -154,6 +155,14 @@ class FilesystemAuthorityService:
                     path=str(state_root),
                     layer=ProtectionLayer.PERMANENT_ACL,
                     reason="ACL Controller state is permanently protected from Worker mutation",
+                )
+            )
+        if control_config_root is not None:
+            permanent.append(
+                ProtectedPath(
+                    path=str(control_config_root),
+                    layer=ProtectionLayer.PERMANENT_ACL,
+                    reason="ACL control configuration is permanently protected from Worker mutation",
                 )
             )
         if authority_config_path is not None:
