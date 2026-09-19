@@ -263,12 +263,37 @@ class OpenAICompatibleChatAdapter:
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
             raise CoreError("ADAPTER_SETTINGS_INVALID", "timeout_seconds must be positive")
 
+        context_window = merged.get("context_window")
+        if context_window is None:
+            context_window_env = merged.get("context_window_env")
+            if isinstance(context_window_env, str) and context_window_env.strip():
+                raw_context_window = os.getenv(context_window_env.strip())
+                if isinstance(raw_context_window, str) and raw_context_window.strip():
+                    try:
+                        context_window = int(raw_context_window.strip())
+                    except ValueError as exc:
+                        raise CoreError(
+                            "ADAPTER_SETTINGS_INVALID",
+                            "context_window_env must resolve to a positive integer",
+                            {"env": context_window_env},
+                        ) from exc
+        if context_window is not None and (
+            isinstance(context_window, bool)
+            or not isinstance(context_window, int)
+            or context_window <= 0
+        ):
+            raise CoreError(
+                "ADAPTER_SETTINGS_INVALID",
+                "context_window must be a positive integer when configured",
+            )
+
         result = {
             **merged,
             "base_url": base_url.rstrip("/"),
             "model": model,
             "url": base_url.rstrip("/") + endpoint,
             "timeout_seconds": float(timeout),
+            "context_window": context_window,
         }
         return result
 
