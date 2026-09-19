@@ -4,6 +4,14 @@ Planner answers lightweight requests or produces semantic execution plans. ACL
 retains authority, runtime, routing, persistence, and execution control.
 """
 
+from .runtime import (
+    FunctionPlannerRuntimeBackend,
+    PlannerRuntimeBackend,
+    PlannerRuntimeRequest,
+    PlannerRuntimeResponse,
+    PlannerRuntimeService,
+)
+
 from .correction import (
     PLANNER_CORRECTION_POLICY_SCHEMA,
     PlannerCorrectionPolicy,
@@ -83,4 +91,9 @@ __all__ = [
     "correction_signature",
     "load_planner_correction_policy",
     "planner_failure_from_error",
+    "FunctionPlannerRuntimeBackend",
+    "PlannerRuntimeBackend",
+    "PlannerRuntimeRequest",
+    "PlannerRuntimeResponse",
+    "PlannerRuntimeService",
 ]
