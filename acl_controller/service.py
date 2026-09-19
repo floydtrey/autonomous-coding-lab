@@ -1,7 +1,9 @@
-"""Pass-1 Controller façade.
+"""ACL Next Controller façade.
 
-This service exposes intake, state, exact profile resolution, and explicit action
-routing. It is not yet the workflow engine.
+This service composes Core, workflow state, external profile resolution, explicit
+action routing, role dispatch, authority, clarification, approval gates, retry
+budgets, the mechanical workflow engine, conservative recovery, and read-only
+inspection. AI role reasoning remains outside Controller.
 """
 from __future__ import annotations
 
