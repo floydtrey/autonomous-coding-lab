@@ -4,6 +4,15 @@ Planner answers lightweight requests or produces semantic execution plans. ACL
 retains authority, runtime, routing, persistence, and execution control.
 """
 
+from .correction import (
+    PLANNER_CORRECTION_POLICY_SCHEMA,
+    PlannerCorrectionPolicy,
+    PlannerCorrectionRule,
+    build_planner_correction_input,
+    correction_signature,
+    planner_failure_from_error,
+)
+
 from .validation import (
     validate_planner_result,
     validate_planner_role_response,
@@ -25,6 +34,7 @@ from .contract import (
     PassSpec,
     PlanType,
     PlannerAnswer,
+    PlannerCorrection,
     PlannerDisposition,
     PlannerInput,
     PlannerInvocationMode,
@@ -47,6 +57,7 @@ __all__ = [
     "PassSpec",
     "PlanType",
     "PlannerAnswer",
+    "PlannerCorrection",
     "PlannerDisposition",
     "PlannerInput",
     "PlannerInvocationMode",
@@ -64,4 +75,10 @@ __all__ = [
     "validate_elevation_answers",
     "validate_planner_result",
     "validate_planner_role_response",
+    "PLANNER_CORRECTION_POLICY_SCHEMA",
+    "PlannerCorrectionPolicy",
+    "PlannerCorrectionRule",
+    "build_planner_correction_input",
+    "correction_signature",
+    "planner_failure_from_error",
 ]
