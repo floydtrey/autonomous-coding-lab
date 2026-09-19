@@ -458,3 +458,56 @@ decide retry/recovery policy.
 Plan state lives beneath the configured Controller state root. It contains no Git/GitHub requirement
 and no machine-specific repository path assumption beyond paths already supplied semantically by the
 Planner/caller.
+
+
+## Planner observability and token accounting
+
+PL11 adds optional persisted Planner telemetry in addition to ACL's existing structured diagnostic
+log.
+
+Development telemetry is enabled by `config/planner_telemetry.json`. Setting `enabled` to
+`false` stops new Planner telemetry records without changing Planner semantics, routing, authority,
+or execution behavior. Telemetry configuration/persistence failures are treated as diagnostic
+failures only and must not stop the underlying Planner request.
+
+Each Planner invocation can retain high-level identity and performance data when available:
+
+- workflow, attempt, invocation mode, disposition, correction attempt, consultation/exchange IDs;
+- Planner backend, profile, adapter/runtime family, configured harness identity, and model identity;
+- prompt/input tokens, completion/output tokens, and provider-reported total tokens;
+- configured context window and derived prompt-context utilization when both values are known;
+- Planner end-to-end elapsed time and adapter HTTP/runtime elapsed time;
+- request/response byte counts and finish reason;
+- future runtime-supplied model load/unload time, tool-call count, and turn count;
+- error code/message for failed Planner invocations.
+
+Token counts are never guessed. The OpenAI-compatible adapter normalizes only token values actually
+reported by the runtime (`prompt_tokens`/`input_tokens`,
+`completion_tokens`/`output_tokens`, and `total_tokens`). If a runtime omits a value, that
+field remains unknown. Workflow summaries include report counts so a partial token total cannot be
+mistaken for complete coverage.
+
+Context utilization is reported only when the configured runtime/profile supplies a positive
+`context_window` and the runtime reports prompt/input tokens. Model load/unload, tool-call, and
+turn fields likewise remain unknown until the active runtime/harness reports them.
+
+The OpenAI-compatible adapter preserves runtime usage metadata instead of discarding the outer
+response after extracting model content. That metadata flows through generic AdapterResponse,
+RoleResponse/RoleDispatch metadata, and the Planner runtime without changing the semantic role
+contract.
+
+Planner telemetry records live beneath the configured ACL state root. They intentionally exclude raw
+prompts and raw model responses. Full request/response artifacts remain a separate deep-debug option
+controlled by `RoleDiagnostics`.
+
+Existing structured ACL diagnostics remain independently controllable. The runtime CLI's
+`--debug` option enables high-level JSONL Core/Controller/role logs; omitting it leaves that log
+off. Raw role artifacts require their separate explicit option. This lets normal high-level
+telemetry/logging and deep raw debugging be controlled independently.
+
+`ControllerService.planner_telemetry_summary(workflow_id)` exposes cumulative workflow-level
+counts/timing/tokens, and the normal runtime/clarification command output includes that summary.
+Missing measurements remain `null` rather than being reported as zero.
+
+PL11 reserves load/unload telemetry fields now, but actual serial Worker/Planner model switching is
+still deferred until the Worker integration phase.
