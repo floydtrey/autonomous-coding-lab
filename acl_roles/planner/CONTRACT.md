@@ -228,3 +228,36 @@ diagnostics or token/timing telemetry.
 
 A provider that does not report token usage may leave token fields unknown; ACL must not invent token
 counts. Token/runtime telemetry is observational only and must not alter Planner semantic output.
+
+
+## Deterministic response validation
+
+Planner semantic validation is separate from filesystem Authority validation.
+
+PL05 validates the Planner result against the exact `PlannerInput` that produced it. The generic
+role-validation boundary passes the original role request into the configured role validator so the
+Planner validator can perform request/response consistency checks without moving Planner semantics
+into Controller.
+
+For an `EXECUTION_PLAN`, deterministic validation checks at least:
+
+- the plan preserves the accepted Determiner `work_type_id` when one was supplied;
+- required outputs and tracking requirements are present;
+- every Pass declares expected outputs and Worker evidence requirements;
+- Stage, Pass, and Task dependency targets exist and dependency graphs are acyclic;
+- Task dependencies remain inside their Pass; cross-Pass ordering belongs on `Pass.depends_on`;
+- task IDs are unique across the whole plan;
+- every used `reference_id` exists in the plan's declared reference material;
+- filesystem declarations are syntactically usable and move/rename operations are not no-ops.
+
+`WORKER_CONSULTATION` may return an answer/query response, elevate to the operator, or decline.
+It may not replace the execution plan in V1; dynamic replanning is deferred.
+
+Important: these checks validate contract consistency only. They do not decide whether the Planner
+*should* modify a declared file. A structurally valid path proceeds to the separate deterministic
+filesystem Authority layer, which grants or denies the operation based only on authority policy.
+
+Stable validation error codes are intentionally specific enough for PL06 corrective prompts. Examples
+include `PLANNER_ROUTE_MISMATCH`, `PLANNER_DEPENDENCY_UNKNOWN`,
+`PLANNER_DEPENDENCY_CYCLE`, `PLANNER_REFERENCE_UNKNOWN`,
+`PLANNER_REQUIRED_OUTPUTS_MISSING`, and `PLANNER_PATH_INVALID`.
