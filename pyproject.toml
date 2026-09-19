@@ -16,3 +16,4 @@ namespaces = false
 
 [project.scripts]
 acl-run-workflow = "acl_runtime.runner:main"
+acl-answer-clarification = "acl_runtime.clarify:main"
