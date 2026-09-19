@@ -202,6 +202,7 @@ class RoleDispatcher:
                         "exception_type": type(exc).__name__,
                         "message": str(exc),
                         "cause": cause_details,
+                        "adapter_telemetry": dict(response.metadata),
                     },
                 ) from exc
             try:
@@ -235,6 +236,7 @@ class RoleDispatcher:
                         "message": str(exc),
                         "cause": cause_details,
                         "normalized_keys": sorted(str(key) for key in envelope),
+                        "adapter_telemetry": dict(response.metadata),
                     },
                 ) from exc
             common_response = RoleResponse(
@@ -283,6 +285,7 @@ class RoleDispatcher:
                         "exception_type": type(exc).__name__,
                         "message": str(exc),
                         "cause": cause_details,
+                        "adapter_telemetry": dict(response.metadata),
                     },
                 ) from exc
             if validation:
