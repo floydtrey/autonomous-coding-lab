@@ -1,0 +1,72 @@
+{
+  "schema_version": "acl-determiner-taxonomy:v1",
+  "complexity_levels": [
+    "SMALL",
+    "MEDIUM",
+    "LARGE"
+  ],
+  "work_types": [
+    {
+      "work_type": "CODING",
+      "description": "Create, modify, diagnose, review, or reason about source code, scripts, software projects, APIs, or program behavior.",
+      "examples": [
+        "fix a Python bug",
+        "add a feature to an application",
+        "review source code"
+      ]
+    },
+    {
+      "work_type": "RESEARCH",
+      "description": "Gather, compare, verify, synthesize, or analyze information from sources when the primary output is knowledge rather than a document artifact.",
+      "examples": [
+        "compare AI models",
+        "research current software options",
+        "verify a technical claim"
+      ]
+    },
+    {
+      "work_type": "DOCUMENT",
+      "description": "Create, edit, transform, summarize, extract from, or analyze document-like content where the document or written artifact is the main object of work.",
+      "examples": [
+        "summarize a PDF",
+        "rewrite a report",
+        "extract requirements from a document"
+      ]
+    },
+    {
+      "work_type": "VIDEO",
+      "description": "Create, edit, transform, inspect, script, or coordinate video and audiovisual project work.",
+      "examples": [
+        "build an explainer video",
+        "edit a video project",
+        "turn a script into scenes"
+      ]
+    },
+    {
+      "work_type": "KNOWLEDGE",
+      "description": "Store, retrieve, curate, reconcile, or structure durable knowledge in Knowledge Core or another knowledge system.",
+      "examples": [
+        "store this note in KC",
+        "retrieve prior project guidance",
+        "organize durable project knowledge"
+      ]
+    },
+    {
+      "work_type": "SYSTEM_ADMIN",
+      "description": "Operate, configure, inspect, or troubleshoot local operating-system, process, service, runtime, package, device, or host-level state when software development is not the primary task.",
+      "examples": [
+        "start a local service",
+        "inspect a Windows process",
+        "configure a runtime on this computer"
+      ]
+    },
+    {
+      "work_type": "GENERAL",
+      "description": "A valid request that does not fit another configured specialized work type closely enough to justify specialized routing.",
+      "examples": [
+        "general reasoning",
+        "simple non-specialized assistance"
+      ]
+    }
+  ]
+}
