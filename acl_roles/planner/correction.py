@@ -48,7 +48,8 @@ class PlannerCorrectionPolicy:
     default_instruction: str
     repeated_failure_instruction: str
     rules: tuple[PlannerCorrectionRule, ...]
-    repairable_prefixes: tuple[str, ...] = ("PLANNER_", "ROLE_")
+    repairable_prefixes: tuple[str, ...] = ("PLANNER_",)
+    non_repairable_codes: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         for value, label in (
@@ -81,6 +82,14 @@ class PlannerCorrectionPolicy:
                 "PLANNER_CORRECTION_POLICY_INVALID",
                 "repairable_prefixes must contain nonblank text",
             )
+        if not isinstance(self.non_repairable_codes, tuple) or any(
+            not isinstance(item, str) or not item.strip()
+            for item in self.non_repairable_codes
+        ):
+            raise RoleContractError(
+                "PLANNER_CORRECTION_POLICY_INVALID",
+                "non_repairable_codes must contain nonblank text",
+            )
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "PlannerCorrectionPolicy":
@@ -92,7 +101,8 @@ class PlannerCorrectionPolicy:
         default_instruction = value.get("default_instruction")
         repeated = value.get("repeated_failure_instruction")
         rules_raw = value.get("rules", {})
-        prefixes_raw = value.get("repairable_prefixes", ["PLANNER_", "ROLE_"])
+        prefixes_raw = value.get("repairable_prefixes", ["PLANNER_"])
+        non_repairable_raw = value.get("non_repairable_codes", [])
         if not isinstance(rules_raw, Mapping):
             raise RoleContractError(
                 "PLANNER_CORRECTION_POLICY_INVALID",
@@ -103,6 +113,11 @@ class PlannerCorrectionPolicy:
                 "PLANNER_CORRECTION_POLICY_INVALID",
                 "repairable_prefixes must be a list",
             )
+        if not isinstance(non_repairable_raw, list):
+            raise RoleContractError(
+                "PLANNER_CORRECTION_POLICY_INVALID",
+                "non_repairable_codes must be a list",
+            )
         rules = tuple(
             PlannerCorrectionRule(code=str(code), instruction=instruction)
             for code, instruction in sorted(rules_raw.items())
@@ -112,6 +127,7 @@ class PlannerCorrectionPolicy:
             repeated_failure_instruction=repeated,
             rules=rules,
             repairable_prefixes=tuple(prefixes_raw),
+            non_repairable_codes=tuple(non_repairable_raw),
         )
 
     @classmethod
@@ -139,6 +155,12 @@ class PlannerCorrectionPolicy:
         for rule in self.rules:
             if rule.code == code:
                 return rule.instruction
+        if code in self.non_repairable_codes:
+            raise RoleContractError(
+                "PLANNER_CORRECTION_NOT_REPAIRABLE",
+                "failure is explicitly excluded from Planner correction",
+                {"error_code": code},
+            )
         if any(code.startswith(prefix) for prefix in self.repairable_prefixes):
             return self.default_instruction
         raise RoleContractError(
