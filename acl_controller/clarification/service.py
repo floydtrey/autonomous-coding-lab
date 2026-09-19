@@ -235,6 +235,10 @@ class ClarificationService:
             self.state.transition(
                 current.workflow_id,
                 WorkflowStatus.READY,
+                active_action=None,
+                active_role=None,
+                active_profile_id=None,
+                active_attempt_id=None,
                 waiting_for=None,
                 blocker=None,
             )
