@@ -217,10 +217,10 @@ class OperatorConsoleApp(ttk.Frame):
         return row + 1
 
     def _backend(self) -> OperatorConsoleBackend:
-        root = Path(self.data_root.get().strip()).expanduser()
-        if not str(root):
+        raw = self.data_root.get().strip()
+        if not raw:
             raise LabValidationError("OPERATOR_CONSOLE_INPUT_INVALID", "data root is required")
-        return OperatorConsoleBackend(root)
+        return OperatorConsoleBackend(Path(raw).expanduser())
 
     def _browse_data_root(self) -> None:
         self._browse_path(self.data_root, directory=True)
@@ -278,7 +278,7 @@ class OperatorConsoleApp(ttk.Frame):
                     "OPERATOR_CONSOLE_PLAN_REQUIRED",
                     "load and preview the plan before running it",
                 )
-            current_plan_path = Path(self.plan_file.get().strip()).expanduser().resolve()
+            current_plan_path = self._required_path(self.plan_file.get(), "plan file")
             if current_plan_path != self._loaded_plan_path:
                 raise LabValidationError(
                     "OPERATOR_CONSOLE_PLAN_CHANGED",
@@ -291,9 +291,9 @@ class OperatorConsoleApp(ttk.Frame):
                 approved_plan_digest=self._loaded_plan_digest,
                 job_id=self.job_id.get().strip() or None,
                 controller_identity=self.controller_identity.get().strip(),
-                target_repository=Path(self.target_repository.get().strip()),
-                workspace_root=Path(self.workspace_root.get().strip()),
-                artifact_root=Path(self.artifact_root.get().strip()),
+                target_repository=self._required_path(self.target_repository.get(), "target repository"),
+                workspace_root=self._required_path(self.workspace_root.get(), "workspace root"),
+                artifact_root=self._required_path(self.artifact_root.get(), "artifact root"),
                 provider_binding_id=self.provider_binding_id.get().strip(),
                 protected_files=protected,
                 acknowledge_unsandboxed=self.acknowledge_unsandboxed.get(),
@@ -330,6 +330,16 @@ class OperatorConsoleApp(ttk.Frame):
                 self._events.put(("run-result", result))
 
         threading.Thread(target=work, name=f"acl-job-{job_id}", daemon=True).start()
+
+    @staticmethod
+    def _required_path(value: str, label: str) -> Path:
+        raw = value.strip()
+        if not raw:
+            raise LabValidationError("OPERATOR_CONSOLE_INPUT_INVALID", f"{label} is required")
+        path = Path(raw).expanduser()
+        if not path.is_absolute():
+            raise LabValidationError("OPERATOR_CONSOLE_INPUT_INVALID", f"{label} must be an absolute path")
+        return path.resolve()
 
     def _parse_archive_limit(self) -> int | None:
         value = self.archive_limit.get().strip()
