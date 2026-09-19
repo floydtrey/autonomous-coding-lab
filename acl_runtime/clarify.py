@@ -76,6 +76,10 @@ def answer_and_resume(
                 "status": str(current.status),
             },
         )
+    recovery_result = controller.recover_workflow(clarification.workflow_id)
+    to_dict = getattr(recovery_result, "to_dict", None)
+    recovery = to_dict() if callable(to_dict) else {"value": str(recovery_result)}
+
     report = controller.run_workflow(
         clarification.workflow_id,
         max_operations=max_operations,
@@ -86,6 +90,7 @@ def answer_and_resume(
         "services": list(service_status),
         "clarification": clarification.to_dict(),
         "resume_mode": resume_mode,
+        "recovery": recovery,
         "engine": report.to_dict(),
         "inspection": inspection.to_dict(),
     }
