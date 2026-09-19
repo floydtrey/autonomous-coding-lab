@@ -452,6 +452,17 @@ class RecoveryService:
 
     def _cancel_role(self, workflow: WorkflowRecord, stop: StopRecord) -> StopRecord:
         profile = self.profiles.profile(workflow.active_profile_id or "")
+        if (
+            self.runtime_residency is not None
+            and workflow.active_attempt_id is not None
+            and workflow.active_role is not None
+        ):
+            self.runtime_residency.ensure_recovery_target(
+                workflow_id=workflow.workflow_id,
+                attempt_id=workflow.active_attempt_id,
+                role=workflow.active_role,
+                profile=profile,
+            )
         try:
             response = self._invoke_role_control(
                 profile.adapter_id,
