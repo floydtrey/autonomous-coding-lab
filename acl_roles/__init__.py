@@ -25,3 +25,21 @@ __all__ = [
     "RoleResponse",
     "RoleStatus",
 ]
+
+from .determiner import (
+    ClassificationStatus,
+    DeterminerInput,
+    DeterminerResult,
+    DeterminerTaxonomy,
+    WorkTypeDefinition,
+    parse_determiner_response,
+)
+
+__all__ += [
+    "ClassificationStatus",
+    "DeterminerInput",
+    "DeterminerResult",
+    "DeterminerTaxonomy",
+    "WorkTypeDefinition",
+    "parse_determiner_response",
+]
