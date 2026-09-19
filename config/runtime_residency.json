@@ -1,0 +1,11 @@
+{
+  "schema_version": "acl-runtime-residency:v1",
+  "enabled": true,
+  "mode": "serial",
+  "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
+  "models_path": "/models",
+  "api_key_file_env": "ACL_OPENAI_COMPAT_API_KEY_FILE",
+  "probe_timeout_seconds": 3,
+  "switch_timeout_seconds": 300,
+  "poll_interval_seconds": 0.5
+}
