@@ -357,11 +357,10 @@ class RecoveryService:
                 return workflow
             if state in {"cancelled", "stopped"}:
                 if self.runtime_residency is not None:
-                    if self.runtime_residency is not None:
-                        self.runtime_residency.complete_role(
-                            workflow_id,
-                            workflow.active_attempt_id,
-                        )
+                    self.runtime_residency.complete_role(
+                        workflow_id,
+                        workflow.active_attempt_id,
+                    )
                 self.state.transition(
                     workflow_id,
                     WorkflowStatus.CANCELLED,
@@ -379,10 +378,11 @@ class RecoveryService:
             if state == "absent":
                 latest = self.stops.latest_for_workflow(workflow_id)
                 if latest is not None and latest.status is StopStatus.REQUESTED:
-                    self.runtime_residency.complete_role(
-                        workflow_id,
-                        workflow.active_attempt_id,
-                    )
+                    if self.runtime_residency is not None:
+                        self.runtime_residency.complete_role(
+                            workflow_id,
+                            workflow.active_attempt_id,
+                        )
                     self.state.transition(
                         workflow_id,
                         WorkflowStatus.CANCELLED,
@@ -421,10 +421,11 @@ class RecoveryService:
                         workflow_id,
                         response_payload=result,
                     )
-                self.runtime_residency.complete_role(
-                    workflow_id,
-                    workflow.active_attempt_id,
-                )
+                if self.runtime_residency is not None:
+                    self.runtime_residency.complete_role(
+                        workflow_id,
+                        workflow.active_attempt_id,
+                    )
                 self.state.transition(
                     workflow_id,
                     WorkflowStatus.FAILED,
