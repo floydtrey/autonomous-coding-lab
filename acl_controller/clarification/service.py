@@ -122,6 +122,24 @@ class JsonClarificationStore:
             except (OSError, json.JSONDecodeError) as exc:
                 raise ControllerError("CONTROLLER_CLARIFICATION_READ_FAILED", "clarification could not be read", {"clarification_id": clarification_id}) from exc
 
+    def for_workflow(self, workflow_id: str) -> tuple[ClarificationRecord, ...]:
+        directory = self.root / "clarifications"
+        if not directory.exists():
+            return ()
+        records = []
+        for path in sorted(directory.glob("clarify_*.json")):
+            try:
+                record = ClarificationRecord.from_mapping(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError, ControllerError) as exc:
+                raise ControllerError(
+                    "CONTROLLER_CLARIFICATION_READ_FAILED",
+                    "one or more clarification records are unreadable",
+                    {"path": str(path)},
+                ) from exc
+            if record.workflow_id == workflow_id:
+                records.append(record)
+        return tuple(records)
+
     def save(self, record: ClarificationRecord) -> ClarificationRecord:
         with controller_span("clarification_store.save", workflow_id=record.workflow_id, clarification_id=record.clarification_id):
             path = self._path(record.clarification_id)
