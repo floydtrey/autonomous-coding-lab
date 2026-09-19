@@ -272,19 +272,21 @@ class LocalServiceSupervisor:
 
                 deadline = time.monotonic() + config.startup_timeout_seconds
                 last_probe = initial
+                launcher_exit_logged = False
                 while time.monotonic() < deadline:
-                    if process.poll() is not None:
-                        tail = self._log_tail(log_path)
-                        raise CoreError(
-                            "LOCAL_SERVICE_START_FAILED",
-                            "managed service process exited before becoming healthy",
-                            {
-                                "service_id": config.service_id,
-                                "pid": process.pid,
-                                "exit_code": process.returncode,
-                                "log_tail": tail,
-                            },
+                    exit_code = process.poll()
+                    if exit_code is not None and not launcher_exit_logged:
+                        emit(
+                            "INFO",
+                            self.component,
+                            "ensure",
+                            "launcher_process_exited",
+                            service_id=config.service_id,
+                            pid=process.pid,
+                            exit_code=exit_code,
+                            note="continuing endpoint readiness checks because launchers may detach the service process",
                         )
+                        launcher_exit_logged = True
                     last_probe = self._probe(config, base_url)
                     if last_probe.state is ProbeState.HEALTHY:
                         emit(
@@ -301,7 +303,8 @@ class LocalServiceSupervisor:
                             "service_id": config.service_id,
                             "ready": True,
                             "started": True,
-                            "pid": process.pid,
+                            "launcher_pid": process.pid,
+                            "launcher_exit_code": process.poll(),
                             "url": last_probe.url,
                             "status_code": last_probe.status_code,
                             "log_path": str(log_path),
@@ -328,7 +331,8 @@ class LocalServiceSupervisor:
                     "managed service did not become healthy before startup timeout",
                     {
                         "service_id": config.service_id,
-                        "pid": process.pid,
+                        "launcher_pid": process.pid,
+                        "launcher_exit_code": process.poll(),
                         "url": last_probe.url,
                         "log_tail": tail,
                     },
