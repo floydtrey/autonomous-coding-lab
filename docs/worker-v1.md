@@ -98,14 +98,16 @@ through `ACL_WORKER_MODEL`; launcher configuration uses
 `ACL_WORKER_LAUNCH_COMMAND_JSON`, `ACL_WORKER_LAUNCHER`, and
 `ACL_WORKER_LAUNCHER_CWD`.
 
-The current profile points at the existing OpenAI-compatible chat adapter only so
-the Worker contract/runtime boundary can be exercised. That adapter does not by
-itself provide filesystem/tool execution. For mutation work Worker is instructed
-to return BLOCKED rather than claim hypothetical changes when no tool-capable
-harness is bound.
+Worker should reuse the existing configured harness/tool path rather than invent
+a second Worker harness. Tool availability is an execution capability supplied by
+the bound harness and ACL authority configuration.
 
-A tool-capable Worker adapter/harness remains a required integration item before
-Worker can execute real coding Passes.
+The current OpenAI-compatible transport carries ACL role/tool identity, but the
+Planner probe did not exercise tool execution. Worker integration must therefore
+verify that the existing harness tools are actually bound through the ACL Worker
+runtime path. If a particular run genuinely lacks a required tool, Worker must
+BLOCK rather than claim hypothetical execution. Building a new harness is not a
+Worker V1 requirement.
 
 ## Deferred Planner verification
 
@@ -120,11 +122,10 @@ The first local Worker gate should be deliberately small:
 
 1. Planner produces the existing one-file probe Pass;
 2. ACL selects that exact Pass;
-3. Worker runtime resolves the configured Worker profile/model;
-4. with the current chat-only adapter, mutation work must BLOCK honestly rather
-   than claim execution;
-5. after a tool-capable harness is bound, repeat and require a real changed-file
-   result plus evidence;
+3. Worker runtime resolves the configured Worker profile/model and reuses the
+   existing harness/tool capability;
+4. verify the harness exposes the expected mutation tools through ACL authority;
+5. require a real changed-file result plus evidence;
 6. generate the Reviewer packet;
 7. only then begin Reviewer live integration.
 
