@@ -157,11 +157,13 @@ class PlannerCorrectionPolicy:
         return cls.from_mapping(value)
 
     def instruction_for(self, code: str, *, repeated_failure: bool) -> str:
-        if repeated_failure:
-            return self.repeated_failure_instruction
         for rule in self.rules:
             if rule.code == code:
-                return rule.instruction
+                return (
+                    self.repeated_failure_instruction
+                    if repeated_failure
+                    else rule.instruction
+                )
         if code in self.non_repairable_codes:
             raise RoleContractError(
                 "PLANNER_CORRECTION_NOT_REPAIRABLE",
@@ -169,7 +171,11 @@ class PlannerCorrectionPolicy:
                 {"error_code": code},
             )
         if any(code.startswith(prefix) for prefix in self.repairable_prefixes):
-            return self.default_instruction
+            return (
+                self.repeated_failure_instruction
+                if repeated_failure
+                else self.default_instruction
+            )
         raise RoleContractError(
             "PLANNER_CORRECTION_NOT_REPAIRABLE",
             "failure is not eligible for Planner correction",
