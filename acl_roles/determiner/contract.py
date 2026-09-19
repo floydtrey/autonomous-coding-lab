@@ -215,3 +215,29 @@ def _emit_result(result: DeterminerResult, taxonomy: DeterminerTaxonomy) -> None
         taxonomy_digest=taxonomy.digest(),
         result_digest=result.digest(),
     )
+
+
+def validate_determiner_role_response(
+    response: RoleResponse,
+    *,
+    instructions: Mapping[str, Any],
+    profile_metadata: Mapping[str, Any],
+) -> dict[str, Any]:
+    taxonomy_raw = instructions.get("taxonomy")
+    if not isinstance(taxonomy_raw, Mapping):
+        raise RoleContractError(
+            "DETERMINER_TAXONOMY_MISSING",
+            "Determiner profile instructions do not contain the configured taxonomy",
+        )
+    taxonomy = DeterminerTaxonomy.from_mapping(taxonomy_raw)
+    result = parse_determiner_response(response, taxonomy)
+    return {
+        "contract": DETERMINER_RESULT_SCHEMA,
+        "result_digest": result.digest(),
+        "classification": None if result.classification is None else str(result.classification),
+        "work_type": result.work_type,
+        "complexity": result.complexity,
+        "confidence": result.confidence,
+        "question_count": len(result.questions),
+        "taxonomy_digest": taxonomy.digest(),
+    }
