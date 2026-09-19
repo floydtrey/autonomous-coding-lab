@@ -1,3 +1,8 @@
+from .validation import (
+    validate_planner_result,
+    validate_planner_role_response,
+)
+
 """Planner role semantic contracts.
 
 Planner answers lightweight requests or produces semantic execution plans. ACL
@@ -57,4 +62,6 @@ __all__ = [
     "planner_result_to_role_response",
     "resume_planner_input",
     "validate_elevation_answers",
+    "validate_planner_result",
+    "validate_planner_role_response",
 ]
