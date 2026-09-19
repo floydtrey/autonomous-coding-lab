@@ -291,3 +291,38 @@ corrected, the next pass will be **Planner foundation only**:
 5. plan-approval gate binding.
 
 Worker implementation remains out of scope for that pass.
+
+
+## Automatic Local-Service Readiness
+
+The generic workflow runner now checks configured local runtime services before
+Controller creation.
+
+For each enabled service in `config/services.json` it:
+
+1. probes the configured health endpoint;
+2. continues immediately if the service is healthy;
+3. refuses to launch a duplicate if an endpoint is reachable but returns an
+   authentication/configuration/HTTP error;
+4. starts the configured launcher only when the endpoint is genuinely unreachable;
+5. waits until the endpoint becomes healthy;
+6. records probe/start/PID/readiness/failure details through the shared DEBUG log;
+7. terminates only a process ACL itself started when startup fails.
+
+Launcher configuration is external. The first local service uses:
+
+- `ACL_OPENAI_COMPAT_BASE_URL`
+- `ACL_OPENAI_COMPAT_LAUNCHER`
+- `ACL_OPENAI_COMPAT_START_CWD` (optional)
+- `ACL_OPENAI_COMPAT_API_KEY_FILE`
+
+The launcher may be an executable, `.bat`, `.cmd`, or PowerShell script. Batch
+or script launchers may detach the real server process; ACL continues probing the
+endpoint even if the launcher wrapper exits.
+
+The API key itself remains outside repository configuration. The supervisor and
+OpenAI-compatible adapter both read the same key file through
+`ACL_OPENAI_COMPAT_API_KEY_FILE`.
+
+This service lifecycle is role-neutral. Planner, Worker, Reviewer, or future roles
+using the same runtime automatically reuse it.
