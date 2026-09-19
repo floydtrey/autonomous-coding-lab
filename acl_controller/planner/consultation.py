@@ -24,6 +24,7 @@ from acl_core import CoreIdentity
 from acl_core.canonical import canonical_json
 from acl_core.diagnostics import emit
 from acl_roles.planner import (
+    PlannerCorrectionPolicy,
     PlannerDisposition,
     PlannerInput,
     PlannerInvocationMode,
@@ -32,6 +33,9 @@ from acl_roles.planner import (
     PlannerRuntimeResponse,
     PlannerRuntimeService,
     WorkerConsultation,
+    build_planner_correction_input,
+    correction_signature,
+    planner_previous_response_from_error,
     resume_planner_input,
 )
 
@@ -453,6 +457,7 @@ class PlannerConsultationService:
         store: JsonPlannerConsultationStore,
         config: PlannerConsultationConfig,
         telemetry: PlannerTelemetryService,
+        correction_policy: PlannerCorrectionPolicy,
     ) -> None:
         self.state = state
         self.runtime = runtime
@@ -460,6 +465,7 @@ class PlannerConsultationService:
         self.store = store
         self.config = config
         self.telemetry = telemetry
+        self.correction_policy = correction_policy
 
     def start(
         self,
@@ -774,13 +780,79 @@ class PlannerConsultationService:
         self,
         request: PlannerRuntimeRequest,
     ) -> PlannerRuntimeResponse:
-        try:
-            response = self.runtime.invoke(request)
-        except Exception as exc:
-            self.telemetry.record_safely(request, error=exc)
-            raise
-        self.telemetry.record_safely(request, response=response)
-        return response
+        current_request = request
+        prior_error_signatures: list[str] = []
+        correction_attempts = (
+            0
+            if request.planner_input.correction is None
+            else request.planner_input.correction.attempt
+        )
+
+        while True:
+            try:
+                response = self.runtime.invoke(current_request)
+            except Exception as exc:
+                self.telemetry.record_safely(current_request, error=exc)
+                if correction_attempts >= self.correction_policy.max_correction_attempts:
+                    emit(
+                        "ERROR",
+                        self.component,
+                        "invoke_runtime",
+                        "planner_consultation_correction_budget_exhausted",
+                        consultation_id=current_request.metadata.get("consultation_id"),
+                        exchange_number=current_request.metadata.get("exchange_number"),
+                        correction_attempts=correction_attempts,
+                        max_correction_attempts=(
+                            self.correction_policy.max_correction_attempts
+                        ),
+                    )
+                    raise
+
+                previous_response = planner_previous_response_from_error(exc)
+                if previous_response is None:
+                    raise
+                try:
+                    corrected_input = build_planner_correction_input(
+                        current_request.planner_input,
+                        previous_response=previous_response,
+                        error=exc,
+                        policy=self.correction_policy,
+                        attempt=correction_attempts + 1,
+                        prior_error_signatures=tuple(prior_error_signatures),
+                    )
+                except Exception as correction_exc:
+                    if getattr(correction_exc, "code", None) == "PLANNER_CORRECTION_NOT_REPAIRABLE":
+                        raise exc
+                    raise
+
+                signature = correction_signature(corrected_input)
+                if signature is not None:
+                    prior_error_signatures.append(signature)
+                correction_attempts += 1
+                current_request = PlannerRuntimeRequest(
+                    workflow_id=current_request.workflow_id,
+                    planner_input=corrected_input,
+                    authority_grant_id=current_request.authority_grant_id,
+                    metadata={
+                        **dict(current_request.metadata),
+                        "correction_attempt": correction_attempts,
+                    },
+                )
+                emit(
+                    "INFO",
+                    self.component,
+                    "invoke_runtime",
+                    "planner_consultation_correction_retry",
+                    consultation_id=current_request.metadata.get("consultation_id"),
+                    exchange_number=current_request.metadata.get("exchange_number"),
+                    correction_attempt=correction_attempts,
+                    error_code=corrected_input.correction.error_code,
+                    repeated_failure=corrected_input.correction.repeated_failure,
+                )
+                continue
+
+            self.telemetry.record_safely(current_request, response=response)
+            return response
 
     def _planner_input(
         self,
