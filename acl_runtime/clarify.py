@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from acl_controller import ControllerService
+from acl_controller import ClarificationStatus, ControllerError, ControllerService
 from acl_core import configure_diagnostics
 
 from .services import LocalServiceSupervisor
@@ -43,11 +43,39 @@ def answer_and_resume(
         state_root=state_root,
         config_root=config_root,
     )
-    clarification = controller.answer_clarification(
-        clarification_id,
-        answer=dict(answer),
-        answered_by=answered_by,
-    )
+    current = controller.clarification.read(clarification_id)
+    requested_answer = dict(answer)
+
+    if current.status is ClarificationStatus.PENDING:
+        clarification = controller.answer_clarification(
+            clarification_id,
+            answer=requested_answer,
+            answered_by=answered_by,
+        )
+        resume_mode = "answered_now"
+    elif current.status is ClarificationStatus.ANSWERED:
+        recorded_answer = dict(current.answer or {})
+        if recorded_answer != requested_answer:
+            raise ControllerError(
+                "CONTROLLER_CLARIFICATION_ANSWER_CONFLICT",
+                "clarification is already answered with a different operator response",
+                {
+                    "clarification_id": clarification_id,
+                    "recorded_answer": recorded_answer,
+                    "requested_answer": requested_answer,
+                },
+            )
+        clarification = current
+        resume_mode = "already_answered_same_value"
+    else:
+        raise ControllerError(
+            "CONTROLLER_CLARIFICATION_NOT_RESUMABLE",
+            "clarification is not pending or answered and cannot be resumed",
+            {
+                "clarification_id": clarification_id,
+                "status": str(current.status),
+            },
+        )
     report = controller.run_workflow(
         clarification.workflow_id,
         max_operations=max_operations,
@@ -57,6 +85,7 @@ def answer_and_resume(
         "ok": True,
         "services": list(service_status),
         "clarification": clarification.to_dict(),
+        "resume_mode": resume_mode,
         "engine": report.to_dict(),
         "inspection": inspection.to_dict(),
     }
