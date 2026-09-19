@@ -58,6 +58,26 @@ def normalize_planner_role_response(
         normalized = dict(inner)
         transforms.append("unwrap_shared_envelope")
 
+    payload = normalized.get("payload")
+    if isinstance(payload, Mapping):
+        disposition = payload.get("disposition")
+        if (
+            "schema_version" not in payload
+            and isinstance(disposition, str)
+            and disposition in {
+                "DIRECT_RESPONSE",
+                "QUERY_RESPONSE",
+                "EXECUTION_PLAN",
+                "ELEVATION_REQUIRED",
+                "CANNOT_PLAN",
+            }
+        ):
+            normalized["payload"] = {
+                "schema_version": "acl-planner-result:v1",
+                **dict(payload),
+            }
+            transforms.append("add_planner_v1_schema_marker")
+
     return normalized, {"planner_transforms": transforms}
 
 
