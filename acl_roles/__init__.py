@@ -65,6 +65,8 @@ from .planner import (
     TaskSpec,
     WorkerConsultation,
     WorkspaceSpec,
+    validate_planner_result,
+    validate_planner_role_response,
 )
 
 __all__ += [
@@ -87,4 +89,6 @@ __all__ += [
     "TaskSpec",
     "WorkerConsultation",
     "WorkspaceSpec",
+    "validate_planner_result",
+    "validate_planner_role_response",
 ]
