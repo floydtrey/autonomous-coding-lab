@@ -1,21 +1,6 @@
 name: Planner Development Check
 
 on:
-  push:
-    branches:
-      - planner-v1-development
-    paths:
-      - "acl_roles/planner/**"
-      - "acl_roles/__init__.py"
-      - "acl_core/authority/**"
-      - "acl_core/__init__.py"
-      - "acl_controller/authority/**"
-      - "acl_controller/service.py"
-      - "acl_controller/__init__.py"
-      - "config/filesystem_authority.json"
-      - "tests/test_planner_*.py"
-      - "tests/test_filesystem_authority.py"
-      - ".github/workflows/planner-contract-check.yml"
   workflow_dispatch:
 
 jobs:
