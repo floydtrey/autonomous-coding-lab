@@ -1,14 +1,8 @@
-.venv/
 __pycache__/
 *.py[cod]
-.pytest_cache/
-*.tmp
+.venv/
+venv/
+.env
+logs/
 *.log
-*.pid.json
-
-# Migration scratch space is never authoritative.
-.migration-work/
-
-# Runtime and worker workspaces must remain outside the controlling repository.
-workspaces/
-runtime/
+.pytest_cache/
