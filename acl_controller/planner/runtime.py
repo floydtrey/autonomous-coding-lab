@@ -11,6 +11,8 @@ from typing import Any
 
 from acl_roles.common import RoleResponse
 from acl_roles.planner import (
+    PlannerDisposition,
+    PlannerInvocationMode,
     PlannerRuntimeBackend,
     PlannerRuntimeRequest,
     PlannerRuntimeResponse,
@@ -68,10 +70,16 @@ class ControllerPlannerRuntimeBackend:
                 metadata=dict(dispatched.metadata),
             )
             result = parse_planner_role_response(common_response)
-            self.role_dispatch.complete_runtime(
-                request.workflow_id,
-                dispatched.attempt_id,
+            hold_for_consultation_resume = (
+                request.planner_input.invocation_mode
+                is PlannerInvocationMode.WORKER_CONSULTATION
+                and result.disposition is PlannerDisposition.ELEVATION_REQUIRED
             )
+            if not hold_for_consultation_resume:
+                self.role_dispatch.complete_runtime(
+                    request.workflow_id,
+                    dispatched.attempt_id,
+                )
             adapter_telemetry = dispatched.metadata.get("adapter_telemetry")
             adapter_telemetry = (
                 dict(adapter_telemetry)
