@@ -38,6 +38,71 @@ class PlanType(StrEnum):
     STAGED = "STAGED"
 
 
+@dataclass(frozen=True)
+class PlannerCorrection:
+    attempt: int
+    error_code: str
+    message: str
+    instruction: str
+    previous_response: Any
+    details: Mapping[str, Any] = field(default_factory=dict)
+    location: str | None = None
+    previous_response_digest: str | None = None
+    repeated_failure: bool = False
+
+    def __post_init__(self) -> None:
+        if isinstance(self.attempt, bool) or not isinstance(self.attempt, int) or self.attempt < 1:
+            raise RoleContractError(
+                "PLANNER_CORRECTION_INVALID",
+                "correction attempt must be a positive integer",
+            )
+        _text(self.error_code, "correction error_code")
+        _text(self.message, "correction message")
+        _text(self.instruction, "correction instruction")
+        if not isinstance(self.details, Mapping):
+            raise RoleContractError(
+                "PLANNER_CORRECTION_INVALID",
+                "correction details must be a mapping",
+            )
+        if self.location is not None:
+            _text(self.location, "correction location")
+        if self.previous_response_digest is not None:
+            _text(self.previous_response_digest, "correction previous_response_digest")
+        if not isinstance(self.repeated_failure, bool):
+            raise RoleContractError(
+                "PLANNER_CORRECTION_INVALID",
+                "correction repeated_failure must be boolean",
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "attempt": self.attempt,
+            "error_code": self.error_code,
+            "message": self.message,
+            "instruction": self.instruction,
+            "previous_response": self.previous_response,
+            "details": dict(self.details),
+            "location": self.location,
+            "previous_response_digest": self.previous_response_digest,
+            "repeated_failure": self.repeated_failure,
+        }
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "PlannerCorrection":
+        value = _mapping(value, "planner correction")
+        return cls(
+            attempt=value.get("attempt"),
+            error_code=value.get("error_code"),
+            message=value.get("message"),
+            instruction=value.get("instruction"),
+            previous_response=value.get("previous_response"),
+            details=_mapping(value.get("details"), "correction details"),
+            location=value.get("location"),
+            previous_response_digest=value.get("previous_response_digest"),
+            repeated_failure=value.get("repeated_failure", False),
+        )
+
+
 def _text(value: Any, label: str, *, optional: bool = False) -> str | None:
     if value is None and optional:
         return None
@@ -859,6 +924,7 @@ class PlannerInput:
     routing_context: Mapping[str, Any] = field(default_factory=dict)
     consultation: WorkerConsultation | None = None
     elevation_answers: Mapping[str, Any] = field(default_factory=dict)
+    correction: PlannerCorrection | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -875,6 +941,11 @@ class PlannerInput:
             raise RoleContractError("PLANNER_INPUT_INVALID", "elevation_answers must be a mapping")
         if not isinstance(self.metadata, Mapping):
             raise RoleContractError("PLANNER_INPUT_INVALID", "metadata must be a mapping")
+        if self.correction is not None and not isinstance(self.correction, PlannerCorrection):
+            raise RoleContractError(
+                "PLANNER_INPUT_INVALID",
+                "correction must be PlannerCorrection when present",
+            )
         if self.invocation_mode is PlannerInvocationMode.WORKER_CONSULTATION:
             if not isinstance(self.consultation, WorkerConsultation):
                 raise RoleContractError(
@@ -897,6 +968,7 @@ class PlannerInput:
             "routing_context": dict(self.routing_context),
             "consultation": None if self.consultation is None else self.consultation.to_dict(),
             "elevation_answers": dict(self.elevation_answers),
+            "correction": None if self.correction is None else self.correction.to_dict(),
             "metadata": dict(self.metadata),
         }
 
@@ -910,6 +982,7 @@ class PlannerInput:
         except (TypeError, ValueError) as exc:
             raise RoleContractError("PLANNER_INPUT_INVALID", "invocation_mode is invalid") from exc
         consultation_raw = value.get("consultation")
+        correction_raw = value.get("correction")
         return cls(
             invocation_mode=mode,
             request=_mapping(value.get("request"), "request"),
@@ -920,6 +993,11 @@ class PlannerInput:
                 else WorkerConsultation.from_mapping(consultation_raw)
             ),
             elevation_answers=_mapping(value.get("elevation_answers"), "elevation_answers"),
+            correction=(
+                None
+                if correction_raw is None
+                else PlannerCorrection.from_mapping(correction_raw)
+            ),
             metadata=_mapping(value.get("metadata"), "metadata"),
         )
 
