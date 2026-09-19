@@ -1,13 +1,13 @@
-from .validation import (
-    validate_planner_result,
-    validate_planner_role_response,
-)
-
 """Planner role semantic contracts.
 
 Planner answers lightweight requests or produces semantic execution plans. ACL
 retains authority, runtime, routing, persistence, and execution control.
 """
+
+from .validation import (
+    validate_planner_result,
+    validate_planner_role_response,
+)
 
 from .elevation import (
     parse_planner_role_response,
