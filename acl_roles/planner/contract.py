@@ -953,6 +953,12 @@ class PlannerResult:
                 "PLANNER_RESULT_INVALID",
                 "questions must contain PlannerQuestion values",
             )
+        question_ids = tuple(item.question_id for item in self.questions)
+        if len(question_ids) != len(set(question_ids)):
+            raise RoleContractError(
+                "PLANNER_RESULT_INVALID",
+                "question_id values must be unique within a Planner result",
+            )
 
         if self.disposition in {
             PlannerDisposition.DIRECT_RESPONSE,
