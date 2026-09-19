@@ -147,7 +147,10 @@ class RoleDispatcher:
                 RoleDiagnostics.adapter_error(
                     role_request,
                     adapter_id=request.profile.adapter_id,
-                    error=dict(response.error or {}),
+                    error={
+                        "error": dict(response.error or {}),
+                        "adapter_telemetry": dict(response.metadata),
+                    },
                 )
                 raise ControllerError(
                     "CONTROLLER_ROLE_ADAPTER_FAILED",
@@ -159,6 +162,7 @@ class RoleDispatcher:
                         "profile_id": request.profile.profile_id,
                         "adapter_id": request.profile.adapter_id,
                         "adapter_error": dict(response.error or {}),
+                        "adapter_telemetry": dict(response.metadata),
                     },
                 )
             envelope = self.core.normalization.mapping(response.payload)
@@ -233,6 +237,15 @@ class RoleDispatcher:
                         "normalized_keys": sorted(str(key) for key in envelope),
                     },
                 ) from exc
+            common_response = RoleResponse(
+                status=common_response.status,
+                payload=common_response.payload,
+                reference=common_response.reference,
+                metadata={
+                    **dict(common_response.metadata),
+                    "adapter_telemetry": dict(response.metadata),
+                },
+            )
             validator = request.profile.metadata.get("response_validator")
             try:
                 validation = validate_configured_response(
@@ -300,6 +313,7 @@ class RoleDispatcher:
                 profile_id=request.profile.profile_id,
                 status=str(role_response.status),
                 reference=role_response.reference,
+                adapter_telemetry=dict(response.metadata),
             )
             return role_response
 
