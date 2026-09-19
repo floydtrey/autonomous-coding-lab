@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 import json
 import os
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Mapping
 from urllib import error as urlerror
 from urllib import request as urlrequest
@@ -122,6 +123,7 @@ class OpenAICompatibleChatAdapter:
             headers=headers,
             method="POST",
         )
+        started = perf_counter()
         try:
             with urlrequest.urlopen(http_request, timeout=resolved["timeout_seconds"]) as response:
                 raw = response.read()
@@ -146,6 +148,11 @@ class OpenAICompatibleChatAdapter:
                     "status_code": exc.code,
                     "body_excerpt": raw.decode("utf-8", errors="replace")[:2000],
                 },
+                metadata={
+                    "adapter_id": self.adapter_id,
+                    "model": resolved["model"],
+                    "http_elapsed_ms": round((perf_counter() - started) * 1000, 3),
+                },
             )
         except (urlerror.URLError, TimeoutError, OSError) as exc:
             emit(
@@ -166,8 +173,14 @@ class OpenAICompatibleChatAdapter:
                     "exception_type": type(exc).__name__,
                     "message": str(exc),
                 },
+                metadata={
+                    "adapter_id": self.adapter_id,
+                    "model": resolved["model"],
+                    "http_elapsed_ms": round((perf_counter() - started) * 1000, 3),
+                },
             )
 
+        http_elapsed_ms = round((perf_counter() - started) * 1000, 3)
         emit(
             "INFO",
             "adapter.openai_compatible",
@@ -177,10 +190,21 @@ class OpenAICompatibleChatAdapter:
             request_id=request.request_id,
             status_code=status_code,
             response_bytes=len(raw),
+            http_elapsed_ms=http_elapsed_ms,
         )
         try:
             parsed = json.loads(raw.decode("utf-8"))
             content = self._extract_content(parsed)
+            telemetry = {
+                "adapter_id": self.adapter_id,
+                **self._extract_telemetry(
+                parsed,
+                runtime=resolved,
+                http_elapsed_ms=http_elapsed_ms,
+                response_bytes=len(raw),
+                request_bytes=len(raw_body),
+                ),
+            }
         except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
             return AdapterResponse(
                 request_id=request.request_id,
@@ -191,11 +215,28 @@ class OpenAICompatibleChatAdapter:
                     "message": str(exc),
                     "body_excerpt": raw.decode("utf-8", errors="replace")[:2000],
                 },
+                metadata={
+                    "adapter_id": self.adapter_id,
+                    "model": resolved["model"],
+                    "http_elapsed_ms": http_elapsed_ms,
+                    "request_bytes": len(raw_body),
+                    "response_bytes": len(raw),
+                },
             )
+        emit(
+            "INFO",
+            "adapter.openai_compatible",
+            "invoke_role",
+            "runtime_telemetry",
+            adapter_id=self.adapter_id,
+            request_id=request.request_id,
+            **telemetry,
+        )
         return AdapterResponse(
             request_id=request.request_id,
             ok=True,
             payload=content,
+            metadata=telemetry,
         )
 
     def _resolve_runtime(self, execution: Mapping[str, Any]) -> dict[str, Any]:
@@ -333,6 +374,78 @@ class OpenAICompatibleChatAdapter:
             if value:
                 return value
         return None
+
+    @staticmethod
+    def _extract_telemetry(
+        value: Mapping[str, Any],
+        *,
+        runtime: Mapping[str, Any],
+        http_elapsed_ms: float,
+        response_bytes: int,
+        request_bytes: int,
+    ) -> dict[str, Any]:
+        usage = value.get("usage")
+        usage = dict(usage) if isinstance(usage, Mapping) else {}
+
+        def token_value(*keys: str) -> int | None:
+            for key in keys:
+                candidate = usage.get(key)
+                if (
+                    isinstance(candidate, int)
+                    and not isinstance(candidate, bool)
+                    and candidate >= 0
+                ):
+                    return candidate
+            return None
+
+        prompt_tokens = token_value("prompt_tokens", "input_tokens")
+        completion_tokens = token_value("completion_tokens", "output_tokens")
+        total_tokens = token_value("total_tokens")
+
+        context_window = runtime.get("context_window")
+        if (
+            isinstance(context_window, bool)
+            or not isinstance(context_window, int)
+            or context_window <= 0
+        ):
+            context_window = None
+        context_utilization = (
+            None
+            if prompt_tokens is None or context_window is None
+            else round(prompt_tokens / context_window, 6)
+        )
+
+        finish_reason = None
+        choices = value.get("choices")
+        if isinstance(choices, list) and choices and isinstance(choices[0], Mapping):
+            observed = choices[0].get("finish_reason")
+            if isinstance(observed, str):
+                finish_reason = observed
+
+        response_model = value.get("model")
+        if not isinstance(response_model, str) or not response_model.strip():
+            response_model = runtime.get("model")
+
+        telemetry = {
+            "runtime_family": "openai-compatible",
+            "model": response_model,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "context_window": context_window,
+            "context_utilization": context_utilization,
+            "http_elapsed_ms": http_elapsed_ms,
+            "request_bytes": request_bytes,
+            "response_bytes": response_bytes,
+            "finish_reason": finish_reason,
+            "runtime_response_id": value.get("id") if isinstance(value.get("id"), str) else None,
+            "system_fingerprint": (
+                value.get("system_fingerprint")
+                if isinstance(value.get("system_fingerprint"), str)
+                else None
+            ),
+        }
+        return telemetry
 
     @staticmethod
     def _extract_content(value: Any) -> str:
