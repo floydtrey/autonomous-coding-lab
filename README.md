@@ -99,3 +99,46 @@ Not built yet:
 - final inspection/status aggregation;
 - AI role implementations;
 - validation subsystem.
+
+
+## Controller Pass 3
+
+The third Controller construction pass adds the mechanical workflow loop,
+conservative recovery, and aggregated inspection surface.
+
+Implemented:
+
+- persisted generic workflow programs made of ROLE, ACTION, and GATE steps;
+- exact persisted step-result records;
+- mechanical workflow execution with a per-call operation ceiling;
+- structured handling for COMPLETE, NEEDS_CLARIFICATION, NEEDS_CONTINUATION,
+  NEEDS_RETRY, BLOCKED, and FAILED;
+- explicit gate steps;
+- conservative stop requests for active role executions;
+- standardized `role.cancel` and `role.status` adapter control operations;
+- no automatic rerun when active execution state cannot be proven;
+- recovered exact terminal role results use the same response parser and workflow
+  result path as live role results;
+- aggregated read-only workflow inspection including program, grant, profile,
+  results, clarification history, gates, retry state, and stop history.
+
+Workflow programs are Controller recipes, not work/task plans. They contain
+mechanical execution ordering only. Planner/Worker/Reviewer reasoning remains
+outside Controller.
+
+Recovery deliberately blocks when a non-role action has no generic status/cancel
+protocol, when an active execution disappears without terminal evidence, or when
+adapter status cannot be confirmed.
+
+Diagnostics remain a primary rebuild feature. Pass 3 emits workflow step starts,
+program binding, exact result identities/digests, operation-limit stops, stop and
+recovery observations, uncertain recovery blocks, and inspection summaries in
+addition to the Core/Pass-1/Pass-2 diagnostic stream.
+
+Still not implemented:
+
+- actual Determiner/Planner/Worker/Reviewer role implementations;
+- Validator implementation;
+- concrete provider/harness adapters;
+- user interface;
+- dedicated test campaign.
