@@ -20,6 +20,7 @@ from .correction import (
     correction_signature,
     load_planner_correction_policy,
     planner_failure_from_error,
+    planner_previous_response_from_error,
 )
 
 from .validation import (
@@ -91,6 +92,7 @@ __all__ = [
     "correction_signature",
     "load_planner_correction_policy",
     "planner_failure_from_error",
+    "planner_previous_response_from_error",
     "FunctionPlannerRuntimeBackend",
     "PlannerRuntimeBackend",
     "PlannerRuntimeRequest",
