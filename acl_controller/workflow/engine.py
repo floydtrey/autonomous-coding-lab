@@ -416,7 +416,7 @@ class WorkflowEngine:
                 blocker=None,
             )
             return False
-        return self._advance_complete(program, step)
+        return self._advance_complete(workflow.workflow_id, program, step)
 
     def _apply_result(
         self,
@@ -427,7 +427,7 @@ class WorkflowEngine:
         status = RoleStatus(result.status)
         workflow_id = result.workflow_id
         if status is RoleStatus.COMPLETE:
-            return self._advance_complete(program, step)
+            return self._advance_complete(workflow_id, program, step)
         if status is RoleStatus.NEEDS_CLARIFICATION:
             questions = result.payload.get("questions")
             if not isinstance(questions, list) or not questions or any(not isinstance(item, Mapping) for item in questions):
@@ -532,14 +532,12 @@ class WorkflowEngine:
             {"result_id": result.result_id, "status": result.status},
         )
 
-    def _advance_complete(self, program: WorkflowProgram, step: WorkflowStep) -> bool:
-        workflow_id = self._workflow_id_for_program_step(program, step)
-        if workflow_id is None:
-            raise ControllerError(
-                "CONTROLLER_ENGINE_INTERNAL",
-                "workflow identity could not be resolved for completed step",
-                {"program_id": program.program_id, "step_id": step.step_id},
-            )
+    def _advance_complete(
+        self,
+        workflow_id: str,
+        program: WorkflowProgram,
+        step: WorkflowStep,
+    ) -> bool:
         if step.next_step is None:
             self.state.transition(
                 workflow_id,
@@ -565,36 +563,6 @@ class WorkflowEngine:
             blocker=None,
         )
         return True
-
-    def _workflow_id_for_program_step(
-        self,
-        program: WorkflowProgram,
-        step: WorkflowStep,
-    ) -> str | None:
-        # Result-backed lookup is deterministic because a program may be bound to
-        # multiple workflows. The active workflow is recovered from stored results
-        # or the state transition caller; callers without a result set a temporary
-        # marker before gate advancement.
-        candidates = []
-        for path in (self.results.root / "results").glob("result_*.json") if (self.results.root / "results").exists() else ():
-            try:
-                record = self.results.read(path.stem.replace("result_", "result:"))
-            except ControllerError:
-                continue
-            if record.program_id == program.program_id and record.step_id == step.step_id:
-                candidates.append(record.workflow_id)
-        if candidates:
-            return candidates[-1]
-        # Gate-only programs have no result yet. Find the workflow through gate markers.
-        for gate_path in (self.gates.store.root / "gates").glob("gate_*.json") if (self.gates.store.root / "gates").exists() else ():
-            try:
-                gate = self.gates.store.read(gate_path.stem.replace("gate_", "gate:"))
-            except ControllerError:
-                continue
-            marker = gate.payload.get("_controller")
-            if isinstance(marker, Mapping) and marker.get("program_id") == program.program_id and marker.get("step_id") == step.step_id:
-                return gate.workflow_id
-        return None
 
     def _persist_result(
         self,
