@@ -348,9 +348,12 @@ A newly created workflow is mechanically moved to `READY` before Planner invocat
 Controller state machine permits a `READY` workflow to complete without entering Worker execution,
 because a direct/query Planner answer is a valid terminal workflow outcome.
 
-For elevation, the clarification context retains the Planner input, Planner result, and runtime
-metadata needed by the resume path. The clarification mechanism remains the same generic ACL
-WAITING/READY mechanism used elsewhere; Planner does not create a second approval system.
+For elevation, the clarification context retains the Planner input, Planner result, runtime
+metadata, and active authority-grant identity needed by the resume path. The clarification mechanism
+remains the same generic ACL WAITING/READY mechanism used elsewhere; Planner does not create a
+second approval system. `ControllerService.resume_planner_elevation(...)` validates the operator's
+answers against the pending Planner questions, restores the same Planner input with
+`elevation_answers`, preserves the authority grant, and invokes Planner again.
 
 `QUERY_RESPONSE` describes the outcome, not a special Worker. Any lightweight file/KC/search/tool
 access used to produce that answer must come from Planner's authorized tools/runtime. If the Planner
