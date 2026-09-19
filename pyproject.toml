@@ -3,13 +3,13 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "acl-core"
+name = "acl-next"
 version = "0.1.0.dev0"
-description = "Provider-neutral infrastructure core for Autonomous Coding Lab"
+description = "Clean rebuild of Autonomous Coding Lab"
 requires-python = ">=3.12"
 dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["acl_core*"]
+include = ["acl_core*", "acl_controller*"]
 namespaces = false
