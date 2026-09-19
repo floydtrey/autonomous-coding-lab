@@ -234,7 +234,7 @@ B reads A's accepted change. Rejected A is never used. Interrupting promotion do
 
 **Depends on:** M07–M08 and the completed single-task workflow.
 
-Implementation is intentionally split into M09A (authorization/budgets/shared deadline/telemetry), M09B (sequential run + status), M09C (stop + reconcile), and M09D (assembled acceptance/closure). **M09A is complete and verified.** See [M09A execution foundations](M09A_JOB_EXECUTION_FOUNDATIONS.md). M09A does not implement the sequential loop; M09B is next.
+Implementation is intentionally split into M09A (authorization/budgets/shared deadline/telemetry), M09B (sequential run + status), M09C (stop + reconcile), and M09D (assembled acceptance/closure). **M09 is complete and verified at its stated acceptance boundary.** M09D adds no production behavior; it binds the already-verified M09A–M09C evidence into the assembled closure record. See [M09A execution foundations](M09A_JOB_EXECUTION_FOUNDATIONS.md) and [M09D assembled acceptance](M09D_ASSEMBLED_ACCEPTANCE.md). M10 remains the separate real-work proof.
 
 **Implement**
 
