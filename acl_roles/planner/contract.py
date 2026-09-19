@@ -913,6 +913,14 @@ class WorkerConsultation:
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "WorkerConsultation":
         value = _mapping(value, "worker consultation")
+        prior_raw = value.get("prior_exchanges", [])
+        if not isinstance(prior_raw, list) or any(
+            not isinstance(item, Mapping) for item in prior_raw
+        ):
+            raise RoleContractError(
+                "PLANNER_CONTRACT_INVALID",
+                "consultation prior_exchanges must be a list of mappings",
+            )
         return cls(
             plan_id=value.get("plan_id"),
             pass_id=value.get("pass_id"),
@@ -928,11 +936,7 @@ class WorkerConsultation:
                 value.get("relevant_evidence", []),
                 "consultation relevant_evidence",
             ),
-            prior_exchanges=tuple(
-                dict(item)
-                for item in value.get("prior_exchanges", [])
-                if isinstance(item, Mapping)
-            ),
+            prior_exchanges=tuple(dict(item) for item in prior_raw),
         )
 
 
