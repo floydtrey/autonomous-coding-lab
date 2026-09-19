@@ -72,14 +72,20 @@ def emit(level: str, component: str, operation: str, event: str, **details: Any)
         "details": details,
     }
     raw = json.dumps(record, ensure_ascii=False, default=str, sort_keys=True)
-    with _lock:
-        if cfg.path is not None:
-            path = cfg.path.expanduser().resolve()
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with path.open("a", encoding="utf-8") as handle:
-                handle.write(raw + "\n")
-        if cfg.stderr:
-            print(raw, file=sys.stderr)
+    # Diagnostics must never become an execution dependency. A broken log path
+    # or stderr sink is intentionally swallowed so the original Core operation
+    # remains authoritative.
+    try:
+        with _lock:
+            if cfg.path is not None:
+                path = cfg.path.expanduser().resolve()
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with path.open("a", encoding="utf-8") as handle:
+                    handle.write(raw + "\n")
+            if cfg.stderr:
+                print(raw, file=sys.stderr)
+    except Exception:
+        return
 
 
 def error(component: str, operation: str, exc: BaseException, **details: Any) -> None:
