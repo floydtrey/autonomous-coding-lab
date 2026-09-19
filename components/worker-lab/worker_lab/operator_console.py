@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable
 
 from .application_service import WorkerLabApplicationService
 from .errors import LabValidationError
@@ -140,9 +140,15 @@ def protected_files_from_text(value: str) -> tuple[Path, ...]:
     """Parse one absolute protected file path per nonblank line."""
     if not isinstance(value, str):
         raise LabValidationError("OPERATOR_CONSOLE_INPUT_INVALID", "protected files must be text")
-    paths = tuple(Path(line.strip()).expanduser().resolve() for line in value.splitlines() if line.strip())
-    if not paths:
+    raw = tuple(line.strip() for line in value.splitlines() if line.strip())
+    if not raw:
         return ()
+    if any(not Path(item).expanduser().is_absolute() for item in raw):
+        raise LabValidationError(
+            "OPERATOR_CONSOLE_INPUT_INVALID",
+            "protected files must use absolute paths",
+        )
+    paths = tuple(Path(item).expanduser().resolve() for item in raw)
     if len(paths) != len(set(paths)):
         raise LabValidationError("OPERATOR_CONSOLE_INPUT_INVALID", "protected files contain duplicates")
     return paths
