@@ -28,6 +28,39 @@ from .elevation import parse_planner_role_response
 _WINDOWS_DRIVE = re.compile(r"^[A-Za-z]:")
 
 
+def normalize_planner_role_response(
+    value: Mapping[str, Any],
+    *,
+    instructions: Mapping[str, Any],
+    profile_metadata: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Repair only unambiguous Planner transport wrappers.
+
+    Some local models copy the instructional label shared_envelope and place
+    the actual ACL role envelope beneath it. When that is the sole top-level
+    key and its value is a mapping, removing the label changes representation
+    only, not semantic content.
+    """
+    if not isinstance(value, Mapping):
+        raise RoleContractError(
+            "PLANNER_RESULT_INVALID",
+            "Planner role response must be a mapping",
+        )
+    normalized = dict(value)
+    transforms: list[str] = []
+    if set(normalized) == {"shared_envelope"}:
+        inner = normalized.get("shared_envelope")
+        if not isinstance(inner, Mapping):
+            raise RoleContractError(
+                "PLANNER_RESULT_INVALID",
+                "shared_envelope wrapper must contain a role response object",
+            )
+        normalized = dict(inner)
+        transforms.append("unwrap_shared_envelope")
+
+    return normalized, {"planner_transforms": transforms}
+
+
 def _fail(code: str, message: str, **details: Any) -> None:
     raise RoleContractError(code, message, details or None)
 
