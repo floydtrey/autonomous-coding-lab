@@ -777,10 +777,26 @@ class SerialRuntimeResidencyService:
                 },
             ) from exc
 
-        deadline = time.monotonic() + self.config.switch_timeout_seconds
+        started_waiting = time.monotonic()
+        deadline = started_waiting + self.config.switch_timeout_seconds
+        next_progress = started_waiting
         last_loaded = loaded
         while time.monotonic() < deadline:
+            now = time.monotonic()
             last_loaded = self._probe_models(target.base_url)
+            if now >= next_progress:
+                emit(
+                    "INFO",
+                    self.component,
+                    "ensure_target",
+                    "runtime_model_waiting",
+                    profile_id=target.profile_id,
+                    required_model=target.model,
+                    observed_models=list(last_loaded),
+                    elapsed_seconds=round(now - started_waiting, 1),
+                    timeout_seconds=self.config.switch_timeout_seconds,
+                )
+                next_progress = now + 10.0
             if target.model in last_loaded:
                 emit(
                     "INFO",
