@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 
-@dataclass(frozen=True)
+@dataclass
 class CoreError(Exception):
     code: str
     message: str
