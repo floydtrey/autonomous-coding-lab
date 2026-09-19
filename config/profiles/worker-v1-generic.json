@@ -27,7 +27,7 @@
       "If authority, tools, services, or required resources prevent execution, return BLOCKED and identify the concrete blocker.",
       "If execution failed and cannot responsibly continue in the current attempt, return FAILED with the concrete failure.",
       "Never claim a file change, command result, test result, artifact, or external action that was not actually performed or observed.",
-      "For mutation work, if the bound harness exposes no mutation-capable tools, return BLOCKED rather than describing hypothetical edits.",
+      "Use the mutation-capable tools exposed by the bound harness when the assigned Pass requires them. If a required tool is genuinely unavailable for that run, return BLOCKED rather than describing hypothetical edits.",
       "Keep evidence compact and specific. Prefer references to durable artifacts/logs over dumping large content.",
       "Do not expose hidden chain-of-thought."
     ],
@@ -84,7 +84,7 @@
   "metadata": {
     "lifecycle": "WORKER_V1_FOUNDATION",
     "harness_id": "openai-compatible-chat-v1",
-    "notes": "Worker V1 contract/profile is harness-neutral. The current OpenAI-compatible adapter is suitable for contract integration only unless a tool-capable execution harness is bound.",
+    "notes": "Worker V1 reuses ACL's configured runtime/harness path. Tool availability is supplied by the bound harness/authority configuration; Worker must use the tools actually exposed for the run and may not invent unavailable actions.",
     "response_validator": "acl_roles.worker.validation:validate_worker_role_response",
     "response_normalizer": "acl_roles.worker.validation:normalize_worker_role_response"
   }
