@@ -158,6 +158,62 @@ class ProfileResolver:
             )
         return profile
 
+    def _resolve_instruction_sources(
+        self,
+        value: Mapping[str, Any],
+        *,
+        profile_path: Path,
+    ) -> dict[str, Any]:
+        resolved = dict(value)
+        sources = resolved.pop("instruction_sources", [])
+        if not isinstance(sources, list):
+            raise ControllerError("CONTROLLER_PROFILE_INVALID", "instruction_sources must be a list")
+        if not sources:
+            return resolved
+
+        instructions = resolved.get("instructions", {})
+        if not isinstance(instructions, Mapping):
+            raise ControllerError("CONTROLLER_PROFILE_INVALID", "instructions must be a mapping")
+        instructions = dict(instructions)
+
+        source_records = []
+        for item in sources:
+            if not isinstance(item, Mapping):
+                raise ControllerError("CONTROLLER_PROFILE_INVALID", "instruction source must be a mapping")
+            key = item.get("key")
+            relative_path = item.get("path")
+            if not isinstance(key, str) or not key.strip():
+                raise ControllerError("CONTROLLER_PROFILE_INVALID", "instruction source key is required")
+            if key in instructions:
+                raise ControllerError(
+                    "CONTROLLER_PROFILE_INVALID",
+                    "instruction source would overwrite an existing instruction key",
+                    {"key": key, "profile_path": str(profile_path)},
+                )
+            if not isinstance(relative_path, str) or not relative_path.strip():
+                raise ControllerError("CONTROLLER_PROFILE_INVALID", "instruction source path is required")
+            source_path = (profile_path.parent / relative_path).resolve()
+            try:
+                source_path.relative_to(self.root)
+            except ValueError as exc:
+                raise ControllerError(
+                    "CONTROLLER_PROFILE_INVALID",
+                    "instruction source escapes the configuration root",
+                    {"path": str(source_path)},
+                ) from exc
+            loaded = self._read_json(source_path)
+            instructions[key] = loaded
+            source_records.append({"key": key, "path": str(source_path.relative_to(self.root))})
+
+        metadata = resolved.get("metadata", {})
+        if not isinstance(metadata, Mapping):
+            raise ControllerError("CONTROLLER_PROFILE_INVALID", "profile metadata must be a mapping")
+        metadata = dict(metadata)
+        metadata["instruction_sources"] = source_records
+        resolved["instructions"] = instructions
+        resolved["metadata"] = metadata
+        return resolved
+
     @staticmethod
     def _read_json(path: Path) -> dict[str, Any]:
         try:
