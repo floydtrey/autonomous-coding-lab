@@ -6,26 +6,25 @@
   "settings": {
     "model_env": "ACL_DETERMINER_MODEL",
     "temperature": 0.1,
-    "max_tokens": 400,
+    "max_tokens": 450,
     "response_format_json": true
   },
   "instructions": {
-    "purpose": "Classify the incoming request using only the configured work-type taxonomy. Read each work type's human label/description/examples, but return its stable four-digit work_type_id.",
+    "purpose": "Score the configured work types for the incoming request. Return stable four-digit work_type_id values; deterministic routing policy decides whether the leading candidate is strong enough to accept or must be escalated.",
     "rules": [
       "Classify by the request's primary activity, not by the format of the eventual answer or a single keyword.",
-      "Comparison, investigation, verification, and analytical evaluation primarily route to RESEARCH unless another specialized work type is clearly the actual object of the work.",
-      "Editing, summarizing, extracting from, or transforming an existing document primarily routes to DOCUMENT.",
-      "Choose exactly one configured work type only when the request is clear enough to classify.",
-      "If the requester explicitly expresses uncertainty between two or more specialized kinds of work, treat that as routing ambiguity and return NEEDS_CLARIFICATION even if one route appears somewhat more likely.",
-      "When two or more configured work types are genuinely plausible and one short user choice would resolve routing, return NEEDS_CLARIFICATION instead of guessing.",
-      "For routing clarification, ask one short question and include only the plausible options, each with its configured four-digit work_type_id and label.",
-      "Do not use GENERAL to absorb ambiguity between specialized work types.",
-      "For a classified result, return the exact four-digit work_type_id from the taxonomy. Do not return the label as the routing identity.",
-      "Return UNKNOWN when the request cannot be usefully classified and a short routing choice would not resolve it.",
-      "Use the GENERAL work type only for a valid request that genuinely does not fit another configured specialized work type.",
+      "Comparison, investigation, verification, and analytical evaluation primarily score toward RESEARCH unless another specialized work type is clearly the actual object of the work.",
+      "Editing, summarizing, extracting from, or transforming an existing document primarily scores toward DOCUMENT.",
+      "Return the top routing candidates ordered from highest score to lowest score.",
+      "Each candidate score is a number from 0 through 1 representing relative confidence that the request belongs to that configured work type; scores do not have to sum to 1.",
+      "Return exactly the number of candidates requested by routing_policy.candidate_count when that many configured routes are plausible enough to rank.",
+      "For a classified result, work_type_id must equal the highest-scored candidate's exact configured four-digit ID.",
+      "Do not decide whether a close lead should be accepted. The deterministic routing policy applies minimum_top_score and minimum_lead after your response.",
+      "If the requester expresses uncertainty between specialized routes, make sure those plausible routes are represented in the candidate ranking rather than guessing around the uncertainty.",
+      "Do not use GENERAL merely because two specialized routes are close.",
+      "Return UNKNOWN only when no configured work type is meaningfully applicable.",
       "Complexity is optional; when supplied it must use a configured complexity level.",
-      "Confidence is a number from 0 through 1 and represents confidence in the classification, not task success probability.",
-      "Keep routing decisions and clarification questions concise. Do not provide hidden chain-of-thought."
+      "Keep reason codes and notes concise. Do not provide hidden chain-of-thought."
     ],
     "must_not": [
       "Do not plan the work.",
@@ -33,19 +32,30 @@
       "Do not select a model or harness.",
       "Do not grant or expand authority.",
       "Do not choose tools.",
-      "Do not invent new work type IDs.",
-      "Do not return the human work-type label in place of work_type_id.",
+      "Do not invent work type IDs.",
+      "Do not return a human work-type label in place of work_type_id.",
+      "Do not apply the lead-margin threshold yourself.",
       "Do not reinterpret the taxonomy by keyword matching alone."
     ],
     "output_contract": {
       "classified": {
         "status": "COMPLETE",
         "payload": {
-          "schema_version": "acl-determiner-result:v2",
+          "schema_version": "acl-determiner-result:v3",
           "classification": "CLASSIFIED",
-          "work_type_id": "<exact configured four-digit ID>",
+          "work_type_id": "<highest-scored configured four-digit ID>",
+          "candidates": [
+            {
+              "work_type_id": "<configured four-digit ID>",
+              "score": "<0 through 1>"
+            },
+            {
+              "work_type_id": "<configured four-digit ID>",
+              "score": "<0 through 1>"
+            }
+          ],
           "complexity": "<configured complexity or null>",
-          "confidence": "<0 through 1>",
+          "confidence": "<same as highest candidate score>",
           "reason_codes": [
             "<short reason code>"
           ],
@@ -55,9 +65,10 @@
       "unknown": {
         "status": "COMPLETE",
         "payload": {
-          "schema_version": "acl-determiner-result:v2",
+          "schema_version": "acl-determiner-result:v3",
           "classification": "UNKNOWN",
           "work_type_id": null,
+          "candidates": [],
           "complexity": null,
           "confidence": "<0 through 1 or null>",
           "reason_codes": [
@@ -73,7 +84,7 @@
             {
               "question_id": "q1",
               "question": "<one short routing question>",
-              "reason": "<why the choice changes routing>",
+              "reason": "<why user input is required>",
               "options": [
                 {
                   "work_type_id": "<configured four-digit ID>",
@@ -96,9 +107,18 @@
           "status": "COMPLETE",
           "classification": "CLASSIFIED",
           "work_type_id": "2843",
-          "label": "RESEARCH"
+          "candidates": [
+            {
+              "work_type_id": "2843",
+              "score": 0.93
+            },
+            {
+              "work_type_id": "4602",
+              "score": 0.28
+            }
+          ]
         },
-        "rationale": "The primary activity is comparison and analysis."
+        "rationale": "The primary activity is comparison and analysis; the large lead should be accepted by policy."
       },
       {
         "request": "Summarize a PDF report into a concise briefing document.",
@@ -106,27 +126,37 @@
           "status": "COMPLETE",
           "classification": "CLASSIFIED",
           "work_type_id": "4602",
-          "label": "DOCUMENT"
+          "candidates": [
+            {
+              "work_type_id": "4602",
+              "score": 0.96
+            },
+            {
+              "work_type_id": "2843",
+              "score": 0.2
+            }
+          ]
         },
         "rationale": "The existing document is the object being summarized."
       },
       {
         "request": "I have a problem on my computer, but I don't know whether it is caused by code or configuration.",
         "expected": {
-          "status": "NEEDS_CLARIFICATION",
-          "question": "Should this be treated as a coding problem or a system/configuration problem?",
-          "options": [
+          "status": "COMPLETE",
+          "classification": "CLASSIFIED",
+          "work_type_id": "1127",
+          "candidates": [
             {
               "work_type_id": "1127",
-              "label": "CODING"
+              "score": 0.84
             },
             {
               "work_type_id": "8264",
-              "label": "SYSTEM_ADMIN"
+              "score": 0.79
             }
           ]
         },
-        "rationale": "The requester explicitly identifies uncertainty between two specialized routes, so the Determiner must escalate instead of guessing."
+        "rationale": "Return the semantic ranking. The deterministic lead rule, not the model, will convert a close result like this into clarification."
       }
     ]
   },
@@ -142,6 +172,10 @@
     {
       "key": "taxonomy",
       "path": "../work_types.json"
+    },
+    {
+      "key": "routing_policy",
+      "path": "../determiner_routing_policy.json"
     }
   ]
 }
