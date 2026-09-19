@@ -9,6 +9,7 @@ from typing import Any, Mapping
 from acl_controller import ControllerService, WorkflowProgram
 from acl_core import configure_diagnostics
 from acl_roles.common import RoleDiagnostics
+from .services import LocalServiceSupervisor
 
 
 def load_program(path: Path) -> WorkflowProgram:
@@ -27,6 +28,14 @@ def run_program(
     requester: str | None = None,
     max_operations: int = 32,
 ):
+    config_root = Path(config_root).expanduser().resolve()
+    state_root = Path(state_root).expanduser().resolve()
+    project_root = config_root.parent
+
+    service_status = LocalServiceSupervisor(
+        project_root=project_root,
+    ).ensure_file(config_root / "services.json")
+
     controller = ControllerService.create(
         state_root=state_root,
         config_root=config_root,
@@ -45,6 +54,7 @@ def run_program(
     )
     inspection = controller.inspect_workflow(workflow.workflow_id)
     return {
+        "services": list(service_status),
         "engine": report.to_dict(),
         "inspection": inspection.to_dict(),
     }
