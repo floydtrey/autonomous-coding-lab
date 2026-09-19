@@ -14,7 +14,7 @@ def controller_emit(level: str, operation: str, event: str, **details: Any) -> N
 
 @contextmanager
 def controller_span(
-    operation: str,
+    operation_name: str,
     *,
     workflow_id: str | None = None,
     request_id: str | None = None,
@@ -33,7 +33,7 @@ def controller_span(
     )
     token = push_correlation(correlation)
     try:
-        with span("controller", operation, **details):
+        with span("controller", operation_name, **details):
             yield
     finally:
         pop_correlation(token)
