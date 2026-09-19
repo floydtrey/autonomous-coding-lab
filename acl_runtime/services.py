@@ -211,9 +211,10 @@ class LocalServiceSupervisor:
                 }
 
             if initial.state is ProbeState.REACHABLE_ERROR:
+                reason = initial.details.get("reason")
                 raise CoreError(
                     "LOCAL_SERVICE_REACHABLE_NOT_HEALTHY",
-                    "service endpoint is reachable but failed its health check; refusing to start a duplicate process",
+                    f"service endpoint is reachable but health check failed (status={initial.status_code}, reason={reason}); refusing to start a duplicate process",
                     {
                         "service_id": config.service_id,
                         "url": initial.url,
@@ -311,9 +312,10 @@ class LocalServiceSupervisor:
                         }
                     if last_probe.state is ProbeState.REACHABLE_ERROR:
                         tail = self._log_tail(log_path)
+                        reason = last_probe.details.get("reason")
                         raise CoreError(
                             "LOCAL_SERVICE_START_REACHABLE_ERROR",
-                            "managed service became reachable but did not pass health validation",
+                            f"managed service became reachable but health check failed (status={last_probe.status_code}, reason={reason})",
                             {
                                 "service_id": config.service_id,
                                 "pid": process.pid,
