@@ -10,11 +10,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
-from acl_core import AuthorityEnvelope, AuthorityRequest, CoreServices
+from acl_core import AuthorityEnvelope, AuthorityRequest, CoreServices, FilesystemOperation
 from acl_core.diagnostics import emit
 from acl_adapters import AdapterLoader
 
-from .authority import AuthorityCoordinator, JsonGrantStore
+from .authority import AuthorityCoordinator, FilesystemAuthorityCoordinator, JsonGrantStore
 from .clarification import ClarificationRecord, ClarificationService, JsonClarificationStore
 from .configuration import ProfileResolver, ProfileSelector, RoleProfile
 from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher
@@ -48,6 +48,7 @@ class ControllerService:
         routing: ActionRegistry,
         role_dispatch: RoleDispatcher,
         authority: AuthorityCoordinator,
+        filesystem_authority: FilesystemAuthorityCoordinator,
         clarification: ClarificationService,
         gates: GateService,
         retries: RetryService,
@@ -61,6 +62,7 @@ class ControllerService:
         self.routing = routing
         self.role_dispatch = role_dispatch
         self.authority = authority
+        self.filesystem_authority = filesystem_authority
         self.clarification = clarification
         self.gates = gates
         self.retries = retries
@@ -97,6 +99,11 @@ class ControllerService:
                 resolved_core.authority,
                 JsonGrantStore(state_root),
             )
+            filesystem_authority = FilesystemAuthorityCoordinator.create(
+                project_root=config_root.parent,
+                state_root=state_root,
+                config_root=config_root,
+            )
             clarification = ClarificationService(
                 state_service,
                 JsonClarificationStore(state_root),
@@ -117,6 +124,7 @@ class ControllerService:
                 routing=routing,
                 role_dispatch=role_dispatch,
                 authority=authority,
+                filesystem_authority=filesystem_authority,
                 clarification=clarification,
                 gates=gates,
                 retries=retries,
@@ -164,8 +172,39 @@ class ControllerService:
                 state_root=str(state_root),
                 config_root=str(config_root),
                 loaded_adapters=list(loaded_adapters),
+                filesystem_authority_policy=str(filesystem_authority.policy_path),
+                user_protected_path_count=len(filesystem_authority.service.user_protections),
+                permanent_protected_path_count=len(filesystem_authority.service.permanent_protections),
             )
             return service
+
+    def check_filesystem_authority(
+        self,
+        operation: FilesystemOperation | str,
+        path: str | Path,
+        *,
+        destination: str | Path | None = None,
+    ):
+        """Evaluate path authority only; this does not judge Planner semantics."""
+        return self.filesystem_authority.evaluate(
+            operation,
+            path,
+            destination=destination,
+        )
+
+    def require_filesystem_authority(
+        self,
+        operation: FilesystemOperation | str,
+        path: str | Path,
+        *,
+        destination: str | Path | None = None,
+    ):
+        """Raise when a requested filesystem operation crosses a deny boundary."""
+        return self.filesystem_authority.require_allowed(
+            operation,
+            path,
+            destination=destination,
+        )
 
     def create_workflow(
         self,
