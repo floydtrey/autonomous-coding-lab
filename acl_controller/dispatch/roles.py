@@ -165,7 +165,40 @@ class RoleDispatcher:
                         "adapter_telemetry": dict(response.metadata),
                     },
                 )
-            envelope = self.core.normalization.mapping(response.payload)
+            try:
+                envelope = self.core.normalization.mapping(response.payload)
+            except Exception as exc:
+                RoleDiagnostics.parse_error(
+                    workflow_id=request.workflow_id,
+                    attempt_id=request.attempt_id,
+                    role=request.role,
+                    profile_id=request.profile.profile_id,
+                    adapter_id=request.profile.adapter_id,
+                    raw_response=response.payload,
+                    error=exc,
+                )
+                cause_details = {}
+                to_dict = getattr(exc, "to_dict", None)
+                if callable(to_dict):
+                    try:
+                        cause_details = to_dict()
+                    except Exception:
+                        cause_details = {}
+                raise ControllerError(
+                    "CONTROLLER_ROLE_RESPONSE_INVALID",
+                    "role adapter payload is not an unambiguous response object",
+                    {
+                        "workflow_id": request.workflow_id,
+                        "attempt_id": request.attempt_id,
+                        "role": request.role,
+                        "profile_id": request.profile.profile_id,
+                        "adapter_id": request.profile.adapter_id,
+                        "exception_type": type(exc).__name__,
+                        "message": str(exc),
+                        "cause": cause_details,
+                        "adapter_telemetry": dict(response.metadata),
+                    },
+                ) from exc
             normalizer = request.profile.metadata.get("response_normalizer")
             try:
                 envelope, normalization = normalize_configured_response(
