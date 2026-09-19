@@ -118,6 +118,7 @@ class FilesystemAuthorityService:
         state_root: str | Path | None = None,
         control_config_root: str | Path | None = None,
         authority_config_path: str | Path | None = None,
+        permanent_acl_paths: Iterable[tuple[str | Path, str]] = (),
         user_protected_paths: Iterable[tuple[str, str]] = (),
         system_roots: Sequence[str] | None = None,
     ) -> "FilesystemAuthorityService":
@@ -134,20 +135,14 @@ class FilesystemAuthorityService:
                 )
             )
 
-        permanent.extend(
-            [
+        for path, reason in permanent_acl_paths:
+            permanent.append(
                 ProtectedPath(
-                    path=cls._join(root, "acl_core"),
+                    path=str(path),
                     layer=ProtectionLayer.PERMANENT_ACL,
-                    reason="ACL Core is permanently protected from Worker mutation",
-                ),
-                ProtectedPath(
-                    path=cls._join(root, "acl_controller"),
-                    layer=ProtectionLayer.PERMANENT_ACL,
-                    reason="ACL Controller is permanently protected from Worker mutation",
-                ),
-            ]
-        )
+                    reason=reason,
+                )
+            )
 
         if state_root is not None:
             permanent.append(
