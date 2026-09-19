@@ -20,7 +20,7 @@ _UNCHANGED = object()
 
 _ALLOWED_TRANSITIONS: dict[WorkflowStatus, frozenset[WorkflowStatus]] = {
     WorkflowStatus.NEW: frozenset({WorkflowStatus.READY, WorkflowStatus.WAITING, WorkflowStatus.BLOCKED, WorkflowStatus.CANCELLED, WorkflowStatus.FAILED}),
-    WorkflowStatus.READY: frozenset({WorkflowStatus.RUNNING, WorkflowStatus.WAITING, WorkflowStatus.BLOCKED, WorkflowStatus.CANCELLED, WorkflowStatus.FAILED}),
+    WorkflowStatus.READY: frozenset({WorkflowStatus.RUNNING, WorkflowStatus.WAITING, WorkflowStatus.BLOCKED, WorkflowStatus.COMPLETE, WorkflowStatus.CANCELLED, WorkflowStatus.FAILED}),
     WorkflowStatus.RUNNING: frozenset({WorkflowStatus.READY, WorkflowStatus.WAITING, WorkflowStatus.BLOCKED, WorkflowStatus.COMPLETE, WorkflowStatus.CANCELLED, WorkflowStatus.FAILED}),
     WorkflowStatus.WAITING: frozenset({WorkflowStatus.READY, WorkflowStatus.RUNNING, WorkflowStatus.BLOCKED, WorkflowStatus.CANCELLED, WorkflowStatus.FAILED}),
     WorkflowStatus.BLOCKED: frozenset({WorkflowStatus.READY, WorkflowStatus.CANCELLED, WorkflowStatus.FAILED}),
