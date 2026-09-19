@@ -1,0 +1,27 @@
+{
+  "schema_version": "acl-planner-corrections:v1",
+  "repairable_prefixes": [
+    "PLANNER_",
+    "ROLE_"
+  ],
+  "default_instruction": "Your previous Planner response failed deterministic validation. Preserve every valid section and the original user intent. Correct only the identified contract defect and any directly dependent fields. Return one complete corrected acl-planner-result:v1 response, not a patch, explanation, or partial fragment.",
+  "repeated_failure_instruction": "The prior correction attempt made no progress: the same validation failure occurred against the same response shape. Do not repeat the previous response. Re-read the error code, location, original request, and accepted routing context; reconstruct the affected section and return one complete corrected acl-planner-result:v1 response.",
+  "rules": {
+    "PLANNER_STATUS_MISMATCH": "Align the shared ACL role status with the Planner disposition. ELEVATION_REQUIRED must use NEEDS_CLARIFICATION; all other valid Planner dispositions use COMPLETE. Preserve the semantic Planner payload.",
+    "PLANNER_RESULT_INVALID": "Return exactly one complete acl-planner-result:v1 object using one valid Planner disposition and only the payload fields allowed for that disposition. Preserve valid plan content where possible.",
+    "PLANNER_CONTRACT_INVALID": "Repair the invalid Planner contract field identified by the validation message. Preserve valid sibling fields and return the complete corrected Planner result.",
+    "PLANNER_ROUTE_MISMATCH": "Keep the accepted Determiner work_type_id exactly as supplied in routing_context. Do not reclassify the request. Preserve the rest of the valid plan.",
+    "PLANNER_REQUIRED_OUTPUTS_MISSING": "Add concrete required_outputs at plan level describing what successful execution must produce. Preserve the existing objective and valid decomposition.",
+    "PLANNER_TRACKING_REQUIREMENTS_MISSING": "Add concise tracking_requirements that identify the execution evidence ACL should retain. Do not add runtime budgets or model-selection fields.",
+    "PLANNER_PASS_OUTPUTS_MISSING": "Add concrete expected_outputs to the identified Pass. Preserve the Pass objective, tasks, dependencies, and unrelated valid fields.",
+    "PLANNER_PASS_EVIDENCE_MISSING": "Add evidence_required to the identified Pass so ACL can later verify what the Worker reports. Preserve unrelated valid fields.",
+    "PLANNER_DEPENDENCY_UNKNOWN": "Repair the identified dependency so it references an existing peer at the correct hierarchy. Do not invent unrelated work. Cross-Pass ordering belongs on Pass.depends_on; Task dependencies stay within their Pass.",
+    "PLANNER_DEPENDENCY_SELF": "Remove or replace the identified self-dependency while preserving intended execution order.",
+    "PLANNER_DEPENDENCY_CYCLE": "Break the reported dependency cycle with the smallest change that preserves intended execution order. Return the complete corrected plan.",
+    "PLANNER_TASK_ID_DUPLICATE": "Give the duplicate Task a unique stable local task_id and update only dependencies that refer to that specific Task.",
+    "PLANNER_REFERENCE_UNKNOWN": "Either declare the missing reference in reference_material or remove the invalid reference_id if it is unnecessary. Preserve valid references.",
+    "PLANNER_PATH_INVALID": "Replace only the invalid filesystem declaration with a usable filesystem path. Do not convert the path into a URL or add authority assumptions.",
+    "PLANNER_MOVE_NOOP": "Correct the move/rename declaration so source and destination are meaningfully different, or remove the move if no move is actually required.",
+    "PLANNER_CONSULTATION_REPLAN_DENIED": "This invocation is WORKER_CONSULTATION. Do not replace the execution plan. Answer the Worker, perform an allowed query response, elevate a material question to the operator, or return CANNOT_PLAN."
+  }
+}
