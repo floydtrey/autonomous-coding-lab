@@ -26,6 +26,13 @@ from .contract import PlannerCorrection, PlannerInput
 PLANNER_CORRECTION_POLICY_SCHEMA = "acl-planner-corrections:v1"
 
 
+def load_planner_correction_policy(config_root: str | Path) -> "PlannerCorrectionPolicy":
+    """Load the editable correction policy from ACL's config root."""
+    return PlannerCorrectionPolicy.load(
+        Path(config_root).expanduser().resolve() / "planner_corrections.json"
+    )
+
+
 @dataclass(frozen=True)
 class PlannerCorrectionRule:
     code: str
