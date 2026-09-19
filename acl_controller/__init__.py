@@ -52,11 +52,13 @@ from .planner import (
 from .recovery import JsonStopStore, RecoveryService, StopRecord, StopStatus
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
 from .worker import (
+    WORKER_REVIEW_PACKET_SCHEMA,
     WORKER_RUN_SCHEMA,
     ControllerWorkerRuntimeBackend,
     JsonWorkerRunStore,
     WorkerExecutionOutcome,
     WorkerExecutionService,
+    WorkerReviewPacket,
     WorkerRunRecord,
     WorkerRunStatus,
     require_worker_runtime_backend,
@@ -171,11 +173,13 @@ __all__ = [
     "StopStatus",
     "ResultReference",
     "RoleProfile",
+    "WORKER_REVIEW_PACKET_SCHEMA",
     "WORKER_RUN_SCHEMA",
     "ControllerWorkerRuntimeBackend",
     "JsonWorkerRunStore",
     "WorkerExecutionOutcome",
     "WorkerExecutionService",
+    "WorkerReviewPacket",
     "WorkerRunRecord",
     "WorkerRunStatus",
     "require_worker_runtime_backend",
