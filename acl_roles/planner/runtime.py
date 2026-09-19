@@ -165,14 +165,29 @@ class PlannerRuntimeService:
                     "backend returned an invalid Planner runtime response",
                     {"backend_id": self.backend.backend_id},
                 )
-            validation = validate_planner_result(
-                response.result,
-                planner_input=request.planner_input,
-            )
+            elapsed_ms = round((perf_counter() - started) * 1000, 3)
+            try:
+                validation = validate_planner_result(
+                    response.result,
+                    planner_input=request.planner_input,
+                )
+            except RoleContractError as exc:
+                raise RoleContractError(
+                    exc.code,
+                    exc.message,
+                    {
+                        **dict(exc.details or {}),
+                        "runtime_metadata": {
+                            **dict(response.runtime_metadata),
+                            "planner_elapsed_ms": elapsed_ms,
+                            "backend_id": self.backend.backend_id,
+                        },
+                    },
+                ) from exc
             runtime_metadata = {
                 **dict(response.runtime_metadata),
                 "planner_validation": validation,
-                "planner_elapsed_ms": round((perf_counter() - started) * 1000, 3),
+                "planner_elapsed_ms": elapsed_ms,
                 "backend_id": self.backend.backend_id,
             }
             validated = PlannerRuntimeResponse(
