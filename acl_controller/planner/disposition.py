@@ -15,6 +15,7 @@ from typing import Any, Mapping
 
 from acl_core.diagnostics import emit
 from acl_roles.planner import (
+    ExecutionPlan,
     PlannerDisposition,
     PlannerInput,
     PlannerRuntimeResponse,
@@ -46,6 +47,7 @@ class PlannerDispositionOutcome:
     questions: tuple[Mapping[str, Any], ...] = ()
     reason_codes: tuple[str, ...] = ()
     notes: str | None = None
+    plan: ExecutionPlan | None = None
     runtime_metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -60,6 +62,7 @@ class PlannerDispositionOutcome:
             "questions": [dict(item) for item in self.questions],
             "reason_codes": list(self.reason_codes),
             "notes": self.notes,
+            "plan": None if self.plan is None else self.plan.to_dict(),
             "runtime_metadata": dict(self.runtime_metadata),
         }
 
@@ -214,6 +217,7 @@ class PlannerDispositionService:
                     disposition=result.disposition,
                     reason_codes=result.reason_codes,
                     notes=result.notes,
+                    plan=result.plan,
                     runtime_metadata=dict(response.runtime_metadata),
                 )
 
