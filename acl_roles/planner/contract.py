@@ -377,6 +377,12 @@ class PassSpec:
             "acceptance_criteria",
             _text_tuple(self.acceptance_criteria, "pass acceptance_criteria"),
         )
+        if not self.acceptance_criteria:
+            raise RoleContractError(
+                "PLANNER_CONTRACT_INVALID",
+                "pass requires acceptance criteria",
+                {"pass_id": self.pass_id},
+            )
         object.__setattr__(
             self,
             "evidence_required",
@@ -390,10 +396,10 @@ class PassSpec:
         for value, label in (
             (self.working_directory, "pass working_directory"),
             (self.output_directory, "pass output_directory"),
-            (self.continuation_instructions, "pass continuation_instructions"),
         ):
             if value is not None:
                 _text(value, label)
+        _text(self.continuation_instructions, "pass continuation_instructions")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -512,6 +518,9 @@ class ExecutionPlan:
     project: ProjectReference = field(default_factory=ProjectReference)
     work_type_id: str | None = None
     required_capabilities: tuple[str, ...] = ()
+    required_tools: tuple[str, ...] = ()
+    required_services: tuple[str, ...] = ()
+    research_requirements: tuple[str, ...] = ()
     required_outputs: tuple[str, ...] = ()
     constraints: tuple[str, ...] = ()
     out_of_scope: tuple[str, ...] = ()
@@ -545,6 +554,9 @@ class ExecutionPlan:
             )
         for attr, label in (
             ("required_capabilities", "required_capabilities"),
+            ("required_tools", "required_tools"),
+            ("required_services", "required_services"),
+            ("research_requirements", "research_requirements"),
             ("required_outputs", "required_outputs"),
             ("constraints", "constraints"),
             ("out_of_scope", "out_of_scope"),
@@ -560,6 +572,11 @@ class ExecutionPlan:
             raise RoleContractError("PLANNER_CONTRACT_INVALID", "project is invalid")
         if not isinstance(self.workspace, WorkspaceSpec):
             raise RoleContractError("PLANNER_CONTRACT_INVALID", "workspace is invalid")
+        _text(
+            self.workspace.worker_working_directory,
+            "workspace worker_working_directory",
+        )
+        _text(self.workspace.output_directory, "workspace output_directory")
         if not isinstance(self.reference_material, tuple) or any(
             not isinstance(item, ReferenceMaterial) for item in self.reference_material
         ):
@@ -612,6 +629,9 @@ class ExecutionPlan:
             "task_type": self.task_type,
             "complexity": self.complexity,
             "required_capabilities": list(self.required_capabilities),
+            "required_tools": list(self.required_tools),
+            "required_services": list(self.required_services),
+            "research_requirements": list(self.research_requirements),
             "objective": self.objective,
             "acceptance_criteria": list(self.acceptance_criteria),
             "required_outputs": list(self.required_outputs),
@@ -652,6 +672,15 @@ class ExecutionPlan:
             required_capabilities=_text_tuple(
                 value.get("required_capabilities", []),
                 "required_capabilities",
+            ),
+            required_tools=_text_tuple(value.get("required_tools", []), "required_tools"),
+            required_services=_text_tuple(
+                value.get("required_services", []),
+                "required_services",
+            ),
+            research_requirements=_text_tuple(
+                value.get("research_requirements", []),
+                "research_requirements",
             ),
             objective=value.get("objective"),
             acceptance_criteria=_text_tuple(
@@ -880,7 +909,6 @@ class PlannerInput:
 @dataclass(frozen=True)
 class PlannerResult:
     disposition: PlannerDisposition
-    invocation_mode: PlannerInvocationMode
     answer: PlannerAnswer | None = None
     plan: ExecutionPlan | None = None
     questions: tuple[PlannerQuestion, ...] = ()
@@ -890,8 +918,6 @@ class PlannerResult:
     def __post_init__(self) -> None:
         if not isinstance(self.disposition, PlannerDisposition):
             raise RoleContractError("PLANNER_RESULT_INVALID", "disposition is invalid")
-        if not isinstance(self.invocation_mode, PlannerInvocationMode):
-            raise RoleContractError("PLANNER_RESULT_INVALID", "invocation_mode is invalid")
         object.__setattr__(
             self,
             "reason_codes",
@@ -943,7 +969,6 @@ class PlannerResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "schema_version": PLANNER_RESULT_SCHEMA,
-            "invocation_mode": str(self.invocation_mode),
             "disposition": str(self.disposition),
             "answer": None if self.answer is None else self.answer.to_dict(),
             "plan": None if self.plan is None else self.plan.to_dict(),
@@ -959,11 +984,10 @@ class PlannerResult:
             raise RoleContractError("PLANNER_RESULT_INVALID", "planner result schema is invalid")
         try:
             disposition = PlannerDisposition(value.get("disposition"))
-            mode = PlannerInvocationMode(value.get("invocation_mode"))
         except (TypeError, ValueError) as exc:
             raise RoleContractError(
                 "PLANNER_RESULT_INVALID",
-                "planner result disposition or invocation_mode is invalid",
+                "planner result disposition is invalid",
             ) from exc
 
         answer_raw = value.get("answer")
@@ -974,7 +998,6 @@ class PlannerResult:
 
         return cls(
             disposition=disposition,
-            invocation_mode=mode,
             answer=None if answer_raw is None else PlannerAnswer.from_mapping(answer_raw),
             plan=None if plan_raw is None else ExecutionPlan.from_mapping(plan_raw),
             questions=tuple(PlannerQuestion.from_mapping(item) for item in questions_raw),
