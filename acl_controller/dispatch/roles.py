@@ -10,7 +10,7 @@ from typing import Any, Mapping
 
 from acl_core import AdapterRequest, AuthorityGrant, CoreIdentity, CoreServices
 from acl_core.diagnostics import emit
-from acl_roles.common import InstructionSet, RoleDiagnostics, RoleRequest, RoleResponse, RoleStatus
+from acl_roles.common import InstructionSet, RoleDiagnostics, RoleRequest, RoleResponse, RoleStatus, validate_configured_response
 
 from ..configuration import RoleProfile
 from ..diagnostics import controller_span
@@ -186,6 +186,46 @@ class RoleDispatcher:
                         "message": str(exc),
                     },
                 ) from exc
+            validator = request.profile.metadata.get("response_validator")
+            try:
+                validation = validate_configured_response(
+                    common_response,
+                    implementation=validator,
+                    instructions=request.profile.instructions,
+                    profile_metadata=request.profile.metadata,
+                )
+            except Exception as exc:
+                RoleDiagnostics.parse_error(
+                    workflow_id=request.workflow_id,
+                    attempt_id=request.attempt_id,
+                    role=request.role,
+                    profile_id=request.profile.profile_id,
+                    adapter_id=request.profile.adapter_id,
+                    raw_response=envelope,
+                    error=exc,
+                )
+                raise ControllerError(
+                    "CONTROLLER_ROLE_RESPONSE_INVALID",
+                    "role-specific response validation failed",
+                    {
+                        "workflow_id": request.workflow_id,
+                        "attempt_id": request.attempt_id,
+                        "role": request.role,
+                        "profile_id": request.profile.profile_id,
+                        "exception_type": type(exc).__name__,
+                        "message": str(exc),
+                    },
+                ) from exc
+            if validation:
+                common_response = RoleResponse(
+                    status=common_response.status,
+                    payload=common_response.payload,
+                    reference=common_response.reference,
+                    metadata={
+                        **dict(common_response.metadata),
+                        "role_validation": validation,
+                    },
+                )
             RoleDiagnostics.response(
                 role_request,
                 common_response,
