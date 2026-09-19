@@ -8,7 +8,7 @@ from typing import Any, Mapping
 from acl_core.canonical import canonical_digest
 from acl_core.diagnostics import emit, span
 
-from acl_roles.common import RoleResponse, RoleStatus
+from acl_roles.common import RoleRequest, RoleResponse, RoleStatus
 from acl_roles.common.errors import RoleContractError
 
 from .taxonomy import DeterminerTaxonomy
@@ -581,6 +581,7 @@ def validate_determiner_role_response(
     *,
     instructions: Mapping[str, Any],
     profile_metadata: Mapping[str, Any],
+    request: RoleRequest | None = None,
 ) -> dict[str, Any]:
     taxonomy_raw = instructions.get("taxonomy")
     if not isinstance(taxonomy_raw, Mapping):
