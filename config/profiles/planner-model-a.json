@@ -49,7 +49,8 @@
     "correction_rules": [
       "If objective.correction is present, treat its instruction and error details as ACL's targeted repair request.",
       "Preserve valid content from objective.correction.previous_response where practical.",
-      "Return one complete corrected response; never return a patch fragment or prose explanation outside the JSON envelope."
+      "Return one complete corrected response; never return a patch fragment or prose explanation outside the JSON envelope.",
+      "When correction.details.missing_fields is present, restore every listed field in the same corrected response rather than fixing one field per retry."
     ],
     "output_contract": {
       "shared_envelope": {
