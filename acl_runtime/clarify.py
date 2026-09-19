@@ -67,7 +67,15 @@ def main() -> int:
         description="Answer a pending ACL clarification and resume its workflow."
     )
     parser.add_argument("--clarification-id", required=True)
-    parser.add_argument("--answer-json", required=True)
+    answer_group = parser.add_mutually_exclusive_group(required=True)
+    answer_group.add_argument(
+        "--work-type-id",
+        help="Convenience answer for routing clarifications using a four-digit work type ID.",
+    )
+    answer_group.add_argument(
+        "--answer-json",
+        help="Generic clarification answer as a JSON object.",
+    )
     parser.add_argument("--answered-by", default="operator")
     parser.add_argument("--config-root", default="config")
     parser.add_argument("--state-root", default=".acl-state")
@@ -84,10 +92,17 @@ def main() -> int:
             stderr=False,
         )
 
+    if args.work_type_id is not None:
+        if len(args.work_type_id) != 4 or not args.work_type_id.isdigit():
+            parser.error("--work-type-id must be exactly four digits.")
+        answer = {"work_type_id": args.work_type_id}
+    else:
+        answer = _load_answer(args.answer_json)
+
     try:
         result = answer_and_resume(
             clarification_id=args.clarification_id,
-            answer=_load_answer(args.answer_json),
+            answer=answer,
             answered_by=args.answered_by,
             config_root=Path(args.config_root),
             state_root=Path(args.state_root),
