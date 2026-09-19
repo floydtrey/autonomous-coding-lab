@@ -77,7 +77,8 @@
     "lifecycle": "INTEGRATION_BOUND",
     "taxonomy_path": "config/work_types.json",
     "notes": "Runtime transport is OpenAI-compatible and model selection remains external through ACL_DETERMINER_MODEL.",
-    "response_validator": "acl_roles.determiner.contract:validate_determiner_role_response"
+    "response_validator": "acl_roles.determiner.contract:validate_determiner_role_response",
+    "response_normalizer": "acl_roles.determiner.contract:normalize_determiner_role_response"
   },
   "instruction_sources": [
     {
