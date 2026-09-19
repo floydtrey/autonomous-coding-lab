@@ -197,6 +197,7 @@ class RoleDispatcher:
                         "message": str(exc),
                         "cause": cause_details,
                         "adapter_telemetry": dict(response.metadata),
+                        "previous_response": response.payload,
                     },
                 ) from exc
             normalizer = request.profile.metadata.get("response_normalizer")
@@ -236,6 +237,7 @@ class RoleDispatcher:
                         "message": str(exc),
                         "cause": cause_details,
                         "adapter_telemetry": dict(response.metadata),
+                        "previous_response": envelope,
                     },
                 ) from exc
             try:
@@ -270,6 +272,7 @@ class RoleDispatcher:
                         "cause": cause_details,
                         "normalized_keys": sorted(str(key) for key in envelope),
                         "adapter_telemetry": dict(response.metadata),
+                        "previous_response": envelope,
                     },
                 ) from exc
             common_response = RoleResponse(
@@ -319,6 +322,7 @@ class RoleDispatcher:
                         "message": str(exc),
                         "cause": cause_details,
                         "adapter_telemetry": dict(response.metadata),
+                        "previous_response": envelope,
                     },
                 ) from exc
             if validation:
