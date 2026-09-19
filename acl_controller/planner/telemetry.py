@@ -324,6 +324,12 @@ class PlannerTelemetryService:
                         if isinstance(observed_role, Mapping)
                         else {}
                     )
+                    observed_profile = runtime_metadata.get("profile_metadata")
+                    profile_metadata = (
+                        dict(observed_profile)
+                        if isinstance(observed_profile, Mapping)
+                        else {}
+                    )
                     observed_adapter = role_metadata.get("adapter_telemetry")
                     if isinstance(observed_adapter, Mapping):
                         adapter = dict(observed_adapter)
