@@ -34,6 +34,7 @@ from .planner import (
     ControllerPlannerRuntimeBackend,
     JsonPlannerConsultationStore,
     JsonPlannerPlanStore,
+    JsonPlannerTelemetryStore,
     PlannerConsultationConfig,
     PlannerConsultationOutcome,
     PlannerConsultationRecord,
@@ -45,6 +46,8 @@ from .planner import (
     PlannerPlanIntakeOutcome,
     PlannerPlanRecord,
     PlannerPlanService,
+    PlannerTelemetryConfig,
+    PlannerTelemetryService,
 )
 from .recovery import JsonStopStore, RecoveryService, StopRecord
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
@@ -79,6 +82,7 @@ class ControllerService:
         planner_disposition: PlannerDispositionService,
         planner_consultation: PlannerConsultationService,
         planner_plan: PlannerPlanService,
+        planner_telemetry: PlannerTelemetryService,
         clarification: ClarificationService,
         gates: GateService,
         retries: RetryService,
@@ -97,6 +101,7 @@ class ControllerService:
         self.planner_disposition = planner_disposition
         self.planner_consultation = planner_consultation
         self.planner_plan = planner_plan
+        self.planner_telemetry = planner_telemetry
         self.clarification = clarification
         self.gates = gates
         self.retries = retries
@@ -160,6 +165,12 @@ class ControllerService:
                 state=state_service,
                 clarification=clarification,
             )
+            planner_telemetry = PlannerTelemetryService(
+                config=PlannerTelemetryConfig.load(
+                    config_root / "planner_telemetry.json"
+                ),
+                store=JsonPlannerTelemetryStore(state_root),
+            )
             planner_consultation = PlannerConsultationService(
                 state=state_service,
                 runtime=resolved_planner_runtime,
@@ -168,6 +179,7 @@ class ControllerService:
                 config=PlannerConsultationConfig.load(
                     config_root / "planner_consultation.json"
                 ),
+                telemetry=planner_telemetry,
             )
             planner_plan = PlannerPlanService(
                 state=state_service,
@@ -227,6 +239,7 @@ class ControllerService:
                 planner_disposition=planner_disposition,
                 planner_consultation=planner_consultation,
                 planner_plan=planner_plan,
+                planner_telemetry=planner_telemetry,
                 clarification=clarification,
                 gates=gates,
                 retries=retries,
@@ -297,14 +310,19 @@ class ControllerService:
                     "requested_grant_id": grant_id,
                 },
             )
-        return self.planner_runtime.invoke(
-            PlannerRuntimeRequest(
-                workflow_id=workflow_id,
-                planner_input=planner_input,
-                authority_grant_id=grant_id,
-                metadata=dict(metadata or {}),
-            )
+        runtime_request = PlannerRuntimeRequest(
+            workflow_id=workflow_id,
+            planner_input=planner_input,
+            authority_grant_id=grant_id,
+            metadata=dict(metadata or {}),
         )
+        try:
+            response = self.planner_runtime.invoke(runtime_request)
+        except Exception as exc:
+            self.planner_telemetry.record(runtime_request, error=exc)
+            raise
+        self.planner_telemetry.record(runtime_request, response=response)
+        return response
 
     def run_planner(
         self,
@@ -591,6 +609,12 @@ class ControllerService:
             pass_id,
             reason=reason,
         )
+
+    def planner_telemetry_records(self, workflow_id: str):
+        return self.planner_telemetry.records(workflow_id)
+
+    def planner_telemetry_summary(self, workflow_id: str) -> dict[str, Any]:
+        return self.planner_telemetry.summary(workflow_id)
 
     def create_workflow(
         self,
