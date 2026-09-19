@@ -1,0 +1,23 @@
+{
+  "schema_version": "acl-controller-workflow-program:v1",
+  "program_id": "program:determiner_only_v1",
+  "start_step": "determine",
+  "description": "Single-role integration workflow for request classification.",
+  "steps": [
+    {
+      "step_id": "determine",
+      "executor": "ROLE",
+      "next_step": null,
+      "role": "determiner",
+      "work_type": null,
+      "complexity": null,
+      "action_type": null,
+      "gate_type": null,
+      "payload": {},
+      "retry_budget": {
+        "max_retries": 1,
+        "max_continuations": 0
+      }
+    }
+  ]
+}
