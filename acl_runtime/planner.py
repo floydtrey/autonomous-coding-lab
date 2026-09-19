@@ -137,6 +137,11 @@ def run_planner_model_a(
         "planner": outcome.to_dict(),
         "plan_intake": None if intake is None else intake.to_dict(),
         "workflow": controller.status(workflow.workflow_id).to_dict(),
+        "runtime_checkpoint": (
+            None
+            if controller.runtime_checkpoint(workflow.workflow_id) is None
+            else controller.runtime_checkpoint(workflow.workflow_id).to_dict()
+        ),
         "planner_telemetry": controller.planner_telemetry_summary(
             workflow.workflow_id
         ),
