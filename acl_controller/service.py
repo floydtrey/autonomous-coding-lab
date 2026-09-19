@@ -314,7 +314,10 @@ class ControllerService:
             workflow_id=workflow_id,
             planner_input=planner_input,
             authority_grant_id=grant_id,
-            metadata=dict(metadata or {}),
+            metadata={
+                **dict(metadata or {}),
+                "runtime_backend_id": self.planner_runtime.backend.backend_id,
+            },
         )
         try:
             response = self.planner_runtime.invoke(runtime_request)
