@@ -7,7 +7,7 @@ on:
     paths:
       - "acl_roles/planner/**"
       - "acl_roles/__init__.py"
-      - "tests/test_planner_contract.py"
+      - "tests/test_planner_*.py"
       - ".github/workflows/planner-contract-check.yml"
   workflow_dispatch:
 
@@ -27,4 +27,4 @@ jobs:
         run: python -m py_compile acl_roles/planner/contract.py acl_roles/planner/__init__.py acl_roles/__init__.py
 
       - name: Run Planner contract self-checks
-        run: python -m unittest discover -s tests -p "test_planner_contract.py" -v
+        run: python -m unittest discover -s tests -p "test_planner_*.py" -v
