@@ -11,5 +11,5 @@ dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["acl_core*", "acl_controller*"]
+include = ["acl_core*", "acl_controller*", "acl_roles*"]
 namespaces = false
