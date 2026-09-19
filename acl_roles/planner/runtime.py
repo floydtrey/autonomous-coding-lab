@@ -7,6 +7,7 @@ PlannerRuntimeBackend implementation and remain replaceable configuration.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from time import perf_counter
 from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 
 from acl_core.canonical import canonical_digest
@@ -130,6 +131,7 @@ class PlannerRuntimeService:
                 "PLANNER_RUNTIME_REQUEST_INVALID",
                 "request must be PlannerRuntimeRequest",
             )
+        started = perf_counter()
         with span(
             self.component,
             "invoke",
@@ -170,6 +172,8 @@ class PlannerRuntimeService:
             runtime_metadata = {
                 **dict(response.runtime_metadata),
                 "planner_validation": validation,
+                "planner_elapsed_ms": round((perf_counter() - started) * 1000, 3),
+                "backend_id": self.backend.backend_id,
             }
             validated = PlannerRuntimeResponse(
                 result=response.result,
