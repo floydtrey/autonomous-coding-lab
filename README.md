@@ -326,3 +326,29 @@ OpenAI-compatible adapter both read the same key file through
 
 This service lifecycle is role-neutral. Planner, Worker, Reviewer, or future roles
 using the same runtime automatically reuse it.
+
+
+## Stable Four-Digit Work-Type IDs
+
+Determiner routing now uses opaque four-digit string IDs instead of human labels.
+Human-readable labels remain taxonomy metadata for prompting, logs, and inspection.
+
+Initial IDs:
+
+- 1127 = CODING
+- 2843 = RESEARCH
+- 4602 = DOCUMENT
+- 7017 = VIDEO
+- 5931 = KNOWLEDGE
+- 8264 = SYSTEM_ADMIN
+- 9001 = GENERAL
+
+The canonical Determiner result uses `work_type_id`; labels are derived from
+`config/work_types.json` and are not routing identity. `CLASSIFIED` and
+`UNKNOWN` remain classification-state values rather than work-type IDs.
+
+The Determiner response normalizer may repair exact legacy labels or IDs when the
+model places them in the wrong field, but it never fuzzy-matches or invents an ID.
+All such repairs are logged. Future work types such as NETWORKING can be added by
+assigning a new four-digit ID in the external taxonomy without changing Controller
+or Determiner routing code.
