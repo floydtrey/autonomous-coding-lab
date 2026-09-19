@@ -77,6 +77,7 @@ class FilesystemAuthorityCoordinator:
         service = FilesystemAuthorityService.for_acl(
             project_root=project_root,
             state_root=state_root,
+            control_config_root=config_root,
             authority_config_path=policy_path,
             user_protected_paths=((item.path, item.reason) for item in protected),
         )
