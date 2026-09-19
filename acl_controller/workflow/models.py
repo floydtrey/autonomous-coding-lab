@@ -42,7 +42,8 @@ class WorkflowStep:
             raise ControllerError("CONTROLLER_PROGRAM_INVALID", "step payload and retry budget must be mappings")
         if self.executor is StepExecutor.ROLE:
             _text(self.role, "role")
-            _text(self.work_type, "work_type")
+            if self.work_type is not None:
+                _text(self.work_type, "work_type")
             if self.action_type is not None or self.gate_type is not None:
                 raise ControllerError("CONTROLLER_PROGRAM_INVALID", "role step has incompatible fields")
         elif self.executor is StepExecutor.ACTION:
