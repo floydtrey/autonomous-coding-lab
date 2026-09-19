@@ -6,7 +6,7 @@ param(
     [string]$Alias,
     [int]$Port = 0,
     [string]$HostAddress = "127.0.0.1",
-    [int]$GpuLayers = 99,
+    [Nullable[int]]$GpuLayers = $null,
     [int]$ContextWindow = 32768,
     [int]$Parallel = 1,
     [string]$FlashAttention = "on",
@@ -93,7 +93,6 @@ $Args += @(
     "--alias", $Alias,
     "--host", $HostAddress,
     "--port", "$Port",
-    "--gpu-layers", "$GpuLayers",
     "--ctx-size", "$ContextWindow",
     "--parallel", "$Parallel",
     "--flash-attn", $FlashAttention,
@@ -102,6 +101,10 @@ $Args += @(
     "--temp", "$Temperature",
     "--no-mmproj"
 )
+
+if ($null -ne $GpuLayers) {
+    $Args += @("--gpu-layers", "$GpuLayers")
+}
 
 if (-not [string]::IsNullOrWhiteSpace($ApiKeyFile)) {
     $ResolvedApiKeyFile = [System.IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($ApiKeyFile))
