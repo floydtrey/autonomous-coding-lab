@@ -261,3 +261,40 @@ Stable validation error codes are intentionally specific enough for PL06 correct
 include `PLANNER_ROUTE_MISMATCH`, `PLANNER_DEPENDENCY_UNKNOWN`,
 `PLANNER_DEPENDENCY_CYCLE`, `PLANNER_REFERENCE_UNKNOWN`,
 `PLANNER_REQUIRED_OUTPUTS_MISSING`, and `PLANNER_PATH_INVALID`.
+
+
+## Corrective feedback
+
+Planner correction is an ACL-owned retry input, not a Planner-owned runtime policy.
+
+When deterministic parsing or validation rejects a Planner response, ACL may construct a new
+`PlannerInput` containing an optional `correction` object. The original request, accepted routing
+context, consultation state, and answered elevations remain unchanged.
+
+The correction object carries:
+
+- ACL's correction-attempt number;
+- the most specific validation/error code and message;
+- error details/location when available;
+- the previous model response;
+- a digest of that previous response when it can be canonicalized;
+- the editable correction instruction selected from `config/planner_corrections.json`;
+- whether the same error/response signature has already been seen.
+
+Correction prompts are configuration, not Python business logic. Exact error-code rules may give
+targeted repair guidance; other configured repairable Planner/role errors use the default instruction.
+
+The normal repair instruction tells Planner to preserve valid sections and return one **complete**
+corrected Planner response. ACL does not accept patch fragments because downstream validation needs a
+complete contract.
+
+If the same error code/location occurs against the same previous-response digest again, ACL can
+supply the repeated-failure instruction instead of blindly issuing the identical repair prompt.
+ACL still owns the actual retry ceiling.
+
+Authority failures are not ordinary Planner formatting corrections. A Worker/Planner cannot use the
+correction loop to rewrite or bypass filesystem Authority policy.
+
+The correction policy is loaded from `config/planner_corrections.json`. ACL's control-config
+directory is permanently protected from Worker mutation; later operator/GUI configuration may edit
+these prompts outside Worker authority.
