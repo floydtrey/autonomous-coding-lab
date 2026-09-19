@@ -1,0 +1,17 @@
+{
+  "schema_version": "acl-local-services:v1",
+  "services": [
+    {
+      "service_id": "openai-compatible-local",
+      "enabled": true,
+      "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
+      "health_path": "/models",
+      "api_key_env": "ACL_OPENAI_COMPAT_API_KEY",
+      "probe_timeout_seconds": 3,
+      "startup_timeout_seconds": 180,
+      "command_json_env": "ACL_OPENAI_COMPAT_START_COMMAND_JSON",
+      "cwd_env": "ACL_OPENAI_COMPAT_START_CWD",
+      "log_path": "logs/services/openai-compatible-local.log"
+    }
+  ]
+}
