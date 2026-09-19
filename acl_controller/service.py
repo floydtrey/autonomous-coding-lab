@@ -102,6 +102,7 @@ class ControllerService:
         config_root: Path,
         project_root: Path | None = None,
         core: CoreServices | None = None,
+        planner_runtime: PlannerRuntimeService | None = None,
     ) -> "ControllerService":
         with controller_span(
             "service.create",
@@ -134,7 +135,7 @@ class ControllerService:
                 state_root=state_root,
                 config_root=config_root,
             )
-            planner_runtime = PlannerRuntimeService(
+            resolved_planner_runtime = planner_runtime or PlannerRuntimeService(
                 ControllerPlannerRuntimeBackend(
                     profiles=profiles,
                     role_dispatch=role_dispatch,
@@ -151,7 +152,7 @@ class ControllerService:
             )
             planner_consultation = PlannerConsultationService(
                 state=state_service,
-                runtime=planner_runtime,
+                runtime=resolved_planner_runtime,
                 clarification=clarification,
                 store=JsonPlannerConsultationStore(state_root),
                 config=PlannerConsultationConfig.load(
@@ -207,7 +208,7 @@ class ControllerService:
                 role_dispatch=role_dispatch,
                 authority=authority,
                 filesystem_authority=filesystem_authority,
-                planner_runtime=planner_runtime,
+                planner_runtime=resolved_planner_runtime,
                 planner_disposition=planner_disposition,
                 planner_consultation=planner_consultation,
                 clarification=clarification,
