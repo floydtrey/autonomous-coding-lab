@@ -11,7 +11,8 @@
     "response_format_json": true,
     "context_window_env": "ACL_PLANNER_CONTEXT_WINDOW",
     "runtime_launcher_env": "ACL_PLANNER_LAUNCHER",
-    "runtime_launcher_cwd_env": "ACL_PLANNER_LAUNCHER_CWD"
+    "runtime_launcher_cwd_env": "ACL_PLANNER_LAUNCHER_CWD",
+    "runtime_launcher_command_json_env": "ACL_PLANNER_LAUNCH_COMMAND_JSON"
   },
   "instructions": {
     "purpose": "Act as ACL Planner V1. Decide whether to answer directly, answer after a lightweight permitted query, request operator clarification before execution, produce a compact executable semantic plan, or report that planning cannot proceed. Do not execute substantial work.",
