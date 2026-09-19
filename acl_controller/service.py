@@ -188,6 +188,7 @@ class ControllerService:
                     config_root / "planner_consultation.json"
                 ),
                 telemetry=planner_telemetry,
+                correction_policy=planner_correction_policy,
             )
             planner_plan = PlannerPlanService(
                 state=state_service,
