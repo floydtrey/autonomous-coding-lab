@@ -117,6 +117,24 @@ class JsonGateStore:
             except (OSError, json.JSONDecodeError) as exc:
                 raise ControllerError("CONTROLLER_GATE_READ_FAILED", "gate could not be read", {"gate_id": gate_id}) from exc
 
+    def for_workflow(self, workflow_id: str) -> tuple[GateRecord, ...]:
+        directory = self.root / "gates"
+        if not directory.exists():
+            return ()
+        records = []
+        for path in sorted(directory.glob("gate_*.json")):
+            try:
+                record = GateRecord.from_mapping(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError, ControllerError) as exc:
+                raise ControllerError(
+                    "CONTROLLER_GATE_READ_FAILED",
+                    "one or more gate records are unreadable",
+                    {"path": str(path)},
+                ) from exc
+            if record.workflow_id == workflow_id:
+                records.append(record)
+        return tuple(records)
+
     def save(self, record: GateRecord) -> GateRecord:
         with controller_span("gate_store.save", workflow_id=record.workflow_id, gate_id=record.gate_id):
             path = self._path(record.gate_id)
