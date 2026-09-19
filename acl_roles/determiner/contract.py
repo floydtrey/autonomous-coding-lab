@@ -15,8 +15,9 @@ from .taxonomy import DeterminerTaxonomy
 
 
 DETERMINER_INPUT_SCHEMA = "acl-determiner-input:v2"
-DETERMINER_RESULT_SCHEMA = "acl-determiner-result:v2"
-_LEGACY_RESULT_SCHEMA = "acl-determiner-result:v1"
+DETERMINER_RESULT_SCHEMA = "acl-determiner-result:v3"
+_LEGACY_RESULT_SCHEMAS = {"acl-determiner-result:v1", "acl-determiner-result:v2"}
+_ROUTING_POLICY_SCHEMA = "acl-determiner-routing-policy:v1"
 
 
 class ClassificationStatus(StrEnum):
@@ -57,6 +58,7 @@ class DeterminerResult:
     work_type_label: str | None = None
     complexity: str | None = None
     confidence: float | None = None
+    candidates: tuple[Mapping[str, Any], ...] = ()
     reason_codes: tuple[str, ...] = ()
     notes: str | None = None
     questions: tuple[Mapping[str, Any], ...] = ()
@@ -71,6 +73,7 @@ class DeterminerResult:
             "work_type_label": self.work_type_label,
             "complexity": self.complexity,
             "confidence": self.confidence,
+            "candidates": [dict(item) for item in self.candidates],
             "reason_codes": list(self.reason_codes),
             "notes": self.notes,
             "questions": [dict(item) for item in self.questions],
@@ -134,10 +137,19 @@ def _normalize_clarification_options(
             continue
         seen.add(work_type_id)
         definition = taxonomy.definition_for_id(work_type_id)
-        normalized.append({
+        normalized_item = {
             "work_type_id": work_type_id,
             "label": definition.label,
-        })
+        }
+        if isinstance(item, Mapping) and item.get("score") is not None:
+            score = item.get("score")
+            if isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= float(score) <= 1:
+                raise RoleContractError(
+                    "DETERMINER_RESULT_INVALID",
+                    "clarification option score must be a number from 0 through 1",
+                )
+            normalized_item["score"] = float(score)
+        normalized.append(normalized_item)
 
     if not normalized:
         raise RoleContractError(
@@ -181,6 +193,208 @@ def _validate_clarification_questions(
         normalized_questions.append(item)
 
     return tuple(normalized_questions)
+
+
+def _routing_policy(instructions: Mapping[str, Any]) -> dict[str, Any]:
+    value = instructions.get("routing_policy")
+    if not isinstance(value, Mapping) or value.get("schema_version") != _ROUTING_POLICY_SCHEMA:
+        raise RoleContractError(
+            "DETERMINER_ROUTING_POLICY_INVALID",
+            "Determiner routing policy is missing or invalid",
+        )
+
+    candidate_count = value.get("candidate_count")
+    clarification_option_count = value.get("clarification_option_count")
+    minimum_top_score = value.get("minimum_top_score")
+    minimum_lead = value.get("minimum_lead")
+
+    if not isinstance(candidate_count, int) or isinstance(candidate_count, bool) or candidate_count < 2:
+        raise RoleContractError(
+            "DETERMINER_ROUTING_POLICY_INVALID",
+            "candidate_count must be an integer of at least 2",
+        )
+    if (
+        not isinstance(clarification_option_count, int)
+        or isinstance(clarification_option_count, bool)
+        or clarification_option_count < 2
+    ):
+        raise RoleContractError(
+            "DETERMINER_ROUTING_POLICY_INVALID",
+            "clarification_option_count must be an integer of at least 2",
+        )
+    for number, label in (
+        (minimum_top_score, "minimum_top_score"),
+        (minimum_lead, "minimum_lead"),
+    ):
+        if isinstance(number, bool) or not isinstance(number, (int, float)) or not 0 <= float(number) <= 1:
+            raise RoleContractError(
+                "DETERMINER_ROUTING_POLICY_INVALID",
+                f"{label} must be a number from 0 through 1",
+            )
+
+    return {
+        "candidate_count": candidate_count,
+        "clarification_option_count": clarification_option_count,
+        "minimum_top_score": float(minimum_top_score),
+        "minimum_lead": float(minimum_lead),
+    }
+
+
+def _normalize_candidates(
+    value: Any,
+    taxonomy: DeterminerTaxonomy,
+) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or not value:
+        raise RoleContractError(
+            "DETERMINER_CANDIDATES_INVALID",
+            "classified result requires a nonempty candidates list",
+        )
+
+    by_id: dict[str, dict[str, Any]] = {}
+    for item in value:
+        if not isinstance(item, Mapping):
+            raise RoleContractError(
+                "DETERMINER_CANDIDATES_INVALID",
+                "candidate entries must be mappings",
+            )
+        source_value = None
+        for key in ("work_type_id", "work_type", "id", "label"):
+            if item.get(key) is not None:
+                source_value = item.get(key)
+                break
+        work_type_id = taxonomy.resolve_id(source_value)
+        if work_type_id is None:
+            raise RoleContractError(
+                "DETERMINER_CANDIDATES_INVALID",
+                "candidate does not name a configured work type",
+                {"candidate": source_value},
+            )
+
+        score = None
+        for key in ("score", "confidence", "probability"):
+            if item.get(key) is not None:
+                score = item.get(key)
+                break
+        if isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= float(score) <= 1:
+            raise RoleContractError(
+                "DETERMINER_CANDIDATES_INVALID",
+                "candidate score must be a number from 0 through 1",
+                {"work_type_id": work_type_id},
+            )
+        score = float(score)
+        current = by_id.get(work_type_id)
+        if current is None or score > current["score"]:
+            by_id[work_type_id] = {
+                "work_type_id": work_type_id,
+                "label": taxonomy.label_for_id(work_type_id),
+                "score": score,
+            }
+
+    candidates = sorted(
+        by_id.values(),
+        key=lambda item: (-item["score"], item["work_type_id"]),
+    )
+    return candidates
+
+
+def _apply_lead_policy(
+    envelope: dict[str, Any],
+    payload: dict[str, Any],
+    *,
+    taxonomy: DeterminerTaxonomy,
+    instructions: Mapping[str, Any],
+    repairs: list[str],
+) -> dict[str, Any]:
+    if envelope.get("status") != str(RoleStatus.COMPLETE):
+        return {}
+
+    if payload.get("classification") != str(ClassificationStatus.CLASSIFIED):
+        return {}
+
+    policy = _routing_policy(instructions)
+    candidates_raw = payload.get("candidates")
+    if candidates_raw is None:
+        for alias in ("routing_candidates", "candidate_scores", "scores"):
+            if payload.get(alias) is not None:
+                candidates_raw = payload.pop(alias)
+                repairs.append(f"{alias}_moved_to_candidates")
+                break
+
+    candidates = _normalize_candidates(candidates_raw, taxonomy)
+    if len(candidates) < policy["candidate_count"]:
+        raise RoleContractError(
+            "DETERMINER_CANDIDATES_INVALID",
+            "classified result did not return enough ranked candidates for lead policy",
+            {
+                "required": policy["candidate_count"],
+                "observed": len(candidates),
+            },
+        )
+
+    candidates = candidates[: policy["candidate_count"]]
+    payload["candidates"] = candidates
+    top = candidates[0]
+    runner_up = candidates[1]
+    lead = round(top["score"] - runner_up["score"], 6)
+
+    if payload.get("work_type_id") != top["work_type_id"]:
+        payload["work_type_id"] = top["work_type_id"]
+        repairs.append("winner_aligned_to_top_candidate")
+    payload["confidence"] = top["score"]
+
+    accepted = (
+        top["score"] >= policy["minimum_top_score"]
+        and lead >= policy["minimum_lead"]
+    )
+
+    decision = {
+        "top_score": top["score"],
+        "runner_up_score": runner_up["score"],
+        "lead": lead,
+        "minimum_top_score": policy["minimum_top_score"],
+        "minimum_lead": policy["minimum_lead"],
+        "accepted": accepted,
+    }
+
+    if accepted:
+        return decision
+
+    option_count = min(
+        policy["clarification_option_count"],
+        len(candidates),
+    )
+    options = [
+        {
+            "work_type_id": item["work_type_id"],
+            "label": item["label"],
+            "score": item["score"],
+        }
+        for item in candidates[:option_count]
+    ]
+    top_pct = round(top["score"] * 100)
+    runner_pct = round(runner_up["score"] * 100)
+    question = (
+        f"Routing is close between {top['label']} ({top_pct}%) "
+        f"and {runner_up['label']} ({runner_pct}%). Which should ACL use?"
+    )
+    reason = (
+        "top_score_below_minimum"
+        if top["score"] < policy["minimum_top_score"]
+        else "lead_below_minimum"
+    )
+    envelope["status"] = str(RoleStatus.NEEDS_CLARIFICATION)
+    envelope["payload"] = {
+        "questions": [{
+            "question_id": "q1",
+            "question": question,
+            "reason": reason,
+            "options": options,
+        }],
+        "routing_scores": candidates,
+        "routing_policy": decision,
+    }
+    repairs.append("lead_policy_escalated_to_clarification")
+    return decision
 
 
 def _parse_determiner_response(
@@ -232,6 +446,7 @@ def _parse_determiner_response(
     confidence = payload.get("confidence")
     reason_codes_raw = payload.get("reason_codes", [])
     notes = payload.get("notes")
+    candidates_raw = payload.get("candidates", [])
 
     if not isinstance(reason_codes_raw, list) or any(
         not isinstance(item, str) or not item.strip() for item in reason_codes_raw
@@ -286,7 +501,28 @@ def _parse_determiner_response(
                 "classified result confidence must be a number from 0 through 1",
             )
         confidence = float(confidence)
+        candidates = tuple(_normalize_candidates(candidates_raw, taxonomy))
+        if len(candidates) < 2:
+            raise RoleContractError(
+                "DETERMINER_RESULT_INVALID",
+                "classified result requires at least two scored candidates",
+            )
+        if candidates[0]["work_type_id"] != work_type_id:
+            raise RoleContractError(
+                "DETERMINER_RESULT_INVALID",
+                "classified work_type_id must match the highest-scored candidate",
+                {
+                    "work_type_id": work_type_id,
+                    "top_candidate": candidates[0]["work_type_id"],
+                },
+            )
+        if abs(float(confidence) - float(candidates[0]["score"])) > 1e-9:
+            raise RoleContractError(
+                "DETERMINER_RESULT_INVALID",
+                "confidence must match the highest candidate score",
+            )
     else:
+        candidates = ()
         if work_type_id is not None or complexity is not None:
             raise RoleContractError(
                 "DETERMINER_RESULT_INVALID",
@@ -311,6 +547,7 @@ def _parse_determiner_response(
         work_type_label=work_type_label,
         complexity=complexity,
         confidence=confidence,
+        candidates=candidates,
         reason_codes=reason_codes,
         notes=notes,
         raw_payload=dict(payload),
@@ -331,6 +568,7 @@ def _emit_result(result: DeterminerResult, taxonomy: DeterminerTaxonomy) -> None
         work_type_label=result.work_type_label,
         complexity=result.complexity,
         confidence=result.confidence,
+        candidates=[dict(item) for item in result.candidates],
         reason_codes=list(result.reason_codes),
         question_count=len(result.questions),
         taxonomy_digest=taxonomy.digest(),
@@ -360,6 +598,7 @@ def validate_determiner_role_response(
         "work_type_label": result.work_type_label,
         "complexity": result.complexity,
         "confidence": result.confidence,
+        "candidates": [dict(item) for item in result.candidates],
         "question_count": len(result.questions),
         "taxonomy_digest": taxonomy.digest(),
     }
@@ -395,6 +634,10 @@ def normalize_determiner_role_response(
                 "work_type",
                 "complexity",
                 "confidence",
+                "candidates",
+                "routing_candidates",
+                "candidate_scores",
+                "scores",
                 "reason_codes",
                 "notes",
                 "questions",
@@ -586,7 +829,7 @@ def normalize_determiner_role_response(
         payload["work_type_id"] = None
 
     recognized_result = (
-        payload.get("schema_version") in {DETERMINER_RESULT_SCHEMA, _LEGACY_RESULT_SCHEMA}
+        payload.get("schema_version") in ({DETERMINER_RESULT_SCHEMA} | _LEGACY_RESULT_SCHEMAS)
         or canonical_classification in {
             str(ClassificationStatus.CLASSIFIED),
             str(ClassificationStatus.UNKNOWN),
@@ -628,7 +871,16 @@ def normalize_determiner_role_response(
         payload["schema_version"] = DETERMINER_RESULT_SCHEMA
         repairs.append("determiner_schema_upgraded")
 
+    routing_decision = _apply_lead_policy(
+        envelope,
+        payload,
+        taxonomy=taxonomy,
+        instructions=instructions,
+        repairs=repairs,
+    )
+
     return envelope, {
         "changed": bool(repairs),
         "repairs": repairs,
+        "routing_decision": routing_decision,
     }
