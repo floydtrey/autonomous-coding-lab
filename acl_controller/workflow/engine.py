@@ -562,6 +562,15 @@ class WorkflowEngine:
                 waiting_for=None,
                 blocker=None,
             )
+            emit(
+                "INFO",
+                self.component,
+                "advance_complete",
+                "workflow_complete",
+                workflow_id=workflow_id,
+                program_id=program.program_id,
+                completed_step=step.step_id,
+            )
             return False
         self.state.transition(
             workflow_id,
@@ -573,6 +582,16 @@ class WorkflowEngine:
             active_attempt_id=None,
             waiting_for=None,
             blocker=None,
+        )
+        emit(
+            "INFO",
+            self.component,
+            "advance_complete",
+            "step_advanced",
+            workflow_id=workflow_id,
+            program_id=program.program_id,
+            completed_step=step.step_id,
+            next_step=step.next_step,
         )
         return True
 
