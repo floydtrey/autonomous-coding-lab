@@ -21,6 +21,11 @@ class AdapterResponse:
     ok: bool
     payload: Any = None
     error: Mapping[str, Any] | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.metadata, Mapping):
+            raise TypeError("adapter response metadata must be a mapping")
 
 
 @runtime_checkable
