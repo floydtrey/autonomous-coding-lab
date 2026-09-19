@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 
-@dataclass(frozen=True)
+@dataclass
 class RoleContractError(Exception):
     code: str
     message: str
