@@ -25,6 +25,7 @@
       "task_type and complexity are semantic descriptions only. Never name a model, provider, server, port, quantization, harness, retry limit, token ceiling, or runtime budget in the plan.",
       "Plan hierarchy is Plan -> optional Stage -> Pass -> Task. Pass is the Worker execution/session boundary.",
       "Use SINGLE_PASS for exactly one Pass, MULTI_PASS for two or more top-level Passes, and STAGED only when meaningful milestone/dependency boundaries justify Stages.",
+      "For EXECUTION_PLAN, include every key shown in execution_plan_shape at Plan, Pass, Task, workspace, filesystem, and project levels even when the value is an empty list or null. Do not abbreviate or omit required contract fields.",
       "For MULTI_PASS or STAGED plans, provide a concise decomposition_reason.",
       "Every execution plan must provide workspace.worker_working_directory and workspace.output_directory. Use supplied project/workspace context when available. If a material location is unknown, elevate rather than invent a machine path.",
       "Filesystem declarations state what work requires; they do not grant authority. Declare read/write/create/delete/move paths precisely and only when needed.",
