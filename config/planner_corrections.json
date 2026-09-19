@@ -22,6 +22,9 @@
     "PLANNER_REFERENCE_UNKNOWN": "Either declare the missing reference in reference_material or remove the invalid reference_id if it is unnecessary. Preserve valid references.",
     "PLANNER_PATH_INVALID": "Replace only the invalid filesystem declaration with a usable filesystem path. Do not convert the path into a URL or add authority assumptions.",
     "PLANNER_MOVE_NOOP": "Correct the move/rename declaration so source and destination are meaningfully different, or remove the move if no move is actually required.",
-    "PLANNER_CONSULTATION_REPLAN_DENIED": "This invocation is WORKER_CONSULTATION. Do not replace the execution plan. Answer the Worker, perform an allowed query response, elevate a material question to the operator, or return CANNOT_PLAN."
+    "PLANNER_CONSULTATION_REPLAN_DENIED": "This invocation is WORKER_CONSULTATION. Do not replace the execution plan. Answer the Worker, perform an allowed query response, elevate a material question to the operator, or return CANNOT_PLAN.",
+    "NORMALIZATION_INVALID": "The previous model output was not an unambiguous JSON object. Preserve the intended semantic result, but return exactly one complete JSON object matching the shared ACL role envelope and Planner contract. Do not use Markdown fences or prose outside JSON.",
+    "RUNTIME_RESPONSE_INVALID": "The runtime returned model content that could not be used as the required structured response. Return exactly one complete JSON object matching the shared ACL role envelope and Planner contract, with no Markdown fence or surrounding prose.",
+    "CONTROLLER_ROLE_RESPONSE_INVALID": "The previous response could not pass the shared role/Planner response boundary. Use the supplied failure details to repair the response shape while preserving valid semantic content. Return one complete corrected structured response."
   }
 }
