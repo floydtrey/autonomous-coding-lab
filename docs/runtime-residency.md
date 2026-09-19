@@ -78,3 +78,29 @@ must resume the Pass.
 Full live Worker context reconstruction and consultation-disconnect replay remain
 part of Worker integration; the durable runtime identity needed for that
 recovery is established here.
+
+
+## Optional Windows llama.cpp switch launcher
+
+`tools/runtime/Switch-LlamaServerModel.ps1` is a host utility for the current
+Windows development machine. It is not required by the Controller architecture.
+
+The script:
+
+- derives the dedicated port from `ACL_OPENAI_COMPAT_BASE_URL` unless supplied;
+- refuses to stop a listener unless it is `llama-server`;
+- when a server executable is configured, refuses to stop a different
+  `llama-server` binary;
+- waits for the old listener to release the port;
+- starts the requested Hugging Face GGUF or local GGUF with the requested alias.
+
+The Controller profile can receive a complete launcher command through
+`runtime_launcher_command_json_env`. Current role variables are:
+
+- Determiner: `ACL_DETERMINER_LAUNCH_COMMAND_JSON`
+- Planner: `ACL_PLANNER_LAUNCH_COMMAND_JSON`
+
+This keeps host paths, quantization choices, and model download sources outside
+Python source and outside mandatory repository configuration. Other operating
+systems can provide different launcher commands using the same Controller
+interface.
