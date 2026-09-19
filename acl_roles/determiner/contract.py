@@ -94,6 +94,95 @@ def parse_determiner_response(
         return _parse_determiner_response(response, taxonomy)
 
 
+def _normalize_clarification_options(
+    options: Any,
+    taxonomy: DeterminerTaxonomy,
+) -> list[dict[str, Any]]:
+    if options is None:
+        return []
+    if not isinstance(options, list) or not options:
+        raise RoleContractError(
+            "DETERMINER_RESULT_INVALID",
+            "clarification options must be a nonempty list when present",
+        )
+
+    normalized: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in options:
+        source_value = None
+        if isinstance(item, str):
+            source_value = item
+        elif isinstance(item, Mapping):
+            for key in ("work_type_id", "work_type", "id", "label"):
+                if item.get(key) is not None:
+                    source_value = item.get(key)
+                    break
+        else:
+            raise RoleContractError(
+                "DETERMINER_RESULT_INVALID",
+                "clarification options must contain text or mappings",
+            )
+
+        work_type_id = taxonomy.resolve_id(source_value)
+        if work_type_id is None:
+            raise RoleContractError(
+                "DETERMINER_RESULT_INVALID",
+                "clarification option is not a configured work type",
+                {"option": source_value},
+            )
+        if work_type_id in seen:
+            continue
+        seen.add(work_type_id)
+        definition = taxonomy.definition_for_id(work_type_id)
+        normalized.append({
+            "work_type_id": work_type_id,
+            "label": definition.label,
+        })
+
+    if not normalized:
+        raise RoleContractError(
+            "DETERMINER_RESULT_INVALID",
+            "clarification options resolved to an empty set",
+        )
+    return normalized
+
+
+def _validate_clarification_questions(
+    questions: Any,
+    taxonomy: DeterminerTaxonomy,
+) -> tuple[Mapping[str, Any], ...]:
+    if not isinstance(questions, list) or not questions or any(
+        not isinstance(item, Mapping) for item in questions
+    ):
+        raise RoleContractError(
+            "DETERMINER_RESULT_INVALID",
+            "clarification response requires one or more structured questions",
+        )
+
+    normalized_questions = []
+    for index, raw in enumerate(questions, start=1):
+        question = raw.get("question")
+        if not isinstance(question, str) or not question.strip():
+            raise RoleContractError(
+                "DETERMINER_RESULT_INVALID",
+                "clarification question text is required",
+            )
+        item = dict(raw)
+        item["question_id"] = (
+            item.get("question_id")
+            if isinstance(item.get("question_id"), str) and item.get("question_id").strip()
+            else f"q{index}"
+        )
+        item["question"] = question.strip()
+
+        options = item.get("options")
+        if options is not None:
+            item["options"] = _normalize_clarification_options(options, taxonomy)
+        normalized_questions.append(item)
+
+    return tuple(normalized_questions)
+
+
 def _parse_determiner_response(
     response: RoleResponse,
     taxonomy: DeterminerTaxonomy,
@@ -101,17 +190,13 @@ def _parse_determiner_response(
     payload = response.payload
 
     if response.status is RoleStatus.NEEDS_CLARIFICATION:
-        questions = payload.get("questions")
-        if not isinstance(questions, list) or not questions or any(
-            not isinstance(item, Mapping) for item in questions
-        ):
-            raise RoleContractError(
-                "DETERMINER_RESULT_INVALID",
-                "clarification response requires one or more structured questions",
-            )
+        questions = _validate_clarification_questions(
+            payload.get("questions"),
+            taxonomy,
+        )
         result = DeterminerResult(
             role_status=response.status,
-            questions=tuple(dict(item) for item in questions),
+            questions=questions,
             raw_payload=dict(payload),
         )
         _emit_result(result, taxonomy)
@@ -314,6 +399,7 @@ def normalize_determiner_role_response(
                 "notes",
                 "questions",
                 "question",
+                "clarification",
             }
             payload = {
                 key: envelope.pop(key)
@@ -354,6 +440,69 @@ def normalize_determiner_role_response(
                 "DETERMINER_NORMALIZATION_AMBIGUOUS",
                 "top-level status is not a shared role status, classification state, or configured work type",
                 {"status": top_status},
+            )
+
+    if "clarification" in payload:
+        clarification = payload.pop("clarification")
+        if "questions" in payload or "question" in payload:
+            raise RoleContractError(
+                "DETERMINER_NORMALIZATION_AMBIGUOUS",
+                "response contains clarification together with question/questions",
+            )
+
+        if isinstance(clarification, str) and clarification.strip():
+            payload["question"] = clarification.strip()
+            repairs.append("clarification_string_normalized")
+        elif isinstance(clarification, Mapping):
+            clarification = dict(clarification)
+            question_text = None
+            for key in ("question", "message", "prompt"):
+                candidate = clarification.get(key)
+                if isinstance(candidate, str) and candidate.strip():
+                    question_text = candidate.strip()
+                    break
+
+            options = None
+            for key in ("options", "candidates", "choices"):
+                if clarification.get(key) is not None:
+                    options = clarification.get(key)
+                    break
+
+            if question_text is None:
+                if options is None:
+                    raise RoleContractError(
+                        "DETERMINER_NORMALIZATION_AMBIGUOUS",
+                        "clarification mapping has neither question text nor route options",
+                        {"observed_keys": sorted(str(key) for key in clarification)},
+                    )
+                question_text = "Which work type should this request use?"
+                repairs.append("clarification_question_defaulted")
+
+            question_item: dict[str, Any] = {
+                "question_id": "q1",
+                "question": question_text,
+            }
+            reason = clarification.get("reason")
+            if isinstance(reason, str) and reason.strip():
+                question_item["reason"] = reason.strip()
+            if options is not None:
+                question_item["options"] = _normalize_clarification_options(
+                    options,
+                    taxonomy,
+                )
+
+            payload["questions"] = [question_item]
+            repairs.append("clarification_mapping_normalized")
+        elif isinstance(clarification, list) and clarification and all(
+            isinstance(item, Mapping) for item in clarification
+        ):
+            payload["questions"] = [dict(item) for item in clarification]
+            repairs.append("clarification_list_normalized")
+        else:
+            raise RoleContractError(
+                "DETERMINER_NORMALIZATION_AMBIGUOUS",
+                "clarification field has an unsupported shape",
+                {"clarification_type": type(clarification).__name__},
             )
 
     if isinstance(payload.get("question"), str) and payload["question"].strip():
