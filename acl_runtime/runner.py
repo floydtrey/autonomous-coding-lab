@@ -54,6 +54,7 @@ def run_program(
     )
     inspection = controller.inspect_workflow(workflow.workflow_id)
     return {
+        "ok": True,
         "services": list(service_status),
         "engine": report.to_dict(),
         "inspection": inspection.to_dict(),
@@ -109,15 +110,35 @@ def main() -> int:
             root=Path(args.raw_role_path),
         )
 
-    result = run_program(
-        config_root=Path(args.config_root),
-        state_root=Path(args.state_root),
-        program_path=Path(args.program),
-        request_kind=args.request_kind,
-        request_payload=_request_payload(args),
-        requester=args.requester,
-        max_operations=args.max_operations,
-    )
+    try:
+        result = run_program(
+            config_root=Path(args.config_root),
+            state_root=Path(args.state_root),
+            program_path=Path(args.program),
+            request_kind=args.request_kind,
+            request_payload=_request_payload(args),
+            requester=args.requester,
+            max_operations=args.max_operations,
+        )
+    except Exception as exc:
+        details = {}
+        to_dict = getattr(exc, "to_dict", None)
+        if callable(to_dict):
+            try:
+                details = to_dict()
+            except Exception:
+                details = {}
+        error_result = {
+            "ok": False,
+            "error": {
+                "exception_type": type(exc).__name__,
+                "message": str(exc),
+                "details": details,
+            },
+        }
+        print(json.dumps(error_result, ensure_ascii=False, indent=2, default=str))
+        return 1
+
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
     return 0
 
