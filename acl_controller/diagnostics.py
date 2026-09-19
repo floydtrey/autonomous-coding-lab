@@ -8,8 +8,8 @@ from acl_core import Correlation, current_correlation, pop_correlation, push_cor
 from acl_core.diagnostics import emit, span
 
 
-def controller_emit(level: str, operation: str, event: str, **details: Any) -> None:
-    emit(level, "controller", operation, event, **details)
+def controller_emit(level: str, operation_name: str, event: str, **details: Any) -> None:
+    emit(level, "controller", operation_name, event, **details)
 
 
 @contextmanager
