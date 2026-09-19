@@ -8,7 +8,7 @@
       "settings": {
         "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
         "timeout_seconds": 120,
-        "api_key_env": "ACL_OPENAI_COMPAT_API_KEY"
+        "api_key_file_env": "ACL_OPENAI_COMPAT_API_KEY_FILE"
       }
     }
   ]
