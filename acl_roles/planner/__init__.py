@@ -24,6 +24,7 @@ from .correction import (
 )
 
 from .validation import (
+    normalize_planner_role_response,
     validate_planner_result,
     validate_planner_role_response,
 )
@@ -83,6 +84,7 @@ __all__ = [
     "planner_result_to_role_response",
     "resume_planner_input",
     "validate_elevation_answers",
+    "normalize_planner_role_response",
     "validate_planner_result",
     "validate_planner_role_response",
     "PLANNER_CORRECTION_POLICY_SCHEMA",
