@@ -59,12 +59,15 @@ class RuntimeResidencyConfig:
         path = Path(path).expanduser().resolve()
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
-        except FileNotFoundError as exc:
-            raise ControllerError(
-                "CONTROLLER_RUNTIME_RESIDENCY_CONFIG_MISSING",
-                "runtime residency configuration is missing",
-                {"path": str(path)},
-            ) from exc
+        except FileNotFoundError:
+            emit(
+                "DEBUG",
+                "controller.runtime_residency",
+                "load_config",
+                "runtime_residency_config_absent",
+                path=str(path),
+            )
+            return cls(enabled=False)
         except (OSError, json.JSONDecodeError) as exc:
             raise ControllerError(
                 "CONTROLLER_RUNTIME_RESIDENCY_CONFIG_INVALID",
