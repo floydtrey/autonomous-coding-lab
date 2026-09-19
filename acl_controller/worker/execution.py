@@ -16,6 +16,7 @@ from typing import Any, Mapping
 from acl_core import CoreIdentity
 from acl_core.canonical import canonical_json
 from acl_core.diagnostics import emit
+from acl_roles.common.errors import RoleContractError
 from acl_roles.worker import (
     WorkerInput,
     WorkerOutcome,
@@ -174,7 +175,7 @@ class WorkerRunRecord:
                 created_at=value["created_at"],
                 updated_at=value["updated_at"],
             )
-        except (KeyError, TypeError, ValueError) as exc:
+        except (KeyError, TypeError, ValueError, RoleContractError) as exc:
             raise ControllerError(
                 "CONTROLLER_WORKER_RUN_INVALID",
                 "Worker run record is malformed",
