@@ -172,6 +172,7 @@ class ControllerService:
             planner_plan = PlannerPlanService(
                 state=state_service,
                 store=JsonPlannerPlanStore(state_root),
+                filesystem_authority=filesystem_authority,
             )
             gates = GateService(
                 state_service,
