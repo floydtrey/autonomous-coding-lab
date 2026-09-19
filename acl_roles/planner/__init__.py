@@ -10,6 +10,7 @@ from .correction import (
     PlannerCorrectionRule,
     build_planner_correction_input,
     correction_signature,
+    load_planner_correction_policy,
     planner_failure_from_error,
 )
 
@@ -80,5 +81,6 @@ __all__ = [
     "PlannerCorrectionRule",
     "build_planner_correction_input",
     "correction_signature",
+    "load_planner_correction_policy",
     "planner_failure_from_error",
 ]
