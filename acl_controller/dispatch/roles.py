@@ -15,6 +15,7 @@ from acl_roles.common import InstructionSet, RoleDiagnostics, RoleRequest, RoleR
 from ..configuration import RoleProfile
 from ..diagnostics import controller_span
 from ..errors import ControllerError
+from ..runtime import SerialRuntimeResidencyService
 
 
 @dataclass(frozen=True)
@@ -27,7 +28,11 @@ class RoleDispatchRequest:
     operation: str = "role.invoke"
     attempt_id: str = field(default_factory=lambda: CoreIdentity.new("attempt").value)
 
-    def to_role_request(self) -> RoleRequest:
+    def to_role_request(
+        self,
+        *,
+        execution_overrides: Mapping[str, Any] | None = None,
+    ) -> RoleRequest:
         instructions = InstructionSet.from_profile(
             profile_id=self.profile.profile_id,
             instructions=self.profile.instructions,
@@ -41,7 +46,10 @@ class RoleDispatchRequest:
             instructions=instructions,
             authority_grant_id=None if self.grant is None else self.grant.grant_id,
             tool_ids=() if self.grant is None else self.grant.authority.tool_scopes,
-            execution=self.profile.settings,
+            execution={
+                **dict(self.profile.settings),
+                **dict(execution_overrides or {}),
+            },
             metadata={
                 "adapter_id": self.profile.adapter_id,
                 "tool_profile": self.profile.tool_profile,
@@ -50,8 +58,15 @@ class RoleDispatchRequest:
             },
         )
 
-    def to_adapter_payload(self) -> dict[str, Any]:
-        role_request = self.to_role_request()
+    def to_adapter_payload(
+        self,
+        *,
+        role_request: RoleRequest | None = None,
+        execution_overrides: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        role_request = role_request or self.to_role_request(
+            execution_overrides=execution_overrides,
+        )
         return {
             "role_request": role_request.to_dict(),
             "authority": {
@@ -89,8 +104,14 @@ class RoleDispatchResponse:
 class RoleDispatcher:
     component = "controller.role_dispatch"
 
-    def __init__(self, core: CoreServices) -> None:
+    def __init__(
+        self,
+        core: CoreServices,
+        *,
+        residency: SerialRuntimeResidencyService,
+    ) -> None:
         self.core = core
+        self.residency = residency
 
     def dispatch(self, request: RoleDispatchRequest) -> RoleDispatchResponse:
         with controller_span(
@@ -113,14 +134,22 @@ class RoleDispatcher:
                         "profile_role": request.profile.role,
                     },
                 )
-            role_request = request.to_role_request()
+            lease = self.residency.prepare_role(
+                workflow_id=request.workflow_id,
+                attempt_id=request.attempt_id,
+                role=request.role,
+                profile=request.profile,
+            )
+            role_request = request.to_role_request(
+                execution_overrides=lease.execution_overrides,
+            )
             RoleDiagnostics.invocation(
                 role_request,
                 adapter_id=request.profile.adapter_id,
             )
             adapter_request = AdapterRequest(
                 operation=request.operation,
-                payload=request.to_adapter_payload(),
+                payload=request.to_adapter_payload(role_request=role_request),
                 metadata={
                     "workflow_id": request.workflow_id,
                     "attempt_id": request.attempt_id,
@@ -335,6 +364,10 @@ class RoleDispatcher:
                         "role_validation": validation,
                     },
                 )
+            self.residency.response_received(
+                request.workflow_id,
+                request.attempt_id,
+            )
             RoleDiagnostics.response(
                 role_request,
                 common_response,
@@ -356,6 +389,12 @@ class RoleDispatcher:
                 adapter_telemetry=dict(response.metadata),
             )
             return role_response
+
+    def complete_runtime(self, workflow_id: str, attempt_id: str) -> None:
+        self.residency.complete_role(workflow_id, attempt_id)
+
+    def runtime_checkpoint(self, workflow_id: str):
+        return self.residency.checkpoint(workflow_id)
 
     @staticmethod
     def from_common_response(
