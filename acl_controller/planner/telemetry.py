@@ -422,6 +422,32 @@ class PlannerTelemetryService:
         )
         return record
 
+    def record_safely(
+        self,
+        request: PlannerRuntimeRequest,
+        *,
+        response: PlannerRuntimeResponse | None = None,
+        error: BaseException | None = None,
+    ) -> PlannerTelemetryRecord | None:
+        """Record telemetry without ever becoming an execution dependency."""
+        try:
+            return self.record(
+                request,
+                response=response,
+                error=error,
+            )
+        except Exception as exc:
+            emit(
+                "ERROR",
+                self.component,
+                "record_safely",
+                "planner_telemetry_internal_error",
+                workflow_id=getattr(request, "workflow_id", None),
+                exception_type=type(exc).__name__,
+                exception_message=str(exc),
+            )
+            return None
+
     def records(self, workflow_id: str) -> tuple[PlannerTelemetryRecord, ...]:
         if not self.config.enabled:
             return ()
