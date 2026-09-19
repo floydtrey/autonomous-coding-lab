@@ -67,6 +67,11 @@ from .diagnostics import controller_span
 from .errors import ControllerError
 from .models import ControllerStatus, RequestRecord, WorkflowRecord, WorkflowStatus
 from .routing import ActionRegistry, ActionRequest, ActionResponse
+from .runtime import (
+    JsonRuntimeCheckpointStore,
+    RuntimeResidencyConfig,
+    SerialRuntimeResidencyService,
+)
 from .state import JsonWorkflowStore, WorkflowStateService
 
 
@@ -81,6 +86,7 @@ class ControllerService:
         profiles: ProfileResolver,
         routing: ActionRegistry,
         role_dispatch: RoleDispatcher,
+        runtime_residency: SerialRuntimeResidencyService,
         authority: AuthorityCoordinator,
         filesystem_authority: FilesystemAuthorityCoordinator,
         planner_runtime: PlannerRuntimeService,
@@ -101,6 +107,7 @@ class ControllerService:
         self.profiles = profiles
         self.routing = routing
         self.role_dispatch = role_dispatch
+        self.runtime_residency = runtime_residency
         self.authority = authority
         self.filesystem_authority = filesystem_authority
         self.planner_runtime = planner_runtime
@@ -147,7 +154,16 @@ class ControllerService:
             state_service = WorkflowStateService(JsonWorkflowStore(state_root))
             profiles = ProfileResolver(config_root)
             routing = ActionRegistry()
-            role_dispatch = RoleDispatcher(resolved_core)
+            runtime_residency = SerialRuntimeResidencyService(
+                config=RuntimeResidencyConfig.load(
+                    config_root / "runtime_residency.json"
+                ),
+                store=JsonRuntimeCheckpointStore(state_root),
+            )
+            role_dispatch = RoleDispatcher(
+                resolved_core,
+                residency=runtime_residency,
+            )
             authority = AuthorityCoordinator(
                 resolved_core.authority,
                 JsonGrantStore(state_root),
@@ -210,6 +226,7 @@ class ControllerService:
                 profiles=profiles,
                 routing=routing,
                 role_dispatch=role_dispatch,
+                runtime_residency=runtime_residency,
                 authority=authority,
                 clarification=clarification,
                 gates=gates,
@@ -224,6 +241,7 @@ class ControllerService:
                 profiles=profiles,
                 engine=engine,
                 stops=stops,
+                runtime_residency=runtime_residency,
             )
             inspection = InspectionService(
                 state=state_service,
@@ -242,6 +260,7 @@ class ControllerService:
                 profiles=profiles,
                 routing=routing,
                 role_dispatch=role_dispatch,
+                runtime_residency=runtime_residency,
                 authority=authority,
                 filesystem_authority=filesystem_authority,
                 planner_runtime=resolved_planner_runtime,
