@@ -435,6 +435,33 @@ class KnowledgeGraphRuntime:
             return False
         return {source.source_ref for source in attempt.sources} == set(expected_refs)
 
+    def _ready_attempt_ids_for_refs(
+        self,
+        *,
+        kernel: SourceNeutralGraphProjectionKnowledgeKernel,
+        refs: tuple[UUID, ...],
+        project_scope_ref: UUID,
+    ) -> frozenset[UUID]:
+        if not refs:
+            return frozenset()
+        plan = kernel.build_sr2_projection_plan(resource_version_refs=refs)
+        graph_scope_key = self.graph_scope_key(project_scope_ref)
+        for ordinal in range(self.max_attempts):
+            attempt_id = self._attempt_id(
+                plan=plan,
+                graph_scope_key=graph_scope_key,
+                ordinal=ordinal,
+            )
+            if kernel.session.get(ProjectionAttempt, attempt_id) is None:
+                continue
+            if self._attempt_is_ready(
+                kernel=kernel,
+                attempt_id=attempt_id,
+                expected_refs=refs,
+            ):
+                return frozenset((attempt_id,))
+        return frozenset()
+
     def _ensure_ready_sync(
         self,
         *,
@@ -578,15 +605,28 @@ class KnowledgeGraphRuntime:
             )
 
         with self.session_factory() as session:
-            allowed_statement = AuthorizationKernel(
-                session
-            ).authorized_resource_refs_statement(
+            authz = AuthorizationKernel(session)
+            allowed_statement = authz.authorized_resource_refs_statement(
                 principal_ref=principal_ref,
                 operation=KCOperation.SEARCH,
                 scope_ref=active_scope_ref,
             )
             authorized_refs = frozenset(
                 session.scalars(allowed_statement).all()
+            )
+            kernel = SourceNeutralGraphProjectionKnowledgeKernel(
+                session,
+                artifact_store=self.artifact_store,
+            )
+            projectable_refs = self._projectable_version_refs(
+                session=session,
+                kernel=kernel,
+                project_scope_ref=project_scope.scope_ref,
+            )
+            allowed_attempt_ids = self._ready_attempt_ids_for_refs(
+                kernel=kernel,
+                refs=projectable_refs,
+                project_scope_ref=project_scope.scope_ref,
             )
 
         graph_scope_key = self.graph_scope_key(project_scope.scope_ref)
@@ -605,6 +645,7 @@ class KnowledgeGraphRuntime:
             authorized_resource_refs=authorized_refs,
             authorization_principal_ref=principal_ref,
             authorization_scope_ref=active_scope_ref,
+            allowed_attempt_ids=allowed_attempt_ids,
         )
 
     def readiness(
@@ -632,27 +673,31 @@ class KnowledgeGraphRuntime:
                 namespace_key=self.namespace_key,
                 scope_key=graph_scope_key,
             )
-            if (
-                evidence.state is GraphRetrievalState.READY
-                and evidence.attempt_ids
-            ):
-                expected_refs = self._projectable_version_refs(
-                    session=session,
-                    kernel=kernel,
-                    project_scope_ref=project_scope.scope_ref,
+            expected_refs = self._projectable_version_refs(
+                session=session,
+                kernel=kernel,
+                project_scope_ref=project_scope.scope_ref,
+            )
+            exact_ready = self._ready_attempt_ids_for_refs(
+                kernel=kernel,
+                refs=expected_refs,
+                project_scope_ref=project_scope.scope_ref,
+            )
+            if exact_ready:
+                return GraphRetrievalEvidence(
+                    state=GraphRetrievalState.READY,
+                    namespace_key=self.namespace_key,
+                    scope_key=graph_scope_key,
+                    generation_id=evidence.generation_id,
+                    attempt_ids=tuple(exact_ready),
                 )
-                attempt = kernel.read_projection_attempt(
-                    evidence.attempt_ids[0]
+            if evidence.state is GraphRetrievalState.READY:
+                return GraphRetrievalEvidence(
+                    state=GraphRetrievalState.STALE,
+                    namespace_key=self.namespace_key,
+                    scope_key=graph_scope_key,
+                    generation_id=evidence.generation_id,
+                    attempt_ids=evidence.attempt_ids,
+                    reason_code="graph-projectable-source-set-changed",
                 )
-                if {source.source_ref for source in attempt.sources} != set(
-                    expected_refs
-                ):
-                    return GraphRetrievalEvidence(
-                        state=GraphRetrievalState.STALE,
-                        namespace_key=self.namespace_key,
-                        scope_key=graph_scope_key,
-                        generation_id=evidence.generation_id,
-                        attempt_ids=evidence.attempt_ids,
-                        reason_code="graph-projectable-source-set-changed",
-                    )
             return evidence
