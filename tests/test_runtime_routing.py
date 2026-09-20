@@ -14,11 +14,11 @@ def test_central_runtime_catalog_selects_role_models():
     planner = resolver.resolve(ProfileSelector("planner", "1127", "SMALL"))
     worker = resolver.resolve(ProfileSelector("worker", "1127", "SMALL"))
 
-    assert determiner.settings["model"] == "qwen3.5:9b"
+    assert determiner.settings["model"] == "qwen3.5:9b-16k"
     assert determiner.adapter_id == "openai-compatible.chat"
     assert determiner.metadata["runtime_id"] == "ollama-qwen35-9b-chat-16k"
 
-    assert planner.settings["model"] == "qwen3.5:9b"
+    assert planner.settings["model"] == "qwen3.5:9b-16k"
     assert planner.adapter_id == "openai-compatible.chat"
     assert planner.metadata["runtime_id"] == "ollama-qwen35-9b-chat-16k"
 
