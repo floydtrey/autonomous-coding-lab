@@ -1,3 +1,7 @@
+from .compiler import (
+    PlannerCompilation,
+    compile_planner_semantic_submission,
+)
 from .telemetry import (
     PLANNER_TELEMETRY_CONFIG_SCHEMA,
     PLANNER_TELEMETRY_RECORD_SCHEMA,
@@ -38,6 +42,8 @@ from .disposition import (
 from .runtime import ControllerPlannerRuntimeBackend, require_planner_runtime_backend
 
 __all__ = [
+    "PlannerCompilation",
+    "compile_planner_semantic_submission",
     "PLANNER_TELEMETRY_CONFIG_SCHEMA",
     "PLANNER_TELEMETRY_RECORD_SCHEMA",
     "JsonPlannerTelemetryStore",
