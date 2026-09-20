@@ -1,5 +1,11 @@
-"""Controller bridge for Worker V1 runtime."""
+"""Controller bridge for the generic Worker runtime port.
 
+This bridge mirrors the Planner runtime boundary: resolve the externally
+configured profile, resolve the persisted authority grant, dispatch through the
+generic role/adapter path, parse the Worker result, and release generic runtime
+residency. Worker Pass/workflow lifecycle remains owned by the higher execution
+service rather than this transport bridge.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,13 +24,10 @@ from ..configuration import ProfileResolver, ProfileSelector
 from ..diagnostics import controller_span
 from ..dispatch import RoleDispatchRequest, RoleDispatcher
 from ..errors import ControllerError
-from ..models import WorkflowStatus
-from ..state import WorkflowStateService
 
 
 @dataclass
 class ControllerWorkerRuntimeBackend:
-    state: WorkflowStateService
     profiles: ProfileResolver
     role_dispatch: RoleDispatcher
     authority: AuthorityCoordinator
@@ -52,38 +55,16 @@ class ControllerWorkerRuntimeBackend:
                 if request.authority_grant_id is None
                 else self.authority.grant(request.authority_grant_id)
             )
-            dispatch_request = RoleDispatchRequest(
-                workflow_id=request.workflow_id,
-                role="worker",
-                profile=profile,
-                payload=request.worker_input.to_objective(),
-                grant=grant,
-            )
-
-            workflow = self.state.read(request.workflow_id)
-            if workflow.status is not WorkflowStatus.READY:
-                raise ControllerError(
-                    "CONTROLLER_WORKER_RUN_STATE_INVALID",
-                    "Worker Pass may start only from a READY workflow",
-                    {
-                        "workflow_id": request.workflow_id,
-                        "status": str(workflow.status),
-                        "stage": workflow.stage,
-                    },
+            dispatched = self.role_dispatch.dispatch(
+                RoleDispatchRequest(
+                    workflow_id=request.workflow_id,
+                    role="worker",
+                    profile=profile,
+                    payload=request.worker_input.to_objective(),
+                    grant=grant,
                 )
-            self.state.transition(
-                request.workflow_id,
-                WorkflowStatus.RUNNING,
-                stage=f"worker:{request.worker_input.pass_id}",
-                active_action="role.invoke",
-                active_role="worker",
-                active_profile_id=profile.profile_id,
-                active_attempt_id=dispatch_request.attempt_id,
-                waiting_for=None,
-                blocker=None,
             )
 
-            dispatched = self.role_dispatch.dispatch(dispatch_request)
             common_response = RoleResponse(
                 status=dispatched.status,
                 payload=dict(dispatched.payload),
@@ -91,6 +72,11 @@ class ControllerWorkerRuntimeBackend:
                 metadata=dict(dispatched.metadata),
             )
             result = parse_worker_role_response(common_response)
+            self.role_dispatch.complete_runtime(
+                request.workflow_id,
+                dispatched.attempt_id,
+            )
+
             adapter_telemetry = dispatched.metadata.get("adapter_telemetry")
             adapter_telemetry = (
                 dict(adapter_telemetry)
