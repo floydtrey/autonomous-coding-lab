@@ -21,6 +21,7 @@ from acl_roles.planner import PlannerRuntimeRequest, PlannerRuntimeResponse
 
 from ..errors import ControllerError
 from ..models import utc_now
+from ..telemetry import extract_runtime_telemetry
 
 
 PLANNER_TELEMETRY_CONFIG_SCHEMA = "acl-planner-telemetry:v1"
@@ -289,53 +290,15 @@ class PlannerTelemetryService:
         if not self.config.enabled:
             return None
 
-        runtime_metadata = {} if response is None else dict(response.runtime_metadata)
-        role_metadata = runtime_metadata.get("role_metadata")
-        role_metadata = dict(role_metadata) if isinstance(role_metadata, Mapping) else {}
-        adapter = role_metadata.get("adapter_telemetry")
-        adapter = dict(adapter) if isinstance(adapter, Mapping) else {}
-        profile_metadata = runtime_metadata.get("profile_metadata")
-        profile_metadata = (
-            dict(profile_metadata)
-            if isinstance(profile_metadata, Mapping)
-            else {}
+        extracted = extract_runtime_telemetry(
+            runtime_metadata=(
+                None if response is None else response.runtime_metadata
+            ),
+            request_metadata=request.metadata,
+            error=error,
+            elapsed_key="planner_elapsed_ms",
         )
-
-        error_code = None
-        error_message = None
-        error_details: dict[str, Any] = {}
-        if error is not None:
-            error_code = getattr(error, "code", None)
-            error_message = getattr(error, "message", None)
-            if not isinstance(error_code, str):
-                error_code = type(error).__name__
-            if not isinstance(error_message, str):
-                error_message = str(error)
-
-            details = getattr(error, "details", None)
-            if isinstance(details, Mapping):
-                error_details = dict(details)
-                observed_runtime = details.get("runtime_metadata")
-                if isinstance(observed_runtime, Mapping):
-                    runtime_metadata = dict(observed_runtime)
-                    observed_role = runtime_metadata.get("role_metadata")
-                    role_metadata = (
-                        dict(observed_role)
-                        if isinstance(observed_role, Mapping)
-                        else {}
-                    )
-                    observed_profile = runtime_metadata.get("profile_metadata")
-                    profile_metadata = (
-                        dict(observed_profile)
-                        if isinstance(observed_profile, Mapping)
-                        else {}
-                    )
-                    observed_adapter = role_metadata.get("adapter_telemetry")
-                    if isinstance(observed_adapter, Mapping):
-                        adapter = dict(observed_adapter)
-                observed = details.get("adapter_telemetry")
-                if isinstance(observed, Mapping):
-                    adapter = dict(observed)
+        runtime_metadata = dict(extracted["runtime_metadata"])
 
         record = PlannerTelemetryRecord(
             telemetry_id=CoreIdentity.new("plannertelemetry").value,
@@ -345,49 +308,27 @@ class PlannerTelemetryService:
             disposition=(
                 None if response is None else str(response.result.disposition)
             ),
-            attempt_id=(
-                _text(runtime_metadata.get("attempt_id"))
-                or _text(error_details.get("attempt_id"))
-            ),
-            backend_id=(
-                _text(runtime_metadata.get("backend_id"))
-                or _text(request.metadata.get("runtime_backend_id"))
-            ),
-            profile_id=(
-                _text(runtime_metadata.get("profile_id"))
-                or _text(error_details.get("profile_id"))
-            ),
-            adapter_id=(
-                _text(adapter.get("adapter_id"))
-                or _text(runtime_metadata.get("adapter_id"))
-                or _text(error_details.get("adapter_id"))
-            ),
-            runtime_family=(
-                _text(adapter.get("runtime_family"))
-                or _text(runtime_metadata.get("runtime_family"))
-            ),
-            model=(
-                _text(adapter.get("model"))
-                or _text(runtime_metadata.get("model"))
-            ),
-            harness_id=(
-                _text(profile_metadata.get("harness_id"))
-                or _text(runtime_metadata.get("harness_id"))
-            ),
-            prompt_tokens=_optional_int(adapter.get("prompt_tokens")),
-            completion_tokens=_optional_int(adapter.get("completion_tokens")),
-            total_tokens=_optional_int(adapter.get("total_tokens")),
-            context_window=_optional_int(adapter.get("context_window")),
-            context_utilization=_optional_float(adapter.get("context_utilization")),
-            http_elapsed_ms=_optional_float(adapter.get("http_elapsed_ms")),
-            planner_elapsed_ms=_optional_float(runtime_metadata.get("planner_elapsed_ms")),
-            model_load_ms=_optional_float(adapter.get("model_load_ms")),
-            model_unload_ms=_optional_float(adapter.get("model_unload_ms")),
-            tool_calls=_optional_int(adapter.get("tool_calls")),
-            turns=_optional_int(adapter.get("turns")),
-            request_bytes=_optional_int(adapter.get("request_bytes")),
-            response_bytes=_optional_int(adapter.get("response_bytes")),
-            finish_reason=_text(adapter.get("finish_reason")),
+            attempt_id=extracted["attempt_id"],
+            backend_id=extracted["backend_id"],
+            profile_id=extracted["profile_id"],
+            adapter_id=extracted["adapter_id"],
+            runtime_family=extracted["runtime_family"],
+            model=extracted["model"],
+            harness_id=extracted["harness_id"],
+            prompt_tokens=extracted["prompt_tokens"],
+            completion_tokens=extracted["completion_tokens"],
+            total_tokens=extracted["total_tokens"],
+            context_window=extracted["context_window"],
+            context_utilization=extracted["context_utilization"],
+            http_elapsed_ms=extracted["http_elapsed_ms"],
+            planner_elapsed_ms=extracted["role_elapsed_ms"],
+            model_load_ms=extracted["model_load_ms"],
+            model_unload_ms=extracted["model_unload_ms"],
+            tool_calls=extracted["tool_calls"],
+            turns=extracted["turns"],
+            request_bytes=extracted["request_bytes"],
+            response_bytes=extracted["response_bytes"],
+            finish_reason=extracted["finish_reason"],
             correction_attempt=(
                 None
                 if request.planner_input.correction is None
@@ -395,8 +336,8 @@ class PlannerTelemetryService:
             ),
             consultation_id=_text(request.metadata.get("consultation_id")),
             exchange_number=_optional_int(request.metadata.get("exchange_number")),
-            error_code=error_code,
-            error_message=error_message,
+            error_code=extracted["error_code"],
+            error_message=extracted["error_message"],
             runtime_metadata=runtime_metadata,
         )
         try:
