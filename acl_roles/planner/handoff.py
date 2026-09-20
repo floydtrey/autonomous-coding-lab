@@ -15,7 +15,7 @@ from acl_roles.common.errors import RoleContractError
 
 PLANNER_HANDOFF_STATUS_READY = "READY"
 
-_TASK_HEADING = re.compile(r"^T(?P<number>\d+):[ \t]*(?P<name>.*)$")
+_TASK_HEADING = re.compile(r"^T(?P<number>\d+):(?P<inline>.*)$")
 
 
 @dataclass(frozen=True)
