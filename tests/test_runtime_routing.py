@@ -63,3 +63,15 @@ def test_pipeline_stops_when_determiner_does_not_classify():
     }
 
     assert _accepted_determiner_route(result) is None
+
+def test_planner_can_delegate_explicit_file_reads_to_worker():
+    resolver = ProfileResolver(ROOT / "config")
+    planner = resolver.resolve(ProfileSelector("planner", "1127", "SMALL"))
+
+    rules = planner.instructions["planning_rules"]
+    assert any(
+        "do not require their contents merely to create an execution plan" in rule
+        and "declare the required read_paths" in rule
+        for rule in rules
+    )
+
