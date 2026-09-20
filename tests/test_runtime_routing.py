@@ -107,6 +107,44 @@ def test_planner_inspects_material_files_with_read_only_tools():
     }
 
 
+def test_production_planner_read_grant_includes_search_only_read_tools(tmp_path):
+    from acl_controller.authority import AuthorityCoordinator, JsonGrantStore
+    from acl_controller.dispatch.lifecycle import RoleAttemptLifecycleService
+    from acl_controller.planner.runtime import ControllerPlannerRuntimeBackend
+    from acl_controller.state import JsonWorkflowStore, WorkflowStateService
+    from acl_core import CoreServices
+
+    core = CoreServices.create()
+    state = WorkflowStateService(JsonWorkflowStore(tmp_path / "state"))
+    backend = ControllerPlannerRuntimeBackend(
+        profiles=ProfileResolver(ROOT / "config"),
+        role_dispatch=None,
+        authority=AuthorityCoordinator(
+            core.authority,
+            JsonGrantStore(tmp_path / "grants"),
+        ),
+        lifecycle=RoleAttemptLifecycleService(state),
+    )
+
+    grant = backend._planner_read_grant()
+
+    assert grant.authority.capabilities == ("filesystem.read",)
+    assert grant.authority.tool_scopes == (
+        "filesystem.list_directory",
+        "filesystem.read_text",
+        "filesystem.search",
+    )
+    assert not any(
+        tool_id in grant.authority.tool_scopes
+        for tool_id in (
+            "filesystem.write_text",
+            "filesystem.create_text",
+            "filesystem.delete_path",
+            "filesystem.move_path",
+        )
+    )
+
+
 def test_planner_profile_exposes_compact_semantic_contract():
     resolver = ProfileResolver(ROOT / "config")
     planner = resolver.resolve(ProfileSelector("planner", "1127", "SMALL"))
@@ -141,6 +179,7 @@ def test_planner_read_wildcard_does_not_grant_mutation():
             tool_scopes=(
                 "filesystem.list_directory",
                 "filesystem.read_text",
+                "filesystem.search",
             ),
         ),
     )
