@@ -21,6 +21,7 @@ class ToolDefinition:
     description: str
     required_capabilities: tuple[str, ...] = ()
     parameters: Mapping[str, Any] = field(default_factory=lambda: dict(_DEFAULT_PARAMETERS))
+    repeat_policy: str = "allow"
 
     def __post_init__(self) -> None:
         if not isinstance(self.tool_id, str) or not self.tool_id.strip():
@@ -32,6 +33,12 @@ class ToolDefinition:
         if not isinstance(self.parameters, Mapping):
             raise CoreError("TOOL_INVALID", "tool parameters must be a JSON-schema mapping")
         object.__setattr__(self, "parameters", dict(self.parameters))
+        if self.repeat_policy not in {"allow", "suppress_identical_success"}:
+            raise CoreError(
+                "TOOL_INVALID",
+                "tool repeat_policy is unsupported",
+                {"repeat_policy": self.repeat_policy},
+            )
 
     def to_function_schema(self) -> dict[str, Any]:
         """Return the provider-neutral function description used by tool-capable harnesses."""
