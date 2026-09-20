@@ -562,6 +562,65 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "content": canonical_json(result.to_dict()),
         }
 
+    @staticmethod
+    def _bound_tool_message(
+        tool_message: Mapping[str, Any],
+        *,
+        max_chars: int | None,
+    ) -> tuple[dict[str, Any], dict[str, int] | None]:
+        """Bound one model-visible tool result without changing tool execution.
+
+        CoreServices has already executed the tool and produced its full result. This
+        method only limits the serialized content appended to the model transcript.
+        The replacement remains valid JSON and tells the model to request a narrower
+        read/search when more detail is needed.
+        """
+        bounded = dict(tool_message)
+        content = bounded.get("content")
+        if (
+            max_chars is None
+            or not isinstance(content, str)
+            or len(content) <= max_chars
+        ):
+            return bounded, None
+
+        original_characters = len(content)
+        reserve = min(768, max(128, max_chars // 4))
+        excerpt_budget = max(0, max_chars - reserve)
+        excerpt = content[:excerpt_budget]
+        payload = {
+            "ok": True,
+            "result_truncated": True,
+            "original_characters": original_characters,
+            "content_excerpt": excerpt,
+            "continuation": (
+                "This tool result exceeded the model-visible result limit. "
+                "Use a narrower path/query or a smaller max_chars/max_results "
+                "request if more detail is required."
+            ),
+        }
+        serialized = canonical_json(payload)
+        while len(serialized) > max_chars and excerpt:
+            overflow = len(serialized) - max_chars
+            excerpt = excerpt[: max(0, len(excerpt) - overflow - 16)]
+            payload["content_excerpt"] = excerpt
+            serialized = canonical_json(payload)
+
+        if len(serialized) > max_chars:
+            payload = {
+                "ok": True,
+                "result_truncated": True,
+                "original_characters": original_characters,
+            }
+            serialized = canonical_json(payload)
+
+        bounded["content"] = serialized
+        return bounded, {
+            "original_characters": original_characters,
+            "visible_characters": len(serialized),
+        }
+
+
     @classmethod
     def _tool_call_signature(cls, value: Any) -> str:
         return canonical_json({
