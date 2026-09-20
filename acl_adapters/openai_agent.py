@@ -418,9 +418,9 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                         "role": "user",
                         "content": (
                             "Your previous response reached the output limit before "
-                            "the requested deliverable was complete. Stop investigating "
-                            "and return only the final requested handoff now. Be concise. "
-                            "Use the requested Pass/Task structure when applicable. "
+                            "the requested deliverable was complete. Stop further "
+                            "investigation and return only the final role response now. "
+                            "Be concise and obey the role-specific response contract. "
                             "Do not narrate additional analysis or propose more inspection."
                         ),
                     })
