@@ -13,7 +13,6 @@ from uuid import UUID, uuid5
 
 from sqlalchemy import select
 
-from knowledge_core.api.consumer_admission import ConsumerPrincipalContext
 from knowledge_core.application.authorization import AuthorizationKernel
 from knowledge_core.application.graph_readiness import (
     disabled_graph_readiness,
@@ -325,22 +324,24 @@ class KnowledgeGraphRuntime:
     def graph_scope_key(project_scope_ref: UUID) -> str:
         return f"kc-project:{project_scope_ref}"
 
-    def _project_scope_for_context(
+    def _project_scope_for_request(
         self,
-        context: ConsumerPrincipalContext,
+        *,
+        principal_ref: UUID,
+        active_scope_ref: UUID | None,
     ):
-        if context.scope_ref is None:
+        if active_scope_ref is None:
             return None
         with self.session_factory() as session:
             authz = AuthorizationKernel(session)
             decision = authz.evaluate(
-                principal_ref=context.principal_ref,
+                principal_ref=principal_ref,
                 operation=KCOperation.SEARCH,
-                scope_ref=context.scope_ref,
+                scope_ref=active_scope_ref,
             )
             if not decision.allowed:
                 return None
-            return authz.project_scope_for(context.scope_ref)
+            return authz.project_scope_for(active_scope_ref)
 
     def _projectable_version_refs(
         self,
@@ -547,10 +548,14 @@ class KnowledgeGraphRuntime:
     async def prepare_binding(
         self,
         *,
-        context: ConsumerPrincipalContext,
+        principal_ref: UUID,
+        active_scope_ref: UUID | None,
         query: str,
     ) -> UnifiedGraphSearchBinding | None:
-        project_scope = self._project_scope_for_context(context)
+        project_scope = self._project_scope_for_request(
+            principal_ref=principal_ref,
+            active_scope_ref=active_scope_ref,
+        )
         if project_scope is None:
             return None
 
@@ -573,9 +578,9 @@ class KnowledgeGraphRuntime:
             allowed_statement = AuthorizationKernel(
                 session
             ).authorized_resource_refs_statement(
-                principal_ref=context.principal_ref,
+                principal_ref=principal_ref,
                 operation=KCOperation.SEARCH,
-                scope_ref=context.scope_ref,
+                scope_ref=active_scope_ref,
             )
             authorized_refs = frozenset(
                 session.scalars(allowed_statement).all()
@@ -586,12 +591,12 @@ class KnowledgeGraphRuntime:
             adapter=self.adapter,
             authority_evaluator=_KCGraphAuthority(
                 session_factory=self.session_factory,
-                principal_ref=context.principal_ref,
-                active_scope_ref=context.scope_ref,
+                principal_ref=principal_ref,
+                active_scope_ref=active_scope_ref,
                 namespace_key=self.namespace_key,
                 graph_scope_key=graph_scope_key,
             ),
-            caller_principal_ref=str(context.principal_ref),
+            caller_principal_ref=str(principal_ref),
             namespace_key=self.namespace_key,
             scope_key=graph_scope_key,
             authorized_resource_refs=authorized_refs,
@@ -600,9 +605,13 @@ class KnowledgeGraphRuntime:
     def readiness(
         self,
         *,
-        context: ConsumerPrincipalContext,
+        principal_ref: UUID,
+        active_scope_ref: UUID | None,
     ) -> GraphRetrievalEvidence:
-        project_scope = self._project_scope_for_context(context)
+        project_scope = self._project_scope_for_request(
+            principal_ref=principal_ref,
+            active_scope_ref=active_scope_ref,
+        )
         if project_scope is None:
             return disabled_graph_readiness()
 
