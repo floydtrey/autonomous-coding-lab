@@ -343,6 +343,13 @@ def test_kcd_lazy_project_graph_reuse_sensitive_exclusion_and_all_source_authori
                     target_type=GrantTargetType.SCOPE,
                     scope_ref=acl_scope.scope_ref,
                 )
+        _allow(
+            authz,
+            owner_ref=owner.principal_ref,
+            principal_ref=worker.principal_ref,
+            operation=KCOperation.STATUS,
+            target_type=GrantTargetType.GLOBAL,
+        )
         for operation in (KCOperation.STORE, KCOperation.MEMORY_PROPOSE):
             _allow(
                 authz,
