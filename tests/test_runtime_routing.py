@@ -106,6 +106,23 @@ def test_planner_inspects_material_files_with_read_only_tools():
     }
 
 
+def test_planner_profile_exposes_compact_semantic_contract():
+    resolver = ProfileResolver(ROOT / "config")
+    planner = resolver.resolve(ProfileSelector("planner", "1127", "SMALL"))
+
+    output_contract = planner.instructions["output_contract"]
+    assert "execution_plan_semantic_shape" in output_contract
+    assert "execution_plan_shape" not in output_contract
+    assert "filesystem_intent_shape" in output_contract
+
+    rules = planner.instructions["planning_rules"]
+    assert not any("include every key shown" in rule for rule in rules)
+    assert any(
+        "ACL canonicalizes deterministic defaults" in rule
+        for rule in rules
+    )
+
+
 def test_planner_read_wildcard_does_not_grant_mutation():
     coordinator = FilesystemAuthorityCoordinator.create(
         project_root=ROOT,
