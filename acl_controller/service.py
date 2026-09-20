@@ -235,6 +235,7 @@ class ControllerService:
                     profiles=profiles,
                     role_dispatch=role_dispatch,
                     authority=authority,
+                    lifecycle=role_lifecycle,
                 )
             )
             resolved_worker_runtime = worker_runtime or WorkerRuntimeService(
