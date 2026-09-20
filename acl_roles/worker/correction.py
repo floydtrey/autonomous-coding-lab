@@ -246,6 +246,7 @@ def build_worker_correction_input(
         plan_context=dict(original.plan_context),
         completed_passes=original.completed_passes,
         prior_worker_results=original.prior_worker_results,
+        continuation_handoff=original.continuation_handoff,
         correction=correction,
         metadata=dict(original.metadata),
     )
