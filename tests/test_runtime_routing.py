@@ -27,11 +27,11 @@ def test_central_runtime_catalog_selects_role_models():
     assert determiner.adapter_id == "openai-compatible.chat"
     assert determiner.metadata["runtime_id"] == "determiner-laguna-xs-2-1-4k"
 
-    assert planner.settings["model"] == "qwen3.8:27b-64k"
-    assert planner.settings["context_window"] == 65536
-    assert planner.settings["max_tokens"] == 16384
+    assert planner.settings["model"] == "qwen2.5-coder:7b-32k"
+    assert planner.settings["context_window"] == 32768
+    assert planner.settings["max_tokens"] == 8192
     assert planner.adapter_id == "openai-compatible.agent"
-    assert planner.metadata["runtime_id"] == "planner-qwen38-27b-64k"
+    assert planner.metadata["runtime_id"] == "planner-qwen25-coder-7b-32k"
     assert planner.metadata["harness_id"] == "openai-compatible.agent"
     assert planner.tool_profile == "planner-readonly-v1"
 
