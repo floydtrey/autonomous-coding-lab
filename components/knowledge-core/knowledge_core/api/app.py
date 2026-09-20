@@ -273,31 +273,32 @@ def create_app(
             content={"detail": "knowledge item is unavailable"},
         )
 
-    @app.post(
-        _RETRIEVAL_PATH,
-        response_model=RetrievalSearchResponse,
-    )
-    def retrieval_search(
-        body: RetrievalSearchRequest,
-        kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
-        caller: str = Depends(caller_context),
-    ) -> RetrievalSearchResponse:
-        require_retrieval_authority(
-            retrieval_authority_evaluator,
-            RetrievalAuthorityRequest(
-                caller_principal_ref=caller,
-                operation=RetrievalAuthorityOperation.SEARCH_TEXT,
-                limit=body.limit,
-                include_superseded=body.include_superseded,
-            ),
+    if consumer_admission is None:
+        @app.post(
+            _RETRIEVAL_PATH,
+            response_model=RetrievalSearchResponse,
         )
-        return retrieval_response_from_domain(
-            kernel.search_text(
-                query=body.query,
-                limit=body.limit,
-                include_superseded=body.include_superseded,
+        def retrieval_search(
+            body: RetrievalSearchRequest,
+            kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
+            caller: str = Depends(caller_context),
+        ) -> RetrievalSearchResponse:
+            require_retrieval_authority(
+                retrieval_authority_evaluator,
+                RetrievalAuthorityRequest(
+                    caller_principal_ref=caller,
+                    operation=RetrievalAuthorityOperation.SEARCH_TEXT,
+                    limit=body.limit,
+                    include_superseded=body.include_superseded,
+                ),
             )
-        )
+            return retrieval_response_from_domain(
+                kernel.search_text(
+                    query=body.query,
+                    limit=body.limit,
+                    include_superseded=body.include_superseded,
+                )
+            )
 
     if bootstrap_admission is not None or consumer_admission is not None:
         if consumer_admission is not None:
