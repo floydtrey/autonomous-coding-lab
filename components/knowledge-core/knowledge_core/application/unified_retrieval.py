@@ -43,6 +43,8 @@ class UnifiedGraphSearchBinding:
     namespace_key: str
     scope_key: str
     authorized_resource_refs: frozenset[UUID] | None = None
+    authorization_principal_ref: UUID | None = None
+    authorization_scope_ref: UUID | None = None
 
     def __post_init__(self) -> None:
         for name in ("caller_principal_ref", "namespace_key", "scope_key"):
@@ -246,6 +248,13 @@ class UnifiedRetrievalCoordinator:
             if binding.authorized_resource_refs is not None:
                 graph_kwargs["authorized_resource_refs"] = (
                     binding.authorized_resource_refs
+                )
+            if binding.authorization_principal_ref is not None:
+                graph_kwargs["authorization_principal_ref"] = (
+                    binding.authorization_principal_ref
+                )
+                graph_kwargs["authorization_scope_ref"] = (
+                    binding.authorization_scope_ref
                 )
             graph_snapshot = await self.graph_kernel.search_validated_projection(
                 **graph_kwargs
