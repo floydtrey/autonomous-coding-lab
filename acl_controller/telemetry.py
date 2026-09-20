@@ -30,14 +30,38 @@ class RoleTelemetryConfig:
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError:
+            emit(
+                "ERROR",
+                "controller.role.telemetry",
+                "load_config",
+                "role_telemetry_config_missing",
+                path=str(path),
+            )
             return cls(enabled=False)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError) as exc:
+            emit(
+                "ERROR",
+                "controller.role.telemetry",
+                "load_config",
+                "role_telemetry_config_invalid",
+                path=str(path),
+                exception_type=type(exc).__name__,
+                exception_message=str(exc),
+            )
             return cls(enabled=False)
         if (
             not isinstance(value, Mapping)
             or value.get("schema_version") != ROLE_TELEMETRY_CONFIG_SCHEMA
             or not isinstance(value.get("enabled"), bool)
         ):
+            emit(
+                "ERROR",
+                "controller.role.telemetry",
+                "load_config",
+                "role_telemetry_config_invalid",
+                path=str(path),
+                reason="schema",
+            )
             return cls(enabled=False)
         return cls(enabled=value["enabled"])
 
