@@ -73,15 +73,26 @@ class ControllerPlannerRuntimeBackend:
                     else "planner"
                 ),
             )
-            dispatched = self.role_dispatch.dispatch(dispatch_request)
+            try:
+                dispatched = self.role_dispatch.dispatch(dispatch_request)
 
-            common_response = RoleResponse(
-                status=dispatched.status,
-                payload=dict(dispatched.payload),
-                reference=dispatched.reference,
-                metadata=dict(dispatched.metadata),
-            )
-            result = parse_planner_role_response(common_response)
+                common_response = RoleResponse(
+                    status=dispatched.status,
+                    payload=dict(dispatched.payload),
+                    reference=dispatched.reference,
+                    metadata=dict(dispatched.metadata),
+                )
+                result = parse_planner_role_response(common_response)
+            except Exception:
+                self.role_dispatch.abort_runtime(
+                    request.workflow_id,
+                    dispatch_request.attempt_id,
+                )
+                self.lifecycle.release(
+                    request.workflow_id,
+                    attempt_id=dispatch_request.attempt_id,
+                )
+                raise
             hold_for_consultation_resume = (
                 request.planner_input.invocation_mode
                 is PlannerInvocationMode.WORKER_CONSULTATION
