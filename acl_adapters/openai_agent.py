@@ -110,11 +110,13 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "duplicate_success_tool_calls": 0,
             "repeated_failed_tool_calls": 0,
             "loop_control_interventions": 0,
+            "response_only_empty_retries": 0,
             "tool_events": [],
         }
         successful_calls: dict[str, Mapping[str, Any]] = {}
         failed_call_counts: dict[str, int] = {}
         force_response_turn = False
+        response_only_empty_retries = 0
         observed_token_field = {
             "prompt_tokens": False,
             "completion_tokens": False,
@@ -341,6 +343,32 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             try:
                 final_content = self._extract_content(parsed)
             except ValueError as exc:
+                if (
+                    response_only_turn
+                    and str(exc) == "runtime message content is empty"
+                    and response_only_empty_retries < 1
+                ):
+                    response_only_empty_retries += 1
+                    aggregate["response_only_empty_retries"] = response_only_empty_retries
+                    aggregate["loop_control_interventions"] += 1
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            "ACL requires the final role response now. Return only the final "
+                            "JSON object matching the shared ACL role response envelope. "
+                            "Do not call tools. Do not return reasoning or commentary."
+                        ),
+                    })
+                    force_response_turn = True
+                    emit(
+                        "INFO",
+                        "adapter.openai_agent",
+                        "invoke_role",
+                        "empty_response_only_turn_retried",
+                        request_id=request.request_id,
+                        retry=response_only_empty_retries,
+                    )
+                    continue
                 return self._error(
                     request,
                     "RUNTIME_RESPONSE_INVALID",
