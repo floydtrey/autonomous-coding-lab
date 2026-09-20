@@ -492,6 +492,32 @@ def run_benchmark(
 
             case_finished_at = _utc_now()
             case_elapsed_seconds = round(time.perf_counter() - case_started, 3)
+            response_metadata = (
+                {} if response is None else dict(response.metadata)
+            )
+            finish_reason = response_metadata.get("finish_reason")
+            truncated = finish_reason in {"length", "max_tokens"}
+            case_ok = bool(
+                response is not None
+                and response.ok
+                and not truncated
+            )
+            effective_error = (
+                candidate_exception
+                if response is None
+                else (
+                    {
+                        "code": "AGENT_RESPONSE_TRUNCATED",
+                        "message": (
+                            "model generation ended because the per-turn "
+                            "output limit was reached"
+                        ),
+                        "finish_reason": finish_reason,
+                    }
+                    if response.ok and truncated
+                    else (None if response.ok else dict(response.error or {}))
+                )
+            )
             case_record = {
                 "schema_version": BENCHMARK_SCHEMA,
                 "candidate_index": index,
@@ -505,20 +531,15 @@ def run_benchmark(
                 "started_at": case_started_at,
                 "finished_at": case_finished_at,
                 "elapsed_seconds": case_elapsed_seconds,
-                "ok": bool(response is not None and response.ok),
+                "ok": case_ok,
                 "raw_response": (
                     response.payload
                     if response is not None and response.ok
                     else None
                 ),
-                "error": (
-                    candidate_exception
-                    if response is None
-                    else (None if response.ok else dict(response.error or {}))
-                ),
-                "adapter_metadata": (
-                    {} if response is None else dict(response.metadata)
-                ),
+                "error": effective_error,
+                "adapter_metadata": response_metadata,
+                "truncated": truncated,
                 "tool_ids": list(tool_ids),
                 "turns": adapter._benchmark_turn,
                 "tool_calls": adapter._benchmark_tool_calls,
@@ -536,7 +557,8 @@ def run_benchmark(
                 {
                     "case_id": benchmark_case.case_id,
                     "case_name": benchmark_case.name,
-                    "ok": bool(response is not None and response.ok),
+                    "ok": case_ok,
+                    "truncated": truncated,
                     "elapsed_seconds": case_elapsed_seconds,
                     "turns": adapter._benchmark_turn,
                     "tool_calls": adapter._benchmark_tool_calls,
@@ -546,7 +568,7 @@ def run_benchmark(
             print(
                 f"[{index}/{len(enabled)} case {case_index}/{len(cases)}] "
                 f"{candidate.name}/{benchmark_case.case_id}: "
-                f"{'OK' if response is not None and response.ok else 'ERROR'} "
+                f"{'OK' if case_ok else 'ERROR'} "
                 f"({case_elapsed_seconds}s) "
                 f"| turns {adapter._benchmark_turn} "
                 f"| tool calls {adapter._benchmark_tool_calls}"
