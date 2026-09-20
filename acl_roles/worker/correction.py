@@ -213,13 +213,40 @@ def build_worker_correction_input(
         failure["code"],
         repeated_failure=repeated,
     )
+    details = dict(failure["details"])
+    execution_evidence: list[dict[str, Any]] = []
+    if original.correction is not None:
+        prior_evidence = original.correction.details.get("execution_evidence", [])
+        if isinstance(prior_evidence, list):
+            execution_evidence.extend(
+                dict(item) for item in prior_evidence if isinstance(item, Mapping)
+            )
+    adapter_telemetry = details.get("adapter_telemetry")
+    if isinstance(adapter_telemetry, Mapping):
+        current_events = adapter_telemetry.get("tool_events", [])
+        if isinstance(current_events, list):
+            execution_evidence.extend(
+                dict(item) for item in current_events if isinstance(item, Mapping)
+            )
+    if execution_evidence:
+        # Preserve order while removing exact canonical duplicates.
+        seen: set[str] = set()
+        unique: list[dict[str, Any]] = []
+        for item in execution_evidence:
+            key = canonical_digest(item)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(item)
+        details["execution_evidence"] = unique
+
     correction = WorkerCorrection(
         attempt=attempt,
         error_code=failure["code"],
         message=failure["message"],
         instruction=instruction,
         previous_response=previous_response,
-        details=failure["details"],
+        details=details,
         location=failure["location"],
         previous_response_digest=previous_digest,
         repeated_failure=repeated,
