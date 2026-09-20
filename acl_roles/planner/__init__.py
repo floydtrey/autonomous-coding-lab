@@ -4,6 +4,17 @@ Planner answers lightweight requests or produces semantic execution plans. ACL
 retains authority, runtime, routing, persistence, and execution control.
 """
 
+from .semantic import (
+    PLANNER_SEMANTIC_SCHEMA,
+    PlannerSemanticPass,
+    PlannerSemanticQuestion,
+    PlannerSemanticSubmission,
+    PlannerSemanticTask,
+    normalize_planner_semantic_role_response,
+    parse_planner_semantic_role_response,
+    validate_planner_semantic_role_response,
+)
+
 from .handoff import (
     PLANNER_HANDOFF_STATUS_READY,
     PlannerExecutionHandoff,
@@ -67,6 +78,14 @@ from .contract import (
 )
 
 __all__ = [
+    "PLANNER_SEMANTIC_SCHEMA",
+    "PlannerSemanticPass",
+    "PlannerSemanticQuestion",
+    "PlannerSemanticSubmission",
+    "PlannerSemanticTask",
+    "normalize_planner_semantic_role_response",
+    "parse_planner_semantic_role_response",
+    "validate_planner_semantic_role_response",
     "PLANNER_HANDOFF_STATUS_READY",
     "PlannerExecutionHandoff",
     "PlannerHandoffTask",
