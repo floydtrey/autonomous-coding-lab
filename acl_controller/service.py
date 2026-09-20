@@ -42,7 +42,12 @@ from .authority import (
 )
 from .clarification import ClarificationRecord, ClarificationService, ClarificationStatus, JsonClarificationStore
 from .configuration import ProfileResolver, ProfileSelector, RoleProfile
-from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher
+from .dispatch import (
+    RoleAttemptLifecycleService,
+    RoleDispatchRequest,
+    RoleDispatchResponse,
+    RoleDispatcher,
+)
 from .gates import GateRecord, GateService, JsonGateStore
 from .inspection import InspectionReport, InspectionService
 from .planner import (
@@ -190,6 +195,7 @@ class ControllerService:
             )
 
             state_service = WorkflowStateService(JsonWorkflowStore(state_root))
+            role_lifecycle = RoleAttemptLifecycleService(state_service)
             profiles = ProfileResolver(config_root)
             tool_profiles = ToolProfileResolver(config_root / "tool_profiles.json")
             routing = ActionRegistry()
@@ -236,6 +242,7 @@ class ControllerService:
                     profiles=profiles,
                     role_dispatch=role_dispatch,
                     authority=authority,
+                    lifecycle=role_lifecycle,
                 )
             )
             planner_correction_policy = load_planner_correction_policy(config_root)
@@ -317,6 +324,7 @@ class ControllerService:
                 engine=engine,
                 stops=stops,
                 runtime_residency=runtime_residency,
+                participants=(worker_execution,),
             )
             inspection = InspectionService(
                 state=state_service,
