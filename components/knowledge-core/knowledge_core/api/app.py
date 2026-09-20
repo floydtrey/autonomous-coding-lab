@@ -543,7 +543,8 @@ def create_app(
                 )
                 if graph_runtime is not None:
                     graph_binding_for_request = await graph_runtime.prepare_binding(
-                        context=principal,
+                        principal_ref=principal.principal_ref,
+                        active_scope_ref=principal.scope_ref,
                         query=body.query,
                     )
                     kernel.session.expire_all()
@@ -611,7 +612,10 @@ def create_app(
                 graph_runtime is not None
                 and isinstance(principal, ConsumerPrincipalContext)
             ):
-                graph_status = graph_runtime.readiness(context=principal)
+                graph_status = graph_runtime.readiness(
+                    principal_ref=principal.principal_ref,
+                    active_scope_ref=principal.scope_ref,
+                )
             elif binding is None:
                 graph_status = disabled_graph_readiness()
             else:
