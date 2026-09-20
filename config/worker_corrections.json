@@ -1,0 +1,42 @@
+{
+  "schema_version": "acl-worker-corrections:v1",
+  "repairable_prefixes": [
+    "WORKER_"
+  ],
+  "default_instruction": "Your previous Worker response failed deterministic validation. Preserve all work actually performed, observed evidence, and the assigned Pass identity. Correct only the structured response defect and any directly dependent fields. Do not repeat tool actions merely to repair formatting. Return one complete corrected acl-worker-result:v1 response.",
+  "repeated_failure_instruction": "The previous Worker correction made no progress. Do not repeat the same response shape. Re-read the error code, location, assigned Pass, and evidence already produced; reconstruct the invalid response section and return one complete corrected acl-worker-result:v1 response without performing unnecessary additional work.",
+  "rules": {
+    "WORKER_STATUS_MISMATCH": "Align the shared ACL role status with the Worker outcome. READY_FOR_REVIEW uses COMPLETE, NEEDS_CONTINUATION uses NEEDS_CONTINUATION, NEEDS_PLANNER uses NEEDS_CLARIFICATION, BLOCKED uses BLOCKED, and FAILED uses FAILED.",
+    "WORKER_RESULT_INVALID": "Return one complete acl-worker-result:v1 payload inside the shared ACL role envelope. Preserve factual execution results and evidence.",
+    "WORKER_CONTRACT_INVALID": "Repair the reported Worker contract defect while preserving the assigned Pass identity and all valid observed work/evidence.",
+    "WORKER_PLAN_MISMATCH": "Copy the assigned plan_id exactly. Do not change the Pass or reinterpret the plan.",
+    "WORKER_PLAN_VERSION_MISMATCH": "Copy the assigned plan_version exactly.",
+    "WORKER_PASS_MISMATCH": "Copy the assigned pass_id exactly.",
+    "WORKER_TASK_UNKNOWN": "Only report completed_task_ids that belong to the assigned Pass.",
+    "WORKER_TASKS_INCOMPLETE": "READY_FOR_REVIEW requires every assigned Task to be listed complete. If work is actually incomplete, use NEEDS_CONTINUATION, NEEDS_PLANNER, BLOCKED, or FAILED instead of claiming completion.",
+    "WORKER_EVIDENCE_MISSING": "READY_FOR_REVIEW requires compact factual evidence from actions actually performed or observations actually made.",
+    "WORKER_PLANNER_REQUEST_MISSING": "NEEDS_PLANNER requires one focused planner_request describing the semantic guidance needed.",
+    "WORKER_PLANNER_TASK_UNKNOWN": "If planner_request.task_id is supplied, it must identify a Task in the assigned Pass.",
+    "NORMALIZATION_INVALID": "Return exactly one complete JSON object matching the shared ACL role envelope and Worker contract. Do not use Markdown fences or surrounding prose.",
+    "RUNTIME_RESPONSE_INVALID": "Return exactly one complete JSON object matching the shared ACL role envelope and Worker contract, with no Markdown fence or surrounding prose.",
+    "CONTROLLER_ROLE_RESPONSE_INVALID": "Repair the structured Worker response using the supplied failure details. Preserve valid execution facts and do not repeat already completed tool actions solely to fix response formatting."
+  },
+  "non_repairable_codes": [
+    "WORKER_INPUT_INVALID",
+    "WORKER_VALIDATION_INPUT_INVALID",
+    "WORKER_CORRECTION_INVALID",
+    "WORKER_CORRECTION_POLICY_INVALID",
+    "WORKER_CORRECTION_POLICY_MISSING",
+    "WORKER_CORRECTION_FAILURE_INVALID",
+    "WORKER_CORRECTION_NOT_REPAIRABLE",
+    "AUTHORITY_DENIED",
+    "AUTHORITY_EXPANSION_DENIED",
+    "FILESYSTEM_MUTATION_DENIED",
+    "CONTROLLER_WORKFLOW_GRANT_MISMATCH",
+    "AGENT_TURN_LIMIT",
+    "AGENT_TOOL_CALL_LIMIT",
+    "RUNTIME_TRANSPORT_ERROR",
+    "RUNTIME_HTTP_ERROR"
+  ],
+  "max_correction_attempts": 3
+}
