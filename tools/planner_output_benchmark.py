@@ -60,6 +60,14 @@ class Candidate:
     max_tool_calls: int = 32
 
 
+@dataclass(frozen=True)
+class BenchmarkCase:
+    case_id: str
+    name: str
+    request: str
+    workspace_root: str
+
+
 class LoosePlannerBenchmarkAdapter(OpenAICompatibleAgentAdapter):
     """Existing ACL tool loop with no ACL role-envelope/output-format demand."""
 
@@ -75,11 +83,19 @@ class LoosePlannerBenchmarkAdapter(OpenAICompatibleAgentAdapter):
         self._benchmark_tool_calls = 0
         print(f"\n=== {candidate_name} ===")
         print(f"Model: {model}")
-        print("Status: starting")
+        print("Status: loaded candidate")
+
+    def begin_case(self, case_id: str, case_name: str) -> None:
+        self._benchmark_turn = 0
+        self._benchmark_tool_calls = 0
+        self._benchmark_case = case_id
+        print(f"\n--- {case_id}: {case_name} ---")
 
     def _request_completion(self, *, request_id, body, runtime):
         self._benchmark_turn += 1
-        label = self._benchmark_candidate or runtime.get("model") or "candidate"
+        candidate = self._benchmark_candidate or runtime.get("model") or "candidate"
+        case_id = getattr(self, "_benchmark_case", None)
+        label = candidate if not case_id else f"{candidate}/{case_id}"
         print(
             f"[{label}] turn {self._benchmark_turn} "
             f"| tool calls {self._benchmark_tool_calls}"
@@ -96,7 +112,9 @@ class LoosePlannerBenchmarkAdapter(OpenAICompatibleAgentAdapter):
             tool_name = self._tool_call_name(value)
         except Exception:
             tool_name = "unknown"
-        label = self._benchmark_candidate or "candidate"
+        candidate = self._benchmark_candidate or "candidate"
+        case_id = getattr(self, "_benchmark_case", None)
+        label = candidate if not case_id else f"{candidate}/{case_id}"
         print(
             f"[{label}] tool {self._benchmark_tool_calls}: {tool_name}"
         )
@@ -184,6 +202,27 @@ def _candidate(value: Mapping[str, Any]) -> Candidate:
     )
 
 
+def _benchmark_case(value: Mapping[str, Any], *, default_workspace: Path) -> BenchmarkCase:
+    case_id = value.get("case_id")
+    name = value.get("name")
+    request = value.get("request")
+    workspace_root = value.get("workspace_root", str(default_workspace))
+    for observed, label in (
+        (case_id, "case_id"),
+        (name, "case name"),
+        (request, "case request"),
+        (workspace_root, "case workspace_root"),
+    ):
+        if not isinstance(observed, str) or not observed.strip():
+            raise ValueError(f"{label} must be nonblank text")
+    return BenchmarkCase(
+        case_id=case_id.strip(),
+        name=name.strip(),
+        request=request.strip(),
+        workspace_root=workspace_root.strip(),
+    )
+
+
 def _run_command(command: list[str]) -> dict[str, Any]:
     try:
         result = subprocess.run(
@@ -254,12 +293,12 @@ def _read_grant(core: CoreServices, *, tool_ids: tuple[str, ...], subject: str):
     )
 
 
-def _user_prompt(*, request_text: str, project_root: Path) -> str:
+def _user_prompt(*, request_text: str, workspace_root: str) -> str:
     return (
         "USER REQUEST\n"
         f"{request_text.strip()}\n\n"
         "WORKSPACE\n"
-        f"Project root: {project_root}\n"
+        f"Primary workspace: {workspace_root}\n"
         "You may inspect files and directories with the available read-only tools "
         "before producing the handoff."
     )
@@ -282,9 +321,32 @@ def run_benchmark(
     if not isinstance(base_url, str) or not base_url.strip():
         raise ValueError("base_url must be nonblank text")
 
-    request_text = config.get("request")
-    if not isinstance(request_text, str) or not request_text.strip():
-        raise ValueError("benchmark request must be nonblank text")
+    raw_cases = config.get("cases")
+    if raw_cases is None:
+        request_text = config.get("request")
+        if not isinstance(request_text, str) or not request_text.strip():
+            raise ValueError("benchmark request must be nonblank text")
+        cases = (
+            BenchmarkCase(
+                case_id="case-01",
+                name="legacy single request",
+                request=request_text.strip(),
+                workspace_root=str(project_root),
+            ),
+        )
+    else:
+        if not isinstance(raw_cases, list) or not raw_cases:
+            raise ValueError("cases must be a nonempty list")
+        cases = tuple(
+            _benchmark_case(item, default_workspace=project_root)
+            for item in raw_cases
+            if isinstance(item, Mapping)
+        )
+        if len(cases) != len(raw_cases):
+            raise ValueError("every case must be an object")
+        case_ids = [item.case_id for item in cases]
+        if len(case_ids) != len(set(case_ids)):
+            raise ValueError("case_id values must be unique")
 
     system_prompt = config.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
     if not isinstance(system_prompt, str) or not system_prompt.strip():
@@ -334,12 +396,11 @@ def run_benchmark(
         for candidate in enabled
     ]
 
-    user_prompt = _user_prompt(request_text=request_text, project_root=project_root)
     results: list[dict[str, Any]] = []
 
     for index, candidate in enumerate(enabled, start=1):
         model_started = time.perf_counter()
-        started_at = _utc_now()
+        model_started_at = _utc_now()
         grant = _read_grant(core, tool_ids=tool_ids, subject=candidate.model)
         before = _ollama_ps()
         adapter.begin_candidate(candidate.name, candidate.model)
@@ -357,50 +418,126 @@ def run_benchmark(
         if candidate.context_window is not None:
             execution["context_window"] = candidate.context_window
 
-        role_request = {
-            "schema_version": BENCHMARK_SCHEMA,
-            "workflow_id": f"benchmark:{stamp}:{index:02d}",
-            "attempt_id": f"attempt:{index:02d}",
-            "role": "planner",
-            "benchmark_system_prompt": system_prompt,
-            "benchmark_user_prompt": user_prompt,
-            "objective": {"request": request_text},
-            "context": {"project_root": str(project_root)},
-            "authority_grant_id": grant.grant_id,
-            "tool_ids": list(tool_ids),
-            "metadata": {
-                "benchmark": True,
-                "candidate_name": candidate.name,
-            },
-            "execution": execution,
-        }
-        candidate_exception = None
-        try:
-            response = adapter.invoke(
-                AdapterRequest(
-                    operation="role.invoke",
-                    payload={
-                        "role_request": role_request,
-                        "authority": {"grant": grant.to_dict()},
-                    },
-                )
+        case_results: list[dict[str, Any]] = []
+        for case_index, benchmark_case in enumerate(cases, start=1):
+            adapter.begin_case(benchmark_case.case_id, benchmark_case.name)
+            case_started = time.perf_counter()
+            case_started_at = _utc_now()
+            user_prompt = _user_prompt(
+                request_text=benchmark_case.request,
+                workspace_root=benchmark_case.workspace_root,
             )
-        except Exception as exc:
-            candidate_exception = {
-                "exception_type": type(exc).__name__,
-                "message": str(exc),
+            role_request = {
+                "schema_version": BENCHMARK_SCHEMA,
+                "workflow_id": (
+                    f"benchmark:{stamp}:{index:02d}:{case_index:02d}"
+                ),
+                "attempt_id": f"attempt:{index:02d}:{case_index:02d}",
+                "role": "planner",
+                "benchmark_system_prompt": system_prompt,
+                "benchmark_user_prompt": user_prompt,
+                "objective": {"request": benchmark_case.request},
+                "context": {"workspace_root": benchmark_case.workspace_root},
+                "authority_grant_id": grant.grant_id,
+                "tool_ids": list(tool_ids),
+                "metadata": {
+                    "benchmark": True,
+                    "candidate_name": candidate.name,
+                    "case_id": benchmark_case.case_id,
+                },
+                "execution": execution,
             }
-            to_dict = getattr(exc, "to_dict", None)
-            if callable(to_dict):
-                try:
-                    candidate_exception["details"] = to_dict()
-                except Exception:
-                    pass
-            response = None
+
+            candidate_exception = None
+            try:
+                response = adapter.invoke(
+                    AdapterRequest(
+                        operation="role.invoke",
+                        payload={
+                            "role_request": role_request,
+                            "authority": {"grant": grant.to_dict()},
+                        },
+                    )
+                )
+            except Exception as exc:
+                candidate_exception = {
+                    "exception_type": type(exc).__name__,
+                    "message": str(exc),
+                }
+                to_dict = getattr(exc, "to_dict", None)
+                if callable(to_dict):
+                    try:
+                        candidate_exception["details"] = to_dict()
+                    except Exception:
+                        pass
+                response = None
+                print(
+                    f"[{candidate.name}/{benchmark_case.case_id}] "
+                    f"candidate exception: "
+                    f"{candidate_exception['exception_type']}: "
+                    f"{candidate_exception['message']}"
+                )
+
+            case_finished_at = _utc_now()
+            case_elapsed_seconds = round(time.perf_counter() - case_started, 3)
+            case_record = {
+                "schema_version": BENCHMARK_SCHEMA,
+                "candidate_index": index,
+                "candidate_name": candidate.name,
+                "model": candidate.model,
+                "case_index": case_index,
+                "case_id": benchmark_case.case_id,
+                "case_name": benchmark_case.name,
+                "workspace_root": benchmark_case.workspace_root,
+                "request": benchmark_case.request,
+                "started_at": case_started_at,
+                "finished_at": case_finished_at,
+                "elapsed_seconds": case_elapsed_seconds,
+                "ok": bool(response is not None and response.ok),
+                "raw_response": (
+                    response.payload
+                    if response is not None and response.ok
+                    else None
+                ),
+                "error": (
+                    candidate_exception
+                    if response is None
+                    else (None if response.ok else dict(response.error or {}))
+                ),
+                "adapter_metadata": (
+                    {} if response is None else dict(response.metadata)
+                ),
+                "tool_ids": list(tool_ids),
+                "turns": adapter._benchmark_turn,
+                "tool_calls": adapter._benchmark_tool_calls,
+            }
+            result_path = run_root / (
+                f"{index:02d}-{_slug(candidate.name)}-"
+                f"{case_index:02d}-{_slug(benchmark_case.case_id)}.json"
+            )
+            result_path.write_text(
+                json.dumps(case_record, ensure_ascii=False, indent=2, default=str)
+                + "\n",
+                encoding="utf-8",
+            )
+            case_results.append(
+                {
+                    "case_id": benchmark_case.case_id,
+                    "case_name": benchmark_case.name,
+                    "ok": bool(response is not None and response.ok),
+                    "elapsed_seconds": case_elapsed_seconds,
+                    "turns": adapter._benchmark_turn,
+                    "tool_calls": adapter._benchmark_tool_calls,
+                    "result_file": result_path.name,
+                }
+            )
             print(
-                f"[{candidate.name}] candidate exception: "
-                f"{candidate_exception['exception_type']}: "
-                f"{candidate_exception['message']}"
+                f"[{index}/{len(enabled)} case {case_index}/{len(cases)}] "
+                f"{candidate.name}/{benchmark_case.case_id}: "
+                f"{'OK' if response is not None and response.ok else 'ERROR'} "
+                f"({case_elapsed_seconds}s) "
+                f"| turns {adapter._benchmark_turn} "
+                f"| tool calls {adapter._benchmark_tool_calls}"
             )
 
         loaded = _ollama_ps()
@@ -410,57 +547,35 @@ def run_benchmark(
             else {"skipped": True}
         )
         after = _ollama_ps()
-        finished_at = _utc_now()
-        elapsed_seconds = round(time.perf_counter() - model_started, 3)
+        model_finished_at = _utc_now()
+        model_elapsed_seconds = round(time.perf_counter() - model_started, 3)
 
-        record = {
-            "schema_version": BENCHMARK_SCHEMA,
-            "candidate_index": index,
+        model_record = {
             "candidate_name": candidate.name,
             "model": candidate.model,
-            "started_at": started_at,
-            "finished_at": finished_at,
-            "elapsed_seconds": elapsed_seconds,
-            "ok": bool(response is not None and response.ok),
-            "raw_response": (
-                response.payload
-                if response is not None and response.ok
-                else None
-            ),
-            "error": (
-                candidate_exception
-                if response is None
-                else (None if response.ok else dict(response.error or {}))
-            ),
-            "adapter_metadata": (
-                {} if response is None else dict(response.metadata)
-            ),
-            "tool_ids": list(tool_ids),
+            "started_at": model_started_at,
+            "finished_at": model_finished_at,
+            "elapsed_seconds": model_elapsed_seconds,
+            "cases": case_results,
             "ollama_before": before,
             "ollama_loaded": loaded,
             "unload": unload,
             "ollama_after": after,
         }
-        result_path = run_root / f"{index:02d}-{_slug(candidate.name)}.json"
-        result_path.write_text(
-            json.dumps(record, ensure_ascii=False, indent=2, default=str) + "\n",
+        model_path = run_root / f"{index:02d}-{_slug(candidate.name)}-summary.json"
+        model_path.write_text(
+            json.dumps(model_record, ensure_ascii=False, indent=2, default=str)
+            + "\n",
             encoding="utf-8",
         )
         results.append(
             {
                 "candidate_name": candidate.name,
                 "model": candidate.model,
-                "ok": bool(response is not None and response.ok),
-                "elapsed_seconds": elapsed_seconds,
-                "result_file": result_path.name,
+                "elapsed_seconds": model_elapsed_seconds,
+                "cases": case_results,
+                "result_file": model_path.name,
             }
-        )
-        print(
-            f"[{index}/{len(enabled)}] {candidate.name}: "
-            f"{'OK' if response is not None and response.ok else 'ERROR'} "
-            f"({elapsed_seconds}s) "
-            f"| turns {adapter._benchmark_turn} "
-            f"| tool calls {adapter._benchmark_tool_calls}"
         )
 
     summary = {
@@ -471,7 +586,15 @@ def run_benchmark(
         "output_root": str(run_root),
         "base_url": base_url,
         "system_prompt": system_prompt,
-        "request": request_text,
+        "cases": [
+            {
+                "case_id": item.case_id,
+                "name": item.name,
+                "request": item.request,
+                "workspace_root": item.workspace_root,
+            }
+            for item in cases
+        ],
         "tool_ids": list(tool_ids),
         "initial_ollama_ps": initial_ollama_ps,
         "candidate_cleanup": candidate_cleanup,
