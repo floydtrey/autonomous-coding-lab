@@ -20,7 +20,8 @@ def run_worker(
     config_root: Path,
     state_root: Path,
     project_root: Path,
-    plan_id: str,
+    plan_id: str | None = None,
+    continue_run: str | None = None,
 ) -> dict:
     config_root = Path(config_root).expanduser().resolve()
     state_root = Path(state_root).expanduser().resolve()
@@ -31,10 +32,18 @@ def run_worker(
         config_root=config_root,
         project_root=project_root,
     )
-    outcome = controller.run_next_worker_pass(
-        plan_id,
-        metadata={"integration_phase": "WORKER_V1"},
-    )
+    if continue_run is not None:
+        outcome = controller.continue_worker_pass(
+            continue_run,
+            metadata={"integration_phase": "WORKER_V1_CONTINUATION"},
+        )
+    else:
+        if plan_id is None:
+            raise ValueError("plan_id is required when continue_run is not supplied")
+        outcome = controller.run_next_worker_pass(
+            plan_id,
+            metadata={"integration_phase": "WORKER_V1"},
+        )
     run = outcome.run
     review_packet = None
     if outcome.to_dict()["review_required"]:
@@ -63,7 +72,12 @@ def main() -> int:
     parser.add_argument("--config-root", default="config")
     parser.add_argument("--state-root", default=".acl-state")
     parser.add_argument("--project-root", default=".")
-    parser.add_argument("--plan-id", required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--plan-id")
+    mode.add_argument(
+        "--continue-run",
+        help="Resume a persisted Worker run in NEEDS_CONTINUATION/NEEDS_PLANNER state.",
+    )
     parser.add_argument(
         "--model",
         help="Set ACL_WORKER_MODEL for this process.",
@@ -105,6 +119,7 @@ def main() -> int:
             state_root=Path(args.state_root),
             project_root=Path(args.project_root),
             plan_id=args.plan_id,
+            continue_run=args.continue_run,
         )
     except Exception as exc:
         details = {}
