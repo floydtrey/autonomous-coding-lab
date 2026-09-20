@@ -448,6 +448,15 @@ class RoleDispatcher:
         if self.residency is not None:
             self.residency.complete_role(workflow_id, attempt_id)
 
+    def pause_runtime_for_switch(self, workflow_id: str, attempt_id: str):
+        """Preserve the current resolved runtime as a temporary-switch return target."""
+        if self.residency is None or not self.residency.config.enabled:
+            return None
+        return self.residency.pause_for_role_switch(
+            workflow_id,
+            attempt_id=attempt_id,
+        )
+
     def runtime_checkpoint(self, workflow_id: str):
         return None if self.residency is None else self.residency.checkpoint(workflow_id)
 
