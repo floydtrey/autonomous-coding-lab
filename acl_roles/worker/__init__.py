@@ -1,6 +1,16 @@
+from .correction import (
+    WORKER_CORRECTION_POLICY_SCHEMA,
+    WorkerCorrectionPolicy,
+    WorkerCorrectionRule,
+    build_worker_correction_input,
+    correction_signature,
+    load_worker_correction_policy,
+    worker_previous_response_from_error,
+)
 from .contract import (
     WORKER_INPUT_SCHEMA,
     WORKER_RESULT_SCHEMA,
+    WorkerCorrection,
     WorkerEvidence,
     WorkerInput,
     WorkerOutcome,
@@ -23,8 +33,12 @@ from .validation import (
 )
 
 __all__ = [
+    "WORKER_CORRECTION_POLICY_SCHEMA",
     "WORKER_INPUT_SCHEMA",
     "WORKER_RESULT_SCHEMA",
+    "WorkerCorrection",
+    "WorkerCorrectionPolicy",
+    "WorkerCorrectionRule",
     "WorkerEvidence",
     "WorkerInput",
     "WorkerOutcome",
@@ -39,5 +53,9 @@ __all__ = [
     "WorkerRuntimeService",
     "normalize_worker_role_response",
     "validate_worker_result",
+    "build_worker_correction_input",
+    "correction_signature",
+    "load_worker_correction_policy",
+    "worker_previous_response_from_error",
     "validate_worker_role_response",
 ]
