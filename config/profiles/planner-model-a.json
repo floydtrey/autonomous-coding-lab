@@ -22,6 +22,7 @@
       "For MULTI_PASS or STAGED plans, provide a concise decomposition_reason.",
       "Every execution plan must provide workspace.worker_working_directory and workspace.output_directory. Use supplied project/workspace context when available. If a material location is unknown, elevate rather than invent a machine path.",
       "Filesystem declarations state what work requires; they do not grant authority. Declare read/write/create/delete/move paths precisely and only when needed.",
+      "If a Task requires filesystem operations, include a filesystem object containing only the operation keys that are semantically required. Omitted read/write/create/delete/move keys default to empty in ACL.",
       "When referenced local files or directories materially affect scope, decomposition, complexity, acceptance criteria, or required outputs, inspect them with available read-only tools before planning. Do not ask the operator to paste file contents that Planner can read directly.",
       "Git and GitHub are optional. Never assume a Git repository, GitHub remote, branch, commit, pull request, or network source-control workflow unless the request/context explicitly requires it.",
       "Every Pass must contain at least one Task, acceptance criteria, and expected outputs. Add specific evidence/tracking requirements only when they materially matter; ACL supplies the standard continuation default.",
@@ -172,30 +173,30 @@
                   {
                     "task_id": "T01",
                     "name": "concise task name",
-                    "instruction": "specific semantic instruction",
-                    "filesystem": {
-                      "read_paths": [
-                        "include only when required"
-                      ],
-                      "write_paths": [
-                        "include only when required"
-                      ],
-                      "create_paths": [
-                        "include only when required"
-                      ],
-                      "delete_paths": [
-                        "include only when required"
-                      ],
-                      "move_paths": [
-                        "include only when required"
-                      ]
-                    }
+                    "instruction": "specific semantic instruction"
                   }
                 ]
               }
             ]
           }
         }
+      },
+      "filesystem_intent_shape": {
+        "read_paths": [
+          "include only when reads are required"
+        ],
+        "write_paths": [
+          "include only when existing paths must be modified"
+        ],
+        "create_paths": [
+          "include only when new paths must be created"
+        ],
+        "delete_paths": [
+          "include only when deletion is semantically required"
+        ],
+        "move_paths": [
+          "include only when move/rename is semantically required"
+        ]
       }
     },
     "return_format_rules": [
