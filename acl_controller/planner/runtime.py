@@ -21,7 +21,7 @@ from acl_roles.planner import (
 )
 
 from ..authority import AuthorityCoordinator
-from ..tools.filesystem import FS_LIST_DIRECTORY, FS_READ_TEXT, filesystem_scope
+from ..tools.filesystem import FS_LIST_DIRECTORY, FS_READ_TEXT, FS_SEARCH, filesystem_scope
 from ..configuration import ProfileResolver, ProfileSelector
 from ..diagnostics import controller_span
 from ..dispatch import RoleAttemptLifecycleService, RoleDispatchRequest, RoleDispatcher
@@ -40,7 +40,7 @@ class ControllerPlannerRuntimeBackend:
         authority = AuthorityEnvelope(
             capabilities=("filesystem.read",),
             resource_scopes=(filesystem_scope("READ", "*"),),
-            tool_scopes=(FS_LIST_DIRECTORY, FS_READ_TEXT),
+            tool_scopes=(FS_LIST_DIRECTORY, FS_READ_TEXT, FS_SEARCH),
         )
         return self.authority.issue(
             ceiling=authority,
