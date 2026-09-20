@@ -160,10 +160,15 @@ class WorkerRuntimeService:
                     {"backend_id": self.backend.backend_id},
                 )
             elapsed_ms = round((perf_counter() - started) * 1000, 3)
+            execution_events = self._execution_events(
+                response.runtime_metadata,
+                request.worker_input,
+            )
             try:
                 validation = validate_worker_result(
                     response.result,
                     worker_input=request.worker_input,
+                    execution_events=execution_events,
                 )
             except RoleContractError as exc:
                 raise RoleContractError(
@@ -203,6 +208,33 @@ class WorkerRuntimeService:
                 runtime_metadata=runtime_metadata,
             )
             return validated
+
+
+    @staticmethod
+    def _execution_events(
+        runtime_metadata: Mapping[str, object],
+        worker_input: WorkerInput,
+    ) -> tuple[Mapping[str, object], ...]:
+        events: list[Mapping[str, object]] = []
+
+        role_metadata = runtime_metadata.get("role_metadata")
+        if isinstance(role_metadata, Mapping):
+            adapter_telemetry = role_metadata.get("adapter_telemetry")
+            if isinstance(adapter_telemetry, Mapping):
+                current = adapter_telemetry.get("tool_events", [])
+                if isinstance(current, list):
+                    events.extend(
+                        item for item in current if isinstance(item, Mapping)
+                    )
+
+        if worker_input.correction is not None:
+            prior = worker_input.correction.details.get("execution_evidence", [])
+            if isinstance(prior, list):
+                events.extend(
+                    item for item in prior if isinstance(item, Mapping)
+                )
+
+        return tuple(events)
 
 
 @dataclass
