@@ -16,6 +16,7 @@ from ..configuration import RoleProfile
 from ..diagnostics import controller_span
 from ..errors import ControllerError
 from ..runtime import SerialRuntimeResidencyService
+from ..tools import ToolProfileResolver
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ class RoleDispatchRequest:
         self,
         *,
         execution_overrides: Mapping[str, Any] | None = None,
+        tool_ids: tuple[str, ...] | None = None,
     ) -> RoleRequest:
         instructions = InstructionSet.from_profile(
             profile_id=self.profile.profile_id,
@@ -45,7 +47,15 @@ class RoleDispatchRequest:
             objective=dict(self.payload),
             instructions=instructions,
             authority_grant_id=None if self.grant is None else self.grant.grant_id,
-            tool_ids=() if self.grant is None else self.grant.authority.tool_scopes,
+            tool_ids=(
+                ()
+                if self.grant is None
+                else (
+                    self.grant.authority.tool_scopes
+                    if tool_ids is None
+                    else tool_ids
+                )
+            ),
             execution={
                 **dict(self.profile.settings),
                 **dict(execution_overrides or {}),
@@ -110,9 +120,11 @@ class RoleDispatcher:
         core: CoreServices,
         *,
         residency: SerialRuntimeResidencyService | None = None,
+        tool_profiles: ToolProfileResolver | None = None,
     ) -> None:
         self.core = core
         self.residency = residency
+        self.tool_profiles = tool_profiles
 
     def dispatch(self, request: RoleDispatchRequest) -> RoleDispatchResponse:
         with controller_span(
@@ -145,10 +157,44 @@ class RoleDispatcher:
                     profile=request.profile,
                 )
             )
+            effective_tool_ids: tuple[str, ...] = ()
+            if request.grant is not None and request.profile.tool_profile is not None:
+                if self.tool_profiles is None:
+                    raise ControllerError(
+                        "CONTROLLER_TOOL_PROFILE_RESOLVER_MISSING",
+                        "role profile requests tools but no shared tool-profile resolver is configured",
+                        {
+                            "role": request.role,
+                            "profile_id": request.profile.profile_id,
+                            "tool_profile": request.profile.tool_profile,
+                        },
+                    )
+                configured = self.tool_profiles.resolve(request.profile.tool_profile)
+                for tool_id in configured:
+                    try:
+                        self.core.tools.definition(tool_id)
+                    except Exception as exc:
+                        raise ControllerError(
+                            "CONTROLLER_TOOL_PROFILE_INVALID",
+                            "tool profile references an unregistered tool",
+                            {
+                                "profile_id": request.profile.profile_id,
+                                "tool_profile": request.profile.tool_profile,
+                                "tool_id": tool_id,
+                            },
+                        ) from exc
+                effective_tool_ids = tuple(
+                    sorted(
+                        set(configured)
+                        & set(request.grant.authority.tool_scopes)
+                    )
+                )
+
             role_request = request.to_role_request(
                 execution_overrides=(
                     None if lease is None else lease.execution_overrides
                 ),
+                tool_ids=effective_tool_ids,
             )
             RoleDiagnostics.invocation(
                 role_request,
