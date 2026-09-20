@@ -12,12 +12,13 @@ from typing import Any
 from acl_core import AuthorityEnvelope, AuthorityRequest
 from acl_roles.common import RoleResponse
 from acl_roles.planner import (
+    PLANNER_SEMANTIC_SCHEMA,
     PlannerDisposition,
     PlannerInvocationMode,
     PlannerRuntimeBackend,
     PlannerRuntimeRequest,
     PlannerRuntimeResponse,
-    parse_planner_role_response,
+    parse_planner_semantic_role_response,
 )
 
 from ..authority import AuthorityCoordinator
@@ -26,6 +27,7 @@ from ..configuration import ProfileResolver, ProfileSelector
 from ..diagnostics import controller_span
 from ..dispatch import RoleAttemptLifecycleService, RoleDispatchRequest, RoleDispatcher
 from ..errors import ControllerError
+from .compiler import compile_planner_semantic_submission
 
 
 @dataclass
@@ -98,7 +100,12 @@ class ControllerPlannerRuntimeBackend:
                     reference=dispatched.reference,
                     metadata=dict(dispatched.metadata),
                 )
-                result = parse_planner_role_response(common_response)
+                semantic = parse_planner_semantic_role_response(common_response)
+                compilation = compile_planner_semantic_submission(
+                    semantic,
+                    request.planner_input,
+                )
+                result = compilation.result
             except Exception:
                 self.role_dispatch.abort_runtime(
                     request.workflow_id,
@@ -140,6 +147,8 @@ class ControllerPlannerRuntimeBackend:
                     "profile_metadata": dict(profile.metadata),
                     "model": adapter_telemetry.get("model"),
                     "runtime_family": adapter_telemetry.get("runtime_family"),
+                    "planner_contract": PLANNER_SEMANTIC_SCHEMA,
+                    "worker_authority_mode": compilation.worker_authority_mode,
                     "reference": dispatched.reference,
                     "role_metadata": dict(dispatched.metadata),
                 },
