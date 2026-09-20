@@ -4,11 +4,14 @@ from .filesystem import (
     UserProtectedPath,
 )
 from .enforcement import AuthorityCoordinator, JsonGrantStore
+from .pass_authority import PassAuthorityBinding, PassAuthorityService
 
 __all__ = [
     "AuthorityCoordinator",
     "FILESYSTEM_AUTHORITY_SCHEMA",
     "FilesystemAuthorityCoordinator",
     "JsonGrantStore",
+    "PassAuthorityBinding",
+    "PassAuthorityService",
     "UserProtectedPath",
 ]
