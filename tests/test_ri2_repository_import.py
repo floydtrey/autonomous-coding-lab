@@ -32,7 +32,6 @@ from knowledge_core.storage.resource_models import Resource, ResourceLocator, Re
 _POSTGRES_URL = os.environ.get("KNOWLEDGE_CORE_POSTGRES_TEST_URL") or os.environ.get(
     "KNOWLEDGE_CORE_DATABASE_URL"
 )
-_REPO_ROOT = Path(__file__).resolve().parents[3]
 _CALLER = {"X-Knowledge-Caller": "ri2-test"}
 
 
@@ -832,18 +831,58 @@ def test_ri2_g17_service_only_plan_apply_query_has_no_storage_credentials(
     assert (a, "alpha.md") in reader.calls
 
 
-def test_ri2_tiny_real_git_reader_uses_exact_git_object_not_working_tree():
-    path = "docs/architecture/knowledge-core/REPOSITORY_IMPORT_RI1.md"
-    source_commit = "f7f12c04163ecbe3b6143191008cf393726b8def"
-    expected_blob = "457472f7928994ab40e1c8f4faea7e70e93b7449"
+def test_ri2_tiny_real_git_reader_uses_exact_git_object_not_working_tree(tmp_path):
+    repo_root = tmp_path / "source-repository"
+    repo_root.mkdir()
+    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "knowledge-core-test@example.invalid"],
+        cwd=repo_root,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Knowledge Core Test"],
+        cwd=repo_root,
+        check=True,
+    )
+
+    path = "docs/source.md"
+    source_path = repo_root / path
+    source_path.parent.mkdir(parents=True)
+    committed = b"# Governed source\nexact committed evidence\n"
+    source_path.write_bytes(committed)
+    subprocess.run(["git", "add", path], cwd=repo_root, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "seed governed source"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+    source_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    expected_blob = subprocess.run(
+        ["git", "rev-parse", f"{source_commit}:{path}"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    # Change the working tree after the commit. The reader must still return the
+    # exact committed object rather than current filesystem bytes.
+    source_path.write_bytes(b"# Modified working tree\nnot canonical evidence\n")
+
     reader = GitRepositorySourceReader(
-        repository_locator="git://acl-ci",
-        repository_root=_REPO_ROOT,
+        repository_locator="git://standalone-fixture",
+        repository_root=repo_root,
     )
     proof = reader.read_exact(source_commit=source_commit, path=path)
     assert proof.source_commit == source_commit
     assert proof.path == path
     assert proof.git_blob_sha == expected_blob
-    assert proof.content.startswith(
-        b"# Knowledge Core Repository Import RI-1"
-    )
+    assert proof.content == committed
