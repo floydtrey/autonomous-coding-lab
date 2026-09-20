@@ -21,7 +21,9 @@
     "RUNTIME_RESPONSE_INVALID": "Return exactly one complete JSON object matching the shared ACL role envelope and Worker contract, with no Markdown fence or surrounding prose.",
     "CONTROLLER_ROLE_RESPONSE_INVALID": "Repair the structured Worker response using the supplied failure details. Preserve valid execution facts and do not repeat already completed tool actions solely to fix response formatting.",
     "WORKER_HANDOFF_MISSING": "NEEDS_CONTINUATION and NEEDS_PLANNER require one compact continuation_handoff. Preserve performed work and evidence; summarize current state, identify the next action, and include only bounded Task/path/evidence references.",
-    "WORKER_HANDOFF_TOO_LARGE": "Reduce continuation_handoff to compact resume state. Keep only information necessary for a fresh Worker context to continue safely; reference durable evidence instead of copying large content."
+    "WORKER_HANDOFF_TOO_LARGE": "Reduce continuation_handoff to compact resume state. Keep only information necessary for a fresh Worker context to continue safely; reference durable evidence instead of copying large content.",
+    "WORKER_EXECUTION_EVIDENCE_MISSING": "Do not claim READY_FOR_REVIEW when ACL observed no successful mutation for a Pass that requires one. This correction attempt has no execution tools. Return NEEDS_CONTINUATION with a bounded continuation_handoff stating that the required mutation remains to be executed in a fresh Worker execution context.",
+    "WORKER_EXECUTION_EVIDENCE_MISMATCH": "Do not claim changed_paths that are unsupported by ACL-observed successful tool execution. Preserve only supported changed paths. If required work remains, return NEEDS_CONTINUATION with a bounded continuation_handoff rather than inventing evidence."
   },
   "non_repairable_codes": [
     "WORKER_INPUT_INVALID",
