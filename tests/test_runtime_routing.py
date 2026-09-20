@@ -96,6 +96,15 @@ def test_planner_inspects_material_files_with_read_only_tools():
         "filesystem.read_text",
     )
 
+    reference_shape = planner.instructions["output_contract"]["reference_material_shape"]
+    assert set(reference_shape) == {
+        "reference_id",
+        "kind",
+        "reference",
+        "purpose",
+        "required",
+    }
+
 
 def test_planner_read_wildcard_does_not_grant_mutation():
     coordinator = FilesystemAuthorityCoordinator.create(
