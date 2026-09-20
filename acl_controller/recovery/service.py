@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 from threading import RLock
-from typing import Any, Mapping
+from typing import Any, Mapping, Protocol, Sequence
 
 from acl_core import AdapterRequest, CoreIdentity, CoreServices
 from acl_core.canonical import canonical_json
@@ -21,6 +21,17 @@ from ..models import TERMINAL_STATUSES, WorkflowRecord, WorkflowStatus, utc_now
 from ..runtime import SerialRuntimeResidencyService
 from ..state import WorkflowStateService
 from ..workflow import EngineReport, WorkflowEngine
+
+
+class RecoveryParticipant(Protocol):
+    """Durable subsystem state that must reconcile before a rerun is released."""
+
+    def recovery_released_for_rerun(
+        self,
+        workflow_id: str,
+        *,
+        prior_attempt_id: str,
+    ) -> None: ...
 
 
 class StopStatus(StrEnum):
@@ -179,6 +190,7 @@ class RecoveryService:
         engine: WorkflowEngine,
         stops: JsonStopStore,
         runtime_residency: SerialRuntimeResidencyService | None = None,
+        participants: Sequence[RecoveryParticipant] = (),
     ) -> None:
         self.core = core
         self.state = state
@@ -186,6 +198,7 @@ class RecoveryService:
         self.engine = engine
         self.stops = stops
         self.runtime_residency = runtime_residency
+        self.participants = tuple(participants)
 
     def request_stop(self, workflow_id: str, *, requested_by: str) -> StopRecord:
         with controller_span("recovery.request_stop", workflow_id=workflow_id, requested_by=requested_by):
@@ -312,6 +325,24 @@ class RecoveryService:
                             workflow_id,
                             attempt_id=prior_attempt_id,
                         )
+                    for participant in self.participants:
+                        try:
+                            participant.recovery_released_for_rerun(
+                                workflow_id,
+                                prior_attempt_id=prior_attempt_id,
+                            )
+                        except Exception as participant_exc:
+                            self._block_uncertain(
+                                workflow,
+                                code="RECOVERY_PARTICIPANT_FAILED",
+                                message="durable role state could not be reconciled for rerun",
+                                prior_attempt_id=prior_attempt_id,
+                                participant_type=type(participant).__name__,
+                                exception_type=type(participant_exc).__name__,
+                                exception_message=str(participant_exc),
+                            )
+                            return self.state.read(workflow_id)
+
                     recovered = self.state.transition(
                         workflow_id,
                         WorkflowStatus.READY,
