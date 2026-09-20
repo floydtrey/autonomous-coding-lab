@@ -103,6 +103,7 @@ class FakeProductionGraphAdapter:
         self.project_calls = 0
         self.search_calls = 0
         self.projected = {}
+        self.on_partition_search = None
 
     @property
     def descriptor(self):
@@ -233,6 +234,10 @@ class FakeProductionGraphAdapter:
         )
         if projected is None or projected["partition"] != partition:
             return ()
+        if self.on_partition_search is not None:
+            callback = self.on_partition_search
+            self.on_partition_search = None
+            callback()
         source_ids = tuple(
             binding.provider_source_id for binding in projected["bindings"]
         )
@@ -406,6 +411,7 @@ def test_kcd_lazy_project_graph_reuse_sensitive_exclusion_and_all_source_authori
                 assert response.status_code == 201, response.text
                 stored.append(response.json())
 
+        race_resource = UUID(stored[0]["resource_id"])
         sensitive_resource = UUID(stored[2]["resource_id"])
         sensitive_version = UUID(stored[2]["version_id"])
         denied_resource = UUID(stored[1]["resource_id"])
@@ -467,6 +473,33 @@ def test_kcd_lazy_project_graph_reuse_sensitive_exclusion_and_all_source_authori
             status = client.get("/v1/kc/status", headers=worker_headers)
             assert status.status_code == 200, status.text
             assert status.json()["graph"]["state"] == "ready"
+
+            def revoke_during_provider_search():
+                with sessions() as session:
+                    AuthorizationKernel(session).create_grant(
+                        actor_principal_ref=owner.principal_ref,
+                        subject_type=GrantSubjectType.PRINCIPAL,
+                        principal_ref=worker.principal_ref,
+                        operation=KCOperation.SEARCH,
+                        effect=GrantEffect.DENY,
+                        target_type=GrantTargetType.RESOURCE,
+                        resource_ref=race_resource,
+                        reason="simulate mid-query revocation",
+                    )
+                    session.commit()
+
+            # prepare_binding has already materialized the worker's allowed resource
+            # set when this callback runs inside the provider search. The post-provider
+            # PostgreSQL authorization pass must still observe this new denial.
+            adapter.on_partition_search = revoke_during_provider_search
+            race = client.post(
+                "/v1/kc/search",
+                headers=worker_headers,
+                json={"query": "ACL project implementation", "limit": 10},
+            )
+            assert race.status_code == 200, race.text
+            assert race.json()["graph"]["state"] == "ready"
+            assert race.json()["graph"]["results"] == []
 
             reviewer_search = client.post(
                 "/v1/kc/search",
