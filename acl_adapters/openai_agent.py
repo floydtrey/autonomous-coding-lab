@@ -169,6 +169,16 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                         )
 
                     try:
+                        call_id = self._tool_call_id(raw_call)
+                        tool_name = self._tool_call_name(raw_call)
+                    except CoreError as exc:
+                        return self._error(
+                            request,
+                            exc.code,
+                            exc.message,
+                            metadata=aggregate,
+                        )
+                    try:
                         tool_message = self._execute_tool_call(
                             raw_call,
                             allowed_tool_ids=tool_ids,
@@ -178,8 +188,6 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                         # Hard boundaries still deny the action. The structured
                         # denial is returned to the model so the role can BLOCK,
                         # choose another permitted action, or finish honestly.
-                        call_id = self._tool_call_id(raw_call)
-                        tool_name = self._tool_call_name(raw_call)
                         tool_message = {
                             "role": "tool",
                             "tool_call_id": call_id,
@@ -206,15 +214,9 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             for key, seen in observed_token_field.items():
                 if not seen:
                     aggregate[key] = None
-            prompt_tokens = aggregate.get("prompt_tokens")
-            context_window = aggregate.get("context_window")
-            aggregate["context_utilization"] = (
-                None
-                if not isinstance(prompt_tokens, int)
-                or not isinstance(context_window, int)
-                or context_window <= 0
-                else round(prompt_tokens / context_window, 6)
-            )
+            # Consumption counters are cumulative across turns. Context
+            # utilization is the runtime's last-turn observation, not cumulative
+            # prompt-token consumption divided by the context window.
             aggregate["finish_reason"] = telemetry.get("finish_reason")
             emit(
                 "INFO",
@@ -434,6 +436,12 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             aggregate["model"] = observed["model"]
         if isinstance(observed.get("context_window"), int):
             aggregate["context_window"] = observed["context_window"]
+        utilization = observed.get("context_utilization")
+        aggregate["context_utilization"] = (
+            float(utilization)
+            if isinstance(utilization, (int, float)) and not isinstance(utilization, bool)
+            else None
+        )
 
     def _error(
         self,
