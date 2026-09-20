@@ -405,7 +405,7 @@ def create_app(
             if bounded_service_write:
                 AuthorizationKernel(
                     kernel.session
-                ).set_initial_scoped_policy_for_authorized_store(
+                ).ensure_scoped_policy_for_authorized_store(
                     actor_principal_ref=principal.principal_ref,
                     resource_ref=canonical.resource_ref,
                     scope_ref=project_scope.scope_ref,
