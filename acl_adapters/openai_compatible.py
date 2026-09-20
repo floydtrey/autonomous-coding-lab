@@ -328,12 +328,26 @@ class OpenAICompatibleChatAdapter:
             if isinstance(content, Mapping):
                 instruction_content = dict(content)
 
+        response_envelope_mode = runtime.get("response_envelope_mode", "shared")
+        if response_envelope_mode not in {"shared", "payload"}:
+            raise CoreError(
+                "ADAPTER_SETTINGS_INVALID",
+                "response_envelope_mode must be 'shared' or 'payload'",
+            )
+        response_instruction = (
+            "Return only one JSON object matching the shared ACL role response envelope. "
+            if response_envelope_mode == "shared"
+            else (
+                "Return only the role-specific semantic JSON object described by the "
+                "supplied role instructions. ACL will add its transport envelope. "
+            )
+        )
         system_message = {
             "role": "system",
             "content": (
                 "You are an ACL role runtime. Follow the supplied role instructions exactly. "
-                "Return only one JSON object matching the shared ACL role response envelope. "
-                "Do not wrap JSON in Markdown. Do not add prose outside the JSON object.\n\n"
+                + response_instruction
+                + "Do not wrap JSON in Markdown. Do not add prose outside the JSON object.\n\n"
                 "ROLE INSTRUCTIONS:\n" + canonical_json(instruction_content)
             ),
         }
