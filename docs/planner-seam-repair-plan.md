@@ -122,3 +122,29 @@ Stop for operator input if any repair would:
 - require destructive migration of existing state.
 
 Otherwise continue through the bounded tasks in order.
+
+
+## Repair status — 2026-09-20
+
+- **R01 complete:** ownership boundary documented; rich `ExecutionPlan` retained as internal IR.
+- **R02 complete:** production Planner grant now exposes list/read/search and no mutation tools.
+- **R03 complete:** model-visible tool results are bounded; Planner ceiling is 12,000 characters per result.
+- **R04 complete:** configured context capacity is labeled separately from observed provider capacity.
+- **R05 complete:** production Planner now emits the small `acl-planner-semantic:v1` contract.
+- **R06 complete:** Controller deterministically compiles semantic output into existing internal plan state; semantic-compiled plans use workspace-scoped Worker authority while legacy plans retain declared-path authority.
+- **R07 complete:** loose benchmark is explicitly `SEMANTIC_ONLY`; production integration benchmark is separate and uses the real Planner surface.
+- **R08 foundation complete:** agent transcript is derived from an append-only session event log; model-visible surface replacement is available for future compaction; projected context pressure includes reserved output budget and warns before requests. No automatic summarization/compaction policy has been enabled.
+
+### Validation completed
+
+GitHub Actions compiles the repaired paths and runs the full repository pytest suite on
+every push to `planner-seam-repair-development`. Static/unit validation has passed
+through the R08 implementation.
+
+### Next gate
+
+Run real local candidates through `tools/planner_integration_benchmark.py` on the tower.
+Do not add automatic context compaction or further Planner-contract repair until those
+production-path observations are reviewed. The next decisions should be driven by
+measured context pressure, tool behavior, semantic quality, response reliability, and
+actual Ollama residency rather than another synthetic Controller schema.
