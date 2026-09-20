@@ -264,6 +264,7 @@ def run_benchmark(
     config_path: Path,
     output_root: Path,
     start_at: str | None = None,
+    only: str | None = None,
 ) -> dict[str, Any]:
     config_path = config_path.expanduser().resolve()
     output_root = output_root.expanduser().resolve()
@@ -300,6 +301,15 @@ def run_benchmark(
     enabled = tuple(item for item in candidates if item.enabled)
     if not enabled:
         raise ValueError("integration benchmark has no enabled candidates")
+    if only is not None:
+        selected = tuple(
+            item
+            for item in enabled
+            if item.name == only or item.model == only
+        )
+        if len(selected) != 1:
+            raise ValueError(f"--only must match exactly one candidate: {only}")
+        enabled = selected
     if start_at is not None:
         matches = [
             index
@@ -538,13 +548,19 @@ def main() -> int:
         "--output-root",
         default=r"C:\AI\Benchmarks\ACL-Planner-Integration",
     )
-    parser.add_argument("--start-at")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--start-at")
+    selection.add_argument(
+        "--only",
+        help="Run exactly one candidate by configured name or model tag.",
+    )
     args = parser.parse_args()
 
     run_benchmark(
         config_path=Path(args.config),
         output_root=Path(args.output_root),
         start_at=args.start_at,
+        only=args.only,
     )
     return 0
 
