@@ -18,6 +18,12 @@ from typing import Any, Mapping, Sequence
 from acl_core.canonical import canonical_digest
 from acl_core.diagnostics import emit, span
 
+from acl_roles.common.correction import (
+    correction_signature as shared_correction_signature,
+    failure_from_error,
+    previous_response_from_error,
+    response_digest,
+)
 from acl_roles.common.errors import RoleContractError
 
 from .contract import PlannerCorrection, PlannerInput
@@ -195,100 +201,17 @@ class PlannerCorrectionPolicy:
         )
 
 
-def _deepest_failure(value: Mapping[str, Any]) -> dict[str, Any]:
-    """Prefer the most specific nested cause from wrapped Controller errors."""
-    current = dict(value)
-    while True:
-        details = current.get("details")
-        if not isinstance(details, Mapping):
-            return current
-        cause = details.get("cause")
-        if isinstance(cause, Mapping) and isinstance(cause.get("code"), str):
-            current = dict(cause)
-            continue
-        adapter_error = details.get("adapter_error")
-        if isinstance(adapter_error, Mapping) and isinstance(adapter_error.get("code"), str):
-            current = dict(adapter_error)
-            continue
-        return current
-
-
 def planner_failure_from_error(error: BaseException | Mapping[str, Any]) -> dict[str, Any]:
-    """Normalize Role/Controller-style failures into one correction record."""
-    if isinstance(error, Mapping):
-        value = dict(error)
-    else:
-        to_dict = getattr(error, "to_dict", None)
-        if callable(to_dict):
-            value = to_dict()
-        else:
-            code = getattr(error, "code", None)
-            message = getattr(error, "message", None)
-            value = {
-                "code": code if isinstance(code, str) else type(error).__name__,
-                "message": message if isinstance(message, str) else str(error),
-                "details": {},
-            }
-
-    failure = _deepest_failure(value)
-    code = failure.get("code")
-    message = failure.get("message")
-    details = failure.get("details", {})
-    if not isinstance(code, str) or not code.strip():
-        raise RoleContractError(
-            "PLANNER_CORRECTION_FAILURE_INVALID",
-            "correction failure does not contain an error code",
-        )
-    if not isinstance(message, str) or not message.strip():
-        message = code
-    if not isinstance(details, Mapping):
-        details = {}
-
-    location = details.get("location")
-    return {
-        "code": code.strip(),
-        "message": message.strip(),
-        "details": dict(details),
-        "location": location if isinstance(location, str) and location.strip() else None,
-    }
+    """Planner-compatible wrapper around shared ACL correction normalization."""
+    return failure_from_error(
+        error,
+        invalid_code="PLANNER_CORRECTION_FAILURE_INVALID",
+    )
 
 
 def planner_previous_response_from_error(error: BaseException | Mapping[str, Any]) -> Any | None:
-    """Find the rejected model response preserved by Controller validation layers."""
-    if isinstance(error, Mapping):
-        current: Any = dict(error)
-    else:
-        to_dict = getattr(error, "to_dict", None)
-        if callable(to_dict):
-            current = to_dict()
-        else:
-            return None
-
-    visited = 0
-    while isinstance(current, Mapping) and visited < 12:
-        details = current.get("details")
-        if isinstance(details, Mapping):
-            if "previous_response" in details:
-                return details.get("previous_response")
-            cause = details.get("cause")
-            if isinstance(cause, Mapping):
-                current = cause
-                visited += 1
-                continue
-            adapter_error = details.get("adapter_error")
-            if isinstance(adapter_error, Mapping):
-                current = adapter_error
-                visited += 1
-                continue
-        break
-    return None
-
-
-def _digest_previous_response(value: Any) -> str | None:
-    try:
-        return canonical_digest(value)
-    except Exception:
-        return None
+    """Planner-compatible wrapper around shared rejected-response recovery."""
+    return previous_response_from_error(error)
 
 
 def build_planner_correction_input(
@@ -318,13 +241,12 @@ def build_planner_correction_input(
         )
 
     failure = planner_failure_from_error(error)
-    response_digest = _digest_previous_response(previous_response)
-    signature_source = {
-        "error_code": failure["code"],
-        "location": failure["location"],
-        "previous_response_digest": response_digest,
-    }
-    signature = canonical_digest(signature_source)
+    previous_digest = response_digest(previous_response)
+    signature = shared_correction_signature(
+        error_code=failure["code"],
+        location=failure["location"],
+        previous_response_digest=previous_digest,
+    )
     repeated = signature in set(prior_error_signatures)
     instruction = policy.instruction_for(
         failure["code"],
@@ -339,7 +261,7 @@ def build_planner_correction_input(
         previous_response=previous_response,
         details=failure["details"],
         location=failure["location"],
-        previous_response_digest=response_digest,
+        previous_response_digest=previous_digest,
         repeated_failure=repeated,
     )
 
@@ -351,7 +273,7 @@ def build_planner_correction_input(
         attempt=attempt,
         error_code=failure["code"],
         location=failure["location"],
-        previous_response_digest=response_digest,
+        previous_response_digest=previous_digest,
         failure_signature=signature,
         repeated_failure=repeated,
     )
@@ -372,10 +294,8 @@ def correction_signature(planner_input: PlannerInput) -> str | None:
     correction = planner_input.correction
     if correction is None:
         return None
-    return canonical_digest(
-        {
-            "error_code": correction.error_code,
-            "location": correction.location,
-            "previous_response_digest": correction.previous_response_digest,
-        }
+    return shared_correction_signature(
+        error_code=correction.error_code,
+        location=correction.location,
+        previous_response_digest=correction.previous_response_digest,
     )
