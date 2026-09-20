@@ -121,6 +121,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "duplicate_success_tool_calls": 0,
             "repeated_failed_tool_calls": 0,
             "loop_control_interventions": 0,
+            "final_response_retries": 0,
             "tool_events": [],
         }
         successful_calls: dict[str, Mapping[str, Any]] = {}
@@ -376,6 +377,30 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                     messages.append(tool_message)
                 continue
 
+            finish_reason = telemetry.get("finish_reason")
+            if finish_reason in {"length", "max_tokens"}:
+                if aggregate["final_response_retries"] < 1:
+                    aggregate["final_response_retries"] += 1
+                    force_response_turn = True
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            "Your previous response reached the output limit before "
+                            "the requested deliverable was complete. Stop investigating "
+                            "and return only the final requested handoff now. Be concise. "
+                            "Use the requested Pass/Task structure when applicable. "
+                            "Do not narrate additional analysis or propose more inspection."
+                        ),
+                    })
+                    continue
+                aggregate["finish_reason"] = finish_reason
+                return self._error(
+                    request,
+                    "AGENT_RESPONSE_TRUNCATED",
+                    "model generation reached the output limit before a final response",
+                    metadata=aggregate,
+                )
+
             try:
                 final_content = self._extract_content(parsed)
             except ValueError as exc:
@@ -570,6 +595,10 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "role": "assistant",
             "content": message.get("content"),
         }
+        for key in ("reasoning", "thinking", "reasoning_content"):
+            value = message.get(key)
+            if isinstance(value, str):
+                result[key] = value
         if isinstance(message.get("tool_calls"), list):
             result["tool_calls"] = message["tool_calls"]
         return result
