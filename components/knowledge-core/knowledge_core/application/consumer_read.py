@@ -65,6 +65,31 @@ class ConsumerReadKnowledgeKernel(RetrievalServiceKnowledgeKernel):
             "current text generation has an unsupported retrieval implementation identity"
         )
 
+    def current_source_resource_ref(
+        self,
+        *,
+        resource_version_ref: UUID,
+    ) -> UUID:
+        """Resolve logical Resource identity without reading artifact content."""
+
+        self._require_postgresql_retrieval()
+        current, retrieval_mode, lineage_mode = self._current_text_contract()
+        if current is None or retrieval_mode is None or lineage_mode is None:
+            raise KnowledgeSourceUnavailableError("knowledge source is unavailable")
+
+        current_refs = {source.source_ref for source in current.sources}
+        if resource_version_ref not in current_refs:
+            raise KnowledgeSourceUnavailableError("knowledge source is unavailable")
+
+        version = self.session.get(ResourceVersion, resource_version_ref)
+        if version is None:
+            raise KnowledgeInvariantError(
+                "current text generation references a missing ResourceVersion"
+            )
+        if not self.resource_version_serving_eligible(resource_version_ref):
+            raise KnowledgeSourceUnavailableError("knowledge source is unavailable")
+        return version.resource_ref_id
+
     def read_current_source(
         self,
         *,
