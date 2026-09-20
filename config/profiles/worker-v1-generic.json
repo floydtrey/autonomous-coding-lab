@@ -80,6 +80,12 @@
       "NEEDS_PLANNER uses shared status NEEDS_CLARIFICATION.",
       "BLOCKED uses shared status BLOCKED.",
       "FAILED uses shared status FAILED."
+    ],
+    "correction_rules": [
+      "If objective.correction is present, treat it as ACL's targeted repair request for the previous structured Worker response.",
+      "Preserve work actually performed, factual evidence, assigned plan/pass identity, and completed tool actions from objective.correction.previous_response.",
+      "Do not repeat filesystem/tool actions solely to repair output formatting or contract fields.",
+      "Return one complete corrected Worker response; never return a patch fragment or prose explanation outside the ACL role envelope."
     ]
   },
   "tool_profile": "worker-filesystem-v1",
