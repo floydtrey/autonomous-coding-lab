@@ -884,6 +884,77 @@ class ControllerService:
             },
         )
 
+    def continue_worker_after_planner(
+        self,
+        worker_run_id: str,
+        consultation_id: str,
+        *,
+        grant_id: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> WorkerExecutionOutcome:
+        """Resume a NEEDS_PLANNER Worker from one answered Planner consultation."""
+        run = self.worker_execution.read(worker_run_id)
+        if run.status is not WorkerRunStatus.NEEDS_PLANNER:
+            raise ControllerError(
+                "CONTROLLER_WORKER_PLANNER_RESUME_INVALID",
+                "Worker run is not waiting for Planner guidance",
+                {
+                    "worker_run_id": worker_run_id,
+                    "status": str(run.status),
+                },
+            )
+        consultation = self.planner_consultation.read(consultation_id)
+        if (
+            consultation.workflow_id != run.workflow_id
+            or consultation.plan_id != run.plan_id
+            or consultation.pass_id != run.pass_id
+            or consultation.metadata.get("worker_run_id") != run.worker_run_id
+        ):
+            raise ControllerError(
+                "CONTROLLER_WORKER_PLANNER_RESUME_INVALID",
+                "Planner consultation does not belong to the requested Worker run",
+                {
+                    "worker_run_id": worker_run_id,
+                    "consultation_id": consultation_id,
+                },
+            )
+        if not consultation.exchanges:
+            raise ControllerError(
+                "CONTROLLER_WORKER_PLANNER_RESUME_INVALID",
+                "Planner consultation has no resolved exchange",
+                {"consultation_id": consultation_id},
+            )
+        exchange = consultation.exchanges[-1]
+        if exchange.resolved_at is None or not isinstance(exchange.answer, str) or not exchange.answer.strip():
+            raise ControllerError(
+                "CONTROLLER_WORKER_PLANNER_RESUME_INVALID",
+                "Planner consultation does not contain an answered exchange",
+                {
+                    "consultation_id": consultation_id,
+                    "consultation_status": str(consultation.status),
+                },
+            )
+
+        guidance = {
+            "kind": "planner_consultation",
+            "consultation_id": consultation.consultation_id,
+            "exchange_number": exchange.exchange_number,
+            "answer": exchange.answer,
+            "sources": list(exchange.sources),
+            "references": list(exchange.references),
+            "reason_codes": list(exchange.reason_codes),
+            "notes": exchange.notes,
+        }
+        return self.continue_worker_pass(
+            worker_run_id,
+            guidance=guidance,
+            grant_id=grant_id,
+            metadata={
+                **dict(metadata or {}),
+                "resumed_from_planner_consultation": consultation_id,
+            },
+        )
+
     def runtime_checkpoint(self, workflow_id: str):
         return self.runtime_residency.checkpoint(workflow_id)
 
