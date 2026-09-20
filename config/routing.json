@@ -6,399 +6,399 @@
       "work_type": null,
       "complexity": null,
       "profile_id": "determiner-general",
-      "runtime_id": "determiner-qwen35-9b-16k"
+      "runtime_id": "determiner-qwen35-9b-4k"
     },
     {
       "role": "planner",
       "work_type": "1127",
       "complexity": null,
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "1127",
       "complexity": "SMALL",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "1127",
       "complexity": "MEDIUM",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "1127",
       "complexity": "LARGE",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "2843",
       "complexity": null,
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "2843",
       "complexity": "SMALL",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "2843",
       "complexity": "MEDIUM",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "2843",
       "complexity": "LARGE",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "4602",
       "complexity": null,
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "4602",
       "complexity": "SMALL",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "4602",
       "complexity": "MEDIUM",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "4602",
       "complexity": "LARGE",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "7017",
       "complexity": null,
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "7017",
       "complexity": "SMALL",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "7017",
       "complexity": "MEDIUM",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "7017",
       "complexity": "LARGE",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "5931",
       "complexity": null,
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "5931",
       "complexity": "SMALL",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "5931",
       "complexity": "MEDIUM",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "5931",
       "complexity": "LARGE",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "8264",
       "complexity": null,
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "8264",
       "complexity": "SMALL",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "8264",
       "complexity": "MEDIUM",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "8264",
       "complexity": "LARGE",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "9001",
       "complexity": null,
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "9001",
       "complexity": "SMALL",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "9001",
       "complexity": "MEDIUM",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "planner",
       "work_type": "9001",
       "complexity": "LARGE",
       "profile_id": "planner-model-a",
-      "runtime_id": "planner-qwen35-9b-16k"
+      "runtime_id": "planner-qwen35-9b-64k"
     },
     {
       "role": "worker",
       "work_type": "1127",
       "complexity": null,
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "1127",
       "complexity": "SMALL",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "1127",
       "complexity": "MEDIUM",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "1127",
       "complexity": "LARGE",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "2843",
       "complexity": null,
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "2843",
       "complexity": "SMALL",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "2843",
       "complexity": "MEDIUM",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "2843",
       "complexity": "LARGE",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "4602",
       "complexity": null,
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "4602",
       "complexity": "SMALL",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "4602",
       "complexity": "MEDIUM",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "4602",
       "complexity": "LARGE",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "7017",
       "complexity": null,
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "7017",
       "complexity": "SMALL",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "7017",
       "complexity": "MEDIUM",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "7017",
       "complexity": "LARGE",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "5931",
       "complexity": null,
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "5931",
       "complexity": "SMALL",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "5931",
       "complexity": "MEDIUM",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "5931",
       "complexity": "LARGE",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "8264",
       "complexity": null,
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "8264",
       "complexity": "SMALL",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "8264",
       "complexity": "MEDIUM",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "8264",
       "complexity": "LARGE",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "9001",
       "complexity": null,
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "9001",
       "complexity": "SMALL",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "9001",
       "complexity": "MEDIUM",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     },
     {
       "role": "worker",
       "work_type": "9001",
       "complexity": "LARGE",
       "profile_id": "worker-v1-generic",
-      "runtime_id": "worker-qwen3-coder-30b-16k"
+      "runtime_id": "worker-qwen3-coder-30b-131k"
     }
   ]
 }
