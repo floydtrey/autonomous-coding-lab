@@ -270,6 +270,7 @@ def run_benchmark(
     config_path: Path,
     project_root: Path,
     output_root: Path,
+    start_at: str | None = None,
 ) -> dict[str, Any]:
     config_path = config_path.expanduser().resolve()
     project_root = project_root.expanduser().resolve()
@@ -296,6 +297,15 @@ def run_benchmark(
     enabled = tuple(item for item in candidates if item.enabled)
     if not enabled:
         raise ValueError("benchmark has no enabled model candidates")
+    if start_at is not None:
+        matches = [
+            index
+            for index, item in enumerate(enabled)
+            if item.name == start_at or item.model == start_at
+        ]
+        if not matches:
+            raise ValueError(f"--start-at did not match a candidate: {start_at}")
+        enabled = enabled[matches[0]:]
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_root = output_root / f"planner-output-{stamp}"
@@ -364,15 +374,34 @@ def run_benchmark(
             },
             "execution": execution,
         }
-        response = adapter.invoke(
-            AdapterRequest(
-                operation="role.invoke",
-                payload={
-                    "role_request": role_request,
-                    "authority": {"grant": grant.to_dict()},
-                },
+        candidate_exception = None
+        try:
+            response = adapter.invoke(
+                AdapterRequest(
+                    operation="role.invoke",
+                    payload={
+                        "role_request": role_request,
+                        "authority": {"grant": grant.to_dict()},
+                    },
+                )
             )
-        )
+        except Exception as exc:
+            candidate_exception = {
+                "exception_type": type(exc).__name__,
+                "message": str(exc),
+            }
+            to_dict = getattr(exc, "to_dict", None)
+            if callable(to_dict):
+                try:
+                    candidate_exception["details"] = to_dict()
+                except Exception:
+                    pass
+            response = None
+            print(
+                f"[{candidate.name}] candidate exception: "
+                f"{candidate_exception['exception_type']}: "
+                f"{candidate_exception['message']}"
+            )
 
         unload = (
             _unload_model(candidate.model)
@@ -391,10 +420,20 @@ def run_benchmark(
             "started_at": started_at,
             "finished_at": finished_at,
             "elapsed_seconds": elapsed_seconds,
-            "ok": response.ok,
-            "raw_response": response.payload if response.ok else None,
-            "error": None if response.ok else dict(response.error or {}),
-            "adapter_metadata": dict(response.metadata),
+            "ok": bool(response is not None and response.ok),
+            "raw_response": (
+                response.payload
+                if response is not None and response.ok
+                else None
+            ),
+            "error": (
+                candidate_exception
+                if response is None
+                else (None if response.ok else dict(response.error or {}))
+            ),
+            "adapter_metadata": (
+                {} if response is None else dict(response.metadata)
+            ),
             "tool_ids": list(tool_ids),
             "ollama_before": before,
             "unload": unload,
@@ -409,14 +448,15 @@ def run_benchmark(
             {
                 "candidate_name": candidate.name,
                 "model": candidate.model,
-                "ok": response.ok,
+                "ok": bool(response is not None and response.ok),
                 "elapsed_seconds": elapsed_seconds,
                 "result_file": result_path.name,
             }
         )
         print(
             f"[{index}/{len(enabled)}] {candidate.name}: "
-            f"{'OK' if response.ok else 'ERROR'} ({elapsed_seconds}s) "
+            f"{'OK' if response is not None and response.ok else 'ERROR'} "
+            f"({elapsed_seconds}s) "
             f"| turns {adapter._benchmark_turn} "
             f"| tool calls {adapter._benchmark_tool_calls}"
         )
@@ -454,6 +494,10 @@ def main() -> int:
     )
     parser.add_argument("--project-root", default=".")
     parser.add_argument("--output-root", default="planner_benchmark_results")
+    parser.add_argument(
+        "--start-at",
+        help="Start at the named candidate/model and continue through the remaining list.",
+    )
     args = parser.parse_args()
 
     try:
@@ -461,6 +505,7 @@ def main() -> int:
             config_path=Path(args.config),
             project_root=Path(args.project_root),
             output_root=Path(args.output_root),
+            start_at=args.start_at,
         )
     except Exception as exc:
         print(
