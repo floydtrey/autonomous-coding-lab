@@ -17,6 +17,7 @@
         "filesystem.list_directory",
         "filesystem.move_path",
         "filesystem.read_text",
+        "filesystem.search",
         "filesystem.write_text"
       ]
     }
