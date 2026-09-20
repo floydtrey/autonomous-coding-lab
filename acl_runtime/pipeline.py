@@ -13,6 +13,9 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from acl_core import configure_diagnostics
+from acl_roles.common import RoleDiagnostics
+
 from .planner import run_planner_model_a
 from .runner import run_program
 from .worker import run_worker
@@ -174,7 +177,24 @@ def main() -> int:
         action="store_true",
         help="Continue an accepted Planner plan into the deterministic next Worker Pass.",
     )
+    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--log-path", default="logs/acl-pipeline.jsonl")
+    parser.add_argument("--raw-role-artifacts", action="store_true")
+    parser.add_argument("--raw-role-path", default="logs/role-artifacts")
     args = parser.parse_args()
+
+    if args.debug:
+        configure_diagnostics(
+            enabled=True,
+            level="DEBUG",
+            path=Path(args.log_path),
+            stderr=False,
+        )
+    if args.raw_role_artifacts:
+        RoleDiagnostics.configure_raw_artifacts(
+            enabled=True,
+            root=Path(args.raw_role_path),
+        )
 
     try:
         result = run_pipeline(
