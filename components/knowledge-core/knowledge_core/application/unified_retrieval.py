@@ -45,6 +45,7 @@ class UnifiedGraphSearchBinding:
     authorized_resource_refs: frozenset[UUID] | None = None
     authorization_principal_ref: UUID | None = None
     authorization_scope_ref: UUID | None = None
+    allowed_attempt_ids: frozenset[UUID] | None = None
 
     def __post_init__(self) -> None:
         for name in ("caller_principal_ref", "namespace_key", "scope_key"):
@@ -249,6 +250,8 @@ class UnifiedRetrievalCoordinator:
                 graph_kwargs["authorized_resource_refs"] = (
                     binding.authorized_resource_refs
                 )
+            if binding.allowed_attempt_ids is not None:
+                graph_kwargs["allowed_attempt_ids"] = binding.allowed_attempt_ids
             if binding.authorization_principal_ref is not None:
                 graph_kwargs["authorization_principal_ref"] = (
                     binding.authorization_principal_ref
