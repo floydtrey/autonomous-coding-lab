@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from fastapi import HTTPException
+from fastapi import Header, HTTPException, Security
+from fastapi.security import APIKeyHeader
 
-from knowledge_core.api.bootstrap_admission import BootstrapAdmission
+from knowledge_core.api.bootstrap_admission import BOOTSTRAP_KEY_HEADER, BootstrapAdmission
 from knowledge_core.api.bootstrap_contract import BootstrapOperation
 from knowledge_core.application.authorization import AuthorizationKernel
 from knowledge_core.application.principal_auth import (
@@ -174,3 +175,27 @@ class ConsumerAdmission:
                     detail="scope is not authorized for this operation",
                 )
             return authz.project_scope_for(context.scope_ref)
+
+
+_api_key_header = APIKeyHeader(name=BOOTSTRAP_KEY_HEADER, auto_error=False)
+
+
+def consumer_principal_dependency(
+    admission: ConsumerAdmission,
+    *,
+    operation: KCOperation,
+):
+    async def dependency(
+        supplied_key: str | None = Security(_api_key_header),
+        x_knowledge_scope: str | None = Header(
+            default=None,
+            alias="X-Knowledge-Scope",
+        ),
+    ) -> ConsumerPrincipalContext:
+        return admission.authenticate(
+            supplied_key=supplied_key,
+            scope_header=x_knowledge_scope,
+            operation=operation,
+        )
+
+    return dependency
