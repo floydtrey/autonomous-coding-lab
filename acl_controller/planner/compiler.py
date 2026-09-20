@@ -24,6 +24,7 @@ from acl_roles.planner import (
     ProjectReference,
     TaskSpec,
     WorkspaceSpec,
+    validate_planner_result,
 )
 from acl_roles.planner.contract import DEFAULT_CONTINUATION_INSTRUCTIONS
 
@@ -249,12 +250,25 @@ def compile_planner_semantic_submission(
         passes=tuple(compiled_passes),
     )
 
+    result = PlannerResult(
+        disposition=PlannerDisposition.EXECUTION_PLAN,
+        plan=plan,
+        reason_codes=submission.reason_codes,
+        notes=submission.notes,
+    )
+    try:
+        validate_planner_result(result, planner_input=planner_input)
+    except Exception as exc:
+        raise ControllerError(
+            "CONTROLLER_PLANNER_SEMANTIC_COMPILE_INVALID",
+            "Controller failed to compile semantic Planner output into valid internal IR",
+            {
+                "exception_type": type(exc).__name__,
+                "message": str(exc),
+            },
+        ) from exc
+
     return PlannerCompilation(
-        PlannerResult(
-            disposition=PlannerDisposition.EXECUTION_PLAN,
-            plan=plan,
-            reason_codes=submission.reason_codes,
-            notes=submission.notes,
-        ),
+        result,
         worker_authority_mode=WORKER_AUTHORITY_MODE_WORKSPACE,
     )
