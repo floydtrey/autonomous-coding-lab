@@ -1,4 +1,10 @@
 from .context import ContextReference, RoleContext
+from .correction import (
+    correction_signature as shared_correction_signature,
+    failure_from_error,
+    previous_response_from_error,
+    response_digest,
+)
 from .diagnostics import RoleDiagnostics
 from .errors import RoleContractError
 from .instructions import InstructionSet
@@ -8,6 +14,10 @@ from .validation import normalize_configured_response, validate_configured_respo
 
 __all__ = [
     "ContextReference",
+    "failure_from_error",
+    "previous_response_from_error",
+    "response_digest",
+    "shared_correction_signature",
     "InstructionSet",
     "RoleContext",
     "RoleContractError",
