@@ -222,9 +222,21 @@ def build_worker_correction_input(
             execution_evidence.extend(
                 dict(item) for item in prior_evidence if isinstance(item, Mapping)
             )
+    telemetry_candidates: list[Mapping[str, Any]] = []
     adapter_telemetry = details.get("adapter_telemetry")
     if isinstance(adapter_telemetry, Mapping):
-        current_events = adapter_telemetry.get("tool_events", [])
+        telemetry_candidates.append(adapter_telemetry)
+
+    runtime_metadata = details.get("runtime_metadata")
+    if isinstance(runtime_metadata, Mapping):
+        role_metadata = runtime_metadata.get("role_metadata")
+        if isinstance(role_metadata, Mapping):
+            nested_adapter = role_metadata.get("adapter_telemetry")
+            if isinstance(nested_adapter, Mapping):
+                telemetry_candidates.append(nested_adapter)
+
+    for telemetry in telemetry_candidates:
+        current_events = telemetry.get("tool_events", [])
         if isinstance(current_events, list):
             execution_evidence.extend(
                 dict(item) for item in current_events if isinstance(item, Mapping)
