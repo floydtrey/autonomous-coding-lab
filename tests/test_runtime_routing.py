@@ -94,6 +94,7 @@ def test_planner_inspects_material_files_with_read_only_tools():
     assert tool_profiles.resolve(planner.tool_profile) == (
         "filesystem.list_directory",
         "filesystem.read_text",
+        "filesystem.search",
     )
 
     reference_shape = planner.instructions["output_contract"]["reference_material_shape"]
