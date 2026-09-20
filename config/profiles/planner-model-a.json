@@ -17,14 +17,14 @@
       "Preserve the accepted routing_context.work_type_id exactly in every EXECUTION_PLAN. Do not reclassify Determiner's accepted route.",
       "task_type and complexity are semantic descriptions only. Never name a model, provider, server, port, quantization, harness, retry limit, token ceiling, or runtime budget in the plan.",
       "Plan hierarchy is Plan -> optional Stage -> Pass -> Task. Pass is the Worker execution/session boundary.",
-      "Use SINGLE_PASS for exactly one Pass, MULTI_PASS for two or more top-level Passes, and STAGED only when meaningful milestone/dependency boundaries justify Stages.",
-      "For EXECUTION_PLAN, include every key shown in execution_plan_shape at Plan, Pass, Task, workspace, filesystem, and project levels even when the value is an empty list or null. Do not abbreviate or omit required contract fields.",
+      "Choose one Pass, multiple top-level Passes, or Stages only when real execution/dependency boundaries justify them. ACL derives the canonical plan_type from that structure.",
+      "For EXECUTION_PLAN, return the compact semantic fields needed to express the work. Omit optional/defaultable fields when they add no meaning; ACL canonicalizes deterministic defaults instead of requiring empty lists, nulls, or duplicated machine bookkeeping.",
       "For MULTI_PASS or STAGED plans, provide a concise decomposition_reason.",
       "Every execution plan must provide workspace.worker_working_directory and workspace.output_directory. Use supplied project/workspace context when available. If a material location is unknown, elevate rather than invent a machine path.",
       "Filesystem declarations state what work requires; they do not grant authority. Declare read/write/create/delete/move paths precisely and only when needed.",
       "When referenced local files or directories materially affect scope, decomposition, complexity, acceptance criteria, or required outputs, inspect them with available read-only tools before planning. Do not ask the operator to paste file contents that Planner can read directly.",
       "Git and GitHub are optional. Never assume a Git repository, GitHub remote, branch, commit, pull request, or network source-control workflow unless the request/context explicitly requires it.",
-      "Every Pass must contain at least one Task, acceptance criteria, expected outputs, Worker evidence requirements, and continuation instructions.",
+      "Every Pass must contain at least one Task, acceptance criteria, and expected outputs. Add specific evidence/tracking requirements only when they materially matter; ACL supplies the standard continuation default.",
       "Task dependencies remain within their Pass. Cross-Pass ordering belongs on Pass.depends_on. Stage dependencies belong on Stage.depends_on.",
       "required_capabilities, required_tools, and required_services are semantic requirements, not permissions or concrete implementation choices.",
       "reference_material entries are declarations/references. Only use reference_ids that exist in reference_material.",
@@ -43,7 +43,7 @@
       "If objective.correction is present, treat its instruction and error details as ACL's targeted repair request.",
       "Preserve valid content from objective.correction.previous_response where practical.",
       "Return one complete corrected response; never return a patch fragment or prose explanation outside the JSON envelope.",
-      "When correction.details.missing_fields is present, restore every listed field in the same corrected response rather than fixing one field per retry."
+      "Repair the reported semantic or type defect without expanding the response with optional/default bookkeeping that ACL can supply deterministically."
     ],
     "output_contract": {
       "shared_envelope": {
@@ -113,98 +113,6 @@
           "notes": "concise explanation"
         }
       },
-      "execution_plan_shape": {
-        "status": "COMPLETE",
-        "payload": {
-          "schema_version": "acl-planner-result:v1",
-          "disposition": "EXECUTION_PLAN",
-          "answer": null,
-          "plan": {
-            "plan_type": "SINGLE_PASS | MULTI_PASS | STAGED",
-            "project": {
-              "project_name": null,
-              "version_id": null,
-              "project_root": null
-            },
-            "work_type_id": "copy routing_context.work_type_id when supplied",
-            "task_type": "semantic work label",
-            "complexity": "SMALL | MEDIUM | LARGE or another concise semantic level",
-            "required_capabilities": [],
-            "required_tools": [],
-            "required_services": [],
-            "research_requirements": [],
-            "objective": "preserved user objective",
-            "acceptance_criteria": [
-              "observable plan-level success criterion"
-            ],
-            "required_outputs": [
-              "concrete required output"
-            ],
-            "constraints": [],
-            "out_of_scope": [],
-            "assumptions": [],
-            "unresolved_questions": [],
-            "workspace": {
-              "worker_working_directory": "required filesystem path",
-              "output_directory": "required filesystem path",
-              "artifact_directory": null,
-              "temporary_directory": null
-            },
-            "reference_material": [],
-            "sources": [],
-            "tracking_requirements": [
-              "changed_files and/or other needed evidence"
-            ],
-            "decomposition_reason": null,
-            "stages": [],
-            "passes": [
-              {
-                "pass_id": "P01",
-                "name": "concise name",
-                "objective": "Pass objective",
-                "complexity": "SMALL | MEDIUM | LARGE",
-                "depends_on": [],
-                "working_directory": null,
-                "output_directory": null,
-                "reference_ids": [],
-                "expected_outputs": [
-                  "observable output"
-                ],
-                "acceptance_criteria": [
-                  "observable Pass completion criterion"
-                ],
-                "evidence_required": [
-                  "evidence Worker must return"
-                ],
-                "tracking_requirements": [],
-                "continuation_instructions": "Resume from the first incomplete Task using persisted Pass state and evidence.",
-                "tasks": [
-                  {
-                    "task_id": "T01",
-                    "name": "concise task name",
-                    "instruction": "specific semantic instruction",
-                    "depends_on": [],
-                    "filesystem": {
-                      "read_paths": [],
-                      "write_paths": [],
-                      "create_paths": [],
-                      "delete_paths": [],
-                      "move_paths": []
-                    },
-                    "reference_ids": [],
-                    "expected_result": "observable result",
-                    "acceptance_criteria": [],
-                    "evidence_required": []
-                  }
-                ]
-              }
-            ]
-          },
-          "questions": [],
-          "reason_codes": [],
-          "notes": null
-        }
-      },
       "stage_shape": {
         "stage_id": "S01",
         "name": "concise milestone name",
@@ -227,12 +135,73 @@
         "reference": "filesystem path or other stable reference value",
         "purpose": null,
         "required": true
+      },
+      "execution_plan_semantic_shape": {
+        "status": "COMPLETE",
+        "payload": {
+          "schema_version": "acl-planner-result:v1",
+          "disposition": "EXECUTION_PLAN",
+          "plan": {
+            "work_type_id": "copy routing_context.work_type_id when supplied",
+            "task_type": "semantic work label",
+            "complexity": "SMALL | MEDIUM | LARGE or another concise semantic level",
+            "objective": "preserved user objective",
+            "acceptance_criteria": [
+              "observable plan-level success criterion"
+            ],
+            "required_outputs": [
+              "concrete required output"
+            ],
+            "workspace": {
+              "worker_working_directory": "use supplied project/workspace context",
+              "output_directory": "use supplied project/workspace context"
+            },
+            "passes": [
+              {
+                "pass_id": "P01",
+                "name": "concise name",
+                "objective": "Pass objective",
+                "complexity": "SMALL | MEDIUM | LARGE",
+                "expected_outputs": [
+                  "observable output"
+                ],
+                "acceptance_criteria": [
+                  "observable Pass completion criterion"
+                ],
+                "tasks": [
+                  {
+                    "task_id": "T01",
+                    "name": "concise task name",
+                    "instruction": "specific semantic instruction",
+                    "filesystem": {
+                      "read_paths": [
+                        "include only when required"
+                      ],
+                      "write_paths": [
+                        "include only when required"
+                      ],
+                      "create_paths": [
+                        "include only when required"
+                      ],
+                      "delete_paths": [
+                        "include only when required"
+                      ],
+                      "move_paths": [
+                        "include only when required"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
       }
     },
     "return_format_rules": [
       "Return the ACL role envelope itself as the top-level JSON object.",
       "The top-level keys must be schema_version, status, payload, reference, and metadata.",
-      "Do not return instructional labels such as shared_envelope, planner_result_common, direct_or_query, execution_plan_shape, stage_shape, or filesystem_move_shape, reference_material_shape as JSON keys around the response.",
+      "Do not return instructional labels such as shared_envelope, planner_result_common, direct_or_query, execution_plan_semantic_shape, stage_shape, or filesystem_move_shape, reference_material_shape as JSON keys around the response.",
       "Do not wrap the role envelope inside another object."
     ]
   },
