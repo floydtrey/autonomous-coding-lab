@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from acl_core import AuthorityEnvelope, AuthorityRequest
 from acl_roles.common import RoleResponse
 from acl_roles.planner import (
     PlannerDisposition,
@@ -20,6 +21,7 @@ from acl_roles.planner import (
 )
 
 from ..authority import AuthorityCoordinator
+from ..tools.filesystem import FS_LIST_DIRECTORY, FS_READ_TEXT, filesystem_scope
 from ..configuration import ProfileResolver, ProfileSelector
 from ..diagnostics import controller_span
 from ..dispatch import RoleAttemptLifecycleService, RoleDispatchRequest, RoleDispatcher
@@ -33,6 +35,24 @@ class ControllerPlannerRuntimeBackend:
     authority: AuthorityCoordinator
     lifecycle: RoleAttemptLifecycleService
     backend_id: str = "controller.role-dispatch"
+
+    def _planner_read_grant(self):
+        authority = AuthorityEnvelope(
+            capabilities=("filesystem.read",),
+            resource_scopes=(filesystem_scope("READ", "*"),),
+            tool_scopes=(FS_LIST_DIRECTORY, FS_READ_TEXT),
+        )
+        return self.authority.issue(
+            ceiling=authority,
+            request=AuthorityRequest(
+                capabilities=authority.capabilities,
+                resource_scopes=authority.resource_scopes,
+                tool_scopes=authority.tool_scopes,
+                reason="Planner standing read-only inspection authority",
+            ),
+            issuer="controller.planner",
+            subject="planner",
+        )
 
     def invoke(self, request: PlannerRuntimeRequest) -> PlannerRuntimeResponse:
         with controller_span(
@@ -49,11 +69,7 @@ class ControllerPlannerRuntimeBackend:
                     complexity=request.complexity,
                 )
             )
-            grant = (
-                None
-                if request.authority_grant_id is None
-                else self.authority.grant(request.authority_grant_id)
-            )
+            grant = self._planner_read_grant()
             dispatch_request = RoleDispatchRequest(
                 workflow_id=request.workflow_id,
                 role="planner",
