@@ -678,6 +678,14 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             if isinstance(utilization, (int, float)) and not isinstance(utilization, bool)
             else None
         )
+        for key in (
+            "message_keys",
+            "content_chars",
+            "reasoning_chars",
+            "thinking_chars",
+        ):
+            if key in observed:
+                aggregate[key] = observed.get(key)
 
     def _error(
         self,
