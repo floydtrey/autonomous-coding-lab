@@ -292,6 +292,20 @@ class FilesystemAuthorityService:
             )
         return decision
 
+    def canonical_path(self, path: str | Path) -> str:
+        """Return the same canonical path representation used by authority checks."""
+        return self._canonicalize(path).value
+
+    def scope_contains(self, scope_path: str | Path, candidate_path: str | Path) -> bool:
+        """Return whether candidate is the same path or a descendant of scope_path."""
+        scope = self._canonicalize(scope_path)
+        candidate = self._canonicalize(candidate_path)
+        return scope.style == candidate.style and self._contains(
+            scope.value,
+            candidate.value,
+            scope.style,
+        )
+
     def _match_protection(self, candidate: _CanonicalPath) -> ProtectedPath | None:
         for canonical, protection in (*self._permanent, *self._user):
             if canonical.style != candidate.style:
