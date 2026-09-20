@@ -64,8 +64,11 @@ def normalize_planner_role_response(
         "planner_result_common",
         "direct_or_query",
         "execution_plan_shape",
+        "execution_plan_semantic_shape",
         "stage_shape",
         "filesystem_move_shape",
+        "filesystem_intent_shape",
+        "reference_material_shape",
     }
     if envelope_keys.issubset(normalized):
         removed = sorted(set(normalized) & instructional_echo_keys)
