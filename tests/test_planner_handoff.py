@@ -166,7 +166,7 @@ Perform it.
                 """STATUS: READY
 OBJECTIVE:
 Do the work.
-T01: Empty task
+T01:
 END_PLAN
 """
             )
