@@ -28,3 +28,27 @@ Knowledge Core GitHub Actions run `35486786169`.
 The standalone extraction deliberately excludes former client/harness integrations (Mason, MindsHub/Cowork, context-rotation helpers) and historical corpus pilots that were pinned to the parent ACL repository's commit history.
 
 Those exclusions do not remove KC service behavior. They separate the reusable knowledge service from specific consumers and historical monorepo qualification artifacts.
+
+
+## Standalone extraction qualification
+
+Standalone branch: `knowledge-core-standalone`
+
+Qualified standalone code head:
+
+`b0e98794a8642293a18195810a0f1a950258bc8d`
+
+Standalone GitHub Actions qualification:
+
+`35489568825` — PASS
+
+The standalone workflow ran from repository root and passed:
+
+- package installation;
+- all Alembic migrations;
+- fast semantic tests;
+- PostgreSQL qualification tests.
+
+The qualification branch contained no paths named for ACL, Worker Lab, Mason, MindsHub, Cowork, or autonomous-worker components. Historical monorepo-pinned corpus pilots were intentionally excluded rather than relabeled as standalone evidence.
+
+The next physical step is to copy this root tree into its own GitHub repository (recommended repository name: `knowledge-core`). The source ACL repository should retain its historical KC branches/evidence until the standalone repository has been copied and independently verified.
