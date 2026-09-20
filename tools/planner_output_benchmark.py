@@ -1,6 +1,9 @@
-"""Serial loose-output benchmark for candidate ACL Planner models.
+"""Semantic-only loose-output benchmark for candidate ACL Planner models.
 
-This intentionally bypasses Determiner and the Planner result schema. It reuses
+This benchmark intentionally measures planning quality outside the production
+Planner response contract. It must not be used as evidence that a model passes
+production Planner integration. It bypasses Determiner and the production
+semantic/compiler boundary, reuses
 ACL's OpenAI-compatible agent/tool loop, gives Planner read-only filesystem tools,
 captures the model's raw final handoff, unloads the model, and continues.
 """
@@ -536,6 +539,7 @@ def run_benchmark(
             )
             case_record = {
                 "schema_version": BENCHMARK_SCHEMA,
+                "benchmark_mode": "SEMANTIC_ONLY",
                 "candidate_index": index,
                 "candidate_name": candidate.name,
                 "model": candidate.model,
@@ -630,6 +634,7 @@ def run_benchmark(
 
     summary = {
         "schema_version": BENCHMARK_SCHEMA,
+        "benchmark_mode": "SEMANTIC_ONLY",
         "created_at": _utc_now(),
         "config_path": str(config_path),
         "project_root": str(project_root),
