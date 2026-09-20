@@ -230,8 +230,7 @@
   "tool_profile": null,
   "metadata": {
     "lifecycle": "PL12_MODEL_A",
-    "harness_id": "openai-compatible-chat-v1",
-    "notes": "Planner Model A uses the provider-neutral OpenAI-compatible adapter. The actual model is selected externally through ACL_PLANNER_MODEL.",
+    "notes": "Concrete Planner runtime selection is Controller-owned through routing.json and runtime_catalog.json.",
     "response_validator": "acl_roles.planner.validation:validate_planner_role_response",
     "response_normalizer": "acl_roles.planner.validation:normalize_planner_role_response"
   },
