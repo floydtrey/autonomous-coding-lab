@@ -220,7 +220,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                     prior_success = successful_calls.get(signature)
                     definition = (
                         None
-                        if self.services is None
+                        if self.services is None or tool_name not in tool_ids
                         else self.services.tools.definition(tool_name)
                     )
                     suppress_identical_success = (
