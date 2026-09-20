@@ -111,6 +111,26 @@ def _submission_evidence_digest(
 class DirectNoteStoreKnowledgeKernel(ResourceServiceKnowledgeKernel):
     """Task 2E canonical direct-note admission plus separate SR-2 publication."""
 
+    def existing_note_resource_ref(
+        self,
+        *,
+        caller_principal_ref: str,
+        source_id: str | None,
+    ) -> UUID | None:
+        if source_id is None or not source_id.strip():
+            return None
+        identity = GovernedSourceIdentity(
+            source_kind=DIRECT_NOTE_SOURCE_KIND,
+            origin_scope=caller_principal_ref,
+            collection_key=DIRECT_NOTE_COLLECTION_KEY,
+            item_key=source_id.strip(),
+        )
+        binding = self.session.get(
+            GovernedSourceBindingRecord,
+            identity.digest,
+        )
+        return binding.resource_ref if binding is not None else None
+
     @staticmethod
     def _replay_canonical_result(metadata: dict[str, object]) -> DirectNoteCanonicalStoreResult:
         return DirectNoteCanonicalStoreResult(
