@@ -28,177 +28,6 @@ from .elevation import parse_planner_role_response
 _WINDOWS_DRIVE = re.compile(r"^[A-Za-z]:")
 
 
-def _missing_keys(value: Mapping[str, Any], required: tuple[str, ...], *, prefix: str) -> list[str]:
-    return [f"{prefix}.{key}" for key in required if key not in value]
-
-
-def _audit_execution_plan_shape(payload: Mapping[str, Any]) -> None:
-    """Report all obvious missing machine-contract keys in one correction cycle.
-
-    This audit checks presence only. It does not invent values, repair semantics,
-    or replace the deeper Planner contract validation.
-    """
-    if payload.get("disposition") != "EXECUTION_PLAN":
-        return
-    plan = payload.get("plan")
-    if not isinstance(plan, Mapping):
-        return
-
-    missing: list[str] = []
-    missing.extend(
-        _missing_keys(
-            plan,
-            (
-                "plan_type",
-                "project",
-                "work_type_id",
-                "task_type",
-                "complexity",
-                "required_capabilities",
-                "required_tools",
-                "required_services",
-                "research_requirements",
-                "objective",
-                "acceptance_criteria",
-                "required_outputs",
-                "constraints",
-                "out_of_scope",
-                "assumptions",
-                "unresolved_questions",
-                "workspace",
-                "reference_material",
-                "sources",
-                "tracking_requirements",
-                "decomposition_reason",
-                "stages",
-                "passes",
-            ),
-            prefix="plan",
-        )
-    )
-
-    project = plan.get("project")
-    if isinstance(project, Mapping):
-        missing.extend(
-            _missing_keys(
-                project,
-                ("project_name", "version_id", "project_root"),
-                prefix="plan.project",
-            )
-        )
-
-    workspace = plan.get("workspace")
-    if isinstance(workspace, Mapping):
-        missing.extend(
-            _missing_keys(
-                workspace,
-                (
-                    "worker_working_directory",
-                    "output_directory",
-                    "artifact_directory",
-                    "temporary_directory",
-                ),
-                prefix="plan.workspace",
-            )
-        )
-
-    passes = plan.get("passes")
-    if isinstance(passes, list):
-        for pass_index, pass_value in enumerate(passes):
-            if not isinstance(pass_value, Mapping):
-                continue
-            pass_prefix = f"plan.passes[{pass_index}]"
-            missing.extend(
-                _missing_keys(
-                    pass_value,
-                    (
-                        "pass_id",
-                        "name",
-                        "objective",
-                        "complexity",
-                        "depends_on",
-                        "working_directory",
-                        "output_directory",
-                        "reference_ids",
-                        "expected_outputs",
-                        "acceptance_criteria",
-                        "evidence_required",
-                        "tracking_requirements",
-                        "continuation_instructions",
-                        "tasks",
-                    ),
-                    prefix=pass_prefix,
-                )
-            )
-            tasks = pass_value.get("tasks")
-            if isinstance(tasks, list):
-                for task_index, task_value in enumerate(tasks):
-                    if not isinstance(task_value, Mapping):
-                        continue
-                    task_prefix = f"{pass_prefix}.tasks[{task_index}]"
-                    missing.extend(
-                        _missing_keys(
-                            task_value,
-                            (
-                                "task_id",
-                                "name",
-                                "instruction",
-                                "depends_on",
-                                "filesystem",
-                                "reference_ids",
-                                "expected_result",
-                                "acceptance_criteria",
-                                "evidence_required",
-                            ),
-                            prefix=task_prefix,
-                        )
-                    )
-                    filesystem = task_value.get("filesystem")
-                    if isinstance(filesystem, Mapping):
-                        missing.extend(
-                            _missing_keys(
-                                filesystem,
-                                (
-                                    "read_paths",
-                                    "write_paths",
-                                    "create_paths",
-                                    "delete_paths",
-                                    "move_paths",
-                                ),
-                                prefix=f"{task_prefix}.filesystem",
-                            )
-                        )
-
-    stages = plan.get("stages")
-    if isinstance(stages, list):
-        for stage_index, stage_value in enumerate(stages):
-            if not isinstance(stage_value, Mapping):
-                continue
-            stage_prefix = f"plan.stages[{stage_index}]"
-            missing.extend(
-                _missing_keys(
-                    stage_value,
-                    (
-                        "stage_id",
-                        "name",
-                        "objective",
-                        "depends_on",
-                        "acceptance_criteria",
-                        "passes",
-                    ),
-                    prefix=stage_prefix,
-                )
-            )
-
-    if missing:
-        _fail(
-            "PLANNER_CONTRACT_INCOMPLETE",
-            "execution plan omits required machine-contract fields",
-            missing_fields=missing,
-            missing_count=len(missing),
-        )
-
-
 def normalize_planner_role_response(
     value: Mapping[str, Any],
     *,
@@ -381,12 +210,6 @@ def _validate_plan_structure(plan: ExecutionPlan) -> dict[str, Any]:
             "PLANNER_REQUIRED_OUTPUTS_MISSING",
             "execution plan must declare one or more required outputs",
         )
-    if not plan.tracking_requirements:
-        _fail(
-            "PLANNER_TRACKING_REQUIREMENTS_MISSING",
-            "execution plan must declare tracking requirements",
-        )
-
     for label, path in (
         ("project.project_root", plan.project.project_root),
         ("workspace.worker_working_directory", plan.workspace.worker_working_directory),
@@ -443,14 +266,6 @@ def _validate_plan_structure(plan: ExecutionPlan) -> dict[str, Any]:
                 pass_id=pass_spec.pass_id,
                 location=pass_location,
             )
-        if not pass_spec.evidence_required:
-            _fail(
-                "PLANNER_PASS_EVIDENCE_MISSING",
-                "each Pass must declare evidence required from the Worker",
-                pass_id=pass_spec.pass_id,
-                location=pass_location,
-            )
-
         _validate_path(
             pass_spec.working_directory,
             location=f"{pass_location}.working_directory",
@@ -591,7 +406,6 @@ def validate_planner_role_response(
     request: RoleRequest | None = None,
 ) -> dict[str, Any]:
     """Configured validator entry point for the generic role dispatcher."""
-    _audit_execution_plan_shape(response.payload)
     result = parse_planner_role_response(response)
 
     planner_input = None
