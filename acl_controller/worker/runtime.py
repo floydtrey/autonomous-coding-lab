@@ -13,6 +13,7 @@ from typing import Any
 
 from acl_roles.common import RoleResponse
 from acl_roles.worker import (
+    WorkerOutcome,
     WorkerRuntimeBackend,
     WorkerRuntimeRequest,
     WorkerRuntimeResponse,
@@ -75,10 +76,16 @@ class ControllerWorkerRuntimeBackend:
                 metadata=dict(dispatched.metadata),
             )
             result = parse_worker_role_response(common_response)
-            self.role_dispatch.complete_runtime(
-                request.workflow_id,
-                dispatched.attempt_id,
-            )
+            if result.outcome is WorkerOutcome.NEEDS_PLANNER:
+                self.role_dispatch.pause_runtime_for_switch(
+                    request.workflow_id,
+                    dispatched.attempt_id,
+                )
+            else:
+                self.role_dispatch.complete_runtime(
+                    request.workflow_id,
+                    dispatched.attempt_id,
+                )
 
             adapter_telemetry = dispatched.metadata.get("adapter_telemetry")
             adapter_telemetry = (
