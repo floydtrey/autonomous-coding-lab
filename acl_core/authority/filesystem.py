@@ -180,6 +180,11 @@ class FilesystemAuthorityService:
         )
 
     @property
+    def project_root(self) -> str:
+        """Canonical project root used to bound derived workspace scopes."""
+        return self._project_root.value
+
+    @property
     def permanent_protections(self) -> tuple[ProtectedPath, ...]:
         return tuple(item[1] for item in self._permanent)
 
