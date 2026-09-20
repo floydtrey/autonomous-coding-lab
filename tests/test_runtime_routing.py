@@ -23,13 +23,13 @@ def test_central_runtime_catalog_selects_role_models():
 
     assert determiner.settings["model"] == "qwen3.5:9b-4k"
     assert determiner.settings["context_window"] == 4096
-    assert determiner.settings["max_tokens"] == 4096
+    assert determiner.settings["max_tokens"] == 2048
     assert determiner.adapter_id == "openai-compatible.chat"
     assert determiner.metadata["runtime_id"] == "determiner-qwen35-9b-4k"
 
     assert planner.settings["model"] == "qwen3.5:9b-64k"
     assert planner.settings["context_window"] == 65536
-    assert planner.settings["max_tokens"] == 65536
+    assert planner.settings["max_tokens"] == 16384
     assert planner.adapter_id == "openai-compatible.agent"
     assert planner.metadata["runtime_id"] == "planner-qwen35-9b-64k"
     assert planner.metadata["harness_id"] == "openai-compatible.agent"
@@ -37,7 +37,7 @@ def test_central_runtime_catalog_selects_role_models():
 
     assert worker.settings["model"] == "qwen3-coder:30b-131k"
     assert worker.settings["context_window"] == 131072
-    assert worker.settings["max_tokens"] == 131072
+    assert worker.settings["max_tokens"] == 32768
     assert worker.adapter_id == "openai-compatible.agent"
     assert worker.metadata["runtime_id"] == "worker-qwen3-coder-30b-131k"
 
