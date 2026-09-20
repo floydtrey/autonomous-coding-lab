@@ -600,6 +600,8 @@ class KnowledgeGraphRuntime:
             namespace_key=self.namespace_key,
             scope_key=graph_scope_key,
             authorized_resource_refs=authorized_refs,
+            authorization_principal_ref=principal_ref,
+            authorization_scope_ref=active_scope_ref,
         )
 
     def readiness(
