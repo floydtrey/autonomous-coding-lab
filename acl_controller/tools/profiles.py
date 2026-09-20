@@ -48,13 +48,19 @@ class ToolProfileResolver:
                 {"profile_id": profile_id, "path": str(self.path)},
             )
         tools = matches[0].get("tool_ids", [])
-        if not isinstance(tools, list):
+        if not isinstance(tools, list) or any(
+            not isinstance(item, str) or not item.strip()
+            for item in tools
+        ):
             raise ControllerError(
                 "CONTROLLER_TOOL_PROFILE_INVALID",
-                "tool profile tool_ids must be a list",
+                "tool profile tool_ids must be a list of nonblank text values",
                 {"profile_id": profile_id},
             )
-        return ToolProfile(profile_id, tuple(sorted(set(tools)))).tool_ids
+        return ToolProfile(
+            profile_id,
+            tuple(sorted(set(item.strip() for item in tools))),
+        ).tool_ids
 
     def _load(self) -> dict[str, Any]:
         try:
