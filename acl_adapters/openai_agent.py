@@ -126,7 +126,16 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "http_elapsed_ms": 0.0,
             "request_bytes": 0,
             "response_bytes": 0,
+            # context_window remains a compatibility alias. The generic adapter
+            # does not know the provider's actually loaded capacity.
             "context_window": resolved.get("context_window"),
+            "configured_context_window": resolved.get("context_window"),
+            "observed_context_window": None,
+            "context_capacity_source": (
+                None
+                if resolved.get("context_window") is None
+                else "configured_route"
+            ),
             "duplicate_success_tool_calls": 0,
             "repeated_failed_tool_calls": 0,
             "loop_control_interventions": 0,
