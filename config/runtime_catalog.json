@@ -1,0 +1,25 @@
+{
+  "schema_version": "acl-controller-runtime-catalog:v1",
+  "runtimes": [
+    {
+      "runtime_id": "ollama-qwen35-9b-chat-16k",
+      "adapter_id": "openai-compatible.chat",
+      "harness_id": "openai-compatible.chat",
+      "model": "qwen3.5:9b",
+      "settings": {
+        "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
+        "context_window": 16384
+      }
+    },
+    {
+      "runtime_id": "ollama-qwen3-coder-30b-agent-16k",
+      "adapter_id": "openai-compatible.agent",
+      "harness_id": "openai-compatible.agent",
+      "model": "qwen3-coder:30b-16k",
+      "settings": {
+        "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
+        "context_window": 16384
+      }
+    }
+  ]
+}
