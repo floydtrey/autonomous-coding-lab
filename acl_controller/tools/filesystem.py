@@ -19,6 +19,7 @@ from ..authority.filesystem import FilesystemAuthorityCoordinator
 
 FS_READ_TEXT = "filesystem.read_text"
 FS_LIST_DIRECTORY = "filesystem.list_directory"
+FS_SEARCH = "filesystem.search"
 FS_WRITE_TEXT = "filesystem.write_text"
 FS_CREATE_TEXT = "filesystem.create_text"
 FS_DELETE_PATH = "filesystem.delete_path"
@@ -28,6 +29,7 @@ FILESYSTEM_TOOL_IDS = (
     FS_CREATE_TEXT,
     FS_DELETE_PATH,
     FS_LIST_DIRECTORY,
+    FS_SEARCH,
     FS_MOVE_PATH,
     FS_READ_TEXT,
     FS_WRITE_TEXT,
@@ -86,6 +88,22 @@ class FilesystemToolService:
                     },
                     "required": ["path"],
                     "additionalProperties": False,
+                },
+            ),
+            ToolDefinition(
+                FS_SEARCH,
+                "Search authorized UTF-8 text files recursively by filename/path or text content.",
+                ("filesystem.read",),
+                {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string"},
+                        "query": {"type": "string"},
+                        "max_results": {"type": "integer", "minimum": 1, "maximum": 200},
+                        "max_files": {"type": "integer", "minimum": 1, "maximum": 10000}
+                    },
+                    "required": ["path", "query"],
+                    "additionalProperties": False
                 },
             ),
             ToolDefinition(
@@ -149,6 +167,7 @@ class FilesystemToolService:
         handlers = {
             FS_READ_TEXT: self._read_text,
             FS_LIST_DIRECTORY: self._list_directory,
+            FS_SEARCH: self._search,
             FS_WRITE_TEXT: self._write_text,
             FS_CREATE_TEXT: self._create_text,
             FS_DELETE_PATH: self._delete_path,
@@ -205,6 +224,95 @@ class FilesystemToolService:
             ],
             "entry_count": len(entries),
             "truncated": len(entries) > maximum,
+        }
+
+    def _search(self, call: ToolCall, grant: AuthorityGrant) -> Mapping[str, Any]:
+        root_arg = self._path_arg(call, "path")
+        query = self._text_arg(call, "query").strip()
+        if not query:
+            raise CoreError("TOOL_ARGUMENTS_INVALID", "query must be nonblank text")
+        canonical = self._require_scope(grant, FilesystemOperation.READ, root_arg)
+        root = Path(canonical)
+        if not root.is_dir():
+            raise CoreError(
+                "TOOL_DIRECTORY_MISSING",
+                "search path must be a directory",
+                {"path": canonical},
+            )
+
+        max_results = call.arguments.get("max_results", 50)
+        max_files = call.arguments.get("max_files", 3000)
+        if (
+            isinstance(max_results, bool)
+            or not isinstance(max_results, int)
+            or not 1 <= max_results <= 200
+        ):
+            raise CoreError("TOOL_ARGUMENTS_INVALID", "max_results is invalid")
+        if (
+            isinstance(max_files, bool)
+            or not isinstance(max_files, int)
+            or not 1 <= max_files <= 10000
+        ):
+            raise CoreError("TOOL_ARGUMENTS_INVALID", "max_files is invalid")
+
+        query_fold = query.casefold()
+        matches: list[dict[str, Any]] = []
+        scanned_files = 0
+        skipped_dirs = {".git", ".venv", "node_modules", "__pycache__"}
+
+        try:
+            candidates = root.rglob("*")
+            for candidate in candidates:
+                if any(part in skipped_dirs for part in candidate.parts):
+                    continue
+                if not candidate.is_file():
+                    continue
+                scanned_files += 1
+                if scanned_files > max_files:
+                    break
+
+                candidate_text = str(candidate)
+                path_match = query_fold in candidate_text.casefold()
+                excerpts: list[dict[str, Any]] = []
+                try:
+                    with candidate.open(
+                        "r",
+                        encoding="utf-8",
+                        errors="strict",
+                    ) as handle:
+                        for line_number, line in enumerate(handle, start=1):
+                            if query_fold in line.casefold():
+                                excerpts.append({
+                                    "line": line_number,
+                                    "text": line.rstrip("\r\n")[:500],
+                                })
+                                if len(excerpts) >= 3:
+                                    break
+                except (OSError, UnicodeError):
+                    pass
+
+                if path_match or excerpts:
+                    matches.append({
+                        "path": candidate_text,
+                        "path_match": path_match,
+                        "matches": excerpts,
+                    })
+                    if len(matches) >= max_results:
+                        break
+        except OSError as exc:
+            raise CoreError(
+                "TOOL_DIRECTORY_READ_FAILED",
+                "search directory could not be traversed",
+                {"path": canonical},
+            ) from exc
+
+        return {
+            "path": canonical,
+            "query": query,
+            "results": matches,
+            "result_count": len(matches),
+            "scanned_files": min(scanned_files, max_files),
+            "truncated": len(matches) >= max_results or scanned_files > max_files,
         }
 
     def _write_text(self, call: ToolCall, grant: AuthorityGrant) -> Mapping[str, Any]:
