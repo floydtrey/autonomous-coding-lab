@@ -141,6 +141,7 @@ class PlannerContractTests(unittest.TestCase):
             "routing_context": {"work_type_id": "1127", "complexity": "MEDIUM"},
             "consultation": None,
             "elevation_answers": {},
+            "correction": None,
             "metadata": {},
         }
         parsed = PlannerInput.from_mapping(value)
