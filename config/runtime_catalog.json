@@ -19,8 +19,8 @@
     },
     {
       "runtime_id": "planner-qwen35-9b-16k",
-      "adapter_id": "openai-compatible.chat",
-      "harness_id": "openai-compatible.chat",
+      "adapter_id": "openai-compatible.agent",
+      "harness_id": "openai-compatible.agent",
       "model": "qwen3.5:9b-16k",
       "settings": {
         "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
@@ -31,7 +31,10 @@
         "response_format_json": true,
         "runtime_launcher_env": "ACL_PLANNER_LAUNCHER",
         "runtime_launcher_cwd_env": "ACL_PLANNER_LAUNCHER_CWD",
-        "runtime_launcher_command_json_env": "ACL_PLANNER_LAUNCH_COMMAND_JSON"
+        "runtime_launcher_command_json_env": "ACL_PLANNER_LAUNCH_COMMAND_JSON",
+        "max_agent_turns": 32,
+        "max_tool_calls": 64,
+        "max_identical_tool_failures": 3
       }
     },
     {
