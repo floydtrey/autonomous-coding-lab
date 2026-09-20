@@ -42,6 +42,30 @@ def normalize_worker_role_response(
         normalized = dict(inner)
         transforms.append("unwrap_shared_envelope")
 
+    # Some local models echo both the canonical shared envelope and the Worker
+    # payload beside it. Accept this only when the redundant Worker payload is
+    # exactly the same as shared_envelope.payload; otherwise keep rejecting the
+    # response as ambiguous.
+    elif (
+        set(normalized) == {"schema_version", "shared_envelope", "worker_result"}
+        and normalized.get("schema_version") == "acl-role-response:v1"
+    ):
+        inner = normalized.get("shared_envelope")
+        worker_result = normalized.get("worker_result")
+        if not isinstance(inner, Mapping) or not isinstance(worker_result, Mapping):
+            raise RoleContractError(
+                "WORKER_RESULT_INVALID",
+                "redundant Worker response wrapper must contain mappings",
+            )
+        payload = inner.get("payload")
+        if not isinstance(payload, Mapping) or dict(payload) != dict(worker_result):
+            raise RoleContractError(
+                "WORKER_RESULT_INVALID",
+                "redundant Worker response wrapper is ambiguous",
+            )
+        normalized = dict(inner)
+        transforms.append("unwrap_redundant_worker_envelope")
+
     payload = normalized.get("payload")
     if isinstance(payload, Mapping) and "schema_version" not in payload:
         outcome = payload.get("outcome")
