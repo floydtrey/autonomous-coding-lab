@@ -56,6 +56,10 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             resolved.get("max_tool_calls", 128),
             "max_tool_calls",
         )
+        max_identical_tool_failures = self._positive_int(
+            resolved.get("max_identical_tool_failures", 3),
+            "max_identical_tool_failures",
+        )
 
         tool_ids_raw = role_request.get("tool_ids", [])
         if not isinstance(tool_ids_raw, list) or any(
@@ -103,7 +107,13 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "request_bytes": 0,
             "response_bytes": 0,
             "context_window": resolved.get("context_window"),
+            "duplicate_success_tool_calls": 0,
+            "repeated_failed_tool_calls": 0,
+            "loop_control_interventions": 0,
         }
+        successful_calls: dict[str, Mapping[str, Any]] = {}
+        failed_call_counts: dict[str, int] = {}
+        force_response_turn = False
         observed_token_field = {
             "prompt_tokens": False,
             "completion_tokens": False,
@@ -112,6 +122,10 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
 
         for turn in range(1, max_turns + 1):
             request_body = {**body, "messages": messages}
+            if force_response_turn and tools:
+                request_body["tool_choice"] = "none"
+                force_response_turn = False
+                aggregate["loop_control_interventions"] += 1
             completion = self._request_completion(
                 request_id=request.request_id,
                 body=request_body,
@@ -171,6 +185,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                     try:
                         call_id = self._tool_call_id(raw_call)
                         tool_name = self._tool_call_name(raw_call)
+                        signature = self._tool_call_signature(raw_call)
                     except CoreError as exc:
                         return self._error(
                             request,
@@ -178,16 +193,79 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             exc.message,
                             metadata=aggregate,
                         )
+
+                    prior_success = successful_calls.get(signature)
+                    if prior_success is not None:
+                        aggregate["duplicate_success_tool_calls"] += 1
+                        force_response_turn = True
+                        emit(
+                            "INFO",
+                            "adapter.openai_agent",
+                            "invoke_role",
+                            "duplicate_success_tool_call_suppressed",
+                            request_id=request.request_id,
+                            tool_id=tool_name,
+                            duplicate_count=aggregate["duplicate_success_tool_calls"],
+                        )
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": call_id,
+                            "name": tool_name,
+                            "content": canonical_json({
+                                "ok": True,
+                                "tool_id": tool_name,
+                                "duplicate_suppressed": True,
+                                "prior_result": dict(prior_success),
+                                "loop_control": (
+                                    "This exact tool call already succeeded and was not "
+                                    "executed again. Do not repeat it. On the next turn, "
+                                    "return the final role response from observed results, "
+                                    "or report continuation/blocker state if more work is needed."
+                                ),
+                            }),
+                        })
+                        continue
+
                     try:
                         tool_message = self._execute_tool_call(
                             raw_call,
                             allowed_tool_ids=tool_ids,
                             grant=grant,
                         )
+                        try:
+                            successful_calls[signature] = json.loads(
+                                tool_message["content"]
+                            )
+                        except (KeyError, TypeError, json.JSONDecodeError):
+                            successful_calls[signature] = {
+                                "ok": True,
+                                "tool_id": tool_name,
+                            }
+                        failed_call_counts.pop(signature, None)
                     except CoreError as exc:
                         # Hard boundaries still deny the action. The structured
                         # denial is returned to the model so the role can BLOCK,
                         # choose another permitted action, or finish honestly.
+                        failure_key = canonical_json({
+                            "call": signature,
+                            "error_code": exc.code,
+                        })
+                        observed_failures = failed_call_counts.get(failure_key, 0) + 1
+                        failed_call_counts[failure_key] = observed_failures
+                        repeated = observed_failures >= max_identical_tool_failures
+                        if repeated:
+                            aggregate["repeated_failed_tool_calls"] += 1
+                            force_response_turn = True
+                            emit(
+                                "INFO",
+                                "adapter.openai_agent",
+                                "invoke_role",
+                                "repeated_failed_tool_call_stopped",
+                                request_id=request.request_id,
+                                tool_id=tool_name,
+                                error_code=exc.code,
+                                identical_failure_count=observed_failures,
+                            )
                         tool_message = {
                             "role": "tool",
                             "tool_call_id": call_id,
@@ -196,6 +274,18 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                                 "ok": False,
                                 "tool_id": tool_name,
                                 "error": exc.to_dict(),
+                                "identical_failure_count": observed_failures,
+                                "loop_control": (
+                                    None
+                                    if not repeated
+                                    else (
+                                        "ACL stopped repeated identical failing calls. "
+                                        "Do not retry this exact action on the next turn. "
+                                        "Return the final role response, choose a materially "
+                                        "different permitted action, or report blocker/"
+                                        "continuation state."
+                                    )
+                                ),
                             }),
                         }
                     messages.append(tool_message)
@@ -316,31 +406,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                 "model requested a tool outside the role grant",
                 {"tool_id": tool_name},
             )
-        function = value.get("function")
-        arguments_raw = function.get("arguments")
-        if isinstance(arguments_raw, str):
-            try:
-                arguments = json.loads(arguments_raw)
-            except json.JSONDecodeError as exc:
-                raise CoreError(
-                    "TOOL_ARGUMENTS_INVALID",
-                    "tool arguments are not valid JSON",
-                    {"tool_id": tool_name},
-                ) from exc
-        elif isinstance(arguments_raw, Mapping):
-            arguments = dict(arguments_raw)
-        else:
-            raise CoreError(
-                "TOOL_ARGUMENTS_INVALID",
-                "tool arguments must be a JSON object",
-                {"tool_id": tool_name},
-            )
-        if not isinstance(arguments, Mapping):
-            raise CoreError(
-                "TOOL_ARGUMENTS_INVALID",
-                "tool arguments must decode to an object",
-                {"tool_id": tool_name},
-            )
+        arguments = self._tool_call_arguments(value)
 
         result = self.services.tools.invoke(
             ToolCall(
@@ -356,6 +422,43 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "name": tool_name,
             "content": canonical_json(result.to_dict()),
         }
+
+    @classmethod
+    def _tool_call_signature(cls, value: Any) -> str:
+        return canonical_json({
+            "tool_id": cls._tool_call_name(value),
+            "arguments": cls._tool_call_arguments(value),
+        })
+
+    @staticmethod
+    def _tool_call_arguments(value: Any) -> dict[str, Any]:
+        if not isinstance(value, Mapping):
+            raise CoreError("TOOL_CALL_INVALID", "tool call must be an object")
+        function = value.get("function")
+        if not isinstance(function, Mapping):
+            raise CoreError("TOOL_CALL_INVALID", "tool call function is required")
+        arguments_raw = function.get("arguments")
+        if isinstance(arguments_raw, str):
+            try:
+                arguments = json.loads(arguments_raw)
+            except json.JSONDecodeError as exc:
+                raise CoreError(
+                    "TOOL_ARGUMENTS_INVALID",
+                    "tool arguments are not valid JSON",
+                ) from exc
+        elif isinstance(arguments_raw, Mapping):
+            arguments = dict(arguments_raw)
+        else:
+            raise CoreError(
+                "TOOL_ARGUMENTS_INVALID",
+                "tool arguments must be a JSON object",
+            )
+        if not isinstance(arguments, Mapping):
+            raise CoreError(
+                "TOOL_ARGUMENTS_INVALID",
+                "tool arguments must decode to an object",
+            )
+        return dict(arguments)
 
     @staticmethod
     def _extract_message(value: Mapping[str, Any]) -> Mapping[str, Any]:
