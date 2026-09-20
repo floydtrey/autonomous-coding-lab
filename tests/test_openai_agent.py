@@ -118,7 +118,8 @@ def test_truncated_final_response_gets_one_response_only_retry():
     assert response.metadata["final_response_retries"] == 1
     assert len(observed_bodies) == 2
     retry_messages = observed_bodies[1]["messages"]
-    assert "Stop investigating" in retry_messages[-1]["content"]
+    assert "final role response" in retry_messages[-1]["content"]
+    assert "Pass/Task" not in retry_messages[-1]["content"]
 
 
 def test_second_truncated_final_response_is_an_error():
