@@ -471,6 +471,7 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
         authorized_resource_refs: frozenset[UUID] | None = None,
         authorization_principal_ref: UUID | None = None,
         authorization_scope_ref: UUID | None = None,
+        allowed_attempt_ids: frozenset[UUID] | None = None,
     ) -> TrustedProjectionSearchSnapshot:
         normalized_query = query.strip()
         if not normalized_query:
@@ -512,21 +513,36 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
             self.graph_projection_profile_identity(current)
         )
         descriptor = adapter.descriptor
-        rows = self.session.scalars(
-            select(ProjectionAttempt)
-            .where(
-                ProjectionAttempt.namespace_key == namespace_key,
-                ProjectionAttempt.scope_key == scope_key,
-                ProjectionAttempt.backend_identity == descriptor.backend_identity,
-                ProjectionAttempt.backend_version == descriptor.backend_version,
-                ProjectionAttempt.profile_id == expected_profile_id,
-                ProjectionAttempt.profile_digest == expected_profile_digest,
-                ProjectionAttempt.config_digest == descriptor.config_digest,
-                ProjectionAttempt.disposition == ProjectionDisposition.SUCCEEDED.value,
-                ProjectionAttempt.validation_state
-                == ProjectionValidationState.VALIDATED.value,
+        statement = select(ProjectionAttempt).where(
+            ProjectionAttempt.namespace_key == namespace_key,
+            ProjectionAttempt.scope_key == scope_key,
+            ProjectionAttempt.backend_identity == descriptor.backend_identity,
+            ProjectionAttempt.backend_version == descriptor.backend_version,
+            ProjectionAttempt.profile_id == expected_profile_id,
+            ProjectionAttempt.profile_digest == expected_profile_digest,
+            ProjectionAttempt.config_digest == descriptor.config_digest,
+            ProjectionAttempt.disposition == ProjectionDisposition.SUCCEEDED.value,
+            ProjectionAttempt.validation_state
+            == ProjectionValidationState.VALIDATED.value,
+        )
+        if allowed_attempt_ids is not None:
+            if not allowed_attempt_ids:
+                return TrustedProjectionSearchSnapshot(
+                    query=normalized_query,
+                    namespace_key=namespace_key,
+                    scope_key=scope_key,
+                    generation_id=current.generation_id,
+                    attempt_ids=(),
+                    results=(),
+                )
+            statement = statement.where(
+                ProjectionAttempt.attempt_id.in_(tuple(allowed_attempt_ids))
             )
-            .order_by(ProjectionAttempt.started_at, ProjectionAttempt.attempt_id)
+        rows = self.session.scalars(
+            statement.order_by(
+                ProjectionAttempt.started_at,
+                ProjectionAttempt.attempt_id,
+            )
         ).all()
         if descriptor.validation_requirement is not None:
             rows = [
