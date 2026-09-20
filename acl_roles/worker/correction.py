@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from acl_core.canonical import canonical_digest
 from acl_core.diagnostics import emit
 from acl_roles.common.correction import (
     correction_signature as shared_correction_signature,
