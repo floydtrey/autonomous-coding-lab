@@ -10,6 +10,7 @@ from .correction import (
 from .contract import (
     WORKER_INPUT_SCHEMA,
     WORKER_RESULT_SCHEMA,
+    WorkerContinuationHandoff,
     WorkerCorrection,
     WorkerEvidence,
     WorkerInput,
@@ -36,6 +37,7 @@ __all__ = [
     "WORKER_CORRECTION_POLICY_SCHEMA",
     "WORKER_INPUT_SCHEMA",
     "WORKER_RESULT_SCHEMA",
+    "WorkerContinuationHandoff",
     "WorkerCorrection",
     "WorkerCorrectionPolicy",
     "WorkerCorrectionRule",
