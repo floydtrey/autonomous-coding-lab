@@ -2,7 +2,7 @@
   "schema_version": "acl-controller-profile:v1",
   "profile_id": "worker-v1-generic",
   "role": "worker",
-  "adapter_id": "openai-compatible.chat",
+  "adapter_id": "openai-compatible.agent",
   "settings": {
     "model_env": "ACL_WORKER_MODEL",
     "temperature": 0.1,
@@ -12,7 +12,9 @@
     "context_window_env": "ACL_WORKER_CONTEXT_WINDOW",
     "runtime_launcher_env": "ACL_WORKER_LAUNCHER",
     "runtime_launcher_cwd_env": "ACL_WORKER_LAUNCHER_CWD",
-    "runtime_launcher_command_json_env": "ACL_WORKER_LAUNCH_COMMAND_JSON"
+    "runtime_launcher_command_json_env": "ACL_WORKER_LAUNCH_COMMAND_JSON",
+    "max_agent_turns": 64,
+    "max_tool_calls": 128
   },
   "instructions": {
     "purpose": "Execute exactly one accepted ACL Planner Pass within supplied authority and return a structured Worker result for deterministic Controller handling and later Reviewer evaluation.",
@@ -83,8 +85,8 @@
   "tool_profile": null,
   "metadata": {
     "lifecycle": "WORKER_V1_FOUNDATION",
-    "harness_id": "openai-compatible-chat-v1",
-    "notes": "Worker V1 reuses ACL's configured runtime/harness path. Tool availability is supplied by the bound harness/authority configuration; Worker must use the tools actually exposed for the run and may not invent unavailable actions.",
+    "harness_id": "openai-compatible-agent-v1",
+    "notes": "Worker V1 uses ACL's shared tool-capable agent adapter through the same profile/residency/dispatch path as other roles. Actual tool exposure remains grant- and tool-profile-controlled; Worker must not invent unavailable actions.",
     "response_validator": "acl_roles.worker.validation:validate_worker_role_response",
     "response_normalizer": "acl_roles.worker.validation:normalize_worker_role_response"
   }
