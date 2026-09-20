@@ -448,6 +448,15 @@ class RoleDispatcher:
         if self.residency is not None:
             self.residency.complete_role(workflow_id, attempt_id)
 
+    def abort_runtime(self, workflow_id: str, attempt_id: str) -> None:
+        """Close a synchronously failed runtime attempt.
+
+        COMPLETE here describes residency/checkpoint lifecycle only; it does not
+        imply successful role semantics.
+        """
+        if self.residency is not None:
+            self.residency.complete_role(workflow_id, attempt_id)
+
     def pause_runtime_for_switch(self, workflow_id: str, attempt_id: str):
         """Preserve the current resolved runtime as a temporary-switch return target."""
         if self.residency is None or not self.residency.config.enabled:
