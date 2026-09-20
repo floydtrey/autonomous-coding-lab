@@ -18,6 +18,7 @@ from acl_core.canonical import canonical_json
 from acl_core.diagnostics import emit
 from acl_roles.common.errors import RoleContractError
 from acl_roles.worker import (
+    WorkerContinuationHandoff,
     WorkerCorrectionPolicy,
     WorkerInput,
     WorkerOutcome,
@@ -511,7 +512,7 @@ class WorkerExecutionService:
         plan_id: str,
         *,
         prior_worker_results: tuple[Mapping[str, Any], ...] = (),
-        continuation_handoff=None,
+        continuation_handoff: WorkerContinuationHandoff | None = None,
         metadata: Mapping[str, Any] | None = None,
     ) -> WorkerInput:
         record = self.planner_plan.read(plan_id)
