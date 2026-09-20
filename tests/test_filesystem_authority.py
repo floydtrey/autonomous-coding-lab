@@ -6,9 +6,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from acl_controller.authority import FilesystemAuthorityCoordinator
+from acl_controller.authority import FilesystemAuthorityCoordinator, PassAuthorityService
+from acl_controller.tools import FilesystemToolService
 from acl_controller.errors import ControllerError
-from acl_core import FilesystemAuthorityService, FilesystemOperation
+from acl_core import CoreServices, FilesystemAuthorityService, FilesystemOperation
 from acl_core.errors import CoreError
 
 
@@ -308,6 +309,145 @@ class FilesystemAuthorityConfigTests(unittest.TestCase):
                     state_root=project / ".acl-state",
                     config_root=config,
                 )
+
+
+class WorkspacePassAuthorityTests(unittest.TestCase):
+    def _write_policy(self, config_root: Path) -> None:
+        config_root.mkdir(parents=True, exist_ok=True)
+        (config_root / "filesystem_authority.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": "acl-filesystem-authority:v1",
+                    "protected_paths": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def test_workspace_mode_grants_configured_tools_only_inside_project(self) -> None:
+        with TemporaryDirectory() as directory:
+            project = Path(directory)
+            config = project / "config"
+            state = project / ".acl-state"
+            workspace = project / "work"
+            workspace.mkdir()
+            self._write_policy(config)
+
+            coordinator = FilesystemAuthorityCoordinator.create(
+                project_root=project,
+                state_root=state,
+                config_root=config,
+            )
+            core = CoreServices.create()
+            FilesystemToolService(coordinator).register(core.tools)
+            service = PassAuthorityService(
+                state=None,
+                authority=None,
+                filesystem_authority=coordinator,
+                profiles=None,
+                tool_profiles=None,
+                tools=core.tools,
+            )
+
+            tool_ids, scopes = service._workspace_requirements(
+                (
+                    "filesystem.create_text",
+                    "filesystem.delete_path",
+                    "filesystem.list_directory",
+                    "filesystem.move_path",
+                    "filesystem.read_text",
+                    "filesystem.search",
+                    "filesystem.write_text",
+                ),
+                workspace_scope=str(workspace),
+            )
+
+            self.assertEqual(
+                tool_ids,
+                (
+                    "filesystem.create_text",
+                    "filesystem.delete_path",
+                    "filesystem.list_directory",
+                    "filesystem.move_path",
+                    "filesystem.read_text",
+                    "filesystem.search",
+                    "filesystem.write_text",
+                ),
+            )
+            self.assertTrue(
+                any(scope.startswith("filesystem:WRITE:") for scope in scopes)
+            )
+            self.assertTrue(
+                any(scope.startswith("filesystem:READ:") for scope in scopes)
+            )
+
+    def test_workspace_mode_rejects_scope_outside_project(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "project"
+            outside = root / "outside"
+            config = project / "config"
+            state = project / ".acl-state"
+            project.mkdir()
+            outside.mkdir()
+            self._write_policy(config)
+
+            coordinator = FilesystemAuthorityCoordinator.create(
+                project_root=project,
+                state_root=state,
+                config_root=config,
+            )
+            core = CoreServices.create()
+            FilesystemToolService(coordinator).register(core.tools)
+            service = PassAuthorityService(
+                state=None,
+                authority=None,
+                filesystem_authority=coordinator,
+                profiles=None,
+                tool_profiles=None,
+                tools=core.tools,
+            )
+
+            with self.assertRaises(ControllerError):
+                service._workspace_requirements(
+                    ("filesystem.read_text", "filesystem.write_text"),
+                    workspace_scope=str(outside),
+                )
+
+    def test_workspace_scope_does_not_bypass_protected_subpaths(self) -> None:
+        with TemporaryDirectory() as directory:
+            project = Path(directory)
+            config = project / "config"
+            state = project / ".acl-state"
+            workspace = project
+            self._write_policy(config)
+
+            coordinator = FilesystemAuthorityCoordinator.create(
+                project_root=project,
+                state_root=state,
+                config_root=config,
+            )
+            core = CoreServices.create()
+            FilesystemToolService(coordinator).register(core.tools)
+            service = PassAuthorityService(
+                state=None,
+                authority=None,
+                filesystem_authority=coordinator,
+                profiles=None,
+                tool_profiles=None,
+                tools=core.tools,
+            )
+            service._workspace_requirements(
+                ("filesystem.read_text", "filesystem.write_text"),
+                workspace_scope=str(workspace),
+            )
+
+            self.assertFalse(
+                coordinator.evaluate(
+                    FilesystemOperation.WRITE,
+                    config / "filesystem_authority.json",
+                ).allowed
+            )
 
 
 if __name__ == "__main__":
