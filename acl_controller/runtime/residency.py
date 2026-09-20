@@ -694,12 +694,17 @@ class SerialRuntimeResidencyService:
                 },
             )
 
-        base_url = os.getenv(self.config.base_url_env)
+        base_url = settings.get("base_url")
+        base_url_env = settings.get("base_url_env")
+        if not isinstance(base_url, str) or not base_url.strip():
+            if not isinstance(base_url_env, str) or not base_url_env.strip():
+                base_url_env = self.config.base_url_env
+            base_url = os.getenv(base_url_env.strip())
         if not isinstance(base_url, str) or not base_url.strip():
             raise ControllerError(
                 "CONTROLLER_RUNTIME_BASE_URL_MISSING",
-                "runtime base URL environment variable is not set",
-                {"env": self.config.base_url_env},
+                "runtime base URL is not configured",
+                {"env": base_url_env},
             )
 
         launcher_command = self._resolve_launcher_command(settings)
