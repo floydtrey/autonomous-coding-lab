@@ -4,6 +4,13 @@ Planner answers lightweight requests or produces semantic execution plans. ACL
 retains authority, runtime, routing, persistence, and execution control.
 """
 
+from .handoff import (
+    PLANNER_HANDOFF_STATUS_READY,
+    PlannerExecutionHandoff,
+    PlannerHandoffTask,
+    parse_planner_execution_handoff,
+)
+
 from .runtime import (
     FunctionPlannerRuntimeBackend,
     PlannerRuntimeBackend,
@@ -60,6 +67,10 @@ from .contract import (
 )
 
 __all__ = [
+    "PLANNER_HANDOFF_STATUS_READY",
+    "PlannerExecutionHandoff",
+    "PlannerHandoffTask",
+    "parse_planner_execution_handoff",
     "PLANNER_INPUT_SCHEMA",
     "PLANNER_RESULT_SCHEMA",
     "ExecutionPlan",
