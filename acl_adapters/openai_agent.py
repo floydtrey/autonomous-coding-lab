@@ -2,7 +2,7 @@
 
 This adapter is role-neutral. It uses the same ACL role/profile/dispatcher path as
 single-turn chat roles, but permits an OpenAI-compatible model to call tools from
-CoreServices.tools until it returns the normal ACL role-response envelope.
+CoreServices.tools until it returns the configured role-specific final response.
 
 Worker is the first consumer; Reviewer, Planner query, and future roles may reuse
 the same adapter without importing Worker code.
@@ -25,6 +25,8 @@ from acl_core.canonical import canonical_json
 from acl_core.diagnostics import emit
 from acl_core.errors import CoreError
 
+from .agent_session import AgentSession
+from .context_pressure import estimate_context_pressure
 from .openai_compatible import OpenAICompatibleChatAdapter
 
 
@@ -70,6 +72,42 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                 "max_tool_result_chars",
             )
         )
+        context_pressure_characters_per_token = resolved.get(
+            "context_pressure_characters_per_token",
+            4.0,
+        )
+        if (
+            isinstance(context_pressure_characters_per_token, bool)
+            or not isinstance(context_pressure_characters_per_token, (int, float))
+            or context_pressure_characters_per_token <= 0
+        ):
+            return self._error(
+                request,
+                "ADAPTER_SETTINGS_INVALID",
+                "context_pressure_characters_per_token must be positive",
+            )
+        try:
+            context_pressure_warn_ratio = self._optional_ratio(
+                resolved.get("context_pressure_warn_ratio", 0.8),
+                "context_pressure_warn_ratio",
+            )
+            context_pressure_stop_ratio = self._optional_ratio(
+                resolved.get("context_pressure_stop_ratio"),
+                "context_pressure_stop_ratio",
+            )
+        except CoreError as exc:
+            return self._error(request, exc.code, exc.message)
+        if (
+            context_pressure_warn_ratio is not None
+            and context_pressure_stop_ratio is not None
+            and context_pressure_warn_ratio > context_pressure_stop_ratio
+        ):
+            return self._error(
+                request,
+                "ADAPTER_SETTINGS_INVALID",
+                "context_pressure_warn_ratio must not exceed context_pressure_stop_ratio",
+            )
+
         suppress_identical_success_calls = resolved.get(
             "suppress_identical_success_calls",
             False,
@@ -108,7 +146,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             )
 
         body = self._build_chat_body(role_request, resolved)
-        messages = list(body.get("messages", []))
+        session = AgentSession.from_messages(body.get("messages", []))
         body.pop("messages", None)
         if tools:
             body["tools"] = tools
@@ -142,6 +180,12 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "final_response_retries": 0,
             "tool_result_truncations": 0,
             "tool_result_truncated_characters": 0,
+            "context_pressure_warnings": 0,
+            "context_pressure_stops": 0,
+            "context_compactions": 0,
+            "context_pressure_peak_ratio": None,
+            "context_pressure_last": None,
+            **session.telemetry(),
             "tool_events": [],
         }
         successful_calls: dict[str, Mapping[str, Any]] = {}
@@ -154,7 +198,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
         }
 
         for turn in range(1, max_turns + 1):
-            request_body = {**body, "messages": messages}
+            request_body = {**body, "messages": session.messages()}
             response_only_turn = bool(force_response_turn)
             if response_only_turn:
                 # Some OpenAI-compatible runtimes ignore tool_choice="none" while
@@ -215,7 +259,10 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                         "model requested a tool but no tool authority is available",
                         metadata=aggregate,
                     )
-                messages.append(self._assistant_message(message))
+                session.append_message(
+                    self._assistant_message(message),
+                    event_type="assistant",
+                )
 
                 for raw_call in tool_calls:
                     aggregate["tool_calls"] += 1
@@ -285,7 +332,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             "ok": True,
                             "duplicate_suppressed": True,
                         })
-                        messages.append({
+                        session.append_message({
                             "role": "tool",
                             "tool_call_id": call_id,
                             "name": tool_name,
@@ -301,7 +348,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                                     "or report continuation/blocker state if more work is needed."
                                 ),
                             }),
-                        })
+                        }, event_type="tool")
                         continue
 
                     try:
@@ -406,7 +453,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                                 ),
                             }),
                         }
-                    messages.append(tool_message)
+                    session.append_message(tool_message, event_type="tool")
                 continue
 
             finish_reason = telemetry.get("finish_reason")
@@ -414,7 +461,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                 if aggregate["final_response_retries"] < 1:
                     aggregate["final_response_retries"] += 1
                     force_response_turn = True
-                    messages.append({
+                    session.append_message({
                         "role": "user",
                         "content": (
                             "Your previous response reached the output limit before "
@@ -423,7 +470,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             "Be concise and obey the role-specific response contract. "
                             "Do not narrate additional analysis or propose more inspection."
                         ),
-                    })
+                    }, event_type="control")
                     continue
                 aggregate["finish_reason"] = finish_reason
                 return self._error(
@@ -443,6 +490,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                     metadata=aggregate,
                 )
 
+            aggregate.update(session.telemetry())
             for key, seen in observed_token_field.items():
                 if not seen:
                     aggregate[key] = None
@@ -756,6 +804,38 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
         # failure path, allowing the model to recover instead of aborting the
         # entire agent invocation.
         return requested
+
+    def _compact_session_if_needed(
+        self,
+        session: AgentSession,
+        *,
+        pressure,
+        runtime: Mapping[str, Any],
+    ) -> bool:
+        """Context-compaction extension seam.
+
+        R08 intentionally adds the session surface and pressure signal without
+        inventing a summarizer. A future harness/strategy may call
+        session.replace_surface(...) here and return True. The generic adapter
+        otherwise leaves history untouched.
+        """
+        return False
+
+    @staticmethod
+    def _optional_ratio(value: Any, label: str) -> float | None:
+        if value is None:
+            return None
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or value <= 0
+            or value > 1
+        ):
+            raise CoreError(
+                "ADAPTER_SETTINGS_INVALID",
+                f"{label} must be within (0, 1]",
+            )
+        return float(value)
 
     @staticmethod
     def _positive_int(value: Any, label: str) -> int:
