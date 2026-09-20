@@ -1,5 +1,0 @@
-# These files carry exact byte identities; preserve their reviewed contents.
-/config/portable-source-manifest.json -text
-/config/pi-local-worker.json -text
-/tools/pi-compatibility/package.json -text
-/tools/pi-compatibility/pnpm-lock.yaml -text

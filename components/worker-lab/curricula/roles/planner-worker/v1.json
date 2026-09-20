@@ -1,9 +1,0 @@
-{
-  "allowed_capabilities": ["candidate.read", "context.read-assigned", "evidence.write-worker-log", "plan.propose"],
-  "denied_capabilities": ["candidate.modify-authorized", "evaluator.modify", "git.commit", "git.publish", "permissions.expand", "policy.modify", "scope.expand", "tests.run-authorized"],
-  "purpose": "Read assigned context and propose a bounded task without implementation authority.",
-  "required_outputs": ["assumptions", "proposed-scope", "risks", "test-plan"],
-  "role_id": "planner-worker",
-  "role_version": 1,
-  "schema_version": "worker-lab-role:v1"
-}

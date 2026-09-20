@@ -1,9 +1,0 @@
-{
-  "allowed_capabilities": ["candidate.read", "context.read-assigned", "evidence.write-verification", "tests.run-authorized"],
-  "denied_capabilities": ["candidate.modify-authorized", "evaluator.modify", "git.commit", "git.publish", "permissions.expand", "policy.modify", "scope.expand"],
-  "purpose": "Evaluate an exact candidate without mutation, repair, acceptance, or publication authority.",
-  "required_outputs": ["evidence-identities", "first-failed-boundary", "test-results", "verification-result"],
-  "role_id": "verifier",
-  "role_version": 1,
-  "schema_version": "worker-lab-role:v1"
-}

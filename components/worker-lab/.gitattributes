@@ -1,9 +1,0 @@
-* text=auto eol=lf
-*.py text eol=lf
-*.md text eol=lf
-*.json text eol=lf
-*.toml text eol=lf
-*.ps1 text eol=crlf
-
-# Portable source identity binds reviewed production bytes, including line endings.
-/worker_lab/** -text
