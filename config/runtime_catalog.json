@@ -18,16 +18,16 @@
       }
     },
     {
-      "runtime_id": "planner-qwen38-27b-64k",
+      "runtime_id": "planner-qwen25-coder-7b-32k",
       "adapter_id": "openai-compatible.agent",
       "harness_id": "openai-compatible.agent",
-      "model": "qwen3.8:27b-64k",
+      "model": "qwen2.5-coder:7b-32k",
       "settings": {
         "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
-        "context_window": 65536,
+        "context_window": 32768,
         "temperature": 0.1,
-        "max_tokens": 16384,
-        "timeout_seconds": 300,
+        "max_tokens": 8192,
+        "timeout_seconds": 180,
         "response_format_json": true,
         "runtime_launcher_env": "ACL_PLANNER_LAUNCHER",
         "runtime_launcher_cwd_env": "ACL_PLANNER_LAUNCHER_CWD",
