@@ -172,6 +172,14 @@ def _slug(value: str) -> str:
     return text or "model"
 
 
+def _path_is_within(candidate: Path, root: Path) -> bool:
+    try:
+        candidate.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
 def _load_config(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict) or value.get("schema_version") != BENCHMARK_SCHEMA:
@@ -359,6 +367,14 @@ def run_benchmark(
         case_ids = [item.case_id for item in cases]
         if len(case_ids) != len(set(case_ids)):
             raise ValueError("case_id values must be unique")
+
+    for benchmark_case in cases:
+        workspace = Path(benchmark_case.workspace_root).expanduser().resolve()
+        if _path_is_within(output_root, workspace):
+            raise ValueError(
+                "--output-root must be outside every benchmark workspace; "
+                f"{output_root} is inside {workspace}"
+            )
 
     system_prompt = config.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
     if not isinstance(system_prompt, str) or not system_prompt.strip():
