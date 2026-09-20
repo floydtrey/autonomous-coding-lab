@@ -824,6 +824,51 @@ class AuthorizationKernel:
             statement = statement.where(not_(or_(*deny_conditions)))
         return statement
 
+    def graph_projectable_resource_refs(
+        self,
+        *,
+        scope_ref: UUID,
+    ) -> frozenset[UUID]:
+        """Resources eligible for an ordinary shared project graph partition.
+
+        Graph partitions intentionally exclude personal/private material and
+        credential/financial sensitivity. Exact resource grants remain canonical
+        read authority; they do not implicitly promote secrets into a shared graph.
+        """
+
+        related_scope_refs = self._related_scope_refs(scope_ref)
+        policy = ResourceAccessPolicyRecord
+        current = CurrentResourceAccessPolicyRecord
+        resource = Resource
+
+        scoped_to_context = exists(
+            select(ResourceAccessScopeRecord.policy_ref).where(
+                ResourceAccessScopeRecord.policy_ref == policy.policy_ref,
+                ResourceAccessScopeRecord.scope_ref.in_(tuple(related_scope_refs)),
+            )
+        )
+        statement = (
+            select(resource.ref_id)
+            .join(current, current.resource_ref == resource.ref_id)
+            .join(policy, policy.policy_ref == current.policy_ref)
+            .where(
+                policy.sensitivity.notin_(
+                    (
+                        SensitivityClass.CREDENTIAL.value,
+                        SensitivityClass.FINANCIAL.value,
+                    )
+                ),
+                or_(
+                    policy.visibility == VisibilityClass.PUBLIC.value,
+                    and_(
+                        policy.visibility == VisibilityClass.SCOPED.value,
+                        scoped_to_context,
+                    ),
+                ),
+            )
+        )
+        return frozenset(self.session.scalars(statement).all())
+
     @staticmethod
     def _decision(
         allowed: bool,
