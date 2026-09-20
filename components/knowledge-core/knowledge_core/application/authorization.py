@@ -698,6 +698,11 @@ class AuthorizationKernel:
             SensitivityClass.CREDENTIAL,
             SensitivityClass.FINANCIAL,
         }:
+            if (
+                policy.visibility is VisibilityClass.PERSONAL
+                and policy.owner_principal_ref == principal_ref
+            ):
+                return self._decision(True, "sensitive-personal-owner", global_allows)
             if resource_allows:
                 return self._decision(
                     True,
