@@ -207,8 +207,16 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
 
                     try:
                         call_id = self._tool_call_id(raw_call)
-                        tool_name = self._tool_call_name(raw_call)
-                        signature = self._tool_call_signature(raw_call)
+                        requested_tool_name = self._tool_call_name(raw_call)
+                        tool_name = self._resolve_tool_name(
+                            requested_tool_name,
+                            tool_ids,
+                        )
+                        arguments = self._tool_call_arguments(raw_call)
+                        signature = canonical_json({
+                            "tool_id": tool_name,
+                            "arguments": arguments,
+                        })
                     except CoreError as exc:
                         return self._error(
                             request,
@@ -246,7 +254,12 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             "turn": turn,
                             "call_id": call_id,
                             "tool_id": tool_name,
-                            "arguments": self._tool_call_arguments(raw_call),
+                            "requested_tool_id": (
+                                None
+                                if requested_tool_name == tool_name
+                                else requested_tool_name
+                            ),
+                            "arguments": arguments,
                             "ok": True,
                             "duplicate_suppressed": True,
                         })
@@ -274,6 +287,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             raw_call,
                             allowed_tool_ids=tool_ids,
                             grant=grant,
+                            resolved_tool_name=tool_name,
                         )
                         try:
                             parsed_tool_result = json.loads(
@@ -289,7 +303,12 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             "turn": turn,
                             "call_id": call_id,
                             "tool_id": tool_name,
-                            "arguments": self._tool_call_arguments(raw_call),
+                            "requested_tool_id": (
+                                None
+                                if requested_tool_name == tool_name
+                                else requested_tool_name
+                            ),
+                            "arguments": arguments,
                             "ok": True,
                         })
                         failed_call_counts.pop(signature, None)
@@ -321,7 +340,12 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             "turn": turn,
                             "call_id": call_id,
                             "tool_id": tool_name,
-                            "arguments": self._tool_call_arguments(raw_call),
+                            "requested_tool_id": (
+                                None
+                                if requested_tool_name == tool_name
+                                else requested_tool_name
+                            ),
+                            "arguments": arguments,
                             "ok": False,
                             "error": exc.to_dict(),
                             "identical_failure_count": observed_failures,
@@ -452,6 +476,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
         *,
         allowed_tool_ids: tuple[str, ...],
         grant: AuthorityGrant,
+        resolved_tool_name: str | None = None,
     ) -> dict[str, Any]:
         if self.services is None:
             raise CoreError(
@@ -459,7 +484,12 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                 "tool-capable adapter was not given CoreServices",
             )
         call_id = self._tool_call_id(value)
-        tool_name = self._tool_call_name(value)
+        requested_tool_name = self._tool_call_name(value)
+        tool_name = (
+            requested_tool_name
+            if resolved_tool_name is None
+            else resolved_tool_name
+        )
         if tool_name not in allowed_tool_ids:
             raise CoreError(
                 "AUTHORITY_DENIED",
@@ -563,6 +593,38 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
         if not isinstance(name, str) or not name.strip():
             raise CoreError("TOOL_CALL_INVALID", "tool call function name is required")
         return name.strip()
+
+    @staticmethod
+    def _resolve_tool_name(
+        requested: str,
+        allowed_tool_ids: tuple[str, ...],
+    ) -> str:
+        if requested in allowed_tool_ids:
+            return requested
+
+        requested_fold = requested.casefold()
+        matches = [
+            tool_id
+            for tool_id in allowed_tool_ids
+            if tool_id.casefold() == requested_fold
+        ]
+        if len(matches) == 1:
+            return matches[0]
+
+        requested_leaf = requested_fold.rsplit(".", 1)[-1]
+        leaf_matches = [
+            tool_id
+            for tool_id in allowed_tool_ids
+            if tool_id.casefold().rsplit(".", 1)[-1] == requested_leaf
+        ]
+        if len(leaf_matches) == 1:
+            return leaf_matches[0]
+
+        raise CoreError(
+            "AUTHORITY_DENIED",
+            "model requested a tool outside the role grant",
+            {"tool_id": requested},
+        )
 
     @staticmethod
     def _positive_int(value: Any, label: str) -> int:
