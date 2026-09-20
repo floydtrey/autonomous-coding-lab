@@ -34,13 +34,13 @@ Those exclusions do not remove KC service behavior. They separate the reusable k
 
 Standalone branch: `knowledge-core-standalone`
 
-Qualified standalone code head:
+Final qualified standalone code head:
 
-`b0e98794a8642293a18195810a0f1a950258bc8d`
+`92a8955cee763bf4aa47bfddf7035b2ca5b17be1`
 
 Standalone GitHub Actions qualification:
 
-`35489568825` — PASS
+`35489748194` — PASS
 
 The standalone workflow ran from repository root and passed:
 
@@ -49,6 +49,6 @@ The standalone workflow ran from repository root and passed:
 - fast semantic tests;
 - PostgreSQL qualification tests.
 
-The qualification branch contained no paths named for ACL, Worker Lab, Mason, MindsHub, Cowork, or autonomous-worker components. Historical monorepo-pinned corpus pilots were intentionally excluded rather than relabeled as standalone evidence.
+The qualification branch contained 196 files at repository root and no client integration paths for ACL, Worker Lab, Mason, MindsHub, Cowork, or autonomous-worker components. A boundary test also prevents those client integration packages/tools from being reintroduced into the standalone KC tree. Historical monorepo-pinned corpus pilots and their obsolete host launchers were intentionally excluded rather than relabeled as standalone evidence.
 
 The next physical step is to copy this root tree into its own GitHub repository (recommended repository name: `knowledge-core`). The source ACL repository should retain its historical KC branches/evidence until the standalone repository has been copied and independently verified.
