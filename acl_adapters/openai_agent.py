@@ -195,7 +195,16 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                         )
 
                     prior_success = successful_calls.get(signature)
-                    if prior_success is not None:
+                    definition = (
+                        None
+                        if self.services is None
+                        else self.services.tools.definition(tool_name)
+                    )
+                    suppress_identical_success = (
+                        definition is not None
+                        and definition.repeat_policy == "suppress_identical_success"
+                    )
+                    if prior_success is not None and suppress_identical_success:
                         aggregate["duplicate_success_tool_calls"] += 1
                         force_response_turn = True
                         emit(
