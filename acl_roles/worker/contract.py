@@ -121,6 +121,80 @@ class WorkerPlannerRequest:
 
 
 @dataclass(frozen=True)
+class WorkerContinuationHandoff:
+    """Mechanically bounded state carried into a fresh Worker context."""
+
+    state_summary: str
+    next_action: str
+    completed_task_ids: tuple[str, ...] = ()
+    changed_paths: tuple[str, ...] = ()
+    evidence_references: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        _bounded_text(self.state_summary, "handoff state_summary", max_chars=4000)
+        _bounded_text(self.next_action, "handoff next_action", max_chars=2000)
+        object.__setattr__(
+            self,
+            "completed_task_ids",
+            _bounded_text_tuple(
+                self.completed_task_ids,
+                "handoff completed_task_ids",
+                max_items=128,
+                max_chars=512,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "changed_paths",
+            _bounded_text_tuple(
+                self.changed_paths,
+                "handoff changed_paths",
+                max_items=256,
+                max_chars=1024,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "evidence_references",
+            _bounded_text_tuple(
+                self.evidence_references,
+                "handoff evidence_references",
+                max_items=128,
+                max_chars=1024,
+            ),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "state_summary": self.state_summary,
+            "next_action": self.next_action,
+            "completed_task_ids": list(self.completed_task_ids),
+            "changed_paths": list(self.changed_paths),
+            "evidence_references": list(self.evidence_references),
+        }
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "WorkerContinuationHandoff":
+        value = _mapping(value, "worker continuation handoff")
+        return cls(
+            state_summary=value.get("state_summary"),
+            next_action=value.get("next_action"),
+            completed_task_ids=_text_tuple(
+                value.get("completed_task_ids", []),
+                "handoff completed_task_ids",
+            ),
+            changed_paths=_text_tuple(
+                value.get("changed_paths", []),
+                "handoff changed_paths",
+            ),
+            evidence_references=_text_tuple(
+                value.get("evidence_references", []),
+                "handoff evidence_references",
+            ),
+        )
+
+
+@dataclass(frozen=True)
 class WorkerCorrection:
     attempt: int
     error_code: str
@@ -196,6 +270,7 @@ class WorkerInput:
     plan_context: Mapping[str, Any]
     completed_passes: tuple[str, ...] = ()
     prior_worker_results: tuple[Mapping[str, Any], ...] = ()
+    continuation_handoff: WorkerContinuationHandoff | None = None
     correction: WorkerCorrection | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
@@ -228,6 +303,14 @@ class WorkerInput:
                 "WORKER_INPUT_INVALID",
                 "prior_worker_results must contain mappings",
             )
+        if (
+            self.continuation_handoff is not None
+            and not isinstance(self.continuation_handoff, WorkerContinuationHandoff)
+        ):
+            raise RoleContractError(
+                "WORKER_INPUT_INVALID",
+                "continuation_handoff must be WorkerContinuationHandoff",
+            )
         if self.correction is not None and not isinstance(self.correction, WorkerCorrection):
             raise RoleContractError("WORKER_INPUT_INVALID", "correction must be WorkerCorrection")
         if not isinstance(self.metadata, Mapping):
@@ -245,6 +328,11 @@ class WorkerInput:
             "plan_context": dict(self.plan_context),
             "completed_passes": list(self.completed_passes),
             "prior_worker_results": [dict(item) for item in self.prior_worker_results],
+            "continuation_handoff": (
+                None
+                if self.continuation_handoff is None
+                else self.continuation_handoff.to_dict()
+            ),
             "correction": None if self.correction is None else self.correction.to_dict(),
             "metadata": dict(self.metadata),
         }
@@ -275,6 +363,13 @@ class WorkerInput:
             prior_worker_results=tuple(
                 _mapping(item, "prior worker result") for item in prior
             ),
+            continuation_handoff=(
+                None
+                if value.get("continuation_handoff") is None
+                else WorkerContinuationHandoff.from_mapping(
+                    value.get("continuation_handoff")
+                )
+            ),
             correction=(
                 None
                 if value.get("correction") is None
@@ -299,6 +394,7 @@ class WorkerResult:
     evidence: tuple[WorkerEvidence, ...] = ()
     planner_request: WorkerPlannerRequest | None = None
     continuation_reason: str | None = None
+    continuation_handoff: WorkerContinuationHandoff | None = None
     blocker: str | None = None
     assumptions: tuple[str, ...] = ()
     unresolved_risks: tuple[str, ...] = ()
@@ -339,6 +435,11 @@ class WorkerResult:
             _text(self.notes, "notes")
 
         if self.outcome is WorkerOutcome.READY_FOR_REVIEW:
+            if self.continuation_handoff is not None:
+                raise RoleContractError(
+                    "WORKER_RESULT_INVALID",
+                    "READY_FOR_REVIEW cannot include continuation_handoff",
+                )
             if not self.evidence:
                 raise RoleContractError(
                     "WORKER_EVIDENCE_MISSING",
@@ -360,6 +461,11 @@ class WorkerResult:
                     "WORKER_RESULT_INVALID",
                     "NEEDS_PLANNER cannot include continuation_reason or blocker",
                 )
+            if not isinstance(self.continuation_handoff, WorkerContinuationHandoff):
+                raise RoleContractError(
+                    "WORKER_HANDOFF_MISSING",
+                    "NEEDS_PLANNER requires a bounded continuation_handoff",
+                )
         elif self.outcome is WorkerOutcome.NEEDS_CONTINUATION:
             _text(self.continuation_reason, "continuation_reason")
             if self.planner_request is not None or self.blocker is not None:
@@ -367,7 +473,17 @@ class WorkerResult:
                     "WORKER_RESULT_INVALID",
                     "NEEDS_CONTINUATION cannot include planner_request or blocker",
                 )
+            if not isinstance(self.continuation_handoff, WorkerContinuationHandoff):
+                raise RoleContractError(
+                    "WORKER_HANDOFF_MISSING",
+                    "NEEDS_CONTINUATION requires a bounded continuation_handoff",
+                )
         elif self.outcome in {WorkerOutcome.BLOCKED, WorkerOutcome.FAILED}:
+            if self.continuation_handoff is not None:
+                raise RoleContractError(
+                    "WORKER_RESULT_INVALID",
+                    "blocked/failed result cannot include continuation_handoff",
+                )
             _text(self.blocker, "blocker")
             if self.planner_request is not None or self.continuation_reason is not None:
                 raise RoleContractError(
@@ -388,6 +504,11 @@ class WorkerResult:
             "evidence": [item.to_dict() for item in self.evidence],
             "planner_request": None if self.planner_request is None else self.planner_request.to_dict(),
             "continuation_reason": self.continuation_reason,
+            "continuation_handoff": (
+                None
+                if self.continuation_handoff is None
+                else self.continuation_handoff.to_dict()
+            ),
             "blocker": self.blocker,
             "assumptions": list(self.assumptions),
             "unresolved_risks": list(self.unresolved_risks),
@@ -425,6 +546,13 @@ class WorkerResult:
                 else WorkerPlannerRequest.from_mapping(planner_request_raw)
             ),
             continuation_reason=value.get("continuation_reason"),
+            continuation_handoff=(
+                None
+                if value.get("continuation_handoff") is None
+                else WorkerContinuationHandoff.from_mapping(
+                    value.get("continuation_handoff")
+                )
+            ),
             blocker=value.get("blocker"),
             assumptions=_text_tuple(value.get("assumptions", []), "assumptions"),
             unresolved_risks=_text_tuple(
@@ -452,6 +580,46 @@ def expected_role_status(outcome: WorkerOutcome) -> RoleStatus:
         WorkerOutcome.BLOCKED: RoleStatus.BLOCKED,
         WorkerOutcome.FAILED: RoleStatus.FAILED,
     }[outcome]
+
+
+def _bounded_text(
+    value: Any,
+    label: str,
+    *,
+    max_chars: int,
+) -> str:
+    text = _text(value, label)
+    if len(text) > max_chars:
+        raise RoleContractError(
+            "WORKER_HANDOFF_TOO_LARGE",
+            f"{label} exceeds the mechanical size limit",
+            {"max_chars": max_chars, "observed_chars": len(text)},
+        )
+    return text
+
+
+def _bounded_text_tuple(
+    value: Any,
+    label: str,
+    *,
+    max_items: int,
+    max_chars: int,
+) -> tuple[str, ...]:
+    values = _text_tuple(value, label)
+    if len(values) > max_items:
+        raise RoleContractError(
+            "WORKER_HANDOFF_TOO_LARGE",
+            f"{label} exceeds the mechanical item limit",
+            {"max_items": max_items, "observed_items": len(values)},
+        )
+    for item in values:
+        if len(item) > max_chars:
+            raise RoleContractError(
+                "WORKER_HANDOFF_TOO_LARGE",
+                f"{label} contains an oversized item",
+                {"max_chars": max_chars, "observed_chars": len(item)},
+            )
+    return values
 
 
 def _mapping(value: Any, label: str) -> Mapping[str, Any]:
