@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import re
 from typing import Any, Mapping
 
 from acl_core import (
@@ -611,11 +612,21 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
         if len(matches) == 1:
             return matches[0]
 
-        requested_leaf = requested_fold.rsplit(".", 1)[-1]
+        requested_parts = [
+            part
+            for part in re.split(r"[^a-z0-9_]+", requested_fold)
+            if part
+        ]
+        requested_leaf = (
+            requested_parts[-1]
+            if requested_parts
+            else requested_fold
+        )
         leaf_matches = [
             tool_id
             for tool_id in allowed_tool_ids
-            if tool_id.casefold().rsplit(".", 1)[-1] == requested_leaf
+            if re.split(r"[^a-z0-9_]+", tool_id.casefold())[-1]
+            == requested_leaf
         ]
         if len(leaf_matches) == 1:
             return leaf_matches[0]
