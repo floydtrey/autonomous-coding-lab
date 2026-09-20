@@ -183,6 +183,11 @@ class AuthorizationGrantRecord(Base):
         ForeignKey(f"{KC_SCHEMA}.resource.ref_id"),
         nullable=True,
     )
+    context_scope_ref: Mapped[UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey(f"{KC_CONTROL_SCHEMA}.auth_scope.scope_ref"),
+        nullable=True,
+    )
     valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
