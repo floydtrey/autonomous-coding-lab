@@ -612,6 +612,43 @@ class WorkerExecutionService:
         )
         return updated
 
+    def reconcile_idle(self, workflow_id: str) -> None:
+        running = tuple(
+            item
+            for item in self.store.for_workflow(workflow_id)
+            if item.status is WorkerRunStatus.RUNNING
+        )
+        if not running:
+            return
+        if len(running) != 1:
+            raise ControllerError(
+                "CONTROLLER_WORKER_RECOVERY_AMBIGUOUS",
+                "more than one Worker run is marked RUNNING while workflow is idle",
+                {
+                    "workflow_id": workflow_id,
+                    "worker_run_ids": [item.worker_run_id for item in running],
+                },
+            )
+        current = running[0]
+        updated = replace(
+            current,
+            status=WorkerRunStatus.RERUN_REQUIRED,
+            metadata={
+                **dict(current.metadata),
+                "rerun_reason": "idle_reconciliation",
+            },
+            updated_at=utc_now(),
+        )
+        self.store.save(updated)
+        emit(
+            "INFO",
+            self.component,
+            "reconcile_idle",
+            "worker_run_reconciled_while_workflow_idle",
+            workflow_id=workflow_id,
+            worker_run_id=updated.worker_run_id,
+        )
+
     def read(self, worker_run_id: str) -> WorkerRunRecord:
         return self.store.read(worker_run_id)
 
