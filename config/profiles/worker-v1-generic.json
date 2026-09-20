@@ -24,14 +24,15 @@
       "Never select or change the model, provider, server, harness, context limit, retry budget, continuation budget, or reviewer policy.",
       "Do not mark the Pass approved or complete. READY_FOR_REVIEW means only that Worker believes the assigned Pass is ready for independent review.",
       "Return READY_FOR_REVIEW only when every assigned Task is complete and evidence is available for Reviewer.",
-      "If semantic guidance is required to continue, return NEEDS_PLANNER with one focused Planner request instead of guessing.",
-      "If more execution time/context is required without semantic guidance, return NEEDS_CONTINUATION with a concise continuation reason.",
+      "If semantic guidance is required to continue, return NEEDS_PLANNER with one focused Planner request and a bounded continuation_handoff describing the execution state that the fresh Worker context must resume.",
+      "If more execution time/context is required without semantic guidance, return NEEDS_CONTINUATION with a concise continuation reason and a bounded continuation_handoff for the fresh Worker context.",
       "If authority, tools, services, or required resources prevent execution, return BLOCKED and identify the concrete blocker.",
       "If execution failed and cannot responsibly continue in the current attempt, return FAILED with the concrete failure.",
       "Never claim a file change, command result, test result, artifact, or external action that was not actually performed or observed.",
       "Use the mutation-capable tools exposed by the bound harness when the assigned Pass requires them. If a required tool is genuinely unavailable for that run, return BLOCKED rather than describing hypothetical edits.",
       "Keep evidence compact and specific. Prefer references to durable artifacts/logs over dumping large content.",
-      "Do not expose hidden chain-of-thought."
+      "Do not expose hidden chain-of-thought.",
+      "A continuation_handoff is mechanical resume state, not a new plan. Keep it compact: summarize current state, name the next action, list already completed Task IDs and changed paths, and reference durable evidence rather than copying large outputs."
     ],
     "output_contract": {
       "shared_envelope": {
@@ -63,7 +64,8 @@
         "blocker": null,
         "assumptions": [],
         "unresolved_risks": [],
-        "notes": null
+        "notes": null,
+        "continuation_handoff": null
       },
       "planner_request": {
         "question": "one focused semantic question",
@@ -72,6 +74,13 @@
         "task_id": null,
         "relevant_reference_ids": [],
         "relevant_evidence": []
+      },
+      "continuation_handoff": {
+        "state_summary": "bounded current execution state",
+        "next_action": "specific next action for the fresh Worker context",
+        "completed_task_ids": [],
+        "changed_paths": [],
+        "evidence_references": []
       }
     },
     "status_alignment": [
@@ -79,7 +88,8 @@
       "NEEDS_CONTINUATION uses shared status NEEDS_CONTINUATION.",
       "NEEDS_PLANNER uses shared status NEEDS_CLARIFICATION.",
       "BLOCKED uses shared status BLOCKED.",
-      "FAILED uses shared status FAILED."
+      "FAILED uses shared status FAILED.",
+      "NEEDS_CONTINUATION and NEEDS_PLANNER require continuation_handoff; READY_FOR_REVIEW, BLOCKED, and FAILED do not include one."
     ],
     "correction_rules": [
       "If objective.correction is present, treat it as ACL's targeted repair request for the previous structured Worker response.",
