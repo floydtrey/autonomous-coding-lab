@@ -31,7 +31,10 @@ from acl_roles.worker import (
     worker_previous_response_from_error,
 )
 
-from ..authority import PassAuthorityService
+from ..authority import (
+    WORKER_AUTHORITY_MODE_DECLARED_PATHS,
+    PassAuthorityService,
+)
 from ..diagnostics import controller_span
 from ..errors import ControllerError
 from ..models import WorkflowStatus, utc_now
@@ -518,6 +521,16 @@ class WorkerExecutionService:
             return authority_grant_id
         plan = self.planner_plan.read(worker_input.plan_id)
         work_type_id = worker_input.plan_context.get("work_type_id")
+        authority_mode = plan.metadata.get(
+            "worker_authority_mode",
+            WORKER_AUTHORITY_MODE_DECLARED_PATHS,
+        )
+        workspace = worker_input.plan_context.get("workspace")
+        workspace_scope = (
+            workspace.get("worker_working_directory")
+            if isinstance(workspace, Mapping)
+            else None
+        )
         binding = self.pass_authority.bind_worker_pass(
             plan.workflow_id,
             work_type_id=(
@@ -527,6 +540,8 @@ class WorkerExecutionService:
             ),
             complexity=worker_input.pass_spec.complexity,
             pass_spec=worker_input.pass_spec,
+            authority_mode=authority_mode,
+            workspace_scope=workspace_scope,
         )
         return binding.grant_id
 
