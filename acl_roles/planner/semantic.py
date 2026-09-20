@@ -366,7 +366,14 @@ def normalize_planner_semantic_role_response(
         normalized.get("schema_version") == PLANNER_SEMANTIC_SCHEMA
         and isinstance(normalized.get("disposition"), str)
     ):
-        disposition = PlannerDisposition(normalized["disposition"])
+        try:
+            disposition = PlannerDisposition(normalized["disposition"])
+        except ValueError as exc:
+            raise RoleContractError(
+                "PLANNER_SEMANTIC_INVALID",
+                "Planner semantic disposition is invalid",
+                {"disposition": normalized.get("disposition")},
+            ) from exc
         normalized = {
             "schema_version": "acl-role-response:v1",
             "status": (
