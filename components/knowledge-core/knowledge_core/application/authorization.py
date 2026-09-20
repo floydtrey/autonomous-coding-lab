@@ -82,6 +82,7 @@ def _grant_snapshot(row: AuthorizationGrantRecord) -> AuthorizationGrantSnapshot
         target_type=GrantTargetType(row.target_type),
         scope_ref=row.scope_ref,
         resource_ref=row.resource_ref,
+        context_scope_ref=row.context_scope_ref,
         valid_from=_as_utc(row.valid_from),
         expires_at=_as_utc(row.expires_at) if row.expires_at is not None else None,
         revoked_at=_as_utc(row.revoked_at) if row.revoked_at is not None else None,
@@ -290,6 +291,7 @@ class AuthorizationKernel:
         group_ref: UUID | None = None,
         scope_ref: UUID | None = None,
         resource_ref: UUID | None = None,
+        context_scope_ref: UUID | None = None,
         valid_from: datetime | None = None,
         expires_at: datetime | None = None,
         reason: str,
@@ -310,6 +312,12 @@ class AuthorizationKernel:
             group = self.session.get(PrincipalGroupRecord, group_ref)
             if group is None:
                 raise KeyError(f"unknown group: {group_ref}")
+
+        if context_scope_ref is not None:
+            if self.session.get(AuthorizationScopeRecord, context_scope_ref) is None:
+                raise KeyError(f"unknown context scope: {context_scope_ref}")
+            if target_type is not GrantTargetType.RESOURCE:
+                raise ValueError("context_scope_ref is supported only for resource grants")
 
         if target_type is GrantTargetType.GLOBAL:
             if scope_ref is not None or resource_ref is not None:
@@ -340,6 +348,7 @@ class AuthorizationKernel:
             target_type=target_type.value,
             scope_ref=scope_ref,
             resource_ref=resource_ref,
+            context_scope_ref=context_scope_ref,
             valid_from=start,
             expires_at=expiry,
             revoked_at=None,
@@ -560,6 +569,23 @@ class AuthorizationKernel:
             current = row.parent_scope_ref
         return tuple(ordered)
 
+    def _context_scope_matches(
+        self,
+        *,
+        grant_context_scope_ref: UUID | None,
+        request_scope_ref: UUID | None,
+    ) -> bool:
+        if grant_context_scope_ref is None:
+            return True
+        if request_scope_ref is None:
+            return False
+        request_ancestors = set(self._scope_ancestors(request_scope_ref))
+        grant_ancestors = set(self._scope_ancestors(grant_context_scope_ref))
+        return (
+            grant_context_scope_ref in request_ancestors
+            or request_scope_ref in grant_ancestors
+        )
+
     @staticmethod
     def _decision(
         allowed: bool,
@@ -642,6 +668,10 @@ class AuthorizationKernel:
             for row in grants
             if GrantTargetType(row.target_type) is GrantTargetType.RESOURCE
             and row.resource_ref == resource_ref
+            and self._context_scope_matches(
+                grant_context_scope_ref=row.context_scope_ref,
+                request_scope_ref=scope_ref,
+            )
         )
         resource_denies = tuple(
             row for row in resource_rows if GrantEffect(row.effect) is GrantEffect.DENY
