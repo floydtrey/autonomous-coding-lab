@@ -759,6 +759,11 @@ class ControllerService:
             **dict(metadata or {}),
             "planner_runtime": dict(outcome.runtime_metadata),
         }
+        worker_authority_mode = outcome.runtime_metadata.get(
+            "worker_authority_mode"
+        )
+        if isinstance(worker_authority_mode, str) and worker_authority_mode.strip():
+            combined_metadata["worker_authority_mode"] = worker_authority_mode.strip()
         return self.planner_plan.intake(
             outcome.workflow_id,
             plan=outcome.plan,
