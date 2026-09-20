@@ -631,11 +631,11 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
         if len(leaf_matches) == 1:
             return leaf_matches[0]
 
-        raise CoreError(
-            "AUTHORITY_DENIED",
-            "model requested a tool outside the role grant",
-            {"tool_id": requested},
-        )
+        # Preserve the model's requested name when no unique alias exists.
+        # _execute_tool_call will reject it inside the normal structured tool
+        # failure path, allowing the model to recover instead of aborting the
+        # entire agent invocation.
+        return requested
 
     @staticmethod
     def _positive_int(value: Any, label: str) -> int:
