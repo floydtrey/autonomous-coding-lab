@@ -47,6 +47,7 @@ WORKER_REVIEW_PACKET_SCHEMA = "acl-worker-review-packet:v1"
 class WorkerRunStatus(StrEnum):
     PREPARED = "PREPARED"
     RUNNING = "RUNNING"
+    RERUN_REQUIRED = "RERUN_REQUIRED"
     RECOVERY_RERUN_REQUIRED = "RECOVERY_RERUN_REQUIRED"
     READY_FOR_REVIEW = "READY_FOR_REVIEW"
     NEEDS_CONTINUATION = "NEEDS_CONTINUATION"
@@ -116,6 +117,7 @@ class WorkerRunRecord:
         if self.status in {
             WorkerRunStatus.PREPARED,
             WorkerRunStatus.RUNNING,
+            WorkerRunStatus.RERUN_REQUIRED,
             WorkerRunStatus.RECOVERY_RERUN_REQUIRED,
         }:
             if self.result is not None:
@@ -258,6 +260,45 @@ class JsonWorkerRunStore:
             self._write(path, record)
         return record
 
+    def _mark_rerun_required(
+        self,
+        run: WorkerRunRecord,
+        *,
+        error: BaseException,
+        reason: str,
+    ) -> WorkerRunRecord:
+        code = getattr(error, "code", None)
+        message = getattr(error, "message", None)
+        updated = replace(
+            run,
+            status=WorkerRunStatus.RERUN_REQUIRED,
+            metadata={
+                **dict(run.metadata),
+                "rerun_reason": reason,
+                "last_error_code": (
+                    code if isinstance(code, str) else type(error).__name__
+                ),
+                "last_error_message": (
+                    message if isinstance(message, str) else str(error)
+                ),
+            },
+            updated_at=utc_now(),
+        )
+        self.store.save(updated)
+        emit(
+            "ERROR",
+            self.component,
+            "mark_rerun_required",
+            "worker_run_marked_rerun_required",
+            workflow_id=updated.workflow_id,
+            worker_run_id=updated.worker_run_id,
+            plan_id=updated.plan_id,
+            pass_id=updated.pass_id,
+            reason=reason,
+            error_code=updated.metadata.get("last_error_code"),
+        )
+        return updated
+
     def read(self, worker_run_id: str) -> WorkerRunRecord:
         try:
             return WorkerRunRecord.from_mapping(
@@ -389,7 +430,10 @@ class WorkerExecutionService:
         existing = self.store.for_pass(plan_id, next_pass.pass_id or "")
         if existing:
             latest = max(existing, key=lambda item: item.updated_at)
-            if latest.status is WorkerRunStatus.RECOVERY_RERUN_REQUIRED:
+            if latest.status in {
+                WorkerRunStatus.RERUN_REQUIRED,
+                WorkerRunStatus.RECOVERY_RERUN_REQUIRED,
+            }:
                 worker_input = latest.worker_input
                 authority_grant_id = self._resolve_pass_authority(
                     worker_input,
@@ -752,10 +796,20 @@ class WorkerExecutionService:
                         exception_type=type(exc).__name__,
                         exception_message=str(exc),
                     )
+                    self._mark_rerun_required(
+                        run,
+                        error=exc,
+                        reason="correction_budget_exhausted",
+                    )
                     raise
 
                 previous_response = worker_previous_response_from_error(exc)
                 if previous_response is None:
+                    self._mark_rerun_required(
+                        run,
+                        error=exc,
+                        reason="runtime_failure_without_repairable_response",
+                    )
                     raise
 
                 try:
@@ -769,7 +823,17 @@ class WorkerExecutionService:
                     )
                 except Exception as correction_exc:
                     if getattr(correction_exc, "code", None) == "WORKER_CORRECTION_NOT_REPAIRABLE":
+                        self._mark_rerun_required(
+                            run,
+                            error=exc,
+                            reason="runtime_failure_not_prompt_repairable",
+                        )
                         raise exc
+                    self._mark_rerun_required(
+                        run,
+                        error=correction_exc,
+                        reason="correction_construction_failed",
+                    )
                     raise
 
                 signature = correction_signature(corrected_input)
