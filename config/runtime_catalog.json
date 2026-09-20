@@ -18,14 +18,13 @@
       }
     },
     {
-      "runtime_id": "planner-qwen3-coder-30b-16k-dev",
+      "runtime_id": "planner-gpt-oss-20b-16k-dev",
       "adapter_id": "openai-compatible.agent",
       "harness_id": "openai-compatible.agent",
-      "model": "qwen3-coder:30b-16k",
+      "model": "gpt-oss:20b-16k",
       "settings": {
         "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
         "context_window": 16384,
-        "temperature": 0.1,
         "max_tokens": 8192,
         "timeout_seconds": 180,
         "response_format_json": true,
