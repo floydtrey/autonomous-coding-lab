@@ -9,7 +9,9 @@ from acl_roles.planner import (
     PlannerInput,
     PlannerInvocationMode,
     PlannerResult,
+    validate_planner_role_response,
 )
+from acl_roles.common import RoleResponse, RoleStatus
 from acl_roles.common.errors import RoleContractError
 
 
@@ -242,6 +244,71 @@ class PlannerContractTests(unittest.TestCase):
         )
         self.assertEqual(result.plan.passes[0].tasks[0].task_id, "T01")
         self.assertEqual(result.plan.workspace.output_directory, "C:/Projects/Example")
+
+    def test_compact_execution_plan_defaults_deterministic_bookkeeping(self) -> None:
+        compact_plan = {
+            "work_type_id": "1127",
+            "task_type": "CODING",
+            "complexity": "SMALL",
+            "objective": "Make the requested change.",
+            "acceptance_criteria": ["The requested behavior works."],
+            "required_outputs": ["Updated project files"],
+            "workspace": {
+                "worker_working_directory": "C:/Projects/Example",
+                "output_directory": "C:/Projects/Example",
+            },
+            "passes": [
+                {
+                    "pass_id": "P01",
+                    "name": "Implementation",
+                    "objective": "Implement the requested change.",
+                    "complexity": "SMALL",
+                    "expected_outputs": ["Updated project files"],
+                    "acceptance_criteria": ["The implementation is complete."],
+                    "tasks": [
+                        {
+                            "task_id": "T01",
+                            "name": "Update implementation",
+                            "instruction": "Modify the requested file.",
+                            "filesystem": {
+                                "read_paths": ["C:/Projects/Example/recorder.html"],
+                                "write_paths": ["C:/Projects/Example/recorder.html"],
+                            },
+                        }
+                    ],
+                }
+            ],
+        }
+        response = RoleResponse(
+            status=RoleStatus.COMPLETE,
+            payload={
+                "schema_version": "acl-planner-result:v1",
+                "disposition": "EXECUTION_PLAN",
+                "plan": compact_plan,
+            },
+        )
+
+        validation = validate_planner_role_response(
+            response,
+            instructions={},
+            profile_metadata={},
+        )
+        result = PlannerResult.from_mapping(response.payload)
+
+        self.assertEqual(validation["plan_type"], "SINGLE_PASS")
+        self.assertEqual(result.plan.plan_type.value, "SINGLE_PASS")
+        self.assertEqual(
+            result.plan.passes[0].continuation_instructions,
+            "Resume from the first incomplete Task using persisted Pass state and evidence.",
+        )
+        self.assertEqual(result.plan.tracking_requirements, ())
+        self.assertEqual(result.plan.passes[0].evidence_required, ())
+        self.assertEqual(result.plan.project.to_dict(), {
+            "project_name": None,
+            "version_id": None,
+            "project_root": None,
+        })
+        self.assertEqual(result.plan.passes[0].tasks[0].filesystem.create_paths, ())
 
     def test_staged_execution_plan(self) -> None:
         plan = ExecutionPlan.from_mapping(_plan(staged=True))
