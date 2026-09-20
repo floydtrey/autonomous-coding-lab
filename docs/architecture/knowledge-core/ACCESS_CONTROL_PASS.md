@@ -197,7 +197,7 @@ Inspect the existing governed-source/project metadata and define the minimal can
 
 ## KC-B working checkpoint
 
-State: IMPLEMENTING
+State: SEALED / QUALIFIED
 
 Branch: `kc-authorization-model`  
 Parent milestone: qualified KC-A branch `kc-auth-foundation`
@@ -218,3 +218,42 @@ KC-B authorization semantics selected before implementation:
 - access policies are append-only revisions with a current pointer so security changes retain history;
 - ACL/model request bodies must not be trusted to self-select owner, sensitivity, or privileged scope. KC-C will derive/store those from authenticated context and trusted classification policy;
 - PostgreSQL RLS remains required defense-in-depth, but activation is deferred until KC-C can set authenticated principal/scope context on each DB transaction without breaking existing service paths.
+
+
+### KC-B sealed qualification
+
+Qualified implementation head: `f63a5d9262c12e21226bdd7115c496ca5434d466`  
+Qualification workflow: Knowledge Core run `35484747499`  
+Draft PR: #34
+
+Completed:
+- hierarchical authorization scopes with independent lifecycle state;
+- principal groups and time-bounded memberships;
+- principal/group grants with global, scope, and resource targets;
+- explicit allow/deny, validity windows, expiration, and revocation;
+- append-only resource access policy revisions and current-policy pointer;
+- resource-to-scope policy membership;
+- visibility classes: public, personal, scoped, private;
+- sensitivity classes: normal, protected, credential, financial;
+- owner bypass and owner-controlled classification locks;
+- credential/financial access requires exact resource grant for non-owner/non-personal-owner callers;
+- central deterministic authorization evaluator;
+- tests for human personal/public behavior, ACL project isolation, parent/child directory scopes, temporary grants, groups, sensitive data, deny precedence, failed-project lifecycle separation, and locked-policy history;
+- migration `0020_authorization_model.py`.
+
+Qualification results:
+- PostgreSQL migrations: PASS;
+- fast semantic suite: PASS;
+- PostgreSQL G1-G21 qualification suite: PASS;
+- SR-2 G22 pinned real-document pilot: PASS;
+- RI-4 local-host restart rehearsal: PASS;
+- SR-2 local-host segment restart rehearsal: PASS.
+
+RLS status:
+- schema/evaluator are ready for DB-session enforcement;
+- RLS activation remains intentionally deferred to KC-C, because KC must first bind an authenticated principal/scope to each database transaction. Enabling RLS before that seam exists would either break current service paths or create a privileged bypass.
+
+Next milestone: KC-C — Consumer API hardening.
+
+Exact first KC-C task:
+Replace the non-owner shared-bootstrap admission path with database-backed principal authentication for consumer requests while retaining a bounded owner bootstrap migration path. Then apply the central evaluator to status/search/get-source/store/memory-propose, with exact-resource reauthorization on get-source and authorization-aware search filtering. Do not create ACL credentials until those routes are proven.
