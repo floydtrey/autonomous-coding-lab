@@ -30,8 +30,12 @@ jobs:
           acl_controller/planner/runtime.py
           acl_controller/authority/pass_authority.py
           acl_controller/worker/execution.py
+          acl_adapters/agent_session.py
+          acl_adapters/context_pressure.py
           acl_adapters/openai_compatible.py
           acl_adapters/openai_agent.py
+          tools/planner_output_benchmark.py
+          tools/planner_integration_benchmark.py
           acl_controller/service.py
 
       - name: Run repository tests
