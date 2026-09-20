@@ -3,15 +3,7 @@
   "profile_id": "determiner-general",
   "role": "determiner",
   "adapter_id": "openai-compatible.chat",
-  "settings": {
-    "model_env": "ACL_DETERMINER_MODEL",
-    "temperature": 0.1,
-    "max_tokens": 450,
-    "response_format_json": true,
-    "runtime_launcher_env": "ACL_DETERMINER_LAUNCHER",
-    "runtime_launcher_cwd_env": "ACL_DETERMINER_LAUNCHER_CWD",
-    "runtime_launcher_command_json_env": "ACL_DETERMINER_LAUNCH_COMMAND_JSON"
-  },
+  "settings": {},
   "instructions": {
     "purpose": "Score the configured work types for the incoming request. Return stable four-digit work_type_id values; deterministic routing policy decides whether the leading candidate is strong enough to accept or must be escalated.",
     "rules": [
