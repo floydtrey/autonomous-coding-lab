@@ -224,7 +224,6 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             "arguments": self._tool_call_arguments(raw_call),
                             "ok": True,
                             "duplicate_suppressed": True,
-                            "result": dict(prior_success),
                         })
                         messages.append({
                             "role": "tool",
@@ -267,7 +266,6 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             "tool_id": tool_name,
                             "arguments": self._tool_call_arguments(raw_call),
                             "ok": True,
-                            "result": parsed_tool_result,
                         })
                         failed_call_counts.pop(signature, None)
                     except CoreError as exc:
