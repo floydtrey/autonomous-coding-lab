@@ -26,6 +26,7 @@ from acl_roles.worker import (
     WorkerRuntimeService,
 )
 
+from ..authority import PassAuthorityService
 from ..diagnostics import controller_span
 from ..errors import ControllerError
 from ..models import WorkflowStatus, utc_now
@@ -322,11 +323,13 @@ class WorkerExecutionService:
         state: WorkflowStateService,
         planner_plan: PlannerPlanService,
         runtime: WorkerRuntimeService,
+        pass_authority: PassAuthorityService,
         store: JsonWorkerRunStore,
     ) -> None:
         self.state = state
         self.planner_plan = planner_plan
         self.runtime = runtime
+        self.pass_authority = pass_authority
         self.store = store
 
     def start_next_pass(
@@ -360,6 +363,10 @@ class WorkerExecutionService:
                 },
             )
         worker_input = self._build_input(plan_id)
+        authority_grant_id = self._resolve_pass_authority(
+            worker_input,
+            authority_grant_id=authority_grant_id,
+        )
         return self._invoke(
             worker_input,
             continuation_of=None,
@@ -416,12 +423,38 @@ class WorkerExecutionService:
                 "guidance": dict(guidance or {}),
             },
         )
+        authority_grant_id = self._resolve_pass_authority(
+            worker_input,
+            authority_grant_id=authority_grant_id,
+        )
         return self._invoke(
             worker_input,
             continuation_of=previous.worker_run_id,
             authority_grant_id=authority_grant_id,
             metadata=metadata,
         )
+
+    def _resolve_pass_authority(
+        self,
+        worker_input: WorkerInput,
+        *,
+        authority_grant_id: str | None,
+    ) -> str:
+        if authority_grant_id is not None:
+            return authority_grant_id
+        plan = self.planner_plan.read(worker_input.plan_id)
+        work_type_id = worker_input.plan_context.get("work_type_id")
+        binding = self.pass_authority.bind_worker_pass(
+            plan.workflow_id,
+            work_type_id=(
+                work_type_id
+                if isinstance(work_type_id, str) and work_type_id.strip()
+                else None
+            ),
+            complexity=worker_input.pass_spec.complexity,
+            pass_spec=worker_input.pass_spec,
+        )
+        return binding.grant_id
 
     def read(self, worker_run_id: str) -> WorkerRunRecord:
         return self.store.read(worker_run_id)
