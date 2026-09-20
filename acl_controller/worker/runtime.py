@@ -50,9 +50,12 @@ class ControllerWorkerRuntimeBackend:
                     complexity=request.complexity,
                 )
             )
+            # Correction retries repair only the structured Worker report.
+            # They must not re-expose execution tools or repeat side effects.
             grant = (
                 None
-                if request.authority_grant_id is None
+                if request.worker_input.correction is not None
+                or request.authority_grant_id is None
                 else self.authority.grant(request.authority_grant_id)
             )
             dispatched = self.role_dispatch.dispatch(
