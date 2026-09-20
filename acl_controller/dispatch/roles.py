@@ -73,6 +73,7 @@ class RoleDispatchRequest:
                 "grant_id": None if self.grant is None else self.grant.grant_id,
                 "grant_digest": None if self.grant is None else self.grant.digest(),
                 "authority": None if self.grant is None else self.grant.authority.to_dict(),
+                "grant": None if self.grant is None else self.grant.to_dict(),
             },
         }
 
