@@ -86,7 +86,7 @@ def test_planner_inspects_material_files_with_read_only_tools():
 
     rules = planner.instructions["planning_rules"]
     assert any(
-        "inspect them with available read-only tools before planning" in rule
+        "inspect them with the available read-only list/read/search tools" in rule
         for rule in rules
     )
 
@@ -96,15 +96,6 @@ def test_planner_inspects_material_files_with_read_only_tools():
         "filesystem.read_text",
         "filesystem.search",
     )
-
-    reference_shape = planner.instructions["output_contract"]["reference_material_shape"]
-    assert set(reference_shape) == {
-        "reference_id",
-        "kind",
-        "reference",
-        "purpose",
-        "required",
-    }
 
 
 def test_production_planner_read_grant_includes_search_only_read_tools(tmp_path):
@@ -145,21 +136,33 @@ def test_production_planner_read_grant_includes_search_only_read_tools(tmp_path)
     )
 
 
-def test_planner_profile_exposes_compact_semantic_contract():
+def test_planner_profile_exposes_small_semantic_contract():
     resolver = ProfileResolver(ROOT / "config")
     planner = resolver.resolve(ProfileSelector("planner", "1127", "SMALL"))
 
-    output_contract = planner.instructions["output_contract"]
-    assert "execution_plan_semantic_shape" in output_contract
-    assert "execution_plan_shape" not in output_contract
-    assert "filesystem_intent_shape" in output_contract
+    contract = planner.instructions["semantic_contract"]
+    execution = contract["execution_plan"]
 
-    rules = planner.instructions["planning_rules"]
-    assert not any("include every key shown" in rule for rule in rules)
-    assert any(
-        "ACL canonicalizes deterministic defaults" in rule
-        for rule in rules
-    )
+    assert contract["schema_version"] == "acl-planner-semantic:v1"
+    assert set(execution) == {
+        "schema_version",
+        "disposition",
+        "objective",
+        "constraints",
+        "passes",
+    }
+    serialized = str(planner.instructions)
+    for controller_field in (
+        "worker_working_directory",
+        "required_capabilities",
+        "required_tools",
+        "reference_material",
+        "decomposition_reason",
+        "filesystem_intent_shape",
+    ):
+        assert controller_field not in serialized
+    assert "instruction_sources" not in planner.metadata
+    assert planner.settings["response_envelope_mode"] == "payload"
 
 
 def test_planner_read_wildcard_does_not_grant_mutation():
