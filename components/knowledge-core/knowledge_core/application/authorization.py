@@ -5,7 +5,7 @@ import re
 from typing import Callable, Iterable
 from uuid import UUID, uuid4
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, exists, false, not_, or_, select
 from sqlalchemy.orm import Session
 
 from knowledge_core.domain.authorization import (
@@ -606,6 +606,165 @@ class AuthorizationKernel:
             grant_context_scope_ref in request_ancestors
             or request_scope_ref in grant_ancestors
         )
+
+    def _descendant_scope_refs(self, root_scope_ref: UUID) -> set[UUID]:
+        rows = self.session.scalars(select(AuthorizationScopeRecord)).all()
+        children: dict[UUID | None, list[UUID]] = {}
+        for row in rows:
+            children.setdefault(row.parent_scope_ref, []).append(row.scope_ref)
+        descendants: set[UUID] = set()
+        stack = [root_scope_ref]
+        while stack:
+            current = stack.pop()
+            if current in descendants:
+                continue
+            descendants.add(current)
+            stack.extend(children.get(current, ()))
+        return descendants
+
+    def _related_scope_refs(self, scope_ref: UUID) -> set[UUID]:
+        related = set(self._scope_ancestors(scope_ref))
+        related.update(self._descendant_scope_refs(scope_ref))
+        return related
+
+    def authorized_resource_refs_statement(
+        self,
+        *,
+        principal_ref: UUID,
+        operation: KCOperation | str,
+        scope_ref: UUID | None = None,
+        reference_time: datetime | None = None,
+    ):
+        principal = self._principal(principal_ref)
+        if PrincipalStatus(principal.status) is not PrincipalStatus.ACTIVE:
+            return select(Resource.ref_id).where(false())
+        if PrincipalType(principal.principal_type) is PrincipalType.OWNER:
+            return select(Resource.ref_id)
+
+        operation_value = self._operation_value(operation)
+        at = _as_utc(reference_time or self._now())
+        grants = self._active_grants(
+            principal_ref=principal_ref,
+            operation=operation_value,
+            at=at,
+        )
+
+        global_rows = tuple(
+            row
+            for row in grants
+            if GrantTargetType(row.target_type) is GrantTargetType.GLOBAL
+        )
+        if any(GrantEffect(row.effect) is GrantEffect.DENY for row in global_rows):
+            return select(Resource.ref_id).where(false())
+        if not any(GrantEffect(row.effect) is GrantEffect.ALLOW for row in global_rows):
+            return select(Resource.ref_id).where(false())
+
+        exact_allow: set[UUID] = set()
+        exact_deny: set[UUID] = set()
+        allow_scope_roots: set[UUID] = set()
+        deny_scope_roots: set[UUID] = set()
+
+        for row in grants:
+            target_type = GrantTargetType(row.target_type)
+            effect = GrantEffect(row.effect)
+            if target_type is GrantTargetType.RESOURCE:
+                if row.resource_ref is None:
+                    continue
+                if not self._context_scope_matches(
+                    grant_context_scope_ref=row.context_scope_ref,
+                    request_scope_ref=scope_ref,
+                ):
+                    continue
+                (exact_allow if effect is GrantEffect.ALLOW else exact_deny).add(
+                    row.resource_ref
+                )
+            elif target_type is GrantTargetType.SCOPE and row.scope_ref is not None:
+                (allow_scope_roots if effect is GrantEffect.ALLOW else deny_scope_roots).add(
+                    row.scope_ref
+                )
+
+        allowed_scope_refs: set[UUID] = set()
+        for root in allow_scope_roots:
+            allowed_scope_refs.update(self._descendant_scope_refs(root))
+        denied_scope_refs: set[UUID] = set()
+        for root in deny_scope_roots:
+            denied_scope_refs.update(self._descendant_scope_refs(root))
+
+        if scope_ref is not None:
+            related = self._related_scope_refs(scope_ref)
+            allowed_scope_refs.intersection_update(related)
+            denied_scope_refs.intersection_update(related)
+        else:
+            allowed_scope_refs.clear()
+            denied_scope_refs.clear()
+
+        policy = ResourceAccessPolicyRecord
+        current = CurrentResourceAccessPolicyRecord
+        resource = Resource
+
+        exact_allow_condition = (
+            resource.ref_id.in_(tuple(exact_allow)) if exact_allow else false()
+        )
+        personal_owner_condition = and_(
+            policy.visibility == VisibilityClass.PERSONAL.value,
+            policy.owner_principal_ref == principal_ref,
+        )
+        public_condition = policy.visibility == VisibilityClass.PUBLIC.value
+
+        if allowed_scope_refs:
+            allowed_scope_condition = exists(
+                select(ResourceAccessScopeRecord.policy_ref).where(
+                    ResourceAccessScopeRecord.policy_ref == policy.policy_ref,
+                    ResourceAccessScopeRecord.scope_ref.in_(
+                        tuple(allowed_scope_refs)
+                    ),
+                )
+            )
+        else:
+            allowed_scope_condition = false()
+
+        scoped_condition = and_(
+            policy.visibility == VisibilityClass.SCOPED.value,
+            policy.sensitivity.notin_(
+                (
+                    SensitivityClass.CREDENTIAL.value,
+                    SensitivityClass.FINANCIAL.value,
+                )
+            ),
+            allowed_scope_condition,
+        )
+
+        allowed_condition = or_(
+            public_condition,
+            personal_owner_condition,
+            scoped_condition,
+            exact_allow_condition,
+        )
+
+        deny_conditions = []
+        if exact_deny:
+            deny_conditions.append(resource.ref_id.in_(tuple(exact_deny)))
+        if denied_scope_refs:
+            deny_conditions.append(
+                exists(
+                    select(ResourceAccessScopeRecord.policy_ref).where(
+                        ResourceAccessScopeRecord.policy_ref == policy.policy_ref,
+                        ResourceAccessScopeRecord.scope_ref.in_(
+                            tuple(denied_scope_refs)
+                        ),
+                    )
+                )
+            )
+
+        statement = (
+            select(resource.ref_id)
+            .join(current, current.resource_ref == resource.ref_id)
+            .join(policy, policy.policy_ref == current.policy_ref)
+            .where(allowed_condition)
+        )
+        if deny_conditions:
+            statement = statement.where(not_(or_(*deny_conditions)))
+        return statement
 
     @staticmethod
     def _decision(
