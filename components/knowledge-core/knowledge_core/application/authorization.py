@@ -204,6 +204,27 @@ class AuthorizationKernel:
         self.session.flush()
         return _scope_snapshot(row)
 
+    def read_scope(self, scope_ref: UUID) -> ScopeSnapshot:
+        row = self.session.get(AuthorizationScopeRecord, scope_ref)
+        if row is None:
+            raise KeyError(f"unknown scope: {scope_ref}")
+        return _scope_snapshot(row)
+
+    def project_scope_for(self, scope_ref: UUID) -> ScopeSnapshot:
+        current: UUID | None = scope_ref
+        seen: set[UUID] = set()
+        while current is not None:
+            if current in seen:
+                raise RuntimeError("authorization scope hierarchy contains a cycle")
+            seen.add(current)
+            row = self.session.get(AuthorizationScopeRecord, current)
+            if row is None:
+                raise KeyError(f"unknown scope: {current}")
+            if ScopeType(row.scope_type) is ScopeType.PROJECT:
+                return _scope_snapshot(row)
+            current = row.parent_scope_ref
+        raise AuthorizationDeniedError("active scope is not inside a project scope")
+
     def set_scope_lifecycle(
         self,
         *,
