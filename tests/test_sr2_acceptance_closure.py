@@ -343,7 +343,7 @@ def test_sr2_g8_identical_slices_at_distinct_coordinates_keep_distinct_keys():
 
 def test_sr2_g1_g21_qualification_boundary_excludes_g22_marker():
     component_root = Path(__file__).resolve().parents[1]
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = component_root
     pyproject = (component_root / "pyproject.toml").read_text(encoding="utf-8")
     workflow = (repo_root / ".github" / "workflows" / "knowledge-core.yml").read_text(
         encoding="utf-8"
