@@ -1,7 +1,7 @@
 # Knowledge Core Access-Control / Graph Integration Pass
 
 Status: ACTIVE  
-Working branch: `kc-consumer-api-hardening`  
+Working branch: `kc-graphiti-production-wiring`  
 Base branch: `architecture/knowledge-core`  
 Base commit: `af0b29bf9da5aa861e6eb9354d6f1698d2d33950`
 
@@ -328,3 +328,84 @@ Next milestone: KC-D — Production Graphiti wiring.
 
 Exact first KC-D task:
 Construct the existing hardened Graphiti adapter from service configuration and bind it to the normal hardened KC service without reusing the historical fixed `local_owner` graph principal. Graph retrieval must carry the authenticated principal/scope authorization boundary and may return a graph fact only when every canonical KC source required to substantiate that fact is authorized for the request.
+
+## KC-D sealed checkpoint
+
+State: SEALED / QUALIFIED
+
+Branch: `kc-graphiti-production-wiring`  
+Qualified implementation head: `dc312b21ea9f3e828801646cc6b487bfe4253fd1`  
+Qualification workflow: Knowledge Core run `35486786169`  
+Draft PR: #36
+
+Completed:
+- normal KC service has an opt-in, environment-configured Graphiti runtime;
+- when graph support is disabled, KC remains lexical-only and does not require graphiti-core;
+- when graph support is enabled, startup verifies the qualified graphiti-core 0.30.2 dependency instead of deferring a bad installation to the first user request;
+- the runtime constructs the existing hardened serialized FalkorDB/Ollama adapter rather than introducing a second Graphiti implementation;
+- project graph partitions use durable project scope UUID identity rather than mutable display names or caller-provided text;
+- canonical/text writes remain authoritative and do not block on Graphiti;
+- the first authorized scoped search after the current SR-2 generation/projectable-source set changes performs a bounded derived graph build and independent validation off the request event loop;
+- graph synchronization is coalesced by a process lock and bounded by configured segment and attempt limits;
+- deterministic attempt/validation identities make successful builds replayable and prevent uncontrolled retry fan-out;
+- ordinary shared project graph projection includes public/scoped non-secret resources only;
+- personal/private and credential/financial resources are not promoted into ordinary shared project graph partitions;
+- graph search is bound to the authenticated principal and active KC scope instead of the historical fixed local_owner identity;
+- graph facts are returned only when every Graphiti source correlation maps back to current serving KC evidence;
+- every correlated logical resource must be authorized for the requesting principal/scope or the complete graph fact is suppressed;
+- source authorization is checked again after the external Graphiti/provider boundary, so a grant revoked while a slow graph query is running is observed before the fact leaves KC;
+- only the exact validated projection attempt whose source set matches the current project graph-eligibility policy is eligible for serving; older validated partitions are not allowed to contribute stale facts after policy changes;
+- graph provider/build/validation failure is nondisclosing and degrades to lexical retrieval instead of invalidating canonical/text truth;
+- `/v1/kc/status` derives graph readiness from KC's durable projection/validation ledger and does not query the graph provider;
+- FalkorDB, Ollama/model services, and graph provider credentials remain server-side implementation details and are not exposed through the consumer API.
+
+Configuration surface:
+- `KNOWLEDGE_CORE_GRAPH_ENABLED` (default false);
+- `KNOWLEDGE_CORE_GRAPH_NAMESPACE`;
+- `KNOWLEDGE_CORE_GRAPH_MAX_SEGMENTS`;
+- `KNOWLEDGE_CORE_GRAPH_MAX_ATTEMPTS`;
+- `FALKORDB_HOST`, `FALKORDB_PORT`, optional `FALKORDB_USERNAME`/`FALKORDB_PASSWORD`;
+- `GRAPHITI_OLLAMA_BASE_URL`, `GRAPHITI_OLLAMA_API_KEY` (or `OLLAMA_API_KEY`);
+- `GRAPHITI_LLM_MODEL`, `GRAPHITI_LLM_MAX_TOKENS`, `GRAPHITI_TEMPERATURE`;
+- `GRAPHITI_EMBED_MODEL`, `GRAPHITI_EMBED_DIM`.
+
+KC-D qualification proves:
+- graph runtime configuration remains opt-in and provider-neutral at the KC service boundary;
+- first scoped search can build, validate, and serve graph augmentation through the normal consumer API;
+- the same current validated project graph is reused on later searches rather than rebuilt for every query;
+- financial/private material is excluded from ordinary project graph projection;
+- denial of one supporting canonical source suppresses an otherwise valid multi-source graph fact;
+- a mid-provider-query authorization revocation is observed by post-provider PostgreSQL reauthorization and suppresses the fact;
+- graph provider projection failure leaves lexical search successful and reports graph evidence as unavailable;
+- existing Graphiti hardening, projection evidence, validation, retrieval, KC-C authorization, G1-G22, and restart behavior remain intact.
+
+Full qualification results:
+- PostgreSQL migrations: PASS;
+- fast semantic suite: PASS;
+- PostgreSQL G1-G21 qualification suite including KC-D runtime tests: PASS;
+- SR-2 G22 pinned real-document pilot: PASS;
+- RI-4 local-host restart rehearsal: PASS;
+- SR-2 local-host segment restart rehearsal: PASS.
+
+### KC-D limits / deployment notes
+
+- GitHub CI uses deterministic test providers for the new normal-service runtime wiring. It does not provide the user's live FalkorDB/Ollama stack.
+- The existing hardened Graphiti adapter/provider contract and validation behavior remain separately covered by the existing Graphiti hardening/source-neutral tests and prior local qualification evidence.
+- Before calling a specific deployed machine production-ready, run one live smoke qualification against that machine's FalkorDB + configured local model/embedder. A deployment failure there should not trigger architecture redesign unless it violates the sealed KC-D contracts.
+- The current graph model is generation-fenced. A new SR-2 generation can require a new validated Graphiti partition. Bulk bootstrap/import should therefore batch canonical writes before the first graph-enabled search instead of forcing a graph rebuild after every item.
+- Raw PostgreSQL RLS/restricted runtime-role hardening remains a separate public-hosting security gate as recorded in KC-C.
+
+CodeRabbit/security-review focus after this pass:
+- authentication/session and scope confusion;
+- SQL authorization-selector completeness;
+- graph source-correlation laundering or partial-source disclosure;
+- TOCTOU authorization around external provider calls;
+- old projection-partition resurrection after policy/restriction changes;
+- credential/log/error leakage;
+- legacy/admin route exposure;
+- unsafe deployment assumptions around PostgreSQL/FalkorDB/Ollama reachability.
+
+Next milestone: KC-E — ACL principals and grants.
+
+Exact first KC-E task:
+Create the actual ACL Controller, Determiner, Planner, Worker, and Reviewer principals/credentials only after deriving their minimal operation/scope profiles from ACL's current controller design. Keep credentials out of the repository. Prove cross-role/project denial and bounded KC access through the hardened consumer API before wiring ACL to use the issued credentials.
