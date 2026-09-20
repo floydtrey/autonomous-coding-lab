@@ -19,7 +19,9 @@
     "WORKER_PLANNER_TASK_UNKNOWN": "If planner_request.task_id is supplied, it must identify a Task in the assigned Pass.",
     "NORMALIZATION_INVALID": "Return exactly one complete JSON object matching the shared ACL role envelope and Worker contract. Do not use Markdown fences or surrounding prose.",
     "RUNTIME_RESPONSE_INVALID": "Return exactly one complete JSON object matching the shared ACL role envelope and Worker contract, with no Markdown fence or surrounding prose.",
-    "CONTROLLER_ROLE_RESPONSE_INVALID": "Repair the structured Worker response using the supplied failure details. Preserve valid execution facts and do not repeat already completed tool actions solely to fix response formatting."
+    "CONTROLLER_ROLE_RESPONSE_INVALID": "Repair the structured Worker response using the supplied failure details. Preserve valid execution facts and do not repeat already completed tool actions solely to fix response formatting.",
+    "WORKER_HANDOFF_MISSING": "NEEDS_CONTINUATION and NEEDS_PLANNER require one compact continuation_handoff. Preserve performed work and evidence; summarize current state, identify the next action, and include only bounded Task/path/evidence references.",
+    "WORKER_HANDOFF_TOO_LARGE": "Reduce continuation_handoff to compact resume state. Keep only information necessary for a fresh Worker context to continue safely; reference durable evidence instead of copying large content."
   },
   "non_repairable_codes": [
     "WORKER_INPUT_INVALID",
