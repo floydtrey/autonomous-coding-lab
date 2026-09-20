@@ -234,15 +234,21 @@ class UnifiedRetrievalCoordinator:
             )
 
         try:
+            graph_kwargs = {
+                "adapter": binding.adapter,
+                "authority_evaluator": binding.authority_evaluator,
+                "caller_principal_ref": binding.caller_principal_ref,
+                "namespace_key": binding.namespace_key,
+                "scope_key": binding.scope_key,
+                "query": lexical.query,
+                "limit": limit,
+            }
+            if binding.authorized_resource_refs is not None:
+                graph_kwargs["authorized_resource_refs"] = (
+                    binding.authorized_resource_refs
+                )
             graph_snapshot = await self.graph_kernel.search_validated_projection(
-                adapter=binding.adapter,
-                authority_evaluator=binding.authority_evaluator,
-                caller_principal_ref=binding.caller_principal_ref,
-                namespace_key=binding.namespace_key,
-                scope_key=binding.scope_key,
-                query=lexical.query,
-                limit=limit,
-                authorized_resource_refs=binding.authorized_resource_refs,
+                **graph_kwargs
             )
 
             if graph_snapshot.generation_id != lexical.generation_id:
