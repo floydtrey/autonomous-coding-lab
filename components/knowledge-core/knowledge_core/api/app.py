@@ -38,7 +38,10 @@ from knowledge_core.api.unified_retrieval_schemas import (
     UnifiedRetrievalSearchResponse,
     unified_retrieval_response_from_domain,
 )
-from knowledge_core.application.authorization import AuthorizationKernel
+from knowledge_core.application.authorization import (
+    AuthorizationDeniedError,
+    AuthorizationKernel,
+)
 from knowledge_core.application.consumer_read import ConsumerReadKnowledgeKernel
 from knowledge_core.application.direct_note_store import (
     DirectNoteStoreKnowledgeKernel,
@@ -263,6 +266,16 @@ def create_app(
             },
         )
 
+    @app.exception_handler(AuthorizationDeniedError)
+    async def authorization_denied_handler(
+        _request: Request,
+        _exc: AuthorizationDeniedError,
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "operation is not authorized"},
+        )
+
     @app.exception_handler(KnowledgeSourceUnavailableError)
     async def knowledge_source_unavailable_handler(
         _request: Request,
@@ -376,6 +389,21 @@ def create_app(
                         status_code=409,
                         detail="store project must match the authenticated active project scope",
                     )
+            existing_resource_ref = None
+            if bounded_service_write:
+                existing_resource_ref = kernel.existing_note_resource_ref(
+                    caller_principal_ref=caller_ref,
+                    source_id=body.source_id,
+                )
+                if existing_resource_ref is not None:
+                    AuthorizationKernel(
+                        kernel.session
+                    ).ensure_scoped_policy_for_authorized_store(
+                        actor_principal_ref=principal.principal_ref,
+                        resource_ref=existing_resource_ref,
+                        scope_ref=project_scope.scope_ref,
+                    )
+
             try:
                 operation_id = direct_note_operation_id(
                     principal_ref=caller_ref,
@@ -403,7 +431,7 @@ def create_app(
                 source_id=body.source_id,
                 source_event_time=body.source_event_time,
             )
-            if bounded_service_write:
+            if bounded_service_write and existing_resource_ref is None:
                 AuthorizationKernel(
                     kernel.session
                 ).ensure_scoped_policy_for_authorized_store(
