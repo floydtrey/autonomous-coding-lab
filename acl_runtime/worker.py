@@ -50,6 +50,9 @@ def run_worker(
             if controller.runtime_checkpoint(run.workflow_id) is None
             else controller.runtime_checkpoint(run.workflow_id).to_dict()
         ),
+        "worker_telemetry": controller.worker_telemetry_summary(
+            run.workflow_id
+        ),
     }
 
 
