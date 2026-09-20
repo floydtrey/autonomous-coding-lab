@@ -10,7 +10,7 @@ from ..errors import CoreError
 from .models import ToolCall, ToolDefinition, ToolResult
 
 
-ToolHandler = Callable[[ToolCall], Any]
+ToolHandler = Callable[[ToolCall, AuthorityGrant], Any]
 
 
 class ToolRegistry:
@@ -55,7 +55,7 @@ class ToolRegistry:
             if call.resource_scope is not None:
                 self._authority.require_resource(grant, call.resource_scope)
             try:
-                value = self._handlers[call.tool_id](call)
+                value = self._handlers[call.tool_id](call, grant)
             except CoreError:
                 raise
             except Exception as exc:
