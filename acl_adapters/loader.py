@@ -83,7 +83,7 @@ class AdapterLoader:
                         implementation=config.implementation,
                     )
                     continue
-                adapter = cls.instantiate(config)
+                adapter = cls.instantiate(config, services=core)
                 core.adapters.register(adapter)
                 loaded.append(config.adapter_id)
                 emit(
@@ -97,7 +97,7 @@ class AdapterLoader:
             return tuple(loaded)
 
     @classmethod
-    def instantiate(cls, config: AdapterConfig):
+    def instantiate(cls, config: AdapterConfig, *, services: CoreServices | None = None):
         with span(
             cls.component,
             "instantiate",
@@ -118,7 +118,11 @@ class AdapterLoader:
                     },
                 ) from exc
             try:
-                adapter = factory(adapter_id=config.adapter_id, settings=dict(config.settings))
+                adapter = factory(
+                    adapter_id=config.adapter_id,
+                    settings=dict(config.settings),
+                    services=services,
+                )
             except Exception as exc:
                 raise CoreError(
                     "ADAPTER_INITIALIZATION_FAILED",
