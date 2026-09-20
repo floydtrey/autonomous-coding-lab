@@ -15,7 +15,13 @@ from .authority import (
 )
 from .clarification import ClarificationRecord, ClarificationService, ClarificationStatus, JsonClarificationStore
 from .configuration import ProfileResolver, ProfileSelector, RoleProfile
-from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher, RoleStatus
+from .dispatch import (
+    RoleAttemptLifecycleService,
+    RoleDispatchRequest,
+    RoleDispatchResponse,
+    RoleDispatcher,
+    RoleStatus,
+)
 from .gates import GateRecord, GateService, GateStatus, JsonGateStore
 from .inspection import InspectionReport, InspectionService
 from .planner import (
@@ -51,7 +57,13 @@ from .planner import (
     PlannerOutcomeStatus,
     require_planner_runtime_backend,
 )
-from .recovery import JsonStopStore, RecoveryService, StopRecord, StopStatus
+from .recovery import (
+    JsonStopStore,
+    RecoveryParticipant,
+    RecoveryService,
+    StopRecord,
+    StopStatus,
+)
 from .retries import JsonRetryStore, RetryBudget, RetryRecord, RetryService
 from .worker import (
     WORKER_REVIEW_PACKET_SCHEMA,
@@ -181,10 +193,12 @@ __all__ = [
     "RetryBudget",
     "RetryRecord",
     "RetryService",
+    "RoleAttemptLifecycleService",
     "RoleDispatchRequest",
     "RoleDispatchResponse",
     "RoleDispatcher",
     "RoleStatus",
+    "RecoveryParticipant",
     "RecoveryService",
     "StepExecutor",
     "StepResultRecord",
