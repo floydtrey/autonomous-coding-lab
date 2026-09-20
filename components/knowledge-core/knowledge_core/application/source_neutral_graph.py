@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 
+from knowledge_core.application.authorization import AuthorizationKernel
 from knowledge_core.application.governed_snapshot_selection import (
     GovernedSnapshotProjectionSource,
     resolve_governed_snapshot_sources,
@@ -21,6 +22,7 @@ from knowledge_core.authority.retrieval import (
     require_retrieval_authority,
 )
 from knowledge_core.domain.assertions import KnowledgeInvariantError
+from knowledge_core.domain.authorization import KCOperation
 from knowledge_core.domain.generations import DerivedKind
 from knowledge_core.domain.projection_adapter import (
     ProjectionAdapter,
@@ -467,6 +469,8 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
         query: str,
         limit: int = 10,
         authorized_resource_refs: frozenset[UUID] | None = None,
+        authorization_principal_ref: UUID | None = None,
+        authorization_scope_ref: UUID | None = None,
     ) -> TrustedProjectionSearchSnapshot:
         normalized_query = query.strip()
         if not normalized_query:
@@ -623,6 +627,11 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
                 "current SR-2 generation changed during graph retrieval; retry against the new snapshot"
             )
 
+        live_authorization = (
+            AuthorizationKernel(self.session)
+            if authorization_principal_ref is not None
+            else None
+        )
         trusted: list[TrustedProjectionHit] = []
         for expected_partition, hits in build_hits:
             correlation = build_correlations[expected_partition]
@@ -655,6 +664,16 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
                     ):
                         eligible = False
                         break
+                    if live_authorization is not None:
+                        decision = live_authorization.evaluate(
+                            principal_ref=authorization_principal_ref,
+                            operation=KCOperation.SEARCH,
+                            scope_ref=authorization_scope_ref,
+                            resource_ref=version.resource_ref_id,
+                        )
+                        if not decision.allowed:
+                            eligible = False
+                            break
                     if not self.resource_version_serving_eligible(
                         segment.resource_version_ref
                     ):
