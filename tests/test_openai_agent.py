@@ -1,4 +1,5 @@
 from acl_adapters.openai_agent import OpenAICompatibleAgentAdapter
+from acl_adapters.openai_compatible import OpenAICompatibleChatAdapter
 from acl_core import AdapterRequest
 
 
@@ -212,3 +213,28 @@ def test_tool_result_limit_leaves_small_content_unchanged():
 
     assert bounded == original
     assert metadata is None
+
+
+def test_context_telemetry_distinguishes_configured_from_observed_capacity():
+    telemetry = OpenAICompatibleChatAdapter._extract_telemetry(
+        {
+            "model": "test-model",
+            "usage": {"prompt_tokens": 4096, "completion_tokens": 128},
+            "choices": [
+                {
+                    "message": {"role": "assistant", "content": "done"},
+                    "finish_reason": "stop",
+                }
+            ],
+        },
+        runtime={"model": "test-model", "context_window": 16384},
+        http_elapsed_ms=1.0,
+        response_bytes=100,
+        request_bytes=50,
+    )
+
+    assert telemetry["context_window"] == 16384
+    assert telemetry["configured_context_window"] == 16384
+    assert telemetry["observed_context_window"] is None
+    assert telemetry["context_capacity_source"] == "configured_route"
+    assert telemetry["configured_context_utilization"] == 0.25
