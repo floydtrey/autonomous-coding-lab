@@ -470,6 +470,27 @@ class OpenAICompatibleChatAdapter:
         if not isinstance(response_model, str) or not response_model.strip():
             response_model = runtime.get("model")
 
+        message_diagnostics: dict[str, Any] = {
+            "message_keys": [],
+            "content_chars": None,
+            "reasoning_chars": None,
+            "thinking_chars": None,
+        }
+        if isinstance(choices, list) and choices and isinstance(choices[0], Mapping):
+            message = choices[0].get("message")
+            if isinstance(message, Mapping):
+                message_diagnostics["message_keys"] = sorted(
+                    str(key) for key in message.keys()
+                )
+                for field_name, diagnostic_key in (
+                    ("content", "content_chars"),
+                    ("reasoning", "reasoning_chars"),
+                    ("thinking", "thinking_chars"),
+                ):
+                    field_value = message.get(field_name)
+                    if isinstance(field_value, str):
+                        message_diagnostics[diagnostic_key] = len(field_value)
+
         telemetry = {
             "runtime_family": "openai-compatible",
             "model": response_model,
@@ -488,6 +509,7 @@ class OpenAICompatibleChatAdapter:
                 if isinstance(value.get("system_fingerprint"), str)
                 else None
             ),
+            **message_diagnostics,
         }
         return telemetry
 
