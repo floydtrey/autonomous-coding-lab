@@ -60,6 +60,16 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             resolved.get("max_identical_tool_failures", 3),
             "max_identical_tool_failures",
         )
+        suppress_identical_success_calls = resolved.get(
+            "suppress_identical_success_calls",
+            False,
+        )
+        if not isinstance(suppress_identical_success_calls, bool):
+            return self._error(
+                request,
+                "ADAPTER_SETTINGS_INVALID",
+                "suppress_identical_success_calls must be boolean",
+            )
 
         tool_ids_raw = role_request.get("tool_ids", [])
         if not isinstance(tool_ids_raw, list) or any(
@@ -214,8 +224,11 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                         else self.services.tools.definition(tool_name)
                     )
                     suppress_identical_success = (
-                        definition is not None
-                        and definition.repeat_policy == "suppress_identical_success"
+                        suppress_identical_success_calls
+                        or (
+                            definition is not None
+                            and definition.repeat_policy == "suppress_identical_success"
+                        )
                     )
                     if prior_success is not None and suppress_identical_success:
                         aggregate["duplicate_success_tool_calls"] += 1
