@@ -43,10 +43,9 @@ END_PLAN
             [task.task_id for task in parsed.tasks],
             ["T01", "T02", "T03"],
         )
-        self.assertEqual(parsed.tasks[0].name, "Inspect requirements")
         self.assertEqual(
             parsed.tasks[0].prompt,
-            "Read the requirements and current implementation.\nDo not modify files yet.",
+            "Inspect requirements\nRead the requirements and current implementation.\nDo not modify files yet.",
         )
 
     def test_accepts_eof_as_final_task_terminator(self) -> None:
@@ -59,7 +58,10 @@ Complete the bounded work.
 """
         )
         self.assertEqual(len(parsed.tasks), 1)
-        self.assertEqual(parsed.tasks[0].prompt, "Complete the bounded work.")
+        self.assertEqual(
+            parsed.tasks[0].prompt,
+            "Perform work\nComplete the bounded work.",
+        )
 
     def test_constraints_are_optional(self) -> None:
         parsed = parse_planner_execution_handoff(
@@ -104,7 +106,7 @@ END_PLAN
         self.assertEqual(parsed.objective, "Repair the parser.")
         self.assertEqual(
             parsed.tasks[0].prompt,
-            "Inspect line one.\n\nInspect line two.",
+            "Inspect\n\nInspect line one.\n\nInspect line two.",
         )
 
     def test_task_reference_inside_prose_is_not_a_heading(self) -> None:
@@ -119,7 +121,7 @@ END_PLAN
         )
         self.assertEqual(
             parsed.tasks[0].prompt,
-            "Confirm T01 behavior is correct before finishing.",
+            "Verify\nConfirm T01 behavior is correct before finishing.",
         )
 
     def test_text_after_end_plan_is_ignored(self) -> None:
@@ -169,16 +171,16 @@ END_PLAN
 """
             )
 
-    def test_rejects_task_without_name(self) -> None:
-        with self.assertRaises(RoleContractError):
-            parse_planner_execution_handoff(
-                """STATUS: READY
+    def test_accepts_bare_task_delimiter(self) -> None:
+        parsed = parse_planner_execution_handoff(
+            """STATUS: READY
 OBJECTIVE:
 Do the work.
 T01:
 Perform it.
 """
-            )
+        )
+        self.assertEqual(parsed.tasks[0].prompt, "Perform it.")
 
     def test_rejects_nonsequential_task_numbers(self) -> None:
         with self.assertRaises(RoleContractError) as caught:
