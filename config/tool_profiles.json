@@ -2,6 +2,13 @@
   "schema_version": "acl-tool-profiles:v1",
   "profiles": [
     {
+      "profile_id": "planner-readonly-v1",
+      "tool_ids": [
+        "filesystem.list_directory",
+        "filesystem.read_text"
+      ]
+    },
+    {
       "profile_id": "worker-filesystem-v1",
       "tool_ids": [
         "filesystem.create_text",
