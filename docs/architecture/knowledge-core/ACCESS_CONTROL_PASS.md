@@ -1,7 +1,7 @@
 # Knowledge Core Access-Control / Graph Integration Pass
 
 Status: ACTIVE  
-Working branch: `kc-auth-foundation`  
+Working branch: `kc-authorization-model`  
 Base branch: `architecture/knowledge-core`  
 Base commit: `af0b29bf9da5aa861e6eb9354d6f1698d2d33950`
 
@@ -193,3 +193,28 @@ Next milestone: KC-B — Scope and authorization model.
 
 Exact first task for KC-B:
 Inspect the existing governed-source/project metadata and define the minimal canonical authorization schema/evaluator without duplicating existing source governance. Preserve the distinction between project/lifecycle relevance and confidentiality.
+
+
+## KC-B working checkpoint
+
+State: IMPLEMENTING
+
+Branch: `kc-authorization-model`  
+Parent milestone: qualified KC-A branch `kc-auth-foundation`
+
+KC-B authorization semantics selected before implementation:
+
+- global operation grants are capabilities to invoke KC operations; they do not by themselves disclose non-public resources;
+- resource access is independently governed by the resource's current access policy;
+- `public`: any authenticated principal with the required operation capability may read;
+- `personal`: the resource owner may read; other principals require an exact resource grant;
+- `scoped`: requires an applicable scope grant or exact resource grant;
+- `private`: requires an exact resource grant;
+- `credential` and `financial` sensitivity require an exact resource grant for non-owner principals even when a broader scope grant exists;
+- owner-type principals bypass ordinary grants and retain all KC authority;
+- explicit deny wins over allow for non-owner principals;
+- grants support validity windows/revocation for temporary project releases;
+- scopes are hierarchical and carry lifecycle (active/completed/failed/archived), but lifecycle does not silently become an authorization rule;
+- access policies are append-only revisions with a current pointer so security changes retain history;
+- ACL/model request bodies must not be trusted to self-select owner, sensitivity, or privileged scope. KC-C will derive/store those from authenticated context and trusted classification policy;
+- PostgreSQL RLS remains required defense-in-depth, but activation is deferred until KC-C can set authenticated principal/scope context on each DB transaction without breaking existing service paths.
