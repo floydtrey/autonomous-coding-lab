@@ -2,6 +2,9 @@ name: Planner Development Check
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - planner-seam-repair-development
 
 jobs:
   planner-contract:
@@ -15,20 +18,21 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile Planner and authority modules
+      - name: Install test runtime
+        run: python -m pip install -e . pytest
+
+      - name: Compile repaired Planner path
         run: >-
           python -m py_compile
+          acl_roles/planner/semantic.py
           acl_roles/planner/contract.py
-          acl_roles/planner/elevation.py
-          acl_roles/planner/__init__.py
-          acl_roles/__init__.py
-          acl_core/authority/filesystem.py
-          acl_core/authority/__init__.py
-          acl_controller/authority/filesystem.py
+          acl_controller/planner/compiler.py
+          acl_controller/planner/runtime.py
+          acl_controller/authority/pass_authority.py
+          acl_controller/worker/execution.py
+          acl_adapters/openai_compatible.py
+          acl_adapters/openai_agent.py
           acl_controller/service.py
 
-      - name: Run Planner self-checks
-        run: python -m unittest discover -s tests -p "test_planner_*.py" -v
-
-      - name: Run filesystem authority self-checks
-        run: python -m unittest discover -s tests -p "test_filesystem_authority.py" -v
+      - name: Run repository tests
+        run: python -m pytest -q
