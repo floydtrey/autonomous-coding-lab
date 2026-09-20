@@ -152,14 +152,44 @@ A new chat should inspect this file and the referenced branch before making chan
 ## Current checkpoint
 
 Milestone: KC-A  
-State: IMPLEMENTING
+State: SEALED / QUALIFIED
 
-Known current-state facts:
-- current bootstrap admission maps one shared key to `local_owner`;
+Qualified implementation head: `2b8d19d2dcce7fb05613b26a32d221e53848155f`  
+Qualification workflow: Knowledge Core run `35484175117`  
+Draft PR: #33
+
+Completed:
+- `knowledge_core/domain/principals.py`: UUID-backed principal and credential domain types;
+- `knowledge_core/storage/principal_models.py`: durable principal/service-credential tables;
+- `knowledge_core/application/principal_auth.py`: principal creation, high-entropy service-key issuance, hash-only persistence, authentication, credential revocation, and principal disable behavior;
+- migration `0019_principal_authentication.py`;
+- metadata/migration model registration;
+- `tests/test_kca_principal_authentication.py`;
+- issued plaintext tokens are excluded from dataclass repr;
+- existing owner bootstrap remains unchanged and no ACL credential exists yet.
+
+Qualification results on the implementation head:
+- PostgreSQL migrations: PASS;
+- fast semantic suite: PASS;
+- PostgreSQL G1-G21 qualification suite: PASS;
+- SR-2 G22 pinned real-document pilot: PASS;
+- RI-4 local-host restart rehearsal: PASS;
+- SR-2 local-host segment restart rehearsal: PASS.
+
+Known current-state facts carried forward:
+- current consumer bootstrap admission still maps one shared key to `local_owner`; KC-A intentionally did not replace route admission;
 - normal KC service launcher does not yet supply a Graphiti unified-search binding;
 - Graphiti provider/validation/source-correlation implementation already exists;
 - deletion/restriction kernel exists internally but is not exposed by the `/v1/kc/*` consumer API;
 - legacy base API has mutation routes whose `X-Knowledge-Caller` header is identification, not authentication.
 
-Next task:
-Implement principal and service-credential persistence/authentication with tests. Do not wire ACL or create ACL credentials until KC-B/KC-C establish what those credentials authorize.
+Unresolved by design:
+- no scopes/grants/resource access policy yet;
+- no PostgreSQL RLS yet;
+- no authenticated-principal route wiring yet;
+- no ACL/Vera/ChatGPT credentials have been created.
+
+Next milestone: KC-B — Scope and authorization model.
+
+Exact first task for KC-B:
+Inspect the existing governed-source/project metadata and define the minimal canonical authorization schema/evaluator without duplicating existing source governance. Preserve the distinction between project/lifecycle relevance and confidentiality.
