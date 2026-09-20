@@ -58,6 +58,49 @@ class Candidate:
 class LoosePlannerBenchmarkAdapter(OpenAICompatibleAgentAdapter):
     """Existing ACL tool loop with no ACL role-envelope/output-format demand."""
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self._benchmark_candidate = None
+        self._benchmark_turn = 0
+        self._benchmark_tool_calls = 0
+
+    def begin_candidate(self, candidate_name: str, model: str) -> None:
+        self._benchmark_candidate = candidate_name
+        self._benchmark_turn = 0
+        self._benchmark_tool_calls = 0
+        print(f"\n=== {candidate_name} ===")
+        print(f"Model: {model}")
+        print("Status: starting")
+
+    def _request_completion(self, *, request_id, body, runtime):
+        self._benchmark_turn += 1
+        label = self._benchmark_candidate or runtime.get("model") or "candidate"
+        print(
+            f"[{label}] turn {self._benchmark_turn} "
+            f"| tool calls {self._benchmark_tool_calls}"
+        )
+        return super()._request_completion(
+            request_id=request_id,
+            body=body,
+            runtime=runtime,
+        )
+
+    def _execute_tool_call(self, value, *, allowed_tool_ids, grant):
+        self._benchmark_tool_calls += 1
+        try:
+            tool_name = self._tool_call_name(value)
+        except Exception:
+            tool_name = "unknown"
+        label = self._benchmark_candidate or "candidate"
+        print(
+            f"[{label}] tool {self._benchmark_tool_calls}: {tool_name}"
+        )
+        return super()._execute_tool_call(
+            value,
+            allowed_tool_ids=allowed_tool_ids,
+            grant=grant,
+        )
+
     def _build_chat_body(
         self,
         role_request: Mapping[str, Any],
@@ -284,6 +327,7 @@ def run_benchmark(
         started_at = _utc_now()
         grant = _read_grant(core, tool_ids=tool_ids, subject=candidate.model)
         before = _ollama_ps()
+        adapter.begin_candidate(candidate.name, candidate.model)
 
         execution: dict[str, Any] = {
             "base_url": base_url.rstrip("/"),
@@ -367,7 +411,9 @@ def run_benchmark(
         )
         print(
             f"[{index}/{len(enabled)}] {candidate.name}: "
-            f"{'OK' if response.ok else 'ERROR'} ({elapsed_seconds}s)"
+            f"{'OK' if response.ok else 'ERROR'} ({elapsed_seconds}s) "
+            f"| turns {adapter._benchmark_turn} "
+            f"| tool calls {adapter._benchmark_tool_calls}"
         )
 
     summary = {
