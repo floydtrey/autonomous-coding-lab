@@ -25,10 +25,10 @@ OBJECTIVE:
 CONSTRAINTS:
 <global constraints that apply to every task>
 
-T01: <short task name>
+T01:
 <self-contained Worker prompt>
 
-T02: <short task name>
+T02:
 <self-contained Worker prompt>
 
 END_PLAN
@@ -80,16 +80,17 @@ T02:
 T03:
 ```
 
-The canonical heading form is:
+The canonical delimiter is:
 
 ```text
-TNN: <short task name>
+TNN:
 ```
 
 where `NN` is a zero-padded sequential number beginning with `01`.
 
-Everything after one Task heading belongs to that Task's Worker prompt until the next
-Task heading, `END_PLAN`, or end of file.
+Text after the colon on the same line is allowed and becomes the first line of that
+Task's Worker prompt. Everything after one Task delimiter belongs to that Task until
+the next Task delimiter, `END_PLAN`, or end of file.
 
 Example:
 
@@ -104,7 +105,7 @@ The Task body must be a usable Worker prompt, not merely a label such as "fix bu
 bounded step when combined with ACL-provided overall objective, global constraints,
 and relevant prior Task results.
 
-Planner owns the decomposition and Task wording.
+Planner owns the decomposition and Task prompt wording.
 
 ACL owns Task execution state.
 
@@ -207,7 +208,6 @@ Planner owns:
 - the overall objective
 - global semantic constraints
 - how the work is decomposed into ordered Tasks
-- each Task name
 - each Task's Worker prompt
 
 ACL owns:
