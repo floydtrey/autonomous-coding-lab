@@ -1,0 +1,54 @@
+{
+  "schema_version": "acl-planner-integration-benchmark:v1",
+  "base_url": "http://127.0.0.1:11434/v1",
+  "cases": [
+    {
+      "case_id": "legacy-acl-repair",
+      "name": "Diagnose and repair legacy ACL model-interface brittleness",
+      "workspace_root": "C:\\Projects\\autonomous-coding-lab",
+      "work_type_id": "1127",
+      "complexity": "LARGE",
+      "request": "Inspect the legacy ACL repository and investigate why Planner/Worker integration became brittle for local models. Suspected problem areas include model-facing contracts that demand exact nested serialization, predeclared tools or filesystem operations, and code where semantic planning is mixed with Controller authority or bookkeeping. Confirm, refine, or reject those suspicions from the actual code rather than assuming they are correct. Prepare an implementation plan while preserving containment and Controller-owned authority. Do not modify the repository."
+    },
+    {
+      "case_id": "planner-seam-review",
+      "name": "Review repaired ACL Planner semantic seam",
+      "workspace_root": "C:\\Projects\\ACL_Next",
+      "work_type_id": "1127",
+      "complexity": "MEDIUM",
+      "request": "Inspect the current ACL Planner path. Determine whether model-facing planning semantics are cleanly separated from Controller-owned authority, runtime selection, persistence, IDs, workspace bookkeeping, and internal ExecutionPlan state. Identify any remaining coupling or regression risk and prepare a bounded implementation plan if repairs are still needed. Do not modify files."
+    }
+  ],
+  "models": [
+    {
+      "name": "laguna-xs-2.1-4k",
+      "model": "laguna-xs-2.1:4k",
+      "context_window": 4096
+    },
+    {
+      "name": "gemma4-12b-q4",
+      "model": "gemma4:12b",
+      "context_window": 16384
+    },
+    {
+      "name": "gpt-oss-20b-16k",
+      "model": "gpt-oss:20b-16k",
+      "context_window": 16384
+    },
+    {
+      "name": "qwen3-coder-30b-16k",
+      "model": "qwen3-coder:30b-16k",
+      "context_window": 16384
+    },
+    {
+      "name": "qwen3.6-35b",
+      "model": "qwen3.6:35b",
+      "context_window": 32768
+    },
+    {
+      "name": "qwen3.8-27b-64k",
+      "model": "qwen3.8:27b-64k",
+      "context_window": 65536
+    }
+  ]
+}
