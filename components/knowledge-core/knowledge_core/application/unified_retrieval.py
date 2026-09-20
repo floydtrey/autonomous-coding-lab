@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from uuid import UUID
 
 from knowledge_core.application.consumer_read import ConsumerReadKnowledgeKernel
 from knowledge_core.application.source_neutral_graph import (
@@ -41,6 +42,7 @@ class UnifiedGraphSearchBinding:
     caller_principal_ref: str
     namespace_key: str
     scope_key: str
+    authorized_resource_refs: frozenset[UUID] | None = None
 
     def __post_init__(self) -> None:
         for name in ("caller_principal_ref", "namespace_key", "scope_key"):
@@ -240,6 +242,7 @@ class UnifiedRetrievalCoordinator:
                 scope_key=binding.scope_key,
                 query=lexical.query,
                 limit=limit,
+                authorized_resource_refs=binding.authorized_resource_refs,
             )
 
             if graph_snapshot.generation_id != lexical.generation_id:
