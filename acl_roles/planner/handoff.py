@@ -23,13 +23,11 @@ class PlannerHandoffTask:
     """One ordered, self-contained Worker prompt authored by Planner."""
 
     task_id: str
-    name: str
     prompt: str
 
     def to_dict(self) -> dict[str, str]:
         return {
             "task_id": self.task_id,
-            "name": self.name,
             "prompt": self.prompt,
         }
 
@@ -92,13 +90,8 @@ def _parse_task_heading(line: str) -> tuple[str, str] | None:
             expected=canonical,
         )
 
-    name = match.group("name").strip()
-    if not name:
-        _fail(
-            "Task heading requires a short nonblank name",
-            task_id=canonical,
-        )
-    return canonical, name
+    inline = match.group("inline").strip()
+    return canonical, inline
 
 
 def parse_planner_execution_handoff(text: str) -> PlannerExecutionHandoff:
@@ -131,11 +124,10 @@ def parse_planner_execution_handoff(text: str) -> PlannerExecutionHandoff:
     constraints_seen = False
     tasks: list[PlannerHandoffTask] = []
     current_task_id: str | None = None
-    current_task_name: str | None = None
     current_task_lines: list[str] = []
 
     def finish_task() -> None:
-        nonlocal current_task_id, current_task_name, current_task_lines
+        nonlocal current_task_id, current_task_lines
         if current_task_id is None:
             return
         prompt = _trim_block(current_task_lines)
@@ -147,12 +139,10 @@ def parse_planner_execution_handoff(text: str) -> PlannerExecutionHandoff:
         tasks.append(
             PlannerHandoffTask(
                 task_id=current_task_id,
-                name=current_task_name or "",
                 prompt=prompt,
             )
         )
         current_task_id = None
-        current_task_name = None
         current_task_lines = []
 
     ended = False
@@ -180,7 +170,8 @@ def parse_planner_execution_handoff(text: str) -> PlannerExecutionHandoff:
                         observed=heading[0],
                         expected=expected_id,
                     )
-                current_task_id, current_task_name = heading
+                current_task_id = heading[0]
+                current_task_lines = [heading[1]] if heading[1] else []
                 continue
 
             current_task_lines.append(line)
@@ -203,7 +194,8 @@ def parse_planner_execution_handoff(text: str) -> PlannerExecutionHandoff:
                     observed=heading[0],
                     expected=expected_id,
                 )
-            current_task_id, current_task_name = heading
+            current_task_id = heading[0]
+            current_task_lines = [heading[1]] if heading[1] else []
             continue
 
         if stripped == "CONSTRAINTS:":
