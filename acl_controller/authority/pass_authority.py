@@ -21,12 +21,17 @@ from ..tools import (
     FS_LIST_DIRECTORY,
     FS_MOVE_PATH,
     FS_READ_TEXT,
+    FS_SEARCH,
     FS_WRITE_TEXT,
     ToolProfileResolver,
     filesystem_scope,
 )
 from .enforcement import AuthorityCoordinator
 from .filesystem import FilesystemAuthorityCoordinator
+
+
+WORKER_AUTHORITY_MODE_DECLARED_PATHS = "DECLARED_PATHS"
+WORKER_AUTHORITY_MODE_WORKSPACE = "WORKSPACE"
 
 
 @dataclass(frozen=True)
@@ -66,6 +71,8 @@ class PassAuthorityService:
         work_type_id: str | None,
         complexity: str | None,
         pass_spec: PassSpec,
+        authority_mode: str = WORKER_AUTHORITY_MODE_DECLARED_PATHS,
+        workspace_scope: str | None = None,
     ) -> PassAuthorityBinding:
         if not isinstance(pass_spec, PassSpec):
             raise ControllerError(
@@ -81,7 +88,22 @@ class PassAuthorityService:
             )
         )
         configured_tools = self.tool_profiles.resolve(profile.tool_profile)
-        needed_tools, resource_scopes = self._requirements(pass_spec)
+        if authority_mode == WORKER_AUTHORITY_MODE_DECLARED_PATHS:
+            needed_tools, resource_scopes = self._requirements(pass_spec)
+        elif authority_mode == WORKER_AUTHORITY_MODE_WORKSPACE:
+            needed_tools, resource_scopes = self._workspace_requirements(
+                configured_tools,
+                workspace_scope=workspace_scope,
+            )
+        else:
+            raise ControllerError(
+                "CONTROLLER_PASS_AUTHORITY_INVALID",
+                "Worker authority mode is unsupported",
+                {
+                    "pass_id": pass_spec.pass_id,
+                    "authority_mode": authority_mode,
+                },
+            )
 
         missing = tuple(sorted(set(needed_tools) - set(configured_tools)))
         if missing:
@@ -102,7 +124,10 @@ class PassAuthorityService:
             capabilities=required_capabilities,
             resource_scopes=resource_scopes,
             tool_scopes=needed_tools,
-            reason=f"accepted Planner Pass {pass_spec.pass_id}",
+            reason=(
+                f"accepted Planner Pass {pass_spec.pass_id} "
+                f"using {authority_mode} authority"
+            ),
         )
         ceiling = AuthorityEnvelope(
             capabilities=ceiling_capabilities,
@@ -153,6 +178,7 @@ class PassAuthorityService:
             tool_ids=list(grant.authority.tool_scopes),
             capabilities=list(grant.authority.capabilities),
             resource_scope_count=len(grant.authority.resource_scopes),
+            authority_mode=authority_mode,
         )
         return PassAuthorityBinding(
             grant_id=grant.grant_id,
@@ -231,6 +257,65 @@ class PassAuthorityService:
                 )
 
         return tuple(sorted(tool_ids)), tuple(sorted(resource_scopes))
+
+    def _workspace_requirements(
+        self,
+        configured_tools: tuple[str, ...],
+        *,
+        workspace_scope: str | None,
+    ) -> tuple[tuple[str, ...], tuple[str, ...]]:
+        """Derive broad ordinary Worker tools inside one Controller-known workspace.
+
+        This mode is used only for semantic-compiled plans. Legacy plans continue to
+        derive least-authority scopes from their declared task filesystem intents.
+        Permanent/system/user protections are still checked on every actual tool call.
+        """
+        if not isinstance(workspace_scope, str) or not workspace_scope.strip():
+            raise ControllerError(
+                "CONTROLLER_PASS_AUTHORITY_INVALID",
+                "WORKSPACE authority requires a nonblank worker workspace",
+            )
+
+        service = self.filesystem_authority.service
+        canonical = service.canonical_path(workspace_scope)
+        if not service.scope_contains(service.project_root, canonical):
+            raise ControllerError(
+                "CONTROLLER_PASS_AUTHORITY_INVALID",
+                "Worker workspace must remain inside the configured project root",
+                {
+                    "workspace_scope": canonical,
+                    "project_root": service.project_root,
+                },
+            )
+
+        tool_operations = {
+            FS_READ_TEXT: FilesystemOperation.READ,
+            FS_LIST_DIRECTORY: FilesystemOperation.READ,
+            FS_SEARCH: FilesystemOperation.READ,
+            FS_WRITE_TEXT: FilesystemOperation.WRITE,
+            FS_CREATE_TEXT: FilesystemOperation.CREATE,
+            FS_DELETE_PATH: FilesystemOperation.DELETE,
+            FS_MOVE_PATH: FilesystemOperation.MOVE,
+        }
+        tool_ids = tuple(
+            sorted(tool_id for tool_id in configured_tools if tool_id in tool_operations)
+        )
+        operations = {tool_operations[tool_id] for tool_id in tool_ids}
+
+        resource_scopes: set[str] = set()
+        for operation in operations:
+            if operation is FilesystemOperation.MOVE:
+                self.filesystem_authority.require_allowed(
+                    operation,
+                    canonical,
+                    destination=canonical,
+                )
+            else:
+                self.filesystem_authority.require_allowed(operation, canonical)
+            resource_scopes.add(filesystem_scope(operation, canonical))
+
+        return tool_ids, tuple(sorted(resource_scopes))
+
 
     def _capabilities(self, tool_ids: tuple[str, ...]) -> tuple[str, ...]:
         values: set[str] = set()
