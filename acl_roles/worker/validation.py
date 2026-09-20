@@ -59,6 +59,7 @@ def validate_worker_result(
     result: WorkerResult,
     *,
     worker_input: WorkerInput,
+    execution_events: tuple[Mapping[str, Any], ...] = (),
 ) -> dict[str, Any]:
     if not isinstance(result, WorkerResult):
         raise RoleContractError(
@@ -147,6 +148,40 @@ def validate_worker_result(
                 },
             )
 
+    if result.outcome is WorkerOutcome.READY_FOR_REVIEW:
+        required_mutation = any(
+            task.filesystem.create_paths
+            or task.filesystem.write_paths
+            or task.filesystem.delete_paths
+            or task.filesystem.move_paths
+            for task in worker_input.pass_spec.tasks
+        )
+        observed_paths = _successful_mutation_paths(execution_events)
+        if required_mutation and not observed_paths:
+            raise RoleContractError(
+                "WORKER_EXECUTION_EVIDENCE_MISSING",
+                "READY_FOR_REVIEW requires ACL-observed successful mutation evidence",
+                {
+                    "pass_id": worker_input.pass_id,
+                    "location": "payload.changed_paths",
+                },
+            )
+        unsupported = [
+            path
+            for path in result.changed_paths
+            if _claim_path(path) not in observed_paths
+        ]
+        if unsupported:
+            raise RoleContractError(
+                "WORKER_EXECUTION_EVIDENCE_MISMATCH",
+                "Worker claims changed paths without matching successful ACL tool execution",
+                {
+                    "pass_id": worker_input.pass_id,
+                    "changed_paths": unsupported,
+                    "location": "payload.changed_paths",
+                },
+            )
+
     return {
         "contract": "acl-worker-result:v1",
         "outcome": str(result.outcome),
@@ -163,6 +198,7 @@ def validate_worker_result(
 def validate_worker_role_response(
     response: RoleResponse,
     *,
+    instructions: Mapping[str, Any] | None = None,
     request: RoleRequest | None = None,
     profile_metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -196,4 +232,55 @@ def validate_worker_role_response(
             "outcome": str(result.outcome),
             "result_digest": result.digest(),
         }
-    return validate_worker_result(result, worker_input=worker_input)
+
+    execution_events: list[Mapping[str, Any]] = []
+    adapter_telemetry = response.metadata.get("adapter_telemetry")
+    if isinstance(adapter_telemetry, Mapping):
+        current_events = adapter_telemetry.get("tool_events", [])
+        if isinstance(current_events, list):
+            execution_events.extend(
+                item for item in current_events if isinstance(item, Mapping)
+            )
+    if worker_input.correction is not None:
+        prior_events = worker_input.correction.details.get("execution_evidence", [])
+        if isinstance(prior_events, list):
+            execution_events.extend(
+                item for item in prior_events if isinstance(item, Mapping)
+            )
+
+    return validate_worker_result(
+        result,
+        worker_input=worker_input,
+        execution_events=tuple(execution_events),
+    )
+
+
+def _successful_mutation_paths(
+    events: tuple[Mapping[str, Any], ...],
+) -> set[str]:
+    observed: set[str] = set()
+    for event in events:
+        if event.get("ok") is not True or event.get("duplicate_suppressed") is True:
+            continue
+        tool_id = event.get("tool_id")
+        arguments = event.get("arguments")
+        if not isinstance(arguments, Mapping):
+            continue
+        if tool_id in {
+            "filesystem.create_text",
+            "filesystem.write_text",
+            "filesystem.delete_path",
+        }:
+            path = arguments.get("path")
+            if isinstance(path, str) and path.strip():
+                observed.add(_claim_path(path))
+        elif tool_id == "filesystem.move_path":
+            for key in ("source", "destination"):
+                path = arguments.get(key)
+                if isinstance(path, str) and path.strip():
+                    observed.add(_claim_path(path))
+    return observed
+
+
+def _claim_path(value: str) -> str:
+    return value.strip().replace("/", "\\").rstrip("\\").casefold()
