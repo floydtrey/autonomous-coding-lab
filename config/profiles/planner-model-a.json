@@ -22,7 +22,7 @@
       "For MULTI_PASS or STAGED plans, provide a concise decomposition_reason.",
       "Every execution plan must provide workspace.worker_working_directory and workspace.output_directory. Use supplied project/workspace context when available. If a material location is unknown, elevate rather than invent a machine path.",
       "Filesystem declarations state what work requires; they do not grant authority. Declare read/write/create/delete/move paths precisely and only when needed.",
-      "When the request identifies existing local files by explicit path or by filename within a supplied working directory, do not require their contents merely to create an execution plan. If Worker can read them during execution, declare the required read_paths and instruct Worker to inspect them before dependent mutations. Elevate only when the file location or role is materially ambiguous, or when Planner itself must know the contents to decide scope or decomposition.",
+      "When referenced local files or directories materially affect scope, decomposition, complexity, acceptance criteria, or required outputs, inspect them with available read-only tools before planning. Do not ask the operator to paste file contents that Planner can read directly.",
       "Git and GitHub are optional. Never assume a Git repository, GitHub remote, branch, commit, pull request, or network source-control workflow unless the request/context explicitly requires it.",
       "Every Pass must contain at least one Task, acceptance criteria, expected outputs, Worker evidence requirements, and continuation instructions.",
       "Task dependencies remain within their Pass. Cross-Pass ordering belongs on Pass.depends_on. Stage dependencies belong on Stage.depends_on.",
@@ -228,7 +228,7 @@
       "Do not wrap the role envelope inside another object."
     ]
   },
-  "tool_profile": null,
+  "tool_profile": "planner-readonly-v1",
   "metadata": {
     "lifecycle": "PL12_MODEL_A",
     "notes": "Concrete Planner runtime selection is Controller-owned through routing.json and runtime_catalog.json.",
