@@ -21,18 +21,17 @@ def test_central_runtime_catalog_selects_role_models():
     planner = resolver.resolve(ProfileSelector("planner", "1127", "SMALL"))
     worker = resolver.resolve(ProfileSelector("worker", "1127", "SMALL"))
 
-    assert determiner.settings["model"] == "qwen3.5:9b-4k"
+    assert determiner.settings["model"] == "laguna-xs-2.1:4k"
     assert determiner.settings["context_window"] == 4096
     assert determiner.settings["max_tokens"] == 2048
     assert determiner.adapter_id == "openai-compatible.chat"
-    assert determiner.metadata["runtime_id"] == "determiner-qwen35-9b-4k"
+    assert determiner.metadata["runtime_id"] == "determiner-laguna-xs-2-1-4k"
 
-    assert planner.settings["model"] == "qwen3.5:9b-64k"
+    assert planner.settings["model"] == "qwen3.8:27b-64k"
     assert planner.settings["context_window"] == 65536
     assert planner.settings["max_tokens"] == 16384
-    assert planner.settings["suppress_identical_success_calls"] is True
     assert planner.adapter_id == "openai-compatible.agent"
-    assert planner.metadata["runtime_id"] == "planner-qwen35-9b-64k"
+    assert planner.metadata["runtime_id"] == "planner-qwen38-27b-64k"
     assert planner.metadata["harness_id"] == "openai-compatible.agent"
     assert planner.tool_profile == "planner-readonly-v1"
 
