@@ -47,6 +47,7 @@ WORKER_REVIEW_PACKET_SCHEMA = "acl-worker-review-packet:v1"
 class WorkerRunStatus(StrEnum):
     PREPARED = "PREPARED"
     RUNNING = "RUNNING"
+    RECOVERY_RERUN_REQUIRED = "RECOVERY_RERUN_REQUIRED"
     READY_FOR_REVIEW = "READY_FOR_REVIEW"
     NEEDS_CONTINUATION = "NEEDS_CONTINUATION"
     NEEDS_PLANNER = "NEEDS_PLANNER"
@@ -112,7 +113,11 @@ class WorkerRunRecord:
             )
         if not isinstance(self.status, WorkerRunStatus):
             raise ControllerError("CONTROLLER_WORKER_RUN_INVALID", "Worker run status is invalid")
-        if self.status in {WorkerRunStatus.PREPARED, WorkerRunStatus.RUNNING}:
+        if self.status in {
+            WorkerRunStatus.PREPARED,
+            WorkerRunStatus.RUNNING,
+            WorkerRunStatus.RECOVERY_RERUN_REQUIRED,
+        }:
             if self.result is not None:
                 raise ControllerError(
                     "CONTROLLER_WORKER_RUN_INVALID",
@@ -253,6 +258,49 @@ class JsonWorkerRunStore:
             self._write(path, record)
         return record
 
+    def recovery_released_for_rerun(
+        self,
+        workflow_id: str,
+        *,
+        prior_attempt_id: str,
+    ) -> None:
+        running = tuple(
+            item
+            for item in self.store.for_workflow(workflow_id)
+            if item.status is WorkerRunStatus.RUNNING
+        )
+        if not running:
+            return
+        if len(running) != 1:
+            raise ControllerError(
+                "CONTROLLER_WORKER_RECOVERY_AMBIGUOUS",
+                "more than one Worker run is marked RUNNING for the workflow",
+                {
+                    "workflow_id": workflow_id,
+                    "worker_run_ids": [item.worker_run_id for item in running],
+                },
+            )
+        current = running[0]
+        updated = replace(
+            current,
+            status=WorkerRunStatus.RECOVERY_RERUN_REQUIRED,
+            metadata={
+                **dict(current.metadata),
+                "recovery_prior_attempt_id": prior_attempt_id,
+            },
+            updated_at=utc_now(),
+        )
+        self.store.save(updated)
+        emit(
+            "INFO",
+            self.component,
+            "recovery_released_for_rerun",
+            "worker_run_reconciled_for_recovery_rerun",
+            workflow_id=workflow_id,
+            worker_run_id=updated.worker_run_id,
+            prior_attempt_id=prior_attempt_id,
+        )
+
     def read(self, worker_run_id: str) -> WorkerRunRecord:
         try:
             return WorkerRunRecord.from_mapping(
@@ -293,6 +341,26 @@ class JsonWorkerRunStore:
                     {"path": str(path)},
                 ) from exc
             if record.plan_id == plan_id and record.pass_id == pass_id:
+                records.append(record)
+        return tuple(records)
+
+    def for_workflow(self, workflow_id: str) -> tuple[WorkerRunRecord, ...]:
+        directory = self.root / "worker-runs"
+        if not directory.exists():
+            return ()
+        records: list[WorkerRunRecord] = []
+        for path in sorted(directory.glob("workerrun_*.json")):
+            try:
+                record = WorkerRunRecord.from_mapping(
+                    json.loads(path.read_text(encoding="utf-8"))
+                )
+            except (OSError, json.JSONDecodeError, ControllerError) as exc:
+                raise ControllerError(
+                    "CONTROLLER_WORKER_RUN_INVALID",
+                    "one or more Worker run records are unreadable",
+                    {"path": str(path)},
+                ) from exc
+            if record.workflow_id == workflow_id:
                 records.append(record)
         return tuple(records)
 
@@ -363,6 +431,36 @@ class WorkerExecutionService:
             )
         existing = self.store.for_pass(plan_id, next_pass.pass_id or "")
         if existing:
+            latest = max(existing, key=lambda item: item.updated_at)
+            if latest.status is WorkerRunStatus.RECOVERY_RERUN_REQUIRED:
+                worker_input = latest.worker_input
+                authority_grant_id = self._resolve_pass_authority(
+                    worker_input,
+                    authority_grant_id=authority_grant_id,
+                )
+                emit(
+                    "INFO",
+                    self.component,
+                    "start_next_pass",
+                    "worker_recovery_rerun_started",
+                    worker_run_id=latest.worker_run_id,
+                    workflow_id=latest.workflow_id,
+                    plan_id=latest.plan_id,
+                    pass_id=latest.pass_id,
+                    prior_attempt_id=latest.metadata.get("recovery_prior_attempt_id"),
+                )
+                return self._invoke(
+                    worker_input,
+                    continuation_of=latest.worker_run_id,
+                    authority_grant_id=authority_grant_id,
+                    metadata={
+                        **dict(metadata or {}),
+                        "recovery_rerun_of": latest.worker_run_id,
+                        "recovery_prior_attempt_id": latest.metadata.get(
+                            "recovery_prior_attempt_id"
+                        ),
+                    },
+                )
             raise ControllerError(
                 "CONTROLLER_WORKER_RUN_CONFLICT",
                 "assigned Pass already has a Worker run; use explicit continuation/review flow",
