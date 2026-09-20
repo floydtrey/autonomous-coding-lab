@@ -34,7 +34,8 @@
         "max_agent_turns": 32,
         "max_tool_calls": 64,
         "max_identical_tool_failures": 3,
-        "max_tool_result_chars": 32000
+        "max_tool_result_chars": 32000,
+        "response_envelope_mode": "payload"
       }
     },
     {
