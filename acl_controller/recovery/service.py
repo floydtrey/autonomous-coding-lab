@@ -33,6 +33,8 @@ class RecoveryParticipant(Protocol):
         prior_attempt_id: str,
     ) -> None: ...
 
+    def reconcile_idle(self, workflow_id: str) -> None: ...
+
 
 class StopStatus(StrEnum):
     REQUESTED = "REQUESTED"
@@ -280,7 +282,22 @@ class RecoveryService:
                 return workflow
             if workflow.status is WorkflowStatus.WAITING and workflow.waiting_for and not workflow.waiting_for.startswith("stop:"):
                 return workflow
-            if workflow.status in {WorkflowStatus.READY, WorkflowStatus.BLOCKED, WorkflowStatus.NEW}:
+            if workflow.status is WorkflowStatus.READY:
+                for participant in self.participants:
+                    try:
+                        participant.reconcile_idle(workflow_id)
+                    except Exception as participant_exc:
+                        self._block_uncertain(
+                            workflow,
+                            code="RECOVERY_PARTICIPANT_FAILED",
+                            message="durable participant state could not be reconciled while workflow was idle",
+                            participant_type=type(participant).__name__,
+                            exception_type=type(participant_exc).__name__,
+                            exception_message=str(participant_exc),
+                        )
+                        return self.state.read(workflow_id)
+                return self.state.read(workflow_id)
+            if workflow.status in {WorkflowStatus.BLOCKED, WorkflowStatus.NEW}:
                 return workflow
             if workflow.active_attempt_id is None:
                 self._block_uncertain(
