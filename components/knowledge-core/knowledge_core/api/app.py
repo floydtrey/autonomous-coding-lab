@@ -77,6 +77,7 @@ from knowledge_core.authority.store import (
     require_canonical_store_authority,
 )
 from knowledge_core.domain.authorization import KCOperation
+from knowledge_core.domain.principals import PrincipalType
 from knowledge_core.domain.retrieval import KnowledgeSourceUnavailableError
 
 
@@ -295,7 +296,6 @@ def create_app(
                 query=body.query,
                 limit=body.limit,
                 include_superseded=body.include_superseded,
-                authorized_resource_refs_statement=authorized_resource_refs_statement,
             )
         )
 
@@ -361,7 +361,11 @@ def create_app(
         ) -> KnowledgeStoreResponse:
             caller_ref = _caller_ref(principal)
             project_scope = None
-            if isinstance(principal, ConsumerPrincipalContext):
+            bounded_service_write = (
+                isinstance(principal, ConsumerPrincipalContext)
+                and principal.principal_type is not PrincipalType.OWNER
+            )
+            if bounded_service_write:
                 project_scope = consumer_admission.require_scope_access(
                     context=principal,
                     operation=KCOperation.STORE,
@@ -398,7 +402,7 @@ def create_app(
                 source_id=body.source_id,
                 source_event_time=body.source_event_time,
             )
-            if isinstance(principal, ConsumerPrincipalContext):
+            if bounded_service_write:
                 AuthorizationKernel(
                     kernel.session
                 ).set_initial_scoped_policy_for_authorized_store(
@@ -433,7 +437,11 @@ def create_app(
             principal=Depends(memory_propose_principal),
         ) -> MemoryCandidateProposalResponse:
             caller_ref = _caller_ref(principal)
-            if isinstance(principal, ConsumerPrincipalContext):
+            bounded_service_proposal = (
+                isinstance(principal, ConsumerPrincipalContext)
+                and principal.principal_type is not PrincipalType.OWNER
+            )
+            if bounded_service_proposal:
                 project_scope = consumer_admission.require_scope_access(
                     context=principal,
                     operation=KCOperation.MEMORY_PROPOSE,
@@ -520,6 +528,7 @@ def create_app(
                 query=body.query,
                 limit=body.limit,
                 include_superseded=body.include_superseded,
+                authorized_resource_refs_statement=authorized_resource_refs_statement,
             )
             return unified_retrieval_response_from_domain(result)
 
