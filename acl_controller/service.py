@@ -30,7 +30,12 @@ from acl_roles.planner import (
 from acl_core.diagnostics import emit
 from acl_adapters import AdapterLoader
 
-from .authority import AuthorityCoordinator, FilesystemAuthorityCoordinator, JsonGrantStore
+from .authority import (
+    AuthorityCoordinator,
+    FilesystemAuthorityCoordinator,
+    JsonGrantStore,
+    PassAuthorityService,
+)
 from .clarification import ClarificationRecord, ClarificationService, ClarificationStatus, JsonClarificationStore
 from .configuration import ProfileResolver, ProfileSelector, RoleProfile
 from .dispatch import RoleDispatchRequest, RoleDispatchResponse, RoleDispatcher
@@ -83,6 +88,7 @@ from .runtime import (
     SerialRuntimeResidencyService,
 )
 from .state import JsonWorkflowStore, WorkflowStateService
+from .tools import FilesystemToolService, ToolProfileResolver
 
 
 class ControllerService:
@@ -99,6 +105,8 @@ class ControllerService:
         runtime_residency: SerialRuntimeResidencyService,
         authority: AuthorityCoordinator,
         filesystem_authority: FilesystemAuthorityCoordinator,
+        tool_profiles: ToolProfileResolver,
+        pass_authority: PassAuthorityService,
         planner_runtime: PlannerRuntimeService,
         worker_runtime: WorkerRuntimeService,
         worker_execution: WorkerExecutionService,
@@ -122,6 +130,8 @@ class ControllerService:
         self.runtime_residency = runtime_residency
         self.authority = authority
         self.filesystem_authority = filesystem_authority
+        self.tool_profiles = tool_profiles
+        self.pass_authority = pass_authority
         self.planner_runtime = planner_runtime
         self.worker_runtime = worker_runtime
         self.worker_execution = worker_execution
@@ -168,6 +178,7 @@ class ControllerService:
 
             state_service = WorkflowStateService(JsonWorkflowStore(state_root))
             profiles = ProfileResolver(config_root)
+            tool_profiles = ToolProfileResolver(config_root / "tool_profiles.json")
             routing = ActionRegistry()
             runtime_residency = SerialRuntimeResidencyService(
                 config=RuntimeResidencyConfig.load(
@@ -178,6 +189,7 @@ class ControllerService:
             role_dispatch = RoleDispatcher(
                 resolved_core,
                 residency=runtime_residency,
+                tool_profiles=tool_profiles,
             )
             authority = AuthorityCoordinator(
                 resolved_core.authority,
@@ -187,6 +199,17 @@ class ControllerService:
                 project_root=project_root,
                 state_root=state_root,
                 config_root=config_root,
+            )
+            registered_tools = FilesystemToolService(
+                filesystem_authority
+            ).register(resolved_core.tools)
+            pass_authority = PassAuthorityService(
+                state=state_service,
+                authority=authority,
+                filesystem_authority=filesystem_authority,
+                profiles=profiles,
+                tool_profiles=tool_profiles,
+                tools=resolved_core.tools,
             )
             resolved_planner_runtime = planner_runtime or PlannerRuntimeService(
                 ControllerPlannerRuntimeBackend(
@@ -238,6 +261,7 @@ class ControllerService:
                 state=state_service,
                 planner_plan=planner_plan,
                 runtime=resolved_worker_runtime,
+                pass_authority=pass_authority,
                 store=JsonWorkerRunStore(state_root),
             )
             gates = GateService(
@@ -292,6 +316,8 @@ class ControllerService:
                 runtime_residency=runtime_residency,
                 authority=authority,
                 filesystem_authority=filesystem_authority,
+                tool_profiles=tool_profiles,
+                pass_authority=pass_authority,
                 planner_runtime=resolved_planner_runtime,
                 worker_runtime=resolved_worker_runtime,
                 worker_execution=worker_execution,
@@ -316,6 +342,7 @@ class ControllerService:
                 config_root=str(config_root),
                 project_root=str(project_root),
                 loaded_adapters=list(loaded_adapters),
+                registered_tools=list(registered_tools),
                 filesystem_authority_policy=str(filesystem_authority.policy_path),
                 user_protected_path_count=len(filesystem_authority.service.user_protections),
                 permanent_protected_path_count=len(filesystem_authority.service.permanent_protections),
