@@ -82,11 +82,11 @@
       "FAILED uses shared status FAILED."
     ]
   },
-  "tool_profile": null,
+  "tool_profile": "worker-filesystem-v1",
   "metadata": {
     "lifecycle": "WORKER_V1_FOUNDATION",
     "harness_id": "openai-compatible-agent-v1",
-    "notes": "Worker V1 uses ACL's shared tool-capable agent adapter through the same profile/residency/dispatch path as other roles. Actual tool exposure remains grant- and tool-profile-controlled; Worker must not invent unavailable actions.",
+    "notes": "Worker V1 uses ACL's shared tool-capable agent adapter and shared tool-profile/authority services. Actual tools exposed are the intersection of this profile and the accepted Pass grant.",
     "response_validator": "acl_roles.worker.validation:validate_worker_role_response",
     "response_normalizer": "acl_roles.worker.validation:normalize_worker_role_response"
   }
