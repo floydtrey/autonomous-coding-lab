@@ -61,6 +61,15 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             resolved.get("max_identical_tool_failures", 3),
             "max_identical_tool_failures",
         )
+        max_tool_result_chars_raw = resolved.get("max_tool_result_chars")
+        max_tool_result_chars = (
+            None
+            if max_tool_result_chars_raw is None
+            else self._positive_int(
+                max_tool_result_chars_raw,
+                "max_tool_result_chars",
+            )
+        )
         suppress_identical_success_calls = resolved.get(
             "suppress_identical_success_calls",
             False,
@@ -122,6 +131,8 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "repeated_failed_tool_calls": 0,
             "loop_control_interventions": 0,
             "final_response_retries": 0,
+            "tool_result_truncations": 0,
+            "tool_result_truncated_characters": 0,
             "tool_events": [],
         }
         successful_calls: dict[str, Mapping[str, Any]] = {}
@@ -291,6 +302,16 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             grant=grant,
                             resolved_tool_name=tool_name,
                         )
+                        tool_message, result_limit = self._bound_tool_message(
+                            tool_message,
+                            max_chars=max_tool_result_chars,
+                        )
+                        if result_limit is not None:
+                            aggregate["tool_result_truncations"] += 1
+                            aggregate["tool_result_truncated_characters"] += (
+                                result_limit["original_characters"]
+                                - result_limit["visible_characters"]
+                            )
                         try:
                             parsed_tool_result = json.loads(
                                 tool_message["content"]
@@ -312,6 +333,8 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             ),
                             "arguments": arguments,
                             "ok": True,
+                            "result_truncated": result_limit is not None,
+                            "result_limit": result_limit,
                         })
                         failed_call_counts.pop(signature, None)
                     except CoreError as exc:
