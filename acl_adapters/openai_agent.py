@@ -123,8 +123,13 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
 
         for turn in range(1, max_turns + 1):
             request_body = {**body, "messages": messages}
-            if force_response_turn and tools:
-                request_body["tool_choice"] = "none"
+            response_only_turn = bool(force_response_turn)
+            if response_only_turn:
+                # Some OpenAI-compatible runtimes ignore tool_choice="none" while
+                # tool schemas remain present. Remove tool availability entirely
+                # so loop control does not depend on provider compliance.
+                request_body.pop("tools", None)
+                request_body.pop("tool_choice", None)
                 force_response_turn = False
                 aggregate["loop_control_interventions"] += 1
             completion = self._request_completion(
@@ -164,6 +169,13 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
 
             tool_calls = message.get("tool_calls")
             if isinstance(tool_calls, list) and tool_calls:
+                if response_only_turn:
+                    return self._error(
+                        request,
+                        "AGENT_RESPONSE_ONLY_TOOL_CALL",
+                        "model requested a tool during an ACL-forced response-only turn",
+                        metadata=aggregate,
+                    )
                 if not tool_ids or grant is None:
                     return self._error(
                         request,
