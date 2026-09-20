@@ -34,7 +34,8 @@
         "runtime_launcher_command_json_env": "ACL_PLANNER_LAUNCH_COMMAND_JSON",
         "max_agent_turns": 32,
         "max_tool_calls": 64,
-        "max_identical_tool_failures": 3
+        "max_identical_tool_failures": 3,
+        "suppress_identical_success_calls": true
       }
     },
     {
