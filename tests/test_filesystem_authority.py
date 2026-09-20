@@ -18,6 +18,16 @@ class FilesystemAuthorityCoreTests(unittest.TestCase):
             project_root="C:/Projects/ACL_Next",
             state_root="C:/Projects/ACL_Next/.acl-state",
             authority_config_path="C:/Projects/ACL_Next/config/filesystem_authority.json",
+            permanent_acl_paths=(
+                (
+                    "C:/Projects/ACL_Next/acl_core",
+                    "ACL Core is permanently protected from Worker mutation",
+                ),
+                (
+                    "C:/Projects/ACL_Next/acl_controller",
+                    "ACL Controller is permanently protected from Worker mutation",
+                ),
+            ),
             user_protected_paths=(
                 ("C:/Frozen", "operator-frozen project"),
                 ("D:/KnownGood/app.exe", "operator-frozen file"),
@@ -243,6 +253,26 @@ class FilesystemAuthorityConfigTests(unittest.TestCase):
                     policy,
                 ).allowed
             )
+
+    def test_controller_protects_installed_acl_packages(self) -> None:
+        project = Path(__file__).resolve().parents[1]
+        coordinator = FilesystemAuthorityCoordinator.create(
+            project_root=project,
+            state_root=project / ".acl-state-test",
+            config_root=project / "config",
+        )
+        self.assertFalse(
+            coordinator.evaluate(
+                FilesystemOperation.WRITE,
+                project / "acl_core" / "authority" / "filesystem.py",
+            ).allowed
+        )
+        self.assertFalse(
+            coordinator.evaluate(
+                FilesystemOperation.WRITE,
+                project / "acl_controller" / "service.py",
+            ).allowed
+        )
 
     def test_missing_policy_fails_closed_at_controller_startup(self) -> None:
         with TemporaryDirectory() as directory:
