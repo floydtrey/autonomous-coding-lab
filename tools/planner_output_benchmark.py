@@ -106,7 +106,14 @@ class LoosePlannerBenchmarkAdapter(OpenAICompatibleAgentAdapter):
             runtime=runtime,
         )
 
-    def _execute_tool_call(self, value, *, allowed_tool_ids, grant):
+    def _execute_tool_call(
+        self,
+        value,
+        *,
+        allowed_tool_ids,
+        grant,
+        resolved_tool_name=None,
+    ):
         self._benchmark_tool_calls += 1
         try:
             tool_name = self._tool_call_name(value)
@@ -122,6 +129,7 @@ class LoosePlannerBenchmarkAdapter(OpenAICompatibleAgentAdapter):
             value,
             allowed_tool_ids=allowed_tool_ids,
             grant=grant,
+            resolved_tool_name=resolved_tool_name,
         )
 
     def _build_chat_body(
@@ -270,7 +278,11 @@ def _register_read_tools(
     return tuple(
         tool_id
         for tool_id in registered
-        if tool_id in {"filesystem.list_directory", "filesystem.read_text"}
+        if tool_id in {
+            "filesystem.list_directory",
+            "filesystem.read_text",
+            "filesystem.search",
+        }
     )
 
 
