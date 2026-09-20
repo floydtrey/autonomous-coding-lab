@@ -23,7 +23,7 @@ from acl_roles.worker import (
 from ..authority import AuthorityCoordinator
 from ..configuration import ProfileResolver, ProfileSelector
 from ..diagnostics import controller_span
-from ..dispatch import RoleDispatchRequest, RoleDispatcher
+from ..dispatch import RoleAttemptLifecycleService, RoleDispatchRequest, RoleDispatcher
 from ..errors import ControllerError
 
 
@@ -32,6 +32,7 @@ class ControllerWorkerRuntimeBackend:
     profiles: ProfileResolver
     role_dispatch: RoleDispatcher
     authority: AuthorityCoordinator
+    lifecycle: RoleAttemptLifecycleService
     backend_id: str = "controller.role-dispatch"
 
     def invoke(self, request: WorkerRuntimeRequest) -> WorkerRuntimeResponse:
@@ -59,15 +60,21 @@ class ControllerWorkerRuntimeBackend:
                 or request.authority_grant_id is None
                 else self.authority.grant(request.authority_grant_id)
             )
-            dispatched = self.role_dispatch.dispatch(
-                RoleDispatchRequest(
-                    workflow_id=request.workflow_id,
-                    role="worker",
-                    profile=profile,
-                    payload=request.worker_input.to_objective(),
-                    grant=grant,
-                )
+            dispatch_request = RoleDispatchRequest(
+                workflow_id=request.workflow_id,
+                role="worker",
+                profile=profile,
+                payload=request.worker_input.to_objective(),
+                grant=grant,
             )
+            self.lifecycle.begin(
+                request.workflow_id,
+                role="worker",
+                profile_id=profile.profile_id,
+                attempt_id=dispatch_request.attempt_id,
+                stage=f"worker:{request.worker_input.pass_id}",
+            )
+            dispatched = self.role_dispatch.dispatch(dispatch_request)
 
             common_response = RoleResponse(
                 status=dispatched.status,
@@ -86,6 +93,10 @@ class ControllerWorkerRuntimeBackend:
                     request.workflow_id,
                     dispatched.attempt_id,
                 )
+            self.lifecycle.release(
+                request.workflow_id,
+                attempt_id=dispatched.attempt_id,
+            )
 
             adapter_telemetry = dispatched.metadata.get("adapter_telemetry")
             adapter_telemetry = (
