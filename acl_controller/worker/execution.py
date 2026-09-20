@@ -18,12 +18,16 @@ from acl_core.canonical import canonical_json
 from acl_core.diagnostics import emit
 from acl_roles.common.errors import RoleContractError
 from acl_roles.worker import (
+    WorkerCorrectionPolicy,
     WorkerInput,
     WorkerOutcome,
     WorkerResult,
     WorkerRuntimeRequest,
     WorkerRuntimeResponse,
     WorkerRuntimeService,
+    build_worker_correction_input,
+    correction_signature,
+    worker_previous_response_from_error,
 )
 
 from ..authority import PassAuthorityService
@@ -32,6 +36,7 @@ from ..errors import ControllerError
 from ..models import WorkflowStatus, utc_now
 from ..planner import PlannerNextPassStatus, PlannerPlanService
 from ..state import WorkflowStateService
+from ..telemetry import RoleTelemetryService
 
 
 WORKER_RUN_SCHEMA = "acl-worker-run:v1"
@@ -324,12 +329,16 @@ class WorkerExecutionService:
         planner_plan: PlannerPlanService,
         runtime: WorkerRuntimeService,
         pass_authority: PassAuthorityService,
+        correction_policy: WorkerCorrectionPolicy,
+        telemetry: RoleTelemetryService,
         store: JsonWorkerRunStore,
     ) -> None:
         self.state = state
         self.planner_plan = planner_plan
         self.runtime = runtime
         self.pass_authority = pass_authority
+        self.correction_policy = correction_policy
+        self.telemetry = telemetry
         self.store = store
 
     def start_next_pass(
@@ -583,17 +592,115 @@ class WorkerExecutionService:
         run = replace(run, status=WorkerRunStatus.RUNNING, updated_at=utc_now())
         self.store.save(run)
 
-        runtime_request = WorkerRuntimeRequest(
-            workflow_id=workflow.workflow_id,
-            worker_input=worker_input,
-            authority_grant_id=authority_grant_id,
-            metadata={
-                **dict(metadata or {}),
-                "worker_run_id": run.worker_run_id,
-                "runtime_backend_id": self.runtime.backend.backend_id,
-            },
+        current_input = worker_input
+        prior_error_signatures: list[str] = []
+        correction_attempts = (
+            0
+            if current_input.correction is None
+            else current_input.correction.attempt
         )
-        response = self.runtime.invoke(runtime_request)
+
+        while True:
+            runtime_request = WorkerRuntimeRequest(
+                workflow_id=workflow.workflow_id,
+                worker_input=current_input,
+                authority_grant_id=(
+                    None
+                    if current_input.correction is not None
+                    else authority_grant_id
+                ),
+                metadata={
+                    **dict(metadata or {}),
+                    "worker_run_id": run.worker_run_id,
+                    "runtime_backend_id": self.runtime.backend.backend_id,
+                    "correction_attempt": correction_attempts,
+                },
+            )
+            try:
+                response = self.runtime.invoke(runtime_request)
+            except Exception as exc:
+                self.telemetry.record_safely(
+                    workflow_id=workflow.workflow_id,
+                    role="worker",
+                    mode="PASS_EXECUTION",
+                    request_metadata=runtime_request.metadata,
+                    runtime_metadata=None,
+                    success=False,
+                    correction_attempt=(
+                        correction_attempts if correction_attempts > 0 else None
+                    ),
+                    run_id=run.worker_run_id,
+                    error=exc,
+                    elapsed_key="worker_elapsed_ms",
+                )
+                if correction_attempts >= self.correction_policy.max_correction_attempts:
+                    emit(
+                        "ERROR",
+                        self.component,
+                        "invoke",
+                        "worker_correction_budget_exhausted",
+                        worker_run_id=run.worker_run_id,
+                        workflow_id=workflow.workflow_id,
+                        pass_id=worker_input.pass_id,
+                        correction_attempts=correction_attempts,
+                        max_correction_attempts=self.correction_policy.max_correction_attempts,
+                        exception_type=type(exc).__name__,
+                        exception_message=str(exc),
+                    )
+                    raise
+
+                previous_response = worker_previous_response_from_error(exc)
+                if previous_response is None:
+                    raise
+
+                try:
+                    corrected_input = build_worker_correction_input(
+                        current_input,
+                        previous_response=previous_response,
+                        error=exc,
+                        policy=self.correction_policy,
+                        attempt=correction_attempts + 1,
+                        prior_error_signatures=tuple(prior_error_signatures),
+                    )
+                except Exception as correction_exc:
+                    if getattr(correction_exc, "code", None) == "WORKER_CORRECTION_NOT_REPAIRABLE":
+                        raise exc
+                    raise
+
+                signature = correction_signature(corrected_input)
+                if signature is not None:
+                    prior_error_signatures.append(signature)
+                correction_attempts += 1
+                current_input = corrected_input
+                emit(
+                    "INFO",
+                    self.component,
+                    "invoke",
+                    "worker_correction_retry",
+                    worker_run_id=run.worker_run_id,
+                    workflow_id=workflow.workflow_id,
+                    pass_id=worker_input.pass_id,
+                    correction_attempt=correction_attempts,
+                    error_code=corrected_input.correction.error_code,
+                    repeated_failure=corrected_input.correction.repeated_failure,
+                )
+                continue
+
+            self.telemetry.record_safely(
+                workflow_id=workflow.workflow_id,
+                role="worker",
+                mode="PASS_EXECUTION",
+                request_metadata=runtime_request.metadata,
+                runtime_metadata=response.runtime_metadata,
+                success=True,
+                outcome=str(response.result.outcome),
+                correction_attempt=(
+                    correction_attempts if correction_attempts > 0 else None
+                ),
+                run_id=run.worker_run_id,
+                elapsed_key="worker_elapsed_ms",
+            )
+            break
         final_status = {
             WorkerOutcome.READY_FOR_REVIEW: WorkerRunStatus.READY_FOR_REVIEW,
             WorkerOutcome.NEEDS_CONTINUATION: WorkerRunStatus.NEEDS_CONTINUATION,
