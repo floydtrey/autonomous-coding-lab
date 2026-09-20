@@ -1,7 +1,7 @@
 # Knowledge Core Access-Control / Graph Integration Pass
 
 Status: ACTIVE  
-Working branch: `kc-auth-foundation`  
+Working branch: `kc-authorization-model`  
 Base branch: `architecture/knowledge-core`  
 Base commit: `af0b29bf9da5aa861e6eb9354d6f1698d2d33950`
 
@@ -193,3 +193,67 @@ Next milestone: KC-B — Scope and authorization model.
 
 Exact first task for KC-B:
 Inspect the existing governed-source/project metadata and define the minimal canonical authorization schema/evaluator without duplicating existing source governance. Preserve the distinction between project/lifecycle relevance and confidentiality.
+
+
+## KC-B working checkpoint
+
+State: SEALED / QUALIFIED
+
+Branch: `kc-authorization-model`  
+Parent milestone: qualified KC-A branch `kc-auth-foundation`
+
+KC-B authorization semantics selected before implementation:
+
+- global operation grants are capabilities to invoke KC operations; they do not by themselves disclose non-public resources;
+- resource access is independently governed by the resource's current access policy;
+- `public`: any authenticated principal with the required operation capability may read;
+- `personal`: the resource owner may read; other principals require an exact resource grant;
+- `scoped`: requires an applicable scope grant or exact resource grant;
+- `private`: requires an exact resource grant;
+- `credential` and `financial` sensitivity require an exact resource grant for non-owner principals even when a broader scope grant exists;
+- owner-type principals bypass ordinary grants and retain all KC authority;
+- explicit deny wins over allow for non-owner principals;
+- grants support validity windows/revocation for temporary project releases;
+- scopes are hierarchical and carry lifecycle (active/completed/failed/archived), but lifecycle does not silently become an authorization rule;
+- access policies are append-only revisions with a current pointer so security changes retain history;
+- ACL/model request bodies must not be trusted to self-select owner, sensitivity, or privileged scope. KC-C will derive/store those from authenticated context and trusted classification policy;
+- PostgreSQL RLS remains required defense-in-depth, but activation is deferred until KC-C can set authenticated principal/scope context on each DB transaction without breaking existing service paths.
+
+
+### KC-B sealed qualification
+
+Qualified implementation head: `f63a5d9262c12e21226bdd7115c496ca5434d466`  
+Qualification workflow: Knowledge Core run `35484747499`  
+Draft PR: #34
+
+Completed:
+- hierarchical authorization scopes with independent lifecycle state;
+- principal groups and time-bounded memberships;
+- principal/group grants with global, scope, and resource targets;
+- explicit allow/deny, validity windows, expiration, and revocation;
+- append-only resource access policy revisions and current-policy pointer;
+- resource-to-scope policy membership;
+- visibility classes: public, personal, scoped, private;
+- sensitivity classes: normal, protected, credential, financial;
+- owner bypass and owner-controlled classification locks;
+- credential/financial access requires exact resource grant for non-owner/non-personal-owner callers;
+- central deterministic authorization evaluator;
+- tests for human personal/public behavior, ACL project isolation, parent/child directory scopes, temporary grants, groups, sensitive data, deny precedence, failed-project lifecycle separation, and locked-policy history;
+- migration `0020_authorization_model.py`.
+
+Qualification results:
+- PostgreSQL migrations: PASS;
+- fast semantic suite: PASS;
+- PostgreSQL G1-G21 qualification suite: PASS;
+- SR-2 G22 pinned real-document pilot: PASS;
+- RI-4 local-host restart rehearsal: PASS;
+- SR-2 local-host segment restart rehearsal: PASS.
+
+RLS status:
+- schema/evaluator are ready for DB-session enforcement;
+- RLS activation remains intentionally deferred to KC-C, because KC must first bind an authenticated principal/scope to each database transaction. Enabling RLS before that seam exists would either break current service paths or create a privileged bypass.
+
+Next milestone: KC-C — Consumer API hardening.
+
+Exact first KC-C task:
+Replace the non-owner shared-bootstrap admission path with database-backed principal authentication for consumer requests while retaining a bounded owner bootstrap migration path. Then apply the central evaluator to status/search/get-source/store/memory-propose, with exact-resource reauthorization on get-source and authorization-aware search filtering. Do not create ACL credentials until those routes are proven.
