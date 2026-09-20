@@ -9,6 +9,8 @@ from .authority import (
     FILESYSTEM_AUTHORITY_SCHEMA,
     FilesystemAuthorityCoordinator,
     JsonGrantStore,
+    PassAuthorityBinding,
+    PassAuthorityService,
     UserProtectedPath,
 )
 from .clarification import ClarificationRecord, ClarificationService, ClarificationStatus, JsonClarificationStore
@@ -89,6 +91,7 @@ from .runtime import (
 )
 from .service import ControllerService
 from .state import JsonWorkflowStore, WorkflowStateService
+from .tools import FilesystemToolService, ToolProfile, ToolProfileResolver
 
 __all__ = [
     "ActionRegistry",
@@ -116,6 +119,8 @@ __all__ = [
     "JsonClarificationStore",
     "JsonGateStore",
     "JsonGrantStore",
+    "PassAuthorityBinding",
+    "PassAuthorityService",
     "JsonPlannerConsultationStore",
     "JsonPlannerPlanStore",
     "JsonPlannerTelemetryStore",
@@ -188,6 +193,9 @@ __all__ = [
     "WorkflowRecord",
     "WorkflowStep",
     "WorkflowStateService",
+    "FilesystemToolService",
+    "ToolProfile",
+    "ToolProfileResolver",
     "UserProtectedPath",
     "WorkflowStatus",
     "require_planner_runtime_backend",
