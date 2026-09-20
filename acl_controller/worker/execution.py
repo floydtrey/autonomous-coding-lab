@@ -260,45 +260,6 @@ class JsonWorkerRunStore:
             self._write(path, record)
         return record
 
-    def _mark_rerun_required(
-        self,
-        run: WorkerRunRecord,
-        *,
-        error: BaseException,
-        reason: str,
-    ) -> WorkerRunRecord:
-        code = getattr(error, "code", None)
-        message = getattr(error, "message", None)
-        updated = replace(
-            run,
-            status=WorkerRunStatus.RERUN_REQUIRED,
-            metadata={
-                **dict(run.metadata),
-                "rerun_reason": reason,
-                "last_error_code": (
-                    code if isinstance(code, str) else type(error).__name__
-                ),
-                "last_error_message": (
-                    message if isinstance(message, str) else str(error)
-                ),
-            },
-            updated_at=utc_now(),
-        )
-        self.store.save(updated)
-        emit(
-            "ERROR",
-            self.component,
-            "mark_rerun_required",
-            "worker_run_marked_rerun_required",
-            workflow_id=updated.workflow_id,
-            worker_run_id=updated.worker_run_id,
-            plan_id=updated.plan_id,
-            pass_id=updated.pass_id,
-            reason=reason,
-            error_code=updated.metadata.get("last_error_code"),
-        )
-        return updated
-
     def read(self, worker_run_id: str) -> WorkerRunRecord:
         try:
             return WorkerRunRecord.from_mapping(
@@ -611,6 +572,45 @@ class WorkerExecutionService:
             worker_run_id=updated.worker_run_id,
             prior_attempt_id=prior_attempt_id,
         )
+
+    def _mark_rerun_required(
+        self,
+        run: WorkerRunRecord,
+        *,
+        error: BaseException,
+        reason: str,
+    ) -> WorkerRunRecord:
+        code = getattr(error, "code", None)
+        message = getattr(error, "message", None)
+        updated = replace(
+            run,
+            status=WorkerRunStatus.RERUN_REQUIRED,
+            metadata={
+                **dict(run.metadata),
+                "rerun_reason": reason,
+                "last_error_code": (
+                    code if isinstance(code, str) else type(error).__name__
+                ),
+                "last_error_message": (
+                    message if isinstance(message, str) else str(error)
+                ),
+            },
+            updated_at=utc_now(),
+        )
+        self.store.save(updated)
+        emit(
+            "ERROR",
+            self.component,
+            "mark_rerun_required",
+            "worker_run_marked_rerun_required",
+            workflow_id=updated.workflow_id,
+            worker_run_id=updated.worker_run_id,
+            plan_id=updated.plan_id,
+            pass_id=updated.pass_id,
+            reason=reason,
+            error_code=updated.metadata.get("last_error_code"),
+        )
+        return updated
 
     def read(self, worker_run_id: str) -> WorkerRunRecord:
         return self.store.read(worker_run_id)
