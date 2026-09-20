@@ -403,6 +403,7 @@ def run_benchmark(
                 f"{candidate_exception['message']}"
             )
 
+        loaded = _ollama_ps()
         unload = (
             _unload_model(candidate.model)
             if config.get("unload_after_each", True)
@@ -436,6 +437,7 @@ def run_benchmark(
             ),
             "tool_ids": list(tool_ids),
             "ollama_before": before,
+            "ollama_loaded": loaded,
             "unload": unload,
             "ollama_after": after,
         }
