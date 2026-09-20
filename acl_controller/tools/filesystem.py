@@ -294,7 +294,11 @@ class FilesystemToolService:
             if parsed is None:
                 continue
             scope_operation, scope_path = parsed
-            if scope_operation is operation and self.authority.service.scope_contains(scope_path, candidate):
+            if scope_operation is not operation:
+                continue
+            if operation is FilesystemOperation.READ and scope_path == "*":
+                return
+            if self.authority.service.scope_contains(scope_path, candidate):
                 return
         raise CoreError(
             "AUTHORITY_DENIED",
