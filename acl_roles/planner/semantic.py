@@ -359,6 +359,27 @@ def normalize_planner_semantic_role_response(
         normalized = dict(normalized["shared_envelope"])
         transforms.append("unwrap_shared_envelope")
 
+    # Planner may return the semantic payload directly. The shared role envelope is
+    # Controller transport bookkeeping, so wrapping this unambiguous object does not
+    # change model-authored semantics.
+    if (
+        normalized.get("schema_version") == PLANNER_SEMANTIC_SCHEMA
+        and isinstance(normalized.get("disposition"), str)
+    ):
+        disposition = PlannerDisposition(normalized["disposition"])
+        normalized = {
+            "schema_version": "acl-role-response:v1",
+            "status": (
+                "NEEDS_CLARIFICATION"
+                if disposition is PlannerDisposition.ELEVATION_REQUIRED
+                else "COMPLETE"
+            ),
+            "payload": dict(normalized),
+            "reference": None,
+            "metadata": {},
+        }
+        transforms.append("wrap_direct_semantic_payload")
+
     payload = normalized.get("payload")
     if isinstance(payload, Mapping):
         disposition = payload.get("disposition")
