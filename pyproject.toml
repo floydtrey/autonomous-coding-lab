@@ -28,7 +28,7 @@ service = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["knowledge_core*"]
+include = ["knowledge_core*", "knowledge_core_providers*"]
 exclude = ["migrations*", "tests*"]
 
 [tool.pytest.ini_options]
