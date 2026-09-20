@@ -30,7 +30,6 @@ from ..diagnostics import controller_span
 from ..errors import ControllerError
 from ..models import WorkflowStatus, utc_now
 from ..planner import PlannerNextPassStatus, PlannerPlanService
-from ..runtime import SerialRuntimeResidencyService
 from ..state import WorkflowStateService
 
 
@@ -323,13 +322,11 @@ class WorkerExecutionService:
         state: WorkflowStateService,
         planner_plan: PlannerPlanService,
         runtime: WorkerRuntimeService,
-        residency: SerialRuntimeResidencyService,
         store: JsonWorkerRunStore,
     ) -> None:
         self.state = state
         self.planner_plan = planner_plan
         self.runtime = runtime
-        self.residency = residency
         self.store = store
 
     def start_next_pass(
@@ -579,10 +576,6 @@ class WorkerExecutionService:
             updated_at=utc_now(),
         )
         self.store.save(completed)
-
-        attempt_id = response.runtime_metadata.get("attempt_id")
-        if isinstance(attempt_id, str):
-            self.residency.complete_role(workflow.workflow_id, attempt_id)
 
         if final_status is WorkerRunStatus.READY_FOR_REVIEW:
             target_status = WorkflowStatus.READY
