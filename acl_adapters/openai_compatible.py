@@ -16,7 +16,7 @@ from typing import Any, Mapping
 from urllib import error as urlerror
 from urllib import request as urlrequest
 
-from acl_core import AdapterRequest, AdapterResponse
+from acl_core import AdapterRequest, AdapterResponse, CoreServices
 from acl_core.canonical import canonical_json
 from acl_core.diagnostics import emit, span
 from acl_core.errors import CoreError
@@ -26,6 +26,7 @@ from acl_core.errors import CoreError
 class OpenAICompatibleChatAdapter:
     adapter_id: str
     settings: Mapping[str, Any] = field(default_factory=dict)
+    services: CoreServices | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.adapter_id, str) or not self.adapter_id.strip():
@@ -89,123 +90,18 @@ class OpenAICompatibleChatAdapter:
             )
 
         resolved = self._resolve_runtime(execution)
-        url = resolved["url"]
         body = self._build_chat_body(role_request, resolved)
-        headers = {"Content-Type": "application/json"}
-        api_key = self._resolve_api_key(resolved)
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        extra_headers = resolved.get("headers", {})
-        if isinstance(extra_headers, Mapping):
-            for key, value in extra_headers.items():
-                if isinstance(key, str) and isinstance(value, str):
-                    headers[key] = value
-
-        raw_body = canonical_json(body).encode("utf-8")
-        emit(
-            "INFO",
-            "adapter.openai_compatible",
-            "invoke_role",
-            "http_request",
-            adapter_id=self.adapter_id,
+        completion = self._request_completion(
             request_id=request.request_id,
-            url=url,
-            model=resolved["model"],
-            timeout_seconds=resolved["timeout_seconds"],
-            request_bytes=len(raw_body),
-            temperature=resolved.get("temperature"),
-            max_tokens=resolved.get("max_tokens"),
+            body=body,
+            runtime=resolved,
         )
-
-        http_request = urlrequest.Request(
-            url,
-            data=raw_body,
-            headers=headers,
-            method="POST",
-        )
-        started = perf_counter()
+        if isinstance(completion, AdapterResponse):
+            return completion
+        parsed, telemetry = completion
         try:
-            with urlrequest.urlopen(http_request, timeout=resolved["timeout_seconds"]) as response:
-                raw = response.read()
-                status_code = getattr(response, "status", 200)
-        except urlerror.HTTPError as exc:
-            raw = exc.read() if hasattr(exc, "read") else b""
-            emit(
-                "ERROR",
-                "adapter.openai_compatible",
-                "invoke_role",
-                "http_error",
-                adapter_id=self.adapter_id,
-                request_id=request.request_id,
-                status_code=exc.code,
-                response_bytes=len(raw),
-            )
-            return AdapterResponse(
-                request_id=request.request_id,
-                ok=False,
-                error={
-                    "code": "RUNTIME_HTTP_ERROR",
-                    "status_code": exc.code,
-                    "body_excerpt": raw.decode("utf-8", errors="replace")[:2000],
-                },
-                metadata={
-                    "adapter_id": self.adapter_id,
-                    "model": resolved["model"],
-                    "http_elapsed_ms": round((perf_counter() - started) * 1000, 3),
-                },
-            )
-        except (urlerror.URLError, TimeoutError, OSError) as exc:
-            emit(
-                "ERROR",
-                "adapter.openai_compatible",
-                "invoke_role",
-                "transport_error",
-                adapter_id=self.adapter_id,
-                request_id=request.request_id,
-                exception_type=type(exc).__name__,
-                exception_message=str(exc),
-            )
-            return AdapterResponse(
-                request_id=request.request_id,
-                ok=False,
-                error={
-                    "code": "RUNTIME_TRANSPORT_ERROR",
-                    "exception_type": type(exc).__name__,
-                    "message": str(exc),
-                },
-                metadata={
-                    "adapter_id": self.adapter_id,
-                    "model": resolved["model"],
-                    "http_elapsed_ms": round((perf_counter() - started) * 1000, 3),
-                },
-            )
-
-        http_elapsed_ms = round((perf_counter() - started) * 1000, 3)
-        emit(
-            "INFO",
-            "adapter.openai_compatible",
-            "invoke_role",
-            "http_response",
-            adapter_id=self.adapter_id,
-            request_id=request.request_id,
-            status_code=status_code,
-            response_bytes=len(raw),
-            http_elapsed_ms=http_elapsed_ms,
-        )
-        try:
-            parsed = json.loads(raw.decode("utf-8"))
             content = self._extract_content(parsed)
-            telemetry = {
-                "adapter_id": self.adapter_id,
-                **self._extract_telemetry(
-                parsed,
-                runtime=resolved,
-                http_elapsed_ms=http_elapsed_ms,
-                response_bytes=len(raw),
-                request_bytes=len(raw_body),
-                ),
-            }
-        except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        except (KeyError, TypeError, ValueError) as exc:
             return AdapterResponse(
                 request_id=request.request_id,
                 ok=False,
@@ -213,15 +109,8 @@ class OpenAICompatibleChatAdapter:
                     "code": "RUNTIME_RESPONSE_INVALID",
                     "exception_type": type(exc).__name__,
                     "message": str(exc),
-                    "body_excerpt": raw.decode("utf-8", errors="replace")[:2000],
                 },
-                metadata={
-                    "adapter_id": self.adapter_id,
-                    "model": resolved["model"],
-                    "http_elapsed_ms": http_elapsed_ms,
-                    "request_bytes": len(raw_body),
-                    "response_bytes": len(raw),
-                },
+                metadata=telemetry,
             )
         emit(
             "INFO",
@@ -237,6 +126,137 @@ class OpenAICompatibleChatAdapter:
             payload=content,
             metadata=telemetry,
         )
+
+    def _request_completion(
+        self,
+        *,
+        request_id: str,
+        body: Mapping[str, Any],
+        runtime: Mapping[str, Any],
+    ) -> tuple[Mapping[str, Any], dict[str, Any]] | AdapterResponse:
+        """Send one OpenAI-compatible completion.
+
+        Shared by the single-turn chat adapter and tool-capable agent adapters so
+        provider transport, authentication, error handling, and telemetry stay in
+        one implementation.
+        """
+        url = runtime["url"]
+        headers = {"Content-Type": "application/json"}
+        api_key = self._resolve_api_key(runtime)
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        extra_headers = runtime.get("headers", {})
+        if isinstance(extra_headers, Mapping):
+            for key, value in extra_headers.items():
+                if isinstance(key, str) and isinstance(value, str):
+                    headers[key] = value
+
+        raw_body = canonical_json(dict(body)).encode("utf-8")
+        emit(
+            "INFO",
+            "adapter.openai_compatible",
+            "request_completion",
+            "http_request",
+            adapter_id=self.adapter_id,
+            request_id=request_id,
+            url=url,
+            model=runtime["model"],
+            timeout_seconds=runtime["timeout_seconds"],
+            request_bytes=len(raw_body),
+            temperature=runtime.get("temperature"),
+            max_tokens=runtime.get("max_tokens"),
+        )
+        http_request = urlrequest.Request(
+            url,
+            data=raw_body,
+            headers=headers,
+            method="POST",
+        )
+        started = perf_counter()
+        try:
+            with urlrequest.urlopen(http_request, timeout=runtime["timeout_seconds"]) as response:
+                raw = response.read()
+                status_code = getattr(response, "status", 200)
+        except urlerror.HTTPError as exc:
+            raw = exc.read() if hasattr(exc, "read") else b""
+            return AdapterResponse(
+                request_id=request_id,
+                ok=False,
+                error={
+                    "code": "RUNTIME_HTTP_ERROR",
+                    "status_code": exc.code,
+                    "body_excerpt": raw.decode("utf-8", errors="replace")[:2000],
+                },
+                metadata={
+                    "adapter_id": self.adapter_id,
+                    "model": runtime["model"],
+                    "http_elapsed_ms": round((perf_counter() - started) * 1000, 3),
+                    "request_bytes": len(raw_body),
+                    "response_bytes": len(raw),
+                },
+            )
+        except (urlerror.URLError, TimeoutError, OSError) as exc:
+            return AdapterResponse(
+                request_id=request_id,
+                ok=False,
+                error={
+                    "code": "RUNTIME_TRANSPORT_ERROR",
+                    "exception_type": type(exc).__name__,
+                    "message": str(exc),
+                },
+                metadata={
+                    "adapter_id": self.adapter_id,
+                    "model": runtime["model"],
+                    "http_elapsed_ms": round((perf_counter() - started) * 1000, 3),
+                    "request_bytes": len(raw_body),
+                },
+            )
+
+        http_elapsed_ms = round((perf_counter() - started) * 1000, 3)
+        emit(
+            "INFO",
+            "adapter.openai_compatible",
+            "request_completion",
+            "http_response",
+            adapter_id=self.adapter_id,
+            request_id=request_id,
+            status_code=status_code,
+            response_bytes=len(raw),
+            http_elapsed_ms=http_elapsed_ms,
+        )
+        try:
+            parsed = json.loads(raw.decode("utf-8"))
+            if not isinstance(parsed, Mapping):
+                raise ValueError("runtime response must be an object")
+            telemetry = {
+                "adapter_id": self.adapter_id,
+                **self._extract_telemetry(
+                    parsed,
+                    runtime=runtime,
+                    http_elapsed_ms=http_elapsed_ms,
+                    response_bytes=len(raw),
+                    request_bytes=len(raw_body),
+                ),
+            }
+            return parsed, telemetry
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            return AdapterResponse(
+                request_id=request_id,
+                ok=False,
+                error={
+                    "code": "RUNTIME_RESPONSE_INVALID",
+                    "exception_type": type(exc).__name__,
+                    "message": str(exc),
+                    "body_excerpt": raw.decode("utf-8", errors="replace")[:2000],
+                },
+                metadata={
+                    "adapter_id": self.adapter_id,
+                    "model": runtime["model"],
+                    "http_elapsed_ms": http_elapsed_ms,
+                    "request_bytes": len(raw_body),
+                    "response_bytes": len(raw),
+                },
+            )
 
     def _resolve_runtime(self, execution: Mapping[str, Any]) -> dict[str, Any]:
         merged = dict(self.settings)
