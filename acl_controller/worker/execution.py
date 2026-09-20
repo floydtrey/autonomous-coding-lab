@@ -419,14 +419,18 @@ class WorkerExecutionService:
                     "next_pass_id": next_pass.pass_id,
                 },
             )
-        prior = tuple(
-            item.result.to_dict()
-            for item in self.store.for_pass(previous.plan_id, previous.pass_id)
-            if item.result is not None
-        )
+        if previous.result is None or previous.result.continuation_handoff is None:
+            raise ControllerError(
+                "CONTROLLER_WORKER_HANDOFF_MISSING",
+                "continued Worker run does not contain a bounded continuation handoff",
+                {
+                    "worker_run_id": previous.worker_run_id,
+                    "status": str(previous.status),
+                },
+            )
         worker_input = self._build_input(
             previous.plan_id,
-            prior_worker_results=prior,
+            continuation_handoff=previous.result.continuation_handoff,
             metadata={
                 "continuation_of": previous.worker_run_id,
                 "guidance": dict(guidance or {}),
@@ -507,6 +511,7 @@ class WorkerExecutionService:
         plan_id: str,
         *,
         prior_worker_results: tuple[Mapping[str, Any], ...] = (),
+        continuation_handoff=None,
         metadata: Mapping[str, Any] | None = None,
     ) -> WorkerInput:
         record = self.planner_plan.read(plan_id)
@@ -547,6 +552,7 @@ class WorkerExecutionService:
             plan_context=plan_context,
             completed_passes=next_pass.completed_passes,
             prior_worker_results=prior_worker_results,
+            continuation_handoff=continuation_handoff,
             metadata=dict(metadata or {}),
         )
 
