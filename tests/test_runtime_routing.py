@@ -21,19 +21,25 @@ def test_central_runtime_catalog_selects_role_models():
     planner = resolver.resolve(ProfileSelector("planner", "1127", "SMALL"))
     worker = resolver.resolve(ProfileSelector("worker", "1127", "SMALL"))
 
-    assert determiner.settings["model"] == "qwen3.5:9b-16k"
+    assert determiner.settings["model"] == "qwen3.5:9b-4k"
+    assert determiner.settings["context_window"] == 4096
+    assert determiner.settings["max_tokens"] == 4096
     assert determiner.adapter_id == "openai-compatible.chat"
-    assert determiner.metadata["runtime_id"] == "determiner-qwen35-9b-16k"
+    assert determiner.metadata["runtime_id"] == "determiner-qwen35-9b-4k"
 
-    assert planner.settings["model"] == "qwen3.5:9b-16k"
+    assert planner.settings["model"] == "qwen3.5:9b-64k"
+    assert planner.settings["context_window"] == 65536
+    assert planner.settings["max_tokens"] == 65536
     assert planner.adapter_id == "openai-compatible.agent"
-    assert planner.metadata["runtime_id"] == "planner-qwen35-9b-16k"
+    assert planner.metadata["runtime_id"] == "planner-qwen35-9b-64k"
     assert planner.metadata["harness_id"] == "openai-compatible.agent"
     assert planner.tool_profile == "planner-readonly-v1"
 
-    assert worker.settings["model"] == "qwen3-coder:30b-16k"
+    assert worker.settings["model"] == "qwen3-coder:30b-131k"
+    assert worker.settings["context_window"] == 131072
+    assert worker.settings["max_tokens"] == 131072
     assert worker.adapter_id == "openai-compatible.agent"
-    assert worker.metadata["runtime_id"] == "worker-qwen3-coder-30b-16k"
+    assert worker.metadata["runtime_id"] == "worker-qwen3-coder-30b-131k"
 
 
 def test_pipeline_extracts_accepted_determiner_route():
