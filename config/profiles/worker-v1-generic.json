@@ -3,20 +3,7 @@
   "profile_id": "worker-v1-generic",
   "role": "worker",
   "adapter_id": "openai-compatible.agent",
-  "settings": {
-    "model_env": "ACL_WORKER_MODEL",
-    "temperature": 0.1,
-    "max_tokens": 12000,
-    "timeout_seconds": 600,
-    "response_format_json": true,
-    "context_window_env": "ACL_WORKER_CONTEXT_WINDOW",
-    "runtime_launcher_env": "ACL_WORKER_LAUNCHER",
-    "runtime_launcher_cwd_env": "ACL_WORKER_LAUNCHER_CWD",
-    "runtime_launcher_command_json_env": "ACL_WORKER_LAUNCH_COMMAND_JSON",
-    "max_agent_turns": 64,
-    "max_tool_calls": 128,
-    "max_identical_tool_failures": 3
-  },
+  "settings": {},
   "instructions": {
     "purpose": "Execute exactly one accepted ACL Planner Pass within supplied authority and return a structured Worker result for deterministic Controller handling and later Reviewer evaluation.",
     "rules": [
