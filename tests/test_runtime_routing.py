@@ -16,15 +16,15 @@ def test_central_runtime_catalog_selects_role_models():
 
     assert determiner.settings["model"] == "qwen3.5:9b-16k"
     assert determiner.adapter_id == "openai-compatible.chat"
-    assert determiner.metadata["runtime_id"] == "ollama-qwen35-9b-chat-16k"
+    assert determiner.metadata["runtime_id"] == "determiner-qwen35-9b-16k"
 
     assert planner.settings["model"] == "qwen3.5:9b-16k"
     assert planner.adapter_id == "openai-compatible.chat"
-    assert planner.metadata["runtime_id"] == "ollama-qwen35-9b-chat-16k"
+    assert planner.metadata["runtime_id"] == "planner-qwen35-9b-16k"
 
     assert worker.settings["model"] == "qwen3-coder:30b-16k"
     assert worker.adapter_id == "openai-compatible.agent"
-    assert worker.metadata["runtime_id"] == "ollama-qwen3-coder-30b-agent-16k"
+    assert worker.metadata["runtime_id"] == "worker-qwen3-coder-30b-16k"
 
 
 def test_pipeline_extracts_accepted_determiner_route():
