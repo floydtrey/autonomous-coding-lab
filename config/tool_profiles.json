@@ -5,7 +5,8 @@
       "profile_id": "planner-readonly-v1",
       "tool_ids": [
         "filesystem.list_directory",
-        "filesystem.read_text"
+        "filesystem.read_text",
+        "filesystem.search"
       ]
     },
     {
