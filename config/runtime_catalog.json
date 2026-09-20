@@ -2,10 +2,10 @@
   "schema_version": "acl-controller-runtime-catalog:v1",
   "runtimes": [
     {
-      "runtime_id": "determiner-qwen35-9b-4k",
+      "runtime_id": "determiner-laguna-xs-2-1-4k",
       "adapter_id": "openai-compatible.chat",
       "harness_id": "openai-compatible.chat",
-      "model": "qwen3.5:9b-4k",
+      "model": "laguna-xs-2.1:4k",
       "settings": {
         "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
         "context_window": 4096,
@@ -18,10 +18,10 @@
       }
     },
     {
-      "runtime_id": "planner-qwen35-9b-64k",
+      "runtime_id": "planner-qwen38-27b-64k",
       "adapter_id": "openai-compatible.agent",
       "harness_id": "openai-compatible.agent",
-      "model": "qwen3.5:9b-64k",
+      "model": "qwen3.8:27b-64k",
       "settings": {
         "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
         "context_window": 65536,
@@ -34,8 +34,7 @@
         "runtime_launcher_command_json_env": "ACL_PLANNER_LAUNCH_COMMAND_JSON",
         "max_agent_turns": 32,
         "max_tool_calls": 64,
-        "max_identical_tool_failures": 3,
-        "suppress_identical_success_calls": true
+        "max_identical_tool_failures": 3
       }
     },
     {
