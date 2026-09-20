@@ -1,0 +1,76 @@
+{
+  "schema_version": "acl-planner-output-benchmark:v1",
+  "base_url": "http://127.0.0.1:11434/v1",
+  "unload_after_each": true,
+  "system_prompt": "You are the planning model in an experimental coding-agent benchmark.\n\nUnderstand the user's request, inspect the available workspace with read-only tools as needed, and prepare a handoff for another coding Worker. Do not execute or modify the requested project.\n\nFor this benchmark, organize substantial work into sequential Passes when distinct phases are useful. Label them \"Pass 1:\", \"Pass 2:\", and so on. Inside each Pass, label bounded Worker assignments \"Task 1:\", \"Task 2:\", and so on. Each Task should be small and self-contained enough to give to a Worker one at a time.\n\nChoose all other formatting, explanation, detail, and structure yourself. Do not force the handoff into JSON or any controller schema unless you independently believe that is the clearest format.",
+  "cases": [
+    {
+      "case_id": "legacy-acl-repair",
+      "name": "Diagnose and repair legacy ACL model-interface brittleness",
+      "workspace_root": "C:\\Projects\\autonomous-coding-lab",
+      "request": "Inspect the legacy ACL repository and investigate why Planner/Worker integration became brittle for local models.\n\nSuspected problem areas include model-facing contracts that demand exact nested serialization, predeclared tools or filesystem operations, and code where semantic planning is mixed with Controller authority or bookkeeping. Confirm, refine, or reject those suspicions from the actual code rather than assuming they are correct.\n\nPrepare an implementation handoff to repair the architecture while preserving containment and Controller-owned authority. The intended direction is that models should be free to reason and work within their authorized scope without having to serialize Controller internals. The repair should cover the code/configuration/tests that actually need to change and should be decomposed so a Worker can execute one bounded task at a time. Do not modify the repository."
+    },
+    {
+      "case_id": "ollama-context-repair",
+      "name": "Diagnose Planner benchmark Ollama context mismatch",
+      "workspace_root": "C:\\Projects\\ACL_Next",
+      "request": "Investigate why the Planner output benchmark can configure a candidate with a 16K or 32K context_window while Ollama sometimes actually loads the underlying base model at 131072 context. Context-specific aliases such as gpt-oss:20b-16k and qwen3.8:27b-64k have matched their expected contexts, while several base tags did not.\n\nTrace the relevant benchmark code, OpenAI-compatible adapter/runtime path, and any model-loading behavior that ACL controls. Determine what is merely telemetry versus what actually changes the Ollama runtime. Prepare a repair handoff that makes the requested context deterministic where ACL can control it, or otherwise records and exposes the real loaded context honestly. Keep the design model/provider-neutral where practical, include regression coverage, and do not modify files."
+    }
+  ],
+  "models": [
+    {
+      "name": "laguna-xs-2.1-4k",
+      "model": "laguna-xs-2.1:4k",
+      "context_window": 4096,
+      "max_tokens": 3072,
+      "timeout_seconds": 180,
+      "max_agent_turns": 12,
+      "max_tool_calls": 32
+    },
+    {
+      "name": "gemma4-12b-q4",
+      "model": "gemma4:12b",
+      "context_window": 16384,
+      "max_tokens": 6144,
+      "timeout_seconds": 240,
+      "max_agent_turns": 12,
+      "max_tool_calls": 32
+    },
+    {
+      "name": "gpt-oss-20b-16k",
+      "model": "gpt-oss:20b-16k",
+      "context_window": 16384,
+      "max_tokens": 6144,
+      "timeout_seconds": 240,
+      "max_agent_turns": 12,
+      "max_tool_calls": 32
+    },
+    {
+      "name": "qwen3-coder-30b-16k",
+      "model": "qwen3-coder:30b-16k",
+      "context_window": 16384,
+      "max_tokens": 6144,
+      "timeout_seconds": 240,
+      "max_agent_turns": 12,
+      "max_tool_calls": 32
+    },
+    {
+      "name": "qwen3.6-35b",
+      "model": "qwen3.6:35b",
+      "context_window": 32768,
+      "max_tokens": 6144,
+      "timeout_seconds": 300,
+      "max_agent_turns": 12,
+      "max_tool_calls": 32
+    },
+    {
+      "name": "qwen3.8-27b-64k",
+      "model": "qwen3.8:27b-64k",
+      "context_window": 65536,
+      "max_tokens": 6144,
+      "timeout_seconds": 420,
+      "max_agent_turns": 12,
+      "max_tool_calls": 32
+    }
+  ]
+}
