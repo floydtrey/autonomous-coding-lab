@@ -91,6 +91,14 @@ from .runtime import (
 )
 from .service import ControllerService
 from .state import JsonWorkflowStore, WorkflowStateService
+from .telemetry import (
+    ROLE_TELEMETRY_CONFIG_SCHEMA,
+    ROLE_TELEMETRY_RECORD_SCHEMA,
+    JsonRoleTelemetryStore,
+    RoleTelemetryConfig,
+    RoleTelemetryRecord,
+    RoleTelemetryService,
+)
 from .tools import FilesystemToolService, ToolProfile, ToolProfileResolver
 
 __all__ = [
@@ -155,6 +163,12 @@ __all__ = [
     "ProfileResolver",
     "ProfileSelector",
     "RequestRecord",
+    "ROLE_TELEMETRY_CONFIG_SCHEMA",
+    "ROLE_TELEMETRY_RECORD_SCHEMA",
+    "JsonRoleTelemetryStore",
+    "RoleTelemetryConfig",
+    "RoleTelemetryRecord",
+    "RoleTelemetryService",
     "RUNTIME_CHECKPOINT_SCHEMA",
     "RUNTIME_RESIDENCY_CONFIG_SCHEMA",
     "JsonRuntimeCheckpointStore",
