@@ -497,8 +497,16 @@ class OpenAICompatibleChatAdapter:
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,
+            # Backward-compatible alias. This value is route/configuration
+            # metadata unless a provider-specific adapter proves otherwise.
             "context_window": context_window,
+            "configured_context_window": context_window,
+            "observed_context_window": None,
+            "context_capacity_source": (
+                None if context_window is None else "configured_route"
+            ),
             "context_utilization": context_utilization,
+            "configured_context_utilization": context_utilization,
             "http_elapsed_ms": http_elapsed_ms,
             "request_bytes": request_bytes,
             "response_bytes": response_bytes,
