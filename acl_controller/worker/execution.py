@@ -258,49 +258,6 @@ class JsonWorkerRunStore:
             self._write(path, record)
         return record
 
-    def recovery_released_for_rerun(
-        self,
-        workflow_id: str,
-        *,
-        prior_attempt_id: str,
-    ) -> None:
-        running = tuple(
-            item
-            for item in self.store.for_workflow(workflow_id)
-            if item.status is WorkerRunStatus.RUNNING
-        )
-        if not running:
-            return
-        if len(running) != 1:
-            raise ControllerError(
-                "CONTROLLER_WORKER_RECOVERY_AMBIGUOUS",
-                "more than one Worker run is marked RUNNING for the workflow",
-                {
-                    "workflow_id": workflow_id,
-                    "worker_run_ids": [item.worker_run_id for item in running],
-                },
-            )
-        current = running[0]
-        updated = replace(
-            current,
-            status=WorkerRunStatus.RECOVERY_RERUN_REQUIRED,
-            metadata={
-                **dict(current.metadata),
-                "recovery_prior_attempt_id": prior_attempt_id,
-            },
-            updated_at=utc_now(),
-        )
-        self.store.save(updated)
-        emit(
-            "INFO",
-            self.component,
-            "recovery_released_for_rerun",
-            "worker_run_reconciled_for_recovery_rerun",
-            workflow_id=workflow_id,
-            worker_run_id=updated.worker_run_id,
-            prior_attempt_id=prior_attempt_id,
-        )
-
     def read(self, worker_run_id: str) -> WorkerRunRecord:
         try:
             return WorkerRunRecord.from_mapping(
@@ -567,6 +524,49 @@ class WorkerExecutionService:
             pass_spec=worker_input.pass_spec,
         )
         return binding.grant_id
+
+    def recovery_released_for_rerun(
+        self,
+        workflow_id: str,
+        *,
+        prior_attempt_id: str,
+    ) -> None:
+        running = tuple(
+            item
+            for item in self.store.for_workflow(workflow_id)
+            if item.status is WorkerRunStatus.RUNNING
+        )
+        if not running:
+            return
+        if len(running) != 1:
+            raise ControllerError(
+                "CONTROLLER_WORKER_RECOVERY_AMBIGUOUS",
+                "more than one Worker run is marked RUNNING for the workflow",
+                {
+                    "workflow_id": workflow_id,
+                    "worker_run_ids": [item.worker_run_id for item in running],
+                },
+            )
+        current = running[0]
+        updated = replace(
+            current,
+            status=WorkerRunStatus.RECOVERY_RERUN_REQUIRED,
+            metadata={
+                **dict(current.metadata),
+                "recovery_prior_attempt_id": prior_attempt_id,
+            },
+            updated_at=utc_now(),
+        )
+        self.store.save(updated)
+        emit(
+            "INFO",
+            self.component,
+            "recovery_released_for_rerun",
+            "worker_run_reconciled_for_recovery_rerun",
+            workflow_id=workflow_id,
+            worker_run_id=updated.worker_run_id,
+            prior_attempt_id=prior_attempt_id,
+        )
 
     def read(self, worker_run_id: str) -> WorkerRunRecord:
         return self.store.read(worker_run_id)
