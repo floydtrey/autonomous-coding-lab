@@ -466,6 +466,7 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
         scope_key: str,
         query: str,
         limit: int = 10,
+        authorized_resource_refs: frozenset[UUID] | None = None,
     ) -> TrustedProjectionSearchSnapshot:
         normalized_query = query.strip()
         if not normalized_query:
@@ -641,6 +642,19 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
                 eligible = True
                 for source_key in hit.source_correlation_keys:
                     segment = correlation[source_key]
+                    version = self.session.get(
+                        ResourceVersion,
+                        segment.resource_version_ref,
+                    )
+                    if version is None:
+                        eligible = False
+                        break
+                    if (
+                        authorized_resource_refs is not None
+                        and version.resource_ref_id not in authorized_resource_refs
+                    ):
+                        eligible = False
+                        break
                     if not self.resource_version_serving_eligible(
                         segment.resource_version_ref
                     ):
