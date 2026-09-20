@@ -471,7 +471,7 @@ class AuthorizationKernel:
         self.session.flush()
         return self._resource_policy_snapshot(row)
 
-    def set_initial_scoped_policy_for_authorized_store(
+    def ensure_scoped_policy_for_authorized_store(
         self,
         *,
         actor_principal_ref: UUID,
@@ -483,10 +483,22 @@ class AuthorizationKernel:
             raise KeyError(f"unknown resource: {resource_ref}")
         if self.session.get(AuthorizationScopeRecord, scope_ref) is None:
             raise KeyError(f"unknown scope: {scope_ref}")
-        if self.session.get(CurrentResourceAccessPolicyRecord, resource_ref) is not None:
-            raise AuthorizationConflictError(
-                "authorized store cannot replace an existing resource access policy"
-            )
+
+        current = self.session.get(CurrentResourceAccessPolicyRecord, resource_ref)
+        if current is not None:
+            policy = self.read_current_resource_access_policy(resource_ref)
+            if (
+                policy.owner_principal_ref != actor_principal_ref
+                or policy.origin_principal_ref != actor_principal_ref
+                or policy.visibility is not VisibilityClass.SCOPED
+                or policy.sensitivity is not SensitivityClass.NORMAL
+                or policy.classification_locked
+                or scope_ref not in policy.scope_refs
+            ):
+                raise AuthorizationDeniedError(
+                    "authorized service store cannot change a protected or differently scoped resource"
+                )
+            return policy
 
         row = ResourceAccessPolicyRecord(
             policy_ref=uuid4(),
