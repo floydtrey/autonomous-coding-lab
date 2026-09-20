@@ -7,11 +7,8 @@ from hashlib import sha256
 import json
 import logging
 import os
-from pathlib import Path
 import threading
 from uuid import UUID, uuid5
-
-from sqlalchemy import select
 
 from knowledge_core.application.authorization import AuthorizationKernel
 from knowledge_core.application.graph_readiness import (
@@ -50,6 +47,7 @@ from knowledge_core.storage.resource_models import ResourceVersion
 from knowledge_core_providers.graphiti import (
     GraphitiLocalConfig,
     GraphitiProjectionValidator,
+    _require_graphiti_version,
 )
 
 
@@ -310,6 +308,11 @@ class KnowledgeGraphRuntime:
         from knowledge_core_providers.graphiti_hardened import (
             HardenedGraphitiProjectionAdapter,
         )
+
+        # Explicit graph enablement is a deployment contract. Fail startup for a
+        # missing/wrong Graphiti package instead of silently discovering it on the
+        # first user query.
+        _require_graphiti_version()
 
         return cls(
             session_factory=session_factory,
