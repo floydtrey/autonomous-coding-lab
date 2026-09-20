@@ -67,6 +67,10 @@ class PlannerSemanticTask:
     def from_mapping(cls, value: Mapping[str, Any]) -> "PlannerSemanticTask":
         if not isinstance(value, Mapping):
             _fail("task must be an object")
+        forbidden = {"task_id", "depends_on", "filesystem", "reference_ids", "evidence_required"}
+        observed = sorted(forbidden & set(value))
+        if observed:
+            _fail("task contains Controller-owned fields", fields=observed)
         return cls(
             instruction=value.get("instruction"),
             acceptance_criteria=_text_tuple(
@@ -114,6 +118,19 @@ class PlannerSemanticPass:
     def from_mapping(cls, value: Mapping[str, Any]) -> "PlannerSemanticPass":
         if not isinstance(value, Mapping):
             _fail("pass must be an object")
+        forbidden = {
+            "pass_id",
+            "depends_on",
+            "working_directory",
+            "output_directory",
+            "reference_ids",
+            "evidence_required",
+            "tracking_requirements",
+            "continuation_instructions",
+        }
+        observed = sorted(forbidden & set(value))
+        if observed:
+            _fail("pass contains Controller-owned fields", fields=observed)
         tasks = value.get("tasks")
         if not isinstance(tasks, list) or not tasks:
             _fail("each pass must contain one or more tasks")
@@ -250,6 +267,24 @@ class PlannerSemanticSubmission:
             _fail("Planner semantic submission must be an object")
         if value.get("schema_version") != PLANNER_SEMANTIC_SCHEMA:
             _fail("Planner semantic submission schema is invalid")
+        forbidden = {
+            "plan_type",
+            "project",
+            "work_type_id",
+            "task_type",
+            "complexity",
+            "required_capabilities",
+            "required_tools",
+            "required_services",
+            "workspace",
+            "reference_material",
+            "tracking_requirements",
+            "decomposition_reason",
+            "stages",
+        }
+        observed = sorted(forbidden & set(value))
+        if observed:
+            _fail("Planner semantic submission contains Controller-owned fields", fields=observed)
         try:
             disposition = PlannerDisposition(value.get("disposition"))
         except (TypeError, ValueError) as exc:
