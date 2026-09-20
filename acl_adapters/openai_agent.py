@@ -208,6 +208,63 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                 request_body.pop("tool_choice", None)
                 force_response_turn = False
                 aggregate["loop_control_interventions"] += 1
+
+            pressure = estimate_context_pressure(
+                request_body,
+                configured_context_window=resolved.get("context_window"),
+                reserved_output_tokens=resolved.get("max_tokens"),
+                characters_per_token=float(context_pressure_characters_per_token),
+                warning_ratio=context_pressure_warn_ratio,
+                stop_ratio=context_pressure_stop_ratio,
+            )
+            if pressure.action in {"WARN", "STOP"} and self._compact_session_if_needed(
+                session,
+                pressure=pressure,
+                runtime=resolved,
+            ):
+                aggregate["context_compactions"] += 1
+                request_body = {**body, "messages": session.messages()}
+                if response_only_turn:
+                    request_body.pop("tools", None)
+                    request_body.pop("tool_choice", None)
+                pressure = estimate_context_pressure(
+                    request_body,
+                    configured_context_window=resolved.get("context_window"),
+                    reserved_output_tokens=resolved.get("max_tokens"),
+                    characters_per_token=float(context_pressure_characters_per_token),
+                    warning_ratio=context_pressure_warn_ratio,
+                    stop_ratio=context_pressure_stop_ratio,
+                )
+
+            aggregate.update(session.telemetry())
+            aggregate["context_pressure_last"] = pressure.to_dict()
+            ratio = pressure.projected_ratio
+            peak = aggregate.get("context_pressure_peak_ratio")
+            if ratio is not None and (peak is None or ratio > peak):
+                aggregate["context_pressure_peak_ratio"] = ratio
+            if pressure.action == "WARN":
+                aggregate["context_pressure_warnings"] += 1
+                emit(
+                    "INFO",
+                    "adapter.openai_agent",
+                    "invoke_role",
+                    "context_pressure_warning",
+                    request_id=request.request_id,
+                    turn=turn,
+                    pressure=pressure.to_dict(),
+                )
+            elif pressure.action == "STOP":
+                aggregate["context_pressure_stops"] += 1
+                return self._error(
+                    request,
+                    "AGENT_CONTEXT_PRESSURE_LIMIT",
+                    (
+                        "projected next request exceeds the configured context "
+                        "pressure stop threshold"
+                    ),
+                    metadata=aggregate,
+                )
+
             completion = self._request_completion(
                 request_id=request.request_id,
                 body=request_body,
