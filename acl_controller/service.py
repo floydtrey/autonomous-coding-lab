@@ -197,7 +197,6 @@ class ControllerService:
             )
             resolved_worker_runtime = worker_runtime or WorkerRuntimeService(
                 ControllerWorkerRuntimeBackend(
-                    state=state_service,
                     profiles=profiles,
                     role_dispatch=role_dispatch,
                     authority=authority,
@@ -239,7 +238,6 @@ class ControllerService:
                 state=state_service,
                 planner_plan=planner_plan,
                 runtime=resolved_worker_runtime,
-                residency=runtime_residency,
                 store=JsonWorkerRunStore(state_root),
             )
             gates = GateService(
