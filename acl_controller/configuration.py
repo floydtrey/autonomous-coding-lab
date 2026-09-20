@@ -16,6 +16,7 @@ from .errors import ControllerError
 
 PROFILE_SCHEMA = "acl-controller-profile:v1"
 ROUTING_SCHEMA = "acl-controller-routing:v1"
+RUNTIME_CATALOG_SCHEMA = "acl-controller-runtime-catalog:v1"
 
 
 @dataclass(frozen=True)
@@ -73,11 +74,56 @@ class RoleProfile:
 
 
 @dataclass(frozen=True)
+class RuntimeProfile:
+    runtime_id: str
+    adapter_id: str
+    model: str
+    harness_id: str | None = None
+    settings: Mapping[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "RuntimeProfile":
+        if not isinstance(value, Mapping):
+            raise ControllerError(
+                "CONTROLLER_RUNTIME_CATALOG_INVALID",
+                "runtime entry must be a mapping",
+            )
+        for key in ("runtime_id", "adapter_id", "model"):
+            if not isinstance(value.get(key), str) or not value[key].strip():
+                raise ControllerError(
+                    "CONTROLLER_RUNTIME_CATALOG_INVALID",
+                    f"{key} is required",
+                )
+        harness_id = value.get("harness_id")
+        if harness_id is not None and (
+            not isinstance(harness_id, str) or not harness_id.strip()
+        ):
+            raise ControllerError(
+                "CONTROLLER_RUNTIME_CATALOG_INVALID",
+                "harness_id must be nonblank text when present",
+            )
+        settings = value.get("settings", {})
+        if not isinstance(settings, Mapping):
+            raise ControllerError(
+                "CONTROLLER_RUNTIME_CATALOG_INVALID",
+                "runtime settings must be a mapping",
+            )
+        return cls(
+            runtime_id=value["runtime_id"],
+            adapter_id=value["adapter_id"],
+            model=value["model"],
+            harness_id=harness_id,
+            settings=dict(settings),
+        )
+
+
+@dataclass(frozen=True)
 class RouteRule:
     role: str
     profile_id: str
     work_type: str | None = None
     complexity: str | None = None
+    runtime_id: str | None = None
 
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "RouteRule":
@@ -92,7 +138,21 @@ class RouteRule:
         complexity = value.get("complexity")
         if complexity is not None and (not isinstance(complexity, str) or not complexity.strip()):
             raise ControllerError("CONTROLLER_ROUTING_INVALID", "complexity must be nonblank text when present")
-        return cls(value["role"], value["profile_id"], work_type, complexity)
+        runtime_id = value.get("runtime_id")
+        if runtime_id is not None and (
+            not isinstance(runtime_id, str) or not runtime_id.strip()
+        ):
+            raise ControllerError(
+                "CONTROLLER_ROUTING_INVALID",
+                "runtime_id must be nonblank text when present",
+            )
+        return cls(
+            value["role"],
+            value["profile_id"],
+            work_type,
+            complexity,
+            runtime_id,
+        )
 
 
 class ProfileResolver:
@@ -127,14 +187,33 @@ class ProfileResolver:
                     "more than one exact profile route matches",
                     selector.to_dict(),
                 )
-            profile = self._load_profile(matches[0].profile_id)
+            route = matches[0]
+            profile = self._load_profile(route.profile_id)
             if profile.role != selector.role:
                 raise ControllerError(
                     "CONTROLLER_PROFILE_ROLE_MISMATCH",
                     "resolved profile role differs from requested role",
                     {"selector": selector.to_dict(), "profile_id": profile.profile_id, "profile_role": profile.role},
                 )
-            return profile
+            if route.runtime_id is None:
+                return profile
+            runtime = self._load_runtime_profile(route.runtime_id)
+            settings = dict(profile.settings)
+            settings.update(dict(runtime.settings))
+            settings["model"] = runtime.model
+            metadata = dict(profile.metadata)
+            metadata["runtime_id"] = runtime.runtime_id
+            if runtime.harness_id is not None:
+                metadata["harness_id"] = runtime.harness_id
+            return RoleProfile(
+                profile_id=profile.profile_id,
+                role=profile.role,
+                adapter_id=runtime.adapter_id,
+                settings=settings,
+                instructions=profile.instructions,
+                tool_profile=profile.tool_profile,
+                metadata=metadata,
+            )
 
     def profile(self, profile_id: str) -> RoleProfile:
         with controller_span("configuration.profile", profile_id=profile_id):
@@ -145,6 +224,44 @@ class ProfileResolver:
         if value.get("schema_version") != ROUTING_SCHEMA or not isinstance(value.get("routes"), list):
             raise ControllerError("CONTROLLER_ROUTING_INVALID", "routing configuration schema is invalid")
         return tuple(RouteRule.from_mapping(item) for item in value["routes"])
+
+    def _load_runtime_profile(self, runtime_id: str) -> RuntimeProfile:
+        if (
+            not isinstance(runtime_id, str)
+            or not runtime_id.strip()
+            or any(ch in runtime_id for ch in "\\/:")
+        ):
+            raise ControllerError(
+                "CONTROLLER_RUNTIME_CATALOG_INVALID",
+                "runtime ID is invalid",
+            )
+        value = self._read_json(self.root / "runtime_catalog.json")
+        if (
+            value.get("schema_version") != RUNTIME_CATALOG_SCHEMA
+            or not isinstance(value.get("runtimes"), list)
+        ):
+            raise ControllerError(
+                "CONTROLLER_RUNTIME_CATALOG_INVALID",
+                "runtime catalog schema is invalid",
+            )
+        matches = [
+            RuntimeProfile.from_mapping(item)
+            for item in value["runtimes"]
+            if isinstance(item, Mapping) and item.get("runtime_id") == runtime_id
+        ]
+        if not matches:
+            raise ControllerError(
+                "CONTROLLER_RUNTIME_ROUTE_MISSING",
+                "configured runtime target does not exist",
+                {"runtime_id": runtime_id},
+            )
+        if len(matches) != 1:
+            raise ControllerError(
+                "CONTROLLER_RUNTIME_ROUTE_AMBIGUOUS",
+                "runtime catalog contains duplicate runtime IDs",
+                {"runtime_id": runtime_id},
+            )
+        return matches[0]
 
     def _load_profile(self, profile_id: str) -> RoleProfile:
         if not isinstance(profile_id, str) or not profile_id.strip() or any(ch in profile_id for ch in "\\/:"):
