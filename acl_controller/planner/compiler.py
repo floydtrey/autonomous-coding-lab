@@ -27,11 +27,8 @@ from acl_roles.planner import (
 )
 from acl_roles.planner.contract import DEFAULT_CONTINUATION_INSTRUCTIONS
 
+from ..authority.pass_authority import WORKER_AUTHORITY_MODE_WORKSPACE
 from ..errors import ControllerError
-
-
-WORKER_AUTHORITY_MODE_DECLARED_PATHS = "DECLARED_PATHS"
-WORKER_AUTHORITY_MODE_WORKSPACE = "WORKSPACE"
 
 
 @dataclass(frozen=True)
