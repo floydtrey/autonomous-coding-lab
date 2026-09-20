@@ -12,6 +12,11 @@ from knowledge_core.api.bootstrap_admission import (
     bootstrap_principal_dependency,
 )
 from knowledge_core.api.bootstrap_contract import BootstrapOperation
+from knowledge_core.api.consumer_admission import (
+    ConsumerAdmission,
+    ConsumerPrincipalContext,
+    consumer_principal_dependency,
+)
 from knowledge_core.api.consumer_schemas import (
     KnowledgeGetSourceRequest,
     KnowledgeGetSourceResponse,
@@ -33,6 +38,7 @@ from knowledge_core.api.unified_retrieval_schemas import (
     UnifiedRetrievalSearchResponse,
     unified_retrieval_response_from_domain,
 )
+from knowledge_core.application.authorization import AuthorizationKernel
 from knowledge_core.application.consumer_read import ConsumerReadKnowledgeKernel
 from knowledge_core.application.direct_note_store import (
     DirectNoteStoreKnowledgeKernel,
@@ -70,6 +76,7 @@ from knowledge_core.authority.store import (
     CanonicalStoreAuthorityUnavailableError,
     require_canonical_store_authority,
 )
+from knowledge_core.domain.authorization import KCOperation
 from knowledge_core.domain.retrieval import KnowledgeSourceUnavailableError
 
 
@@ -100,6 +107,19 @@ def _remove_base_retrieval_route(app) -> None:
     app.openapi_schema = None
 
 
+def _remove_legacy_v1_routes(app) -> None:
+    """Do not publish the broad kernel API on the hardened consumer service."""
+
+    retained = []
+    for route in app.router.routes:
+        path = getattr(route, "path", None)
+        if isinstance(path, str) and path.startswith("/v1/"):
+            continue
+        retained.append(route)
+    app.router.routes[:] = retained
+    app.openapi_schema = None
+
+
 def create_app(
     *,
     session_factory: SessionFactory,
@@ -107,6 +127,7 @@ def create_app(
     retrieval_authority_evaluator: RetrievalAuthorityEvaluator | None = None,
     canonical_store_authority_evaluator: CanonicalStoreAuthorityEvaluator | None = None,
     bootstrap_admission: BootstrapAdmission | None = None,
+    consumer_admission: ConsumerAdmission | None = None,
     unified_graph_search_binding: UnifiedGraphSearchBinding | None = None,
 ):
     """Compose the KC semantic API with bounded trusted-host seams.
@@ -149,6 +170,8 @@ def create_app(
         artifact_store=artifact_store,
     )
     _remove_base_retrieval_route(app)
+    if consumer_admission is not None:
+        _remove_legacy_v1_routes(app)
 
     def get_retrieval_kernel():
         session: Session = session_factory()
@@ -272,30 +295,58 @@ def create_app(
                 query=body.query,
                 limit=body.limit,
                 include_superseded=body.include_superseded,
+                authorized_resource_refs_statement=authorized_resource_refs_statement,
             )
         )
 
-    if bootstrap_admission is not None:
-        store_principal = bootstrap_principal_dependency(
-            bootstrap_admission,
-            operation=BootstrapOperation.STORE,
-        )
-        memory_propose_principal = bootstrap_principal_dependency(
-            bootstrap_admission,
-            operation=BootstrapOperation.MEMORY_PROPOSE,
-        )
-        search_principal = bootstrap_principal_dependency(
-            bootstrap_admission,
-            operation=BootstrapOperation.SEARCH,
-        )
-        get_source_principal = bootstrap_principal_dependency(
-            bootstrap_admission,
-            operation=BootstrapOperation.GET_SOURCE,
-        )
-        status_principal = bootstrap_principal_dependency(
-            bootstrap_admission,
-            operation=BootstrapOperation.STATUS,
-        )
+    if bootstrap_admission is not None or consumer_admission is not None:
+        if consumer_admission is not None:
+            store_principal = consumer_principal_dependency(
+                consumer_admission,
+                operation=KCOperation.STORE,
+            )
+            memory_propose_principal = consumer_principal_dependency(
+                consumer_admission,
+                operation=KCOperation.MEMORY_PROPOSE,
+            )
+            search_principal = consumer_principal_dependency(
+                consumer_admission,
+                operation=KCOperation.SEARCH,
+            )
+            get_source_principal = consumer_principal_dependency(
+                consumer_admission,
+                operation=KCOperation.GET_SOURCE,
+            )
+            status_principal = consumer_principal_dependency(
+                consumer_admission,
+                operation=KCOperation.STATUS,
+            )
+        else:
+            store_principal = bootstrap_principal_dependency(
+                bootstrap_admission,
+                operation=BootstrapOperation.STORE,
+            )
+            memory_propose_principal = bootstrap_principal_dependency(
+                bootstrap_admission,
+                operation=BootstrapOperation.MEMORY_PROPOSE,
+            )
+            search_principal = bootstrap_principal_dependency(
+                bootstrap_admission,
+                operation=BootstrapOperation.SEARCH,
+            )
+            get_source_principal = bootstrap_principal_dependency(
+                bootstrap_admission,
+                operation=BootstrapOperation.GET_SOURCE,
+            )
+            status_principal = bootstrap_principal_dependency(
+                bootstrap_admission,
+                operation=BootstrapOperation.STATUS,
+            )
+
+        def _caller_ref(principal) -> str:
+            if isinstance(principal, ConsumerPrincipalContext):
+                return principal.caller_principal_ref
+            return str(principal)
 
         @app.post(
             _STORE_PATH,
@@ -306,34 +357,56 @@ def create_app(
             body: KnowledgeStoreRequest,
             idempotency_key: str = Header(alias="Idempotency-Key"),
             kernel: DirectNoteStoreKnowledgeKernel = Depends(get_store_kernel),
-            principal: str = Depends(store_principal),
+            principal=Depends(store_principal),
         ) -> KnowledgeStoreResponse:
+            caller_ref = _caller_ref(principal)
+            project_scope = None
+            if isinstance(principal, ConsumerPrincipalContext):
+                project_scope = consumer_admission.require_scope_access(
+                    context=principal,
+                    operation=KCOperation.STORE,
+                )
+                if body.project != project_scope.scope_key:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="store project must match the authenticated active project scope",
+                    )
             try:
                 operation_id = direct_note_operation_id(
-                    principal_ref=principal,
+                    principal_ref=caller_ref,
                     idempotency_key=idempotency_key,
                 )
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
-            require_canonical_store_authority(
-                canonical_store_authority_evaluator,
-                CanonicalStoreAuthorityRequest(
-                    caller_principal_ref=principal,
-                    operation_id=operation_id,
-                    project_key=body.project,
-                    content_sha256=sha256(body.content.encode("utf-8")).hexdigest(),
-                    source_id=body.source_id,
-                    source_event_time=body.source_event_time,
-                ),
-            )
+            if not isinstance(principal, ConsumerPrincipalContext):
+                require_canonical_store_authority(
+                    canonical_store_authority_evaluator,
+                    CanonicalStoreAuthorityRequest(
+                        caller_principal_ref=caller_ref,
+                        operation_id=operation_id,
+                        project_key=body.project,
+                        content_sha256=sha256(body.content.encode("utf-8")).hexdigest(),
+                        source_id=body.source_id,
+                        source_event_time=body.source_event_time,
+                    ),
+                )
             canonical = kernel.store_note_operation(
                 operation_id=operation_id,
-                caller_principal_ref=principal,
+                caller_principal_ref=caller_ref,
                 content=body.content,
                 project_key=body.project,
                 source_id=body.source_id,
                 source_event_time=body.source_event_time,
             )
+            if isinstance(principal, ConsumerPrincipalContext):
+                AuthorizationKernel(
+                    kernel.session
+                ).set_initial_scoped_policy_for_authorized_store(
+                    actor_principal_ref=principal.principal_ref,
+                    resource_ref=canonical.resource_ref,
+                    scope_ref=project_scope.scope_ref,
+                )
+                kernel.session.commit()
             publication = kernel.publish_note_text(canonical)
             return KnowledgeStoreResponse(
                 source_id=canonical.source_id,
@@ -357,18 +430,34 @@ def create_app(
             kernel: MemoryCandidateKnowledgeKernel = Depends(
                 get_memory_candidate_kernel
             ),
-            principal: str = Depends(memory_propose_principal),
+            principal=Depends(memory_propose_principal),
         ) -> MemoryCandidateProposalResponse:
+            caller_ref = _caller_ref(principal)
+            if isinstance(principal, ConsumerPrincipalContext):
+                project_scope = consumer_admission.require_scope_access(
+                    context=principal,
+                    operation=KCOperation.MEMORY_PROPOSE,
+                )
+                if body.project != project_scope.scope_key:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="memory project must match the authenticated active project scope",
+                    )
+                if body.proposer_ref != principal.principal_code:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="proposer_ref must match the authenticated principal code",
+                    )
             try:
                 operation_id = memory_candidate_operation_id(
-                    principal_ref=principal,
+                    principal_ref=caller_ref,
                     idempotency_key=idempotency_key,
                 )
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
             candidate = kernel.propose_candidate(
                 operation_id=operation_id,
-                caller_principal_ref=principal,
+                caller_principal_ref=caller_ref,
                 proposer_ref=body.proposer_ref,
                 project_key=body.project,
                 content=body.content,
@@ -389,18 +478,34 @@ def create_app(
         async def knowledge_search(
             body: RetrievalSearchRequest,
             kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
-            principal: str = Depends(search_principal),
+            principal=Depends(search_principal),
         ) -> UnifiedRetrievalSearchResponse:
+            caller_ref = _caller_ref(principal)
             if retrieval_authority_evaluator is not None:
                 require_retrieval_authority(
                     retrieval_authority_evaluator,
                     RetrievalAuthorityRequest(
-                        caller_principal_ref=principal,
+                        caller_principal_ref=caller_ref,
                         operation=RetrievalAuthorityOperation.SEARCH_TEXT,
                         limit=body.limit,
                         include_superseded=body.include_superseded,
                     ),
                 )
+
+            authorized_resource_refs_statement = None
+            graph_binding_for_request = unified_graph_search_binding
+            if isinstance(principal, ConsumerPrincipalContext):
+                authorized_resource_refs_statement = AuthorizationKernel(
+                    kernel.session
+                ).authorized_resource_refs_statement(
+                    principal_ref=principal.principal_ref,
+                    operation=KCOperation.SEARCH,
+                    scope_ref=principal.scope_ref,
+                )
+                if not principal.is_bootstrap_owner:
+                    # KC-D will bind graph authority per authenticated principal.
+                    # Until then, do not reuse the historical owner graph binding.
+                    graph_binding_for_request = None
 
             graph_kernel = SourceNeutralGraphProjectionKnowledgeKernel(
                 kernel.session,
@@ -409,7 +514,7 @@ def create_app(
             coordinator = UnifiedRetrievalCoordinator(
                 lexical_kernel=kernel,
                 graph_kernel=graph_kernel,
-                graph_binding=unified_graph_search_binding,
+                graph_binding=graph_binding_for_request,
             )
             result = await coordinator.search(
                 query=body.query,
@@ -425,8 +530,22 @@ def create_app(
         def knowledge_get_source(
             body: KnowledgeGetSourceRequest,
             kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
-            _principal: str = Depends(get_source_principal),
+            principal=Depends(get_source_principal),
         ) -> KnowledgeGetSourceResponse:
+            if isinstance(principal, ConsumerPrincipalContext):
+                resource_ref = kernel.current_source_resource_ref(
+                    resource_version_ref=body.resource_version_ref,
+                )
+                decision = AuthorizationKernel(kernel.session).evaluate(
+                    principal_ref=principal.principal_ref,
+                    operation=KCOperation.GET_SOURCE,
+                    scope_ref=principal.scope_ref,
+                    resource_ref=resource_ref,
+                )
+                if not decision.allowed:
+                    raise KnowledgeSourceUnavailableError(
+                        "knowledge source is unavailable"
+                    )
             return source_response_from_domain(
                 kernel.read_current_source(
                     resource_version_ref=body.resource_version_ref,
@@ -439,7 +558,7 @@ def create_app(
         )
         def knowledge_status(
             kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
-            _principal: str = Depends(status_principal),
+            _principal=Depends(status_principal),
         ) -> KnowledgeStatusResponse:
             lexical_status = kernel.retrieval_status()
             binding = unified_graph_search_binding
