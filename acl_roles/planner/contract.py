@@ -18,6 +18,10 @@ from acl_roles.common.errors import RoleContractError
 PLANNER_INPUT_SCHEMA = "acl-planner-input:v1"
 PLANNER_RESULT_SCHEMA = "acl-planner-result:v1"
 
+DEFAULT_CONTINUATION_INSTRUCTIONS = (
+    "Resume from the first incomplete Task using persisted Pass state and evidence."
+)
+
 
 class PlannerInvocationMode(StrEnum):
     INITIAL_PLANNING = "INITIAL_PLANNING"
@@ -512,7 +516,10 @@ class PassSpec:
                 value.get("tracking_requirements", []),
                 "pass tracking_requirements",
             ),
-            continuation_instructions=value.get("continuation_instructions"),
+            continuation_instructions=value.get(
+                "continuation_instructions",
+                DEFAULT_CONTINUATION_INSTRUCTIONS,
+            ),
             tasks=tuple(TaskSpec.from_mapping(item) for item in tasks),
         )
 
@@ -745,10 +752,24 @@ class ExecutionPlan:
                 "PLANNER_CONTRACT_INVALID",
                 "reference_material, stages, and passes must be lists",
             )
-        try:
-            plan_type = PlanType(value.get("plan_type"))
-        except (TypeError, ValueError) as exc:
-            raise RoleContractError("PLANNER_CONTRACT_INVALID", "plan_type is invalid") from exc
+        raw_plan_type = value.get("plan_type")
+        if raw_plan_type is None:
+            if stages and not passes:
+                plan_type = PlanType.STAGED
+            elif passes and len(passes) == 1:
+                plan_type = PlanType.SINGLE_PASS
+            elif passes and len(passes) >= 2:
+                plan_type = PlanType.MULTI_PASS
+            else:
+                raise RoleContractError(
+                    "PLANNER_CONTRACT_INVALID",
+                    "plan structure cannot determine plan_type",
+                )
+        else:
+            try:
+                plan_type = PlanType(raw_plan_type)
+            except (TypeError, ValueError) as exc:
+                raise RoleContractError("PLANNER_CONTRACT_INVALID", "plan_type is invalid") from exc
         return cls(
             plan_type=plan_type,
             project=ProjectReference.from_mapping(value.get("project")),
