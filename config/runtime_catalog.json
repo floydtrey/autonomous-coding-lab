@@ -5,7 +5,7 @@
       "runtime_id": "ollama-qwen35-9b-chat-16k",
       "adapter_id": "openai-compatible.chat",
       "harness_id": "openai-compatible.chat",
-      "model": "qwen3.5:9b",
+      "model": "qwen3.5:9b-16k",
       "settings": {
         "base_url_env": "ACL_OPENAI_COMPAT_BASE_URL",
         "context_window": 16384
