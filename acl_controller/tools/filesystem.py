@@ -101,6 +101,7 @@ class FilesystemToolService:
                     "required": ["path", "content"],
                     "additionalProperties": False,
                 },
+                repeat_policy="suppress_identical_success",
             ),
             ToolDefinition(
                 FS_CREATE_TEXT,
@@ -115,6 +116,7 @@ class FilesystemToolService:
                     "required": ["path", "content"],
                     "additionalProperties": False,
                 },
+                repeat_policy="suppress_identical_success",
             ),
             ToolDefinition(
                 FS_DELETE_PATH,
@@ -126,6 +128,7 @@ class FilesystemToolService:
                     "required": ["path"],
                     "additionalProperties": False,
                 },
+                repeat_policy="suppress_identical_success",
             ),
             ToolDefinition(
                 FS_MOVE_PATH,
@@ -140,6 +143,7 @@ class FilesystemToolService:
                     "required": ["source", "destination"],
                     "additionalProperties": False,
                 },
+                repeat_policy="suppress_identical_success",
             ),
         )
         handlers = {
