@@ -47,6 +47,7 @@ from knowledge_core.application.direct_note_store import (
     DirectNoteStoreKnowledgeKernel,
     direct_note_operation_id,
 )
+from knowledge_core.application.graph_runtime import KnowledgeGraphRuntime
 from knowledge_core.application.graph_readiness import (
     disabled_graph_readiness,
     inspect_source_neutral_graph_readiness,
@@ -132,6 +133,7 @@ def create_app(
     canonical_store_authority_evaluator: CanonicalStoreAuthorityEvaluator | None = None,
     bootstrap_admission: BootstrapAdmission | None = None,
     consumer_admission: ConsumerAdmission | None = None,
+    graph_runtime: KnowledgeGraphRuntime | None = None,
     unified_graph_search_binding: UnifiedGraphSearchBinding | None = None,
 ):
     """Compose the KC semantic API with bounded trusted-host seams.
@@ -539,9 +541,15 @@ def create_app(
                     operation=KCOperation.SEARCH,
                     scope_ref=principal.scope_ref,
                 )
-                if not principal.is_bootstrap_owner:
-                    # KC-D will bind graph authority per authenticated principal.
-                    # Until then, do not reuse the historical owner graph binding.
+                if graph_runtime is not None:
+                    graph_binding_for_request = await graph_runtime.prepare_binding(
+                        principal_ref=principal.principal_ref,
+                        active_scope_ref=principal.scope_ref,
+                        query=body.query,
+                    )
+                    kernel.session.expire_all()
+                elif not principal.is_bootstrap_owner:
+                    # Never reuse a historical owner binding for another principal.
                     graph_binding_for_request = None
 
             graph_kernel = SourceNeutralGraphProjectionKnowledgeKernel(
@@ -596,11 +604,19 @@ def create_app(
         )
         def knowledge_status(
             kernel: ConsumerReadKnowledgeKernel = Depends(get_retrieval_kernel),
-            _principal=Depends(status_principal),
+            principal=Depends(status_principal),
         ) -> KnowledgeStatusResponse:
             lexical_status = kernel.retrieval_status()
             binding = unified_graph_search_binding
-            if binding is None:
+            if (
+                graph_runtime is not None
+                and isinstance(principal, ConsumerPrincipalContext)
+            ):
+                graph_status = graph_runtime.readiness(
+                    principal_ref=principal.principal_ref,
+                    active_scope_ref=principal.scope_ref,
+                )
+            elif binding is None:
                 graph_status = disabled_graph_readiness()
             else:
                 graph_kernel = SourceNeutralGraphProjectionKnowledgeKernel(

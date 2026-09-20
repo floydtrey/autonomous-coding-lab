@@ -7,6 +7,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 
+from knowledge_core.application.authorization import AuthorizationKernel
 from knowledge_core.application.governed_snapshot_selection import (
     GovernedSnapshotProjectionSource,
     resolve_governed_snapshot_sources,
@@ -21,6 +22,7 @@ from knowledge_core.authority.retrieval import (
     require_retrieval_authority,
 )
 from knowledge_core.domain.assertions import KnowledgeInvariantError
+from knowledge_core.domain.authorization import KCOperation
 from knowledge_core.domain.generations import DerivedKind
 from knowledge_core.domain.projection_adapter import (
     ProjectionAdapter,
@@ -466,6 +468,10 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
         scope_key: str,
         query: str,
         limit: int = 10,
+        authorized_resource_refs: frozenset[UUID] | None = None,
+        authorization_principal_ref: UUID | None = None,
+        authorization_scope_ref: UUID | None = None,
+        allowed_attempt_ids: frozenset[UUID] | None = None,
     ) -> TrustedProjectionSearchSnapshot:
         normalized_query = query.strip()
         if not normalized_query:
@@ -507,21 +513,36 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
             self.graph_projection_profile_identity(current)
         )
         descriptor = adapter.descriptor
-        rows = self.session.scalars(
-            select(ProjectionAttempt)
-            .where(
-                ProjectionAttempt.namespace_key == namespace_key,
-                ProjectionAttempt.scope_key == scope_key,
-                ProjectionAttempt.backend_identity == descriptor.backend_identity,
-                ProjectionAttempt.backend_version == descriptor.backend_version,
-                ProjectionAttempt.profile_id == expected_profile_id,
-                ProjectionAttempt.profile_digest == expected_profile_digest,
-                ProjectionAttempt.config_digest == descriptor.config_digest,
-                ProjectionAttempt.disposition == ProjectionDisposition.SUCCEEDED.value,
-                ProjectionAttempt.validation_state
-                == ProjectionValidationState.VALIDATED.value,
+        statement = select(ProjectionAttempt).where(
+            ProjectionAttempt.namespace_key == namespace_key,
+            ProjectionAttempt.scope_key == scope_key,
+            ProjectionAttempt.backend_identity == descriptor.backend_identity,
+            ProjectionAttempt.backend_version == descriptor.backend_version,
+            ProjectionAttempt.profile_id == expected_profile_id,
+            ProjectionAttempt.profile_digest == expected_profile_digest,
+            ProjectionAttempt.config_digest == descriptor.config_digest,
+            ProjectionAttempt.disposition == ProjectionDisposition.SUCCEEDED.value,
+            ProjectionAttempt.validation_state
+            == ProjectionValidationState.VALIDATED.value,
+        )
+        if allowed_attempt_ids is not None:
+            if not allowed_attempt_ids:
+                return TrustedProjectionSearchSnapshot(
+                    query=normalized_query,
+                    namespace_key=namespace_key,
+                    scope_key=scope_key,
+                    generation_id=current.generation_id,
+                    attempt_ids=(),
+                    results=(),
+                )
+            statement = statement.where(
+                ProjectionAttempt.attempt_id.in_(tuple(allowed_attempt_ids))
             )
-            .order_by(ProjectionAttempt.started_at, ProjectionAttempt.attempt_id)
+        rows = self.session.scalars(
+            statement.order_by(
+                ProjectionAttempt.started_at,
+                ProjectionAttempt.attempt_id,
+            )
         ).all()
         if descriptor.validation_requirement is not None:
             rows = [
@@ -622,6 +643,11 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
                 "current SR-2 generation changed during graph retrieval; retry against the new snapshot"
             )
 
+        live_authorization = (
+            AuthorizationKernel(self.session)
+            if authorization_principal_ref is not None
+            else None
+        )
         trusted: list[TrustedProjectionHit] = []
         for expected_partition, hits in build_hits:
             correlation = build_correlations[expected_partition]
@@ -641,6 +667,29 @@ class SourceNeutralGraphProjectionKnowledgeKernel(
                 eligible = True
                 for source_key in hit.source_correlation_keys:
                     segment = correlation[source_key]
+                    version = self.session.get(
+                        ResourceVersion,
+                        segment.resource_version_ref,
+                    )
+                    if version is None:
+                        eligible = False
+                        break
+                    if (
+                        authorized_resource_refs is not None
+                        and version.resource_ref_id not in authorized_resource_refs
+                    ):
+                        eligible = False
+                        break
+                    if live_authorization is not None:
+                        decision = live_authorization.evaluate(
+                            principal_ref=authorization_principal_ref,
+                            operation=KCOperation.SEARCH,
+                            scope_ref=authorization_scope_ref,
+                            resource_ref=version.resource_ref_id,
+                        )
+                        if not decision.allowed:
+                            eligible = False
+                            break
                     if not self.resource_version_serving_eligible(
                         segment.resource_version_ref
                     ):

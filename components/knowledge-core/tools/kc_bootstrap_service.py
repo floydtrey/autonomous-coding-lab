@@ -6,6 +6,7 @@ from pathlib import Path
 from knowledge_core.api.app import create_app
 from knowledge_core.api.bootstrap_admission import BootstrapAdmission
 from knowledge_core.api.consumer_admission import ConsumerAdmission
+from knowledge_core.application.graph_runtime import KnowledgeGraphRuntime
 from knowledge_core.artifacts.store import LocalArtifactStore
 from knowledge_core.storage.database import create_database_engine, create_session_factory
 
@@ -33,13 +34,19 @@ def build_app():
         owner_bootstrap=admission,
     )
     consumer_admission.ensure_owner_principal()
+    graph_runtime = KnowledgeGraphRuntime.from_env(
+        session_factory=sessions,
+        artifact_store=artifact_store,
+    )
     app = create_app(
         session_factory=sessions,
         artifact_store=artifact_store,
         bootstrap_admission=admission,
         consumer_admission=consumer_admission,
+        graph_runtime=graph_runtime,
     )
     app.state.knowledge_core_engine = engine
+    app.state.knowledge_core_graph_runtime = graph_runtime
     return app
 
 

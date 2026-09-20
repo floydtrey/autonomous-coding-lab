@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from uuid import UUID
 
 from knowledge_core.application.consumer_read import ConsumerReadKnowledgeKernel
 from knowledge_core.application.source_neutral_graph import (
@@ -41,6 +42,10 @@ class UnifiedGraphSearchBinding:
     caller_principal_ref: str
     namespace_key: str
     scope_key: str
+    authorized_resource_refs: frozenset[UUID] | None = None
+    authorization_principal_ref: UUID | None = None
+    authorization_scope_ref: UUID | None = None
+    allowed_attempt_ids: frozenset[UUID] | None = None
 
     def __post_init__(self) -> None:
         for name in ("caller_principal_ref", "namespace_key", "scope_key"):
@@ -232,14 +237,30 @@ class UnifiedRetrievalCoordinator:
             )
 
         try:
+            graph_kwargs = {
+                "adapter": binding.adapter,
+                "authority_evaluator": binding.authority_evaluator,
+                "caller_principal_ref": binding.caller_principal_ref,
+                "namespace_key": binding.namespace_key,
+                "scope_key": binding.scope_key,
+                "query": lexical.query,
+                "limit": limit,
+            }
+            if binding.authorized_resource_refs is not None:
+                graph_kwargs["authorized_resource_refs"] = (
+                    binding.authorized_resource_refs
+                )
+            if binding.allowed_attempt_ids is not None:
+                graph_kwargs["allowed_attempt_ids"] = binding.allowed_attempt_ids
+            if binding.authorization_principal_ref is not None:
+                graph_kwargs["authorization_principal_ref"] = (
+                    binding.authorization_principal_ref
+                )
+                graph_kwargs["authorization_scope_ref"] = (
+                    binding.authorization_scope_ref
+                )
             graph_snapshot = await self.graph_kernel.search_validated_projection(
-                adapter=binding.adapter,
-                authority_evaluator=binding.authority_evaluator,
-                caller_principal_ref=binding.caller_principal_ref,
-                namespace_key=binding.namespace_key,
-                scope_key=binding.scope_key,
-                query=lexical.query,
-                limit=limit,
+                **graph_kwargs
             )
 
             if graph_snapshot.generation_id != lexical.generation_id:
