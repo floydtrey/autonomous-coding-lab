@@ -179,15 +179,21 @@ class UnifiedRetrievalCoordinator:
         query: str,
         limit: int = 10,
         include_superseded: bool = False,
+        authorized_resource_refs_statement=None,
     ) -> UnifiedRetrievalSearchSnapshot:
         # Lexical retrieval is deliberately first and outside every graph-degradation
         # handler. If canonical/text trust fails, unified search fails exactly as the
         # accepted lexical path does; graph data can never mask that failure.
-        lexical = self.lexical_kernel.search_text(
-            query=query,
-            limit=limit,
-            include_superseded=include_superseded,
-        )
+        lexical_kwargs = {
+            "query": query,
+            "limit": limit,
+            "include_superseded": include_superseded,
+        }
+        if authorized_resource_refs_statement is not None:
+            lexical_kwargs["authorized_resource_refs_statement"] = (
+                authorized_resource_refs_statement
+            )
+        lexical = self.lexical_kernel.search_text(**lexical_kwargs)
 
         binding = self.graph_binding
         if binding is None:

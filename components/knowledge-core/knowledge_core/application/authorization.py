@@ -5,7 +5,7 @@ import re
 from typing import Callable, Iterable
 from uuid import UUID, uuid4
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, exists, false, not_, or_, select
 from sqlalchemy.orm import Session
 
 from knowledge_core.domain.authorization import (
@@ -82,6 +82,7 @@ def _grant_snapshot(row: AuthorizationGrantRecord) -> AuthorizationGrantSnapshot
         target_type=GrantTargetType(row.target_type),
         scope_ref=row.scope_ref,
         resource_ref=row.resource_ref,
+        context_scope_ref=row.context_scope_ref,
         valid_from=_as_utc(row.valid_from),
         expires_at=_as_utc(row.expires_at) if row.expires_at is not None else None,
         revoked_at=_as_utc(row.revoked_at) if row.revoked_at is not None else None,
@@ -203,6 +204,27 @@ class AuthorizationKernel:
         self.session.flush()
         return _scope_snapshot(row)
 
+    def read_scope(self, scope_ref: UUID) -> ScopeSnapshot:
+        row = self.session.get(AuthorizationScopeRecord, scope_ref)
+        if row is None:
+            raise KeyError(f"unknown scope: {scope_ref}")
+        return _scope_snapshot(row)
+
+    def project_scope_for(self, scope_ref: UUID) -> ScopeSnapshot:
+        current: UUID | None = scope_ref
+        seen: set[UUID] = set()
+        while current is not None:
+            if current in seen:
+                raise RuntimeError("authorization scope hierarchy contains a cycle")
+            seen.add(current)
+            row = self.session.get(AuthorizationScopeRecord, current)
+            if row is None:
+                raise KeyError(f"unknown scope: {current}")
+            if ScopeType(row.scope_type) is ScopeType.PROJECT:
+                return _scope_snapshot(row)
+            current = row.parent_scope_ref
+        raise AuthorizationDeniedError("active scope is not inside a project scope")
+
     def set_scope_lifecycle(
         self,
         *,
@@ -290,6 +312,7 @@ class AuthorizationKernel:
         group_ref: UUID | None = None,
         scope_ref: UUID | None = None,
         resource_ref: UUID | None = None,
+        context_scope_ref: UUID | None = None,
         valid_from: datetime | None = None,
         expires_at: datetime | None = None,
         reason: str,
@@ -310,6 +333,12 @@ class AuthorizationKernel:
             group = self.session.get(PrincipalGroupRecord, group_ref)
             if group is None:
                 raise KeyError(f"unknown group: {group_ref}")
+
+        if context_scope_ref is not None:
+            if self.session.get(AuthorizationScopeRecord, context_scope_ref) is None:
+                raise KeyError(f"unknown context scope: {context_scope_ref}")
+            if target_type is not GrantTargetType.RESOURCE:
+                raise ValueError("context_scope_ref is supported only for resource grants")
 
         if target_type is GrantTargetType.GLOBAL:
             if scope_ref is not None or resource_ref is not None:
@@ -340,6 +369,7 @@ class AuthorizationKernel:
             target_type=target_type.value,
             scope_ref=scope_ref,
             resource_ref=resource_ref,
+            context_scope_ref=context_scope_ref,
             valid_from=start,
             expires_at=expiry,
             revoked_at=None,
@@ -438,6 +468,64 @@ class AuthorizationKernel:
             )
         else:
             current.policy_ref = row.policy_ref
+        self.session.flush()
+        return self._resource_policy_snapshot(row)
+
+    def ensure_scoped_policy_for_authorized_store(
+        self,
+        *,
+        actor_principal_ref: UUID,
+        resource_ref: UUID,
+        scope_ref: UUID,
+    ) -> ResourceAccessPolicySnapshot:
+        self._require_active_principal(actor_principal_ref)
+        if self.session.get(Resource, resource_ref) is None:
+            raise KeyError(f"unknown resource: {resource_ref}")
+        if self.session.get(AuthorizationScopeRecord, scope_ref) is None:
+            raise KeyError(f"unknown scope: {scope_ref}")
+
+        current = self.session.get(CurrentResourceAccessPolicyRecord, resource_ref)
+        if current is not None:
+            policy = self.read_current_resource_access_policy(resource_ref)
+            if (
+                policy.owner_principal_ref != actor_principal_ref
+                or policy.origin_principal_ref != actor_principal_ref
+                or policy.visibility is not VisibilityClass.SCOPED
+                or policy.sensitivity is not SensitivityClass.NORMAL
+                or policy.classification_locked
+                or scope_ref not in policy.scope_refs
+            ):
+                raise AuthorizationDeniedError(
+                    "authorized service store cannot change a protected or differently scoped resource"
+                )
+            return policy
+
+        row = ResourceAccessPolicyRecord(
+            policy_ref=uuid4(),
+            resource_ref=resource_ref,
+            owner_principal_ref=actor_principal_ref,
+            origin_principal_ref=actor_principal_ref,
+            visibility=VisibilityClass.SCOPED.value,
+            sensitivity=SensitivityClass.NORMAL.value,
+            classification_locked=False,
+            created_by_principal_ref=actor_principal_ref,
+            created_at=_as_utc(self._now()),
+            supersedes_policy_ref=None,
+        )
+        self.session.add(row)
+        self.session.flush()
+        self.session.add(
+            ResourceAccessScopeRecord(
+                policy_ref=row.policy_ref,
+                scope_ref=scope_ref,
+            )
+        )
+        self.session.add(
+            CurrentResourceAccessPolicyRecord(
+                resource_ref=resource_ref,
+                policy_ref=row.policy_ref,
+            )
+        )
         self.session.flush()
         return self._resource_policy_snapshot(row)
 
@@ -560,6 +648,182 @@ class AuthorizationKernel:
             current = row.parent_scope_ref
         return tuple(ordered)
 
+    def _context_scope_matches(
+        self,
+        *,
+        grant_context_scope_ref: UUID | None,
+        request_scope_ref: UUID | None,
+    ) -> bool:
+        if grant_context_scope_ref is None:
+            return True
+        if request_scope_ref is None:
+            return False
+        request_ancestors = set(self._scope_ancestors(request_scope_ref))
+        grant_ancestors = set(self._scope_ancestors(grant_context_scope_ref))
+        return (
+            grant_context_scope_ref in request_ancestors
+            or request_scope_ref in grant_ancestors
+        )
+
+    def _descendant_scope_refs(self, root_scope_ref: UUID) -> set[UUID]:
+        rows = self.session.scalars(select(AuthorizationScopeRecord)).all()
+        children: dict[UUID | None, list[UUID]] = {}
+        for row in rows:
+            children.setdefault(row.parent_scope_ref, []).append(row.scope_ref)
+        descendants: set[UUID] = set()
+        stack = [root_scope_ref]
+        while stack:
+            current = stack.pop()
+            if current in descendants:
+                continue
+            descendants.add(current)
+            stack.extend(children.get(current, ()))
+        return descendants
+
+    def _related_scope_refs(self, scope_ref: UUID) -> set[UUID]:
+        related = set(self._scope_ancestors(scope_ref))
+        related.update(self._descendant_scope_refs(scope_ref))
+        return related
+
+    def authorized_resource_refs_statement(
+        self,
+        *,
+        principal_ref: UUID,
+        operation: KCOperation | str,
+        scope_ref: UUID | None = None,
+        reference_time: datetime | None = None,
+    ):
+        principal = self._principal(principal_ref)
+        if PrincipalStatus(principal.status) is not PrincipalStatus.ACTIVE:
+            return select(Resource.ref_id).where(false())
+        if PrincipalType(principal.principal_type) is PrincipalType.OWNER:
+            return select(Resource.ref_id)
+
+        operation_value = self._operation_value(operation)
+        at = _as_utc(reference_time or self._now())
+        grants = self._active_grants(
+            principal_ref=principal_ref,
+            operation=operation_value,
+            at=at,
+        )
+
+        global_rows = tuple(
+            row
+            for row in grants
+            if GrantTargetType(row.target_type) is GrantTargetType.GLOBAL
+        )
+        if any(GrantEffect(row.effect) is GrantEffect.DENY for row in global_rows):
+            return select(Resource.ref_id).where(false())
+        if not any(GrantEffect(row.effect) is GrantEffect.ALLOW for row in global_rows):
+            return select(Resource.ref_id).where(false())
+
+        exact_allow: set[UUID] = set()
+        exact_deny: set[UUID] = set()
+        allow_scope_roots: set[UUID] = set()
+        deny_scope_roots: set[UUID] = set()
+
+        for row in grants:
+            target_type = GrantTargetType(row.target_type)
+            effect = GrantEffect(row.effect)
+            if target_type is GrantTargetType.RESOURCE:
+                if row.resource_ref is None:
+                    continue
+                if not self._context_scope_matches(
+                    grant_context_scope_ref=row.context_scope_ref,
+                    request_scope_ref=scope_ref,
+                ):
+                    continue
+                (exact_allow if effect is GrantEffect.ALLOW else exact_deny).add(
+                    row.resource_ref
+                )
+            elif target_type is GrantTargetType.SCOPE and row.scope_ref is not None:
+                (allow_scope_roots if effect is GrantEffect.ALLOW else deny_scope_roots).add(
+                    row.scope_ref
+                )
+
+        allowed_scope_refs: set[UUID] = set()
+        for root in allow_scope_roots:
+            allowed_scope_refs.update(self._descendant_scope_refs(root))
+        denied_scope_refs: set[UUID] = set()
+        for root in deny_scope_roots:
+            denied_scope_refs.update(self._descendant_scope_refs(root))
+
+        if scope_ref is not None:
+            related = self._related_scope_refs(scope_ref)
+            allowed_scope_refs.intersection_update(related)
+            denied_scope_refs.intersection_update(related)
+        else:
+            allowed_scope_refs.clear()
+            denied_scope_refs.clear()
+
+        policy = ResourceAccessPolicyRecord
+        current = CurrentResourceAccessPolicyRecord
+        resource = Resource
+
+        exact_allow_condition = (
+            resource.ref_id.in_(tuple(exact_allow)) if exact_allow else false()
+        )
+        personal_owner_condition = and_(
+            policy.visibility == VisibilityClass.PERSONAL.value,
+            policy.owner_principal_ref == principal_ref,
+        )
+        public_condition = policy.visibility == VisibilityClass.PUBLIC.value
+
+        if allowed_scope_refs:
+            allowed_scope_condition = exists(
+                select(ResourceAccessScopeRecord.policy_ref).where(
+                    ResourceAccessScopeRecord.policy_ref == policy.policy_ref,
+                    ResourceAccessScopeRecord.scope_ref.in_(
+                        tuple(allowed_scope_refs)
+                    ),
+                )
+            )
+        else:
+            allowed_scope_condition = false()
+
+        scoped_condition = and_(
+            policy.visibility == VisibilityClass.SCOPED.value,
+            policy.sensitivity.notin_(
+                (
+                    SensitivityClass.CREDENTIAL.value,
+                    SensitivityClass.FINANCIAL.value,
+                )
+            ),
+            allowed_scope_condition,
+        )
+
+        allowed_condition = or_(
+            public_condition,
+            personal_owner_condition,
+            scoped_condition,
+            exact_allow_condition,
+        )
+
+        deny_conditions = []
+        if exact_deny:
+            deny_conditions.append(resource.ref_id.in_(tuple(exact_deny)))
+        if denied_scope_refs:
+            deny_conditions.append(
+                exists(
+                    select(ResourceAccessScopeRecord.policy_ref).where(
+                        ResourceAccessScopeRecord.policy_ref == policy.policy_ref,
+                        ResourceAccessScopeRecord.scope_ref.in_(
+                            tuple(denied_scope_refs)
+                        ),
+                    )
+                )
+            )
+
+        statement = (
+            select(resource.ref_id)
+            .join(current, current.resource_ref == resource.ref_id)
+            .join(policy, policy.policy_ref == current.policy_ref)
+            .where(allowed_condition)
+        )
+        if deny_conditions:
+            statement = statement.where(not_(or_(*deny_conditions)))
+        return statement
+
     @staticmethod
     def _decision(
         allowed: bool,
@@ -642,6 +906,10 @@ class AuthorizationKernel:
             for row in grants
             if GrantTargetType(row.target_type) is GrantTargetType.RESOURCE
             and row.resource_ref == resource_ref
+            and self._context_scope_matches(
+                grant_context_scope_ref=row.context_scope_ref,
+                request_scope_ref=scope_ref,
+            )
         )
         resource_denies = tuple(
             row for row in resource_rows if GrantEffect(row.effect) is GrantEffect.DENY

@@ -146,6 +146,42 @@ class PrincipalAuthenticationKernel:
             raise KeyError(f"unknown principal: {principal_ref}")
         return _principal_snapshot(row)
 
+    def read_principal_by_code(self, principal_code: str) -> PrincipalSnapshot:
+        code = self.normalize_principal_code(principal_code)
+        row = self.session.scalar(
+            select(PrincipalRecord).where(PrincipalRecord.principal_code == code)
+        )
+        if row is None:
+            raise KeyError(f"unknown principal code: {code}")
+        return _principal_snapshot(row)
+
+    def ensure_owner_principal(
+        self,
+        *,
+        principal_code: str = "OWNER",
+        display_name: str = "Knowledge Core Owner",
+    ) -> PrincipalSnapshot:
+        code = self.normalize_principal_code(principal_code)
+        row = self.session.scalar(
+            select(PrincipalRecord).where(PrincipalRecord.principal_code == code)
+        )
+        if row is not None:
+            if PrincipalType(row.principal_type) is not PrincipalType.OWNER:
+                raise PrincipalConflictError(
+                    f"reserved owner principal code is not an owner: {code}"
+                )
+            if PrincipalStatus(row.status) is not PrincipalStatus.ACTIVE:
+                raise PrincipalAuthenticationError("owner principal is not active")
+            return _principal_snapshot(row)
+
+        created = self.create_principal(
+            principal_code=code,
+            display_name=display_name,
+            principal_type=PrincipalType.OWNER,
+        )
+        self.session.commit()
+        return created
+
     def disable_principal(self, principal_ref: UUID) -> PrincipalSnapshot:
         row = self.session.get(PrincipalRecord, principal_ref)
         if row is None:

@@ -1,7 +1,7 @@
 # Knowledge Core Access-Control / Graph Integration Pass
 
 Status: ACTIVE  
-Working branch: `kc-authorization-model`  
+Working branch: `kc-consumer-api-hardening`  
 Base branch: `architecture/knowledge-core`  
 Base commit: `af0b29bf9da5aa861e6eb9354d6f1698d2d33950`
 
@@ -257,3 +257,74 @@ Next milestone: KC-C — Consumer API hardening.
 
 Exact first KC-C task:
 Replace the non-owner shared-bootstrap admission path with database-backed principal authentication for consumer requests while retaining a bounded owner bootstrap migration path. Then apply the central evaluator to status/search/get-source/store/memory-propose, with exact-resource reauthorization on get-source and authorization-aware search filtering. Do not create ACL credentials until those routes are proven.
+
+## KC-C sealed checkpoint
+
+State: SEALED / QUALIFIED
+
+Branch: `kc-consumer-api-hardening`  
+Qualified implementation head: `38014d84c6c97d76b5dc1bc1fd3b16e05dd5f66e`  
+Qualification workflow: Knowledge Core run `35485810012`  
+Draft PR: #35
+
+Completed:
+- migration `0021_grant_context_scope.py` adds optional active-context binding to exact resource grants;
+- owner bootstrap key resolves to a durable UUID `OWNER` principal rather than making `local_owner` the long-term security identity;
+- durable `kc1` service credentials authenticate independent principals;
+- `X-Knowledge-Scope` carries an optional active KC scope UUID separately from model/request content;
+- non-owner operations require explicit global operation capability;
+- bounded service writes and memory proposals require an authorized active project scope and the request project must match that scope;
+- memory `proposer_ref` must match the authenticated non-owner principal code;
+- service writes create/preserve a scoped normal access policy owned by the authenticated writer;
+- a stable service `source_id` is resolved and policy-checked before canonical mutation;
+- if an owner later protects/locks/reclassifies a service-created resource, that service can no longer rewrite it through its stable source ID;
+- lexical authorization is converted to a PostgreSQL subquery before full-text ranking and limit, for both RF-2 and SR-2;
+- resources without a current access policy fail closed for non-owner retrieval;
+- `/v1/kc/get-source` resolves and authorizes the logical resource before immutable artifact bytes are read;
+- exact sensitive-resource grants may be context-bound to a project/scope;
+- the hardened service does not publish the legacy broad `/v1/*` kernel mutation routes or caller-header retrieval route;
+- historical owner Graphiti binding is not reused for non-owner service principals; KC-D owns per-principal graph wiring;
+- the normal `kc_bootstrap_service.py` now starts the hardened consumer surface by default.
+
+Real PostgreSQL KC-C qualification proves:
+- service credential authentication;
+- missing-scope write denial;
+- request-project/scope mismatch denial;
+- scoped ACL-style canonical write;
+- authorized scoped search;
+- unrelated-principal search exclusion;
+- exact-source retrieval authorization;
+- unrelated-principal source denial;
+- proposer identity enforcement;
+- bounded memory proposal;
+- owner reclassification/lock of an AI-created resource;
+- project-context-bound exact release of protected information;
+- no-context denial of that release;
+- rewrite denial after owner protection;
+- owner bootstrap remains an all-authority migration/admin identity;
+- legacy semantic API remains absent from the hardened network surface.
+
+Full qualification results:
+- PostgreSQL migrations through 0021: PASS;
+- fast semantic suite: PASS;
+- PostgreSQL G1-G21 qualification suite including KC-C integration: PASS;
+- SR-2 G22 pinned real-document pilot: PASS;
+- RI-4 local-host restart rehearsal: PASS;
+- SR-2 local-host segment restart rehearsal: PASS.
+
+### PostgreSQL enforcement boundary
+
+PostgreSQL now stores the canonical principals/scopes/grants/resource policies and the hardened lexical path applies those rules inside the SQL candidate query before ranking/limit. This is the authority path required for ACL.
+
+Do not claim raw-database Row Level Security is complete. Correct RLS requires a non-owner/restricted runtime PostgreSQL role; ordinary table-owner connections can bypass normal RLS and would create misleading security if called protected. Until a restricted runtime role + RLS policy pass is implemented:
+- PostgreSQL must remain private and unreachable by ACL/Vera/browser/network clients;
+- only KC's service process receives the database credential;
+- ACL receives only KC API credentials;
+- public-host deployment is blocked from exposing PostgreSQL/FalkorDB/model services directly.
+
+RLS/runtime-role hardening is a required public-hosting/security milestone, but it does not block local/private ACL integration because ACL cannot connect to PostgreSQL directly.
+
+Next milestone: KC-D — Production Graphiti wiring.
+
+Exact first KC-D task:
+Construct the existing hardened Graphiti adapter from service configuration and bind it to the normal hardened KC service without reusing the historical fixed `local_owner` graph principal. Graph retrieval must carry the authenticated principal/scope authorization boundary and may return a graph fact only when every canonical KC source required to substantiate that fact is authorized for the request.

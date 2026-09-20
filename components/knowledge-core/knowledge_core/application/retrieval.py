@@ -253,6 +253,7 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
         query: str,
         limit: int = 10,
         include_superseded: bool = False,
+        authorized_resource_refs_statement=None,
     ) -> RetrievalSearchSnapshot:
         self._require_postgresql_retrieval()
         normalized_query = query.strip()
@@ -281,6 +282,7 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 query=normalized_query,
                 limit=limit,
                 include_superseded=include_superseded,
+                authorized_resource_refs_statement=authorized_resource_refs_statement,
             )
         if (
             current.model_identity == "postgresql-full-text"
@@ -291,6 +293,7 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 query=normalized_query,
                 limit=limit,
                 include_superseded=include_superseded,
+                authorized_resource_refs_statement=authorized_resource_refs_statement,
             )
         raise KnowledgeInvariantError(
             "current text generation has an unsupported retrieval implementation identity"
@@ -303,6 +306,7 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
         query: str,
         limit: int,
         include_superseded: bool,
+        authorized_resource_refs_statement=None,
     ) -> RetrievalSearchSnapshot:
         tsquery = func.websearch_to_tsquery(_ENGLISH_REGCONFIG, query)
         lexical_score = func.ts_rank_cd(
@@ -326,6 +330,12 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 ResourceTextSearch.search_vector.op("@@")(tsquery),
             )
         )
+        if authorized_resource_refs_statement is not None:
+            statement = statement.where(
+                ResourceVersion.resource_ref_id.in_(
+                    authorized_resource_refs_statement
+                )
+            )
         if not include_superseded:
             statement = statement.where(
                 ResourceTextSearch.lifecycle_state != "superseded"
@@ -694,6 +704,7 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
         query: str,
         limit: int,
         include_superseded: bool,
+        authorized_resource_refs_statement=None,
     ) -> RetrievalSearchSnapshot:
         profile = self.session.get(TextGenerationProfile, current.generation_id)
         if profile is None:
@@ -744,6 +755,12 @@ class RetrievalServiceKnowledgeKernel(ResourceServiceKnowledgeKernel):
                 ResourceSegmentTextSearch.search_vector.op("@@")(tsquery),
             )
         )
+        if authorized_resource_refs_statement is not None:
+            statement = statement.where(
+                ResourceVersion.resource_ref_id.in_(
+                    authorized_resource_refs_statement
+                )
+            )
         if not include_superseded:
             statement = statement.where(
                 ResourceSegmentTextSearch.effective_lifecycle_state

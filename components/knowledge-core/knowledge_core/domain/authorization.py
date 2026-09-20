@@ -90,6 +90,7 @@ class AuthorizationGrantSnapshot:
     target_type: GrantTargetType
     scope_ref: UUID | None
     resource_ref: UUID | None
+    context_scope_ref: UUID | None
     valid_from: datetime
     expires_at: datetime | None
     revoked_at: datetime | None
