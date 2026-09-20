@@ -5,40 +5,130 @@
   "request": "Update the calculator in worker_probe_case2 according to task_spec.txt and tax_rules.json. Create the required result.json. Do not modify anything outside worker_probe_case2.",
   "models": [
     {
-      "name": "gpt-oss-20b",
-      "model": "gpt-oss:20b",
+      "name": "gemma4-12b-q4",
+      "model": "gemma4:12b",
       "context_window": 16384,
       "max_tokens": 4096,
-      "timeout_seconds": 300
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
     },
     {
-      "name": "qwen3-coder-30b",
-      "model": "qwen3-coder:30b",
+      "name": "gemma4-12b-q8",
+      "model": "gemma4:12b-it-q8_0",
+      "context_window": 16384,
+      "max_tokens": 4096,
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
+    },
+    {
+      "name": "gpt-oss-20b-16k",
+      "model": "gpt-oss:20b-16k",
+      "context_window": 16384,
+      "max_tokens": 4096,
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
+    },
+    {
+      "name": "qwen2.5-coder-7b-32k",
+      "model": "qwen2.5-coder:7b-32k",
       "context_window": 32768,
       "max_tokens": 4096,
-      "timeout_seconds": 300
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
+    },
+    {
+      "name": "qwen3.8-27b-64k",
+      "model": "qwen3.8:27b-64k",
+      "context_window": 65536,
+      "max_tokens": 4096,
+      "timeout_seconds": 300,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
+    },
+    {
+      "name": "laguna-xs-2.1-4k",
+      "model": "laguna-xs-2.1:4k",
+      "context_window": 4096,
+      "max_tokens": 2048,
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
+    },
+    {
+      "name": "qwen3-coder-30b-16k",
+      "model": "qwen3-coder:30b-16k",
+      "context_window": 16384,
+      "max_tokens": 4096,
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
+    },
+    {
+      "name": "qwen3-coder-30b-131k",
+      "model": "qwen3-coder:30b-131k",
+      "context_window": 131072,
+      "max_tokens": 4096,
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
     },
     {
       "name": "north-mini-code",
       "model": "north-mini-code-1.0:latest",
       "context_window": 32768,
       "max_tokens": 4096,
-      "timeout_seconds": 300
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
     },
     {
       "name": "muse-glimmer",
       "model": "muse-glimmer:latest",
       "context_window": 32768,
       "max_tokens": 4096,
-      "timeout_seconds": 300
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
     },
     {
-      "name": "qwen3.8-27b-reference",
-      "model": "qwen3.8:27b",
-      "enabled": false,
+      "name": "granite4.2-30b",
+      "model": "granite4.2:30b",
       "context_window": 32768,
       "max_tokens": 4096,
-      "timeout_seconds": 600
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
+    },
+    {
+      "name": "nemotron-3.5-lightning-30b",
+      "model": "nemotron-3.5-lightning:30b",
+      "context_window": 32768,
+      "max_tokens": 4096,
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
+    },
+    {
+      "name": "qwen3.6-27b",
+      "model": "qwen3.6:27b",
+      "context_window": 32768,
+      "max_tokens": 4096,
+      "timeout_seconds": 180,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
+    },
+    {
+      "name": "qwen3.6-35b",
+      "model": "qwen3.6:35b",
+      "context_window": 32768,
+      "max_tokens": 4096,
+      "timeout_seconds": 240,
+      "max_agent_turns": 8,
+      "max_tool_calls": 16
     }
   ]
 }
