@@ -28,6 +28,7 @@
       "Task dependencies remain within their Pass. Cross-Pass ordering belongs on Pass.depends_on. Stage dependencies belong on Stage.depends_on.",
       "required_capabilities, required_tools, and required_services are semantic requirements, not permissions or concrete implementation choices.",
       "reference_material entries are declarations/references. Only use reference_ids that exist in reference_material.",
+      "When reference_material is non-empty, every entry must contain reference_id, kind, reference, purpose, and required exactly as shown in reference_material_shape. Use reference for the path/value; do not substitute path or description keys.",
       "unresolved_questions on an executable plan are non-blocking notes only. Any material unresolved question must instead produce ELEVATION_REQUIRED.",
       "Keep plans compact. Do not create Stages/Passes/Tasks that do not create a real execution or dependency boundary.",
       "Do not expose hidden chain-of-thought. reason_codes and notes must be concise."
@@ -219,12 +220,19 @@
       "filesystem_move_shape": {
         "source": "source filesystem path",
         "destination": "destination filesystem path"
+      },
+      "reference_material_shape": {
+        "reference_id": "stable reference ID used by Pass/Task reference_ids",
+        "kind": "nonblank reference kind such as file, document, or note",
+        "reference": "filesystem path or other stable reference value",
+        "purpose": null,
+        "required": true
       }
     },
     "return_format_rules": [
       "Return the ACL role envelope itself as the top-level JSON object.",
       "The top-level keys must be schema_version, status, payload, reference, and metadata.",
-      "Do not return instructional labels such as shared_envelope, planner_result_common, direct_or_query, execution_plan_shape, stage_shape, or filesystem_move_shape as JSON keys around the response.",
+      "Do not return instructional labels such as shared_envelope, planner_result_common, direct_or_query, execution_plan_shape, stage_shape, or filesystem_move_shape, reference_material_shape as JSON keys around the response.",
       "Do not wrap the role envelope inside another object."
     ]
   },
