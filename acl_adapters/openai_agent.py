@@ -110,6 +110,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "duplicate_success_tool_calls": 0,
             "repeated_failed_tool_calls": 0,
             "loop_control_interventions": 0,
+            "tool_events": [],
         }
         successful_calls: dict[str, Mapping[str, Any]] = {}
         failed_call_counts: dict[str, int] = {}
@@ -216,6 +217,15 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             tool_id=tool_name,
                             duplicate_count=aggregate["duplicate_success_tool_calls"],
                         )
+                        aggregate["tool_events"].append({
+                            "turn": turn,
+                            "call_id": call_id,
+                            "tool_id": tool_name,
+                            "arguments": self._tool_call_arguments(raw_call),
+                            "ok": True,
+                            "duplicate_suppressed": True,
+                            "result": dict(prior_success),
+                        })
                         messages.append({
                             "role": "tool",
                             "tool_call_id": call_id,
@@ -242,14 +252,23 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                             grant=grant,
                         )
                         try:
-                            successful_calls[signature] = json.loads(
+                            parsed_tool_result = json.loads(
                                 tool_message["content"]
                             )
                         except (KeyError, TypeError, json.JSONDecodeError):
-                            successful_calls[signature] = {
+                            parsed_tool_result = {
                                 "ok": True,
                                 "tool_id": tool_name,
                             }
+                        successful_calls[signature] = parsed_tool_result
+                        aggregate["tool_events"].append({
+                            "turn": turn,
+                            "call_id": call_id,
+                            "tool_id": tool_name,
+                            "arguments": self._tool_call_arguments(raw_call),
+                            "ok": True,
+                            "result": parsed_tool_result,
+                        })
                         failed_call_counts.pop(signature, None)
                     except CoreError as exc:
                         # Hard boundaries still deny the action. The structured
@@ -275,6 +294,15 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                                 error_code=exc.code,
                                 identical_failure_count=observed_failures,
                             )
+                        aggregate["tool_events"].append({
+                            "turn": turn,
+                            "call_id": call_id,
+                            "tool_id": tool_name,
+                            "arguments": self._tool_call_arguments(raw_call),
+                            "ok": False,
+                            "error": exc.to_dict(),
+                            "identical_failure_count": observed_failures,
+                        })
                         tool_message = {
                             "role": "tool",
                             "tool_call_id": call_id,
