@@ -1,0 +1,16 @@
+{
+  "schema_version": "acl-tool-profiles:v1",
+  "profiles": [
+    {
+      "profile_id": "worker-filesystem-v1",
+      "tool_ids": [
+        "filesystem.create_text",
+        "filesystem.delete_path",
+        "filesystem.list_directory",
+        "filesystem.move_path",
+        "filesystem.read_text",
+        "filesystem.write_text"
+      ]
+    }
+  ]
+}
