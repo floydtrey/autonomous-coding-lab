@@ -175,3 +175,40 @@ def test_second_truncated_final_response_is_an_error():
     assert response.ok is False
     assert response.error["code"] == "AGENT_RESPONSE_TRUNCATED"
     assert response.metadata["final_response_retries"] == 1
+
+
+def test_tool_result_limit_bounds_model_visible_content():
+    original = {
+        "role": "tool",
+        "tool_call_id": "call-1",
+        "name": "filesystem.read_text",
+        "content": "{\"ok\":true,\"value\":{\"content\":\"" + ("x" * 5000) + "\"}}",
+    }
+
+    bounded, metadata = OpenAICompatibleAgentAdapter._bound_tool_message(
+        original,
+        max_chars=1000,
+    )
+
+    assert len(bounded["content"]) <= 1000
+    assert metadata["original_characters"] == len(original["content"])
+    assert metadata["visible_characters"] == len(bounded["content"])
+    assert '"result_truncated":true' in bounded["content"]
+    assert "narrower path/query" in bounded["content"]
+
+
+def test_tool_result_limit_leaves_small_content_unchanged():
+    original = {
+        "role": "tool",
+        "tool_call_id": "call-1",
+        "name": "filesystem.read_text",
+        "content": "{\"ok\":true}",
+    }
+
+    bounded, metadata = OpenAICompatibleAgentAdapter._bound_tool_message(
+        original,
+        max_chars=1000,
+    )
+
+    assert bounded == original
+    assert metadata is None
