@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import importlib
+import inspect
 import json
 from pathlib import Path
 from typing import Any, Mapping
@@ -118,11 +119,21 @@ class AdapterLoader:
                     },
                 ) from exc
             try:
-                adapter = factory(
-                    adapter_id=config.adapter_id,
-                    settings=dict(config.settings),
-                    services=services,
+                kwargs = {
+                    "adapter_id": config.adapter_id,
+                    "settings": dict(config.settings),
+                }
+                signature = inspect.signature(factory)
+                accepts_services = (
+                    "services" in signature.parameters
+                    or any(
+                        parameter.kind is inspect.Parameter.VAR_KEYWORD
+                        for parameter in signature.parameters.values()
+                    )
                 )
+                if accepts_services:
+                    kwargs["services"] = services
+                adapter = factory(**kwargs)
             except Exception as exc:
                 raise CoreError(
                     "ADAPTER_INITIALIZATION_FAILED",
