@@ -11,7 +11,11 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from acl_core import AuthorityEnvelope, AuthorityRequest, CoreServices, FilesystemOperation
-from acl_roles.worker import WorkerRuntimeService
+from acl_roles.worker import (
+    WorkerCorrectionPolicy,
+    WorkerRuntimeService,
+    load_worker_correction_policy,
+)
 from acl_roles.planner import (
     ExecutionPlan,
     PlannerDisposition,
@@ -88,6 +92,11 @@ from .runtime import (
     SerialRuntimeResidencyService,
 )
 from .state import JsonWorkflowStore, WorkflowStateService
+from .telemetry import (
+    JsonRoleTelemetryStore,
+    RoleTelemetryConfig,
+    RoleTelemetryService,
+)
 from .tools import FilesystemToolService, ToolProfileResolver
 
 
@@ -110,6 +119,8 @@ class ControllerService:
         planner_runtime: PlannerRuntimeService,
         worker_runtime: WorkerRuntimeService,
         worker_execution: WorkerExecutionService,
+        worker_correction_policy: WorkerCorrectionPolicy,
+        role_telemetry: RoleTelemetryService,
         planner_correction_policy: PlannerCorrectionPolicy,
         planner_disposition: PlannerDispositionService,
         planner_consultation: PlannerConsultationService,
@@ -135,6 +146,8 @@ class ControllerService:
         self.planner_runtime = planner_runtime
         self.worker_runtime = worker_runtime
         self.worker_execution = worker_execution
+        self.worker_correction_policy = worker_correction_policy
+        self.role_telemetry = role_telemetry
         self.planner_correction_policy = planner_correction_policy
         self.planner_disposition = planner_disposition
         self.planner_consultation = planner_consultation
@@ -226,6 +239,13 @@ class ControllerService:
                 )
             )
             planner_correction_policy = load_planner_correction_policy(config_root)
+            worker_correction_policy = load_worker_correction_policy(config_root)
+            role_telemetry = RoleTelemetryService(
+                config=RoleTelemetryConfig.load(
+                    config_root / "role_telemetry.json"
+                ),
+                store=JsonRoleTelemetryStore(state_root),
+            )
             clarification = ClarificationService(
                 state_service,
                 JsonClarificationStore(state_root),
@@ -262,6 +282,8 @@ class ControllerService:
                 planner_plan=planner_plan,
                 runtime=resolved_worker_runtime,
                 pass_authority=pass_authority,
+                correction_policy=worker_correction_policy,
+                telemetry=role_telemetry,
                 store=JsonWorkerRunStore(state_root),
             )
             gates = GateService(
@@ -321,6 +343,8 @@ class ControllerService:
                 planner_runtime=resolved_planner_runtime,
                 worker_runtime=resolved_worker_runtime,
                 worker_execution=worker_execution,
+                worker_correction_policy=worker_correction_policy,
+                role_telemetry=role_telemetry,
                 planner_correction_policy=planner_correction_policy,
                 planner_disposition=planner_disposition,
                 planner_consultation=planner_consultation,
@@ -868,6 +892,12 @@ class ControllerService:
 
     def planner_telemetry_summary(self, workflow_id: str) -> dict[str, Any]:
         return self.planner_telemetry.summary_safely(workflow_id)
+
+    def worker_telemetry_records(self, workflow_id: str):
+        return self.role_telemetry.records(workflow_id, role="worker")
+
+    def worker_telemetry_summary(self, workflow_id: str) -> dict[str, Any]:
+        return self.role_telemetry.summary_safely(workflow_id, role="worker")
 
     def create_workflow(
         self,
