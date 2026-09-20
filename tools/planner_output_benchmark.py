@@ -267,6 +267,15 @@ def run_benchmark(
         services=core,
     )
 
+    initial_ollama_ps = _ollama_ps()
+    candidate_cleanup = [
+        {
+            "model": candidate.model,
+            "result": _unload_model(candidate.model),
+        }
+        for candidate in enabled
+    ]
+
     user_prompt = _user_prompt(request_text=request_text, project_root=project_root)
     results: list[dict[str, Any]] = []
 
@@ -371,6 +380,8 @@ def run_benchmark(
         "system_prompt": system_prompt,
         "request": request_text,
         "tool_ids": list(tool_ids),
+        "initial_ollama_ps": initial_ollama_ps,
+        "candidate_cleanup": candidate_cleanup,
         "results": results,
     }
     (run_root / "summary.json").write_text(
