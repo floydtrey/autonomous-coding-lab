@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from hashlib import sha256
 import hmac
@@ -42,7 +42,7 @@ class PrincipalAuthenticationError(RuntimeError):
 @dataclass(frozen=True)
 class IssuedServiceCredential:
     credential: ServiceCredentialSnapshot
-    token: str
+    token: str = field(repr=False)
 
 
 def _utc_now() -> datetime:
@@ -119,6 +119,8 @@ class PrincipalAuthenticationKernel:
         display = display_name.strip()
         if not display:
             raise ValueError("display_name must be non-blank")
+        if len(display) > 255:
+            raise ValueError("display_name must be 255 characters or fewer")
 
         existing = self.session.scalar(
             select(PrincipalRecord).where(PrincipalRecord.principal_code == code)
@@ -168,6 +170,8 @@ class PrincipalAuthenticationKernel:
         normalized_label = label.strip()
         if not normalized_label:
             raise ValueError("credential label must be non-blank")
+        if len(normalized_label) > 255:
+            raise ValueError("credential label must be 255 characters or fewer")
 
         now = _as_aware_utc(self._now())
         normalized_expiry = None
