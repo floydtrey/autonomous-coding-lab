@@ -8,7 +8,9 @@
       "workspace_root": "C:\\Projects\\autonomous-coding-lab",
       "work_type_id": "1127",
       "complexity": "LARGE",
-      "request": "Inspect the legacy ACL repository and investigate why Planner/Worker integration became brittle for local models. Suspected problem areas include model-facing contracts that demand exact nested serialization, predeclared tools or filesystem operations, and code where semantic planning is mixed with Controller authority or bookkeeping. Confirm, refine, or reject those suspicions from the actual code rather than assuming they are correct. Prepare an implementation plan while preserving containment and Controller-owned authority. Do not modify the repository."
+      "request": "Inspect the legacy ACL repository and investigate why Planner/Worker integration became brittle for local models. Suspected problem areas include model-facing contracts that demand exact nested serialization, predeclared tools or filesystem operations, and code where semantic planning is mixed with Controller authority or bookkeeping. Confirm, refine, or reject those suspicions from the actual code rather than assuming they are correct. Prepare an implementation plan while preserving containment and Controller-owned authority. Do not modify the repository.",
+      "expected_planner_status": "PLAN_READY",
+      "min_tool_calls": 1
     },
     {
       "case_id": "planner-seam-review",
@@ -16,7 +18,9 @@
       "workspace_root": "C:\\Projects\\ACL_Next",
       "work_type_id": "1127",
       "complexity": "MEDIUM",
-      "request": "Inspect the current ACL Planner path. Determine whether model-facing planning semantics are cleanly separated from Controller-owned authority, runtime selection, persistence, IDs, workspace bookkeeping, and internal ExecutionPlan state. Identify any remaining coupling or regression risk and prepare a bounded implementation plan if repairs are still needed. Do not modify files."
+      "request": "Inspect the current ACL Planner path. Determine whether model-facing planning semantics are cleanly separated from Controller-owned authority, runtime selection, persistence, IDs, workspace bookkeeping, and internal ExecutionPlan state. Identify any remaining coupling or regression risk and prepare a bounded implementation plan if repairs are still needed. Do not modify files.",
+      "expected_planner_status": "PLAN_READY",
+      "min_tool_calls": 1
     }
   ],
   "models": [
