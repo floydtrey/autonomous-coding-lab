@@ -29,7 +29,9 @@ def test_central_runtime_catalog_selects_role_models():
 
     assert planner.settings["model"] == "gpt-oss:20b-16k"
     assert planner.settings["context_window"] == 16384
-    assert planner.settings["max_tokens"] == 8192
+    assert planner.settings["max_tokens"] == 4096
+    assert planner.settings["context_pressure_stop_ratio"] == 0.95
+    assert planner.settings["context_pressure_final_max_tokens"] == 3072
     assert planner.adapter_id == "openai-compatible.agent"
     assert planner.metadata["runtime_id"] == "planner-gpt-oss-20b-16k-dev"
     assert planner.metadata["harness_id"] == "openai-compatible.agent"
