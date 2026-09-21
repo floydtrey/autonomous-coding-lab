@@ -8,6 +8,7 @@ from acl_roles.common.errors import RoleContractError
 from acl_roles.planner import (
     PlannerDisposition,
     PlannerSemanticSubmission,
+    normalize_planner_semantic_role_response,
     parse_planner_semantic_role_response,
 )
 
@@ -115,6 +116,37 @@ class PlannerSemanticTests(unittest.TestCase):
                     },
                 )
             )
+
+
+    def test_normalizer_adds_missing_schema_marker_without_model_retry(self) -> None:
+        normalized, metadata = normalize_planner_semantic_role_response(
+            {
+                "disposition": "EXECUTION_PLAN",
+                "objective": "Do the work.",
+                "passes": [
+                    {
+                        "objective": "Complete the work.",
+                        "tasks": [{"instruction": "Perform the requested change."}],
+                    }
+                ],
+            },
+            instructions={},
+            profile_metadata={},
+        )
+
+        self.assertEqual(normalized["status"], "COMPLETE")
+        self.assertEqual(
+            normalized["payload"]["schema_version"],
+            "acl-planner-semantic:v1",
+        )
+        self.assertIn(
+            "add_direct_planner_semantic_schema_marker",
+            metadata["planner_semantic_transforms"],
+        )
+        self.assertIn(
+            "wrap_direct_semantic_payload",
+            metadata["planner_semantic_transforms"],
+        )
 
 
 if __name__ == "__main__":
