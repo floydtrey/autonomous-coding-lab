@@ -359,21 +359,28 @@ def normalize_planner_semantic_role_response(
         normalized = dict(normalized["shared_envelope"])
         transforms.append("unwrap_shared_envelope")
 
-    # Planner may return the semantic payload directly. The shared role envelope is
-    # Controller transport bookkeeping, so wrapping this unambiguous object does not
-    # change model-authored semantics.
-    if (
-        normalized.get("schema_version") == PLANNER_SEMANTIC_SCHEMA
-        and isinstance(normalized.get("disposition"), str)
+    # Planner may return the semantic payload directly. The shared role envelope and
+    # semantic schema marker are transport/representation bookkeeping, so ACL may add
+    # them when the payload is otherwise unambiguous. This avoids spending another
+    # model call to repair a missing marker.
+    direct_disposition = normalized.get("disposition")
+    if isinstance(direct_disposition, str) and (
+        normalized.get("schema_version") in {None, PLANNER_SEMANTIC_SCHEMA}
     ):
         try:
-            disposition = PlannerDisposition(normalized["disposition"])
+            disposition = PlannerDisposition(direct_disposition)
         except ValueError as exc:
             raise RoleContractError(
                 "PLANNER_SEMANTIC_INVALID",
                 "Planner semantic disposition is invalid",
-                {"disposition": normalized.get("disposition")},
+                {"disposition": direct_disposition},
             ) from exc
+        if "schema_version" not in normalized:
+            normalized = {
+                "schema_version": PLANNER_SEMANTIC_SCHEMA,
+                **normalized,
+            }
+            transforms.append("add_direct_planner_semantic_schema_marker")
         normalized = {
             "schema_version": "acl-role-response:v1",
             "status": (
