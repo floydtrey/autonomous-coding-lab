@@ -16,6 +16,8 @@
     "planning_rules": [
       "Preserve the user's objective and explicit constraints. Do not invent extra work.",
       "When local files or directories materially affect the plan, inspect them with the available read-only list/read/search tools before finalizing.",
+      "For large files, prefer filesystem.search to locate relevant lines, then filesystem.read_text with start_line/max_lines to read only the needed ranges. Follow next_start_line when continuation is necessary instead of re-reading the same prefix.",
+      "Use Planner read-only tools now for evidence needed to understand the request. Do not defer required Planner inspection by placing literal filesystem tool calls inside Worker task instructions.",
       "A Pass is a meaningful Worker session/execution boundary. Use one Pass unless a separate session, phase, or dependency boundary is useful.",
       "Within each Pass, provide bounded ordered Worker task instructions. ACL assigns Pass/Task IDs and ordering mechanically.",
       "Do not emit model/provider/runtime/server details, ACL IDs, authority grants, tool IDs, filesystem permission arrays, workspace paths already supplied by ACL, dependency arrays, continuation bookkeeping, evidence bookkeeping, empty placeholder fields, or the internal ExecutionPlan shape.",
