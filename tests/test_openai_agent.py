@@ -239,3 +239,72 @@ def test_context_telemetry_distinguishes_configured_from_observed_capacity():
     assert telemetry["observed_context_window"] is None
     assert telemetry["context_capacity_source"] == "configured_route"
     assert telemetry["configured_context_utilization"] == 0.25
+
+
+def test_context_pressure_forces_response_only_finalization_before_overflow():
+    adapter = OpenAICompatibleAgentAdapter(
+        adapter_id="openai-compatible.agent",
+        settings={},
+    )
+    observed_bodies = []
+
+    def fake_request_completion(*, request_id, body, runtime):
+        observed_bodies.append(dict(body))
+        return (
+            {
+                "choices": [
+                    {
+                        "message": {"role": "assistant", "content": "done"},
+                        "finish_reason": "stop",
+                    }
+                ]
+            },
+            {
+                "model": "test-model",
+                "finish_reason": "stop",
+                "prompt_tokens": 600,
+                "completion_tokens": 10,
+                "total_tokens": 610,
+            },
+        )
+
+    adapter._request_completion = fake_request_completion
+
+    response = adapter.invoke(
+        AdapterRequest(
+            operation="role.invoke",
+            payload={
+                "role_request": {
+                    "schema_version": "acl-role-request:v1",
+                    "workflow_id": "workflow:test",
+                    "attempt_id": "attempt:test",
+                    "role": "planner",
+                    "objective": {"text": "x" * 1200},
+                    "context": {"inline": {}, "references": []},
+                    "metadata": {},
+                    "execution": {
+                        "base_url": "http://127.0.0.1:1/v1",
+                        "model": "test-model",
+                        "context_window": 4000,
+                        "max_tokens": 3500,
+                        "context_pressure_warn_ratio": 0.8,
+                        "context_pressure_stop_ratio": 0.95,
+                        "context_pressure_final_max_tokens": 500,
+                        "response_format_json": False,
+                        "max_agent_turns": 4,
+                    },
+                    "tool_ids": [],
+                }
+            },
+        )
+    )
+
+    assert response.ok is True
+    assert response.payload == "done"
+    assert response.metadata["context_pressure_finalizations"] == 1
+    assert response.metadata["context_pressure_stops"] >= 1
+    assert len(observed_bodies) == 1
+    assert observed_bodies[0]["max_tokens"] == 500
+    assert "context budget is near capacity" in (
+        observed_bodies[0]["messages"][-1]["content"].lower()
+    )
