@@ -25,6 +25,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from threading import Event, Lock, Thread
 import time
 from typing import Any, Mapping
 
@@ -63,6 +64,123 @@ class BenchmarkCase:
     complexity: str = "MEDIUM"
     expected_planner_status: str | None = None
     min_tool_calls: int = 0
+
+
+class LiveStatusObserver:
+    """Render selected ACL diagnostics without participating in execution."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = Path(path)
+        self._stop = Event()
+        self._lock = Lock()
+        self._thread: Thread | None = None
+        self._label = "planner"
+        self._turn = 0
+        self._tool_calls = 0
+        self._offset = 0
+
+    def start(self) -> None:
+        if self._thread is not None:
+            return
+        self._thread = Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def begin_case(self, label: str) -> None:
+        with self._lock:
+            self._label = label
+            self._turn = 0
+            self._tool_calls = 0
+
+    def stop(self) -> None:
+        self._stop.set()
+        thread = self._thread
+        if thread is not None:
+            thread.join(timeout=2)
+        self._drain()
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            self._drain()
+            self._stop.wait(0.1)
+
+    def _drain(self) -> None:
+        if not self.path.exists():
+            return
+        try:
+            with self.path.open("r", encoding="utf-8") as handle:
+                handle.seek(self._offset)
+                lines = handle.readlines()
+                self._offset = handle.tell()
+        except OSError:
+            return
+        for line in lines:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            self._render(record)
+
+    def _render(self, record: Mapping[str, Any]) -> None:
+        component = record.get("component")
+        operation = record.get("operation")
+        event = record.get("event")
+        details = record.get("details")
+        if not isinstance(details, Mapping):
+            details = {}
+
+        with self._lock:
+            label = self._label
+            if (
+                component == "adapter.openai_compatible"
+                and operation == "request_completion"
+                and event == "http_request"
+            ):
+                self._turn += 1
+                print(
+                    f"[{label}] turn {self._turn} "
+                    f"| tool calls {self._tool_calls}",
+                    flush=True,
+                )
+                return
+
+            if (
+                component == "core.tools"
+                and operation == "invoke"
+                and event == "begin"
+            ):
+                tool_id = details.get("tool_id") or "unknown"
+                self._tool_calls += 1
+                print(
+                    f"[{label}] tool {self._tool_calls}: {tool_id}",
+                    flush=True,
+                )
+                return
+
+            if (
+                component == "adapter.openai_agent"
+                and event == "context_pressure_warning"
+            ):
+                pressure = details.get("pressure")
+                ratio = (
+                    pressure.get("projected_ratio")
+                    if isinstance(pressure, Mapping)
+                    else None
+                )
+                if isinstance(ratio, (int, float)) and not isinstance(ratio, bool):
+                    print(
+                        f"[{label}] context pressure {ratio * 100:.1f}%",
+                        flush=True,
+                    )
+                return
+
+            if (
+                component == "adapter.openai_agent"
+                and event == "context_pressure_finalize"
+            ):
+                print(
+                    f"[{label}] context limit reached -> final response only",
+                    flush=True,
+                )
 
 
 def _utc_now() -> str:
@@ -351,10 +469,11 @@ def run_benchmark(
     run_root = output_root / f"planner-integration-{stamp}"
     run_root.mkdir(parents=True, exist_ok=False)
 
+    diagnostic_path = run_root / "acl-integration.jsonl"
     configure_diagnostics(
         enabled=True,
         level="DEBUG",
-        path=run_root / "acl-integration.jsonl",
+        path=diagnostic_path,
         stderr=False,
     )
     RoleDiagnostics.configure_raw_artifacts(
@@ -365,6 +484,8 @@ def run_benchmark(
     previous_base_url = os.environ.get("ACL_OPENAI_COMPAT_BASE_URL")
     os.environ["ACL_OPENAI_COMPAT_BASE_URL"] = base_url
 
+    status = LiveStatusObserver(diagnostic_path)
+    status.start()
     initial_ollama_ps = _ollama_ps()
     results: list[dict[str, Any]] = []
     try:
@@ -381,6 +502,10 @@ def run_benchmark(
                 candidate=candidate,
             )
 
+            print(f"\n=== {candidate.name} ===")
+            print(f"Model: {candidate.model}")
+            print("Status: ACL production Planner integration")
+
             before = _ollama_ps()
             pre_unload = _unload_model(candidate.model)
             case_results: list[dict[str, Any]] = []
@@ -388,6 +513,9 @@ def run_benchmark(
             for case_index, case in enumerate(cases, start=1):
                 case_started = time.perf_counter()
                 case_started_at = _utc_now()
+                case_label = f"{candidate.name}/{case.case_id}"
+                status.begin_case(case_label)
+                print(f"\n--- {case.case_id}: {case.name} ---")
                 workspace = Path(case.workspace_root).expanduser().resolve()
                 state_root = candidate_root / "state" / _slug(case.case_id)
                 artifact_root = candidate_root / "artifacts" / _slug(case.case_id)
@@ -586,6 +714,7 @@ def run_benchmark(
                 }
             )
     finally:
+        status.stop()
         if previous_base_url is None:
             os.environ.pop("ACL_OPENAI_COMPAT_BASE_URL", None)
         else:
