@@ -95,6 +95,10 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                 resolved.get("context_pressure_stop_ratio"),
                 "context_pressure_stop_ratio",
             )
+            context_pressure_final_max_tokens = self._positive_int(
+                resolved.get("context_pressure_final_max_tokens", 3072),
+                "context_pressure_final_max_tokens",
+            )
         except CoreError as exc:
             return self._error(request, exc.code, exc.message)
         if (
@@ -182,6 +186,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             "tool_result_truncated_characters": 0,
             "context_pressure_warnings": 0,
             "context_pressure_stops": 0,
+            "context_pressure_finalizations": 0,
             "context_compactions": 0,
             "context_pressure_peak_ratio": None,
             "context_pressure_last": None,
@@ -191,6 +196,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
         successful_calls: dict[str, Mapping[str, Any]] = {}
         failed_call_counts: dict[str, int] = {}
         force_response_turn = False
+        context_finalization_active = False
         observed_token_field = {
             "prompt_tokens": False,
             "completion_tokens": False,
@@ -200,6 +206,17 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
         for turn in range(1, max_turns + 1):
             request_body = {**body, "messages": session.messages()}
             response_only_turn = bool(force_response_turn)
+            if context_finalization_active:
+                current_max_tokens = request_body.get("max_tokens")
+                if (
+                    not isinstance(current_max_tokens, int)
+                    or isinstance(current_max_tokens, bool)
+                ):
+                    current_max_tokens = context_pressure_final_max_tokens
+                request_body["max_tokens"] = min(
+                    current_max_tokens,
+                    context_pressure_final_max_tokens,
+                )
             if response_only_turn:
                 # Some OpenAI-compatible runtimes ignore tool_choice="none" while
                 # tool schemas remain present. Remove tool availability entirely
@@ -212,7 +229,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
             pressure = estimate_context_pressure(
                 request_body,
                 configured_context_window=resolved.get("context_window"),
-                reserved_output_tokens=resolved.get("max_tokens"),
+                reserved_output_tokens=request_body.get("max_tokens"),
                 characters_per_token=float(context_pressure_characters_per_token),
                 warning_ratio=context_pressure_warn_ratio,
                 stop_ratio=context_pressure_stop_ratio,
@@ -230,7 +247,7 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                 pressure = estimate_context_pressure(
                     request_body,
                     configured_context_window=resolved.get("context_window"),
-                    reserved_output_tokens=resolved.get("max_tokens"),
+                    reserved_output_tokens=request_body.get("max_tokens"),
                     characters_per_token=float(context_pressure_characters_per_token),
                     warning_ratio=context_pressure_warn_ratio,
                     stop_ratio=context_pressure_stop_ratio,
@@ -255,12 +272,39 @@ class OpenAICompatibleAgentAdapter(OpenAICompatibleChatAdapter):
                 )
             elif pressure.action == "STOP":
                 aggregate["context_pressure_stops"] += 1
+                if not context_finalization_active:
+                    context_finalization_active = True
+                    force_response_turn = True
+                    aggregate["context_pressure_finalizations"] += 1
+                    session.append_message(
+                        {
+                            "role": "user",
+                            "content": (
+                                "ACL context budget is near capacity. Stop further "
+                                "inspection now. Use the evidence already gathered and "
+                                "return only the final role response required by the "
+                                "role-specific contract. Do not request more tools."
+                            ),
+                        },
+                        event_type="context_control",
+                    )
+                    emit(
+                        "INFO",
+                        "adapter.openai_agent",
+                        "invoke_role",
+                        "context_pressure_finalize",
+                        request_id=request.request_id,
+                        turn=turn,
+                        pressure=pressure.to_dict(),
+                        final_max_tokens=context_pressure_final_max_tokens,
+                    )
+                    continue
                 return self._error(
                     request,
                     "AGENT_CONTEXT_PRESSURE_LIMIT",
                     (
-                        "projected next request exceeds the configured context "
-                        "pressure stop threshold"
+                        "projected response-only request still exceeds the configured "
+                        "context pressure stop threshold"
                     ),
                     metadata=aggregate,
                 )
