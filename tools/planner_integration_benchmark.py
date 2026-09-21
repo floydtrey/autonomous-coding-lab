@@ -61,6 +61,8 @@ class BenchmarkCase:
     workspace_root: str
     work_type_id: str = "1127"
     complexity: str = "MEDIUM"
+    expected_planner_status: str | None = None
+    min_tool_calls: int = 0
 
 
 def _utc_now() -> str:
@@ -134,6 +136,8 @@ def _benchmark_case(value: Mapping[str, Any]) -> BenchmarkCase:
     workspace_root = value.get("workspace_root")
     work_type_id = value.get("work_type_id", "1127")
     complexity = value.get("complexity", "MEDIUM")
+    expected_planner_status = value.get("expected_planner_status")
+    min_tool_calls = value.get("min_tool_calls", 0)
 
     for observed, label in (
         (case_id, "case_id"),
@@ -148,6 +152,19 @@ def _benchmark_case(value: Mapping[str, Any]) -> BenchmarkCase:
 
     if complexity not in {"SMALL", "MEDIUM", "LARGE"}:
         raise ValueError("case complexity must be SMALL, MEDIUM, or LARGE")
+    if expected_planner_status is not None and expected_planner_status not in {
+        "RESPONDED",
+        "ELEVATED",
+        "PLAN_READY",
+        "CANNOT_PLAN",
+    }:
+        raise ValueError("expected_planner_status is invalid")
+    if (
+        isinstance(min_tool_calls, bool)
+        or not isinstance(min_tool_calls, int)
+        or min_tool_calls < 0
+    ):
+        raise ValueError("min_tool_calls must be a nonnegative integer")
 
     return BenchmarkCase(
         case_id=case_id.strip(),
@@ -156,6 +173,8 @@ def _benchmark_case(value: Mapping[str, Any]) -> BenchmarkCase:
         workspace_root=workspace_root.strip(),
         work_type_id=work_type_id.strip(),
         complexity=complexity,
+        expected_planner_status=expected_planner_status,
+        min_tool_calls=min_tool_calls,
     )
 
 
@@ -403,6 +422,59 @@ def run_benchmark(
 
                 loaded = _ollama_ps()
                 elapsed = round(time.perf_counter() - case_started, 3)
+
+                transport_ok = result is not None and error is None
+                planner_status = None
+                telemetry_summary: Mapping[str, Any] = {}
+                if isinstance(result, Mapping):
+                    planner_value = result.get("planner")
+                    if isinstance(planner_value, Mapping):
+                        observed = planner_value.get("status")
+                        if isinstance(observed, str):
+                            planner_status = observed
+                    telemetry_value = result.get("planner_telemetry")
+                    if isinstance(telemetry_value, Mapping):
+                        telemetry_summary = telemetry_value
+
+                observed_tool_calls = telemetry_summary.get("tool_calls", 0)
+                if (
+                    isinstance(observed_tool_calls, bool)
+                    or not isinstance(observed_tool_calls, int)
+                ):
+                    observed_tool_calls = 0
+                correction_invocations = telemetry_summary.get(
+                    "correction_invocations",
+                    0,
+                )
+                if (
+                    isinstance(correction_invocations, bool)
+                    or not isinstance(correction_invocations, int)
+                ):
+                    correction_invocations = 0
+                failed_invocations = telemetry_summary.get(
+                    "failed_invocations",
+                    0,
+                )
+                if (
+                    isinstance(failed_invocations, bool)
+                    or not isinstance(failed_invocations, int)
+                ):
+                    failed_invocations = 0
+
+                expectation_met = transport_ok and (
+                    case.expected_planner_status is None
+                    or planner_status == case.expected_planner_status
+                )
+                tool_expectation_met = (
+                    observed_tool_calls >= case.min_tool_calls
+                )
+                clean_run = (
+                    expectation_met
+                    and tool_expectation_met
+                    and correction_invocations == 0
+                    and failed_invocations == 0
+                )
+
                 record = {
                     "schema_version": BENCHMARK_SCHEMA,
                     "benchmark_mode": BENCHMARK_MODE,
@@ -421,7 +493,17 @@ def run_benchmark(
                     "started_at": case_started_at,
                     "finished_at": _utc_now(),
                     "elapsed_seconds": elapsed,
-                    "ok": result is not None and error is None,
+                    "ok": clean_run,
+                    "transport_ok": transport_ok,
+                    "clean_run": clean_run,
+                    "expected_planner_status": case.expected_planner_status,
+                    "observed_planner_status": planner_status,
+                    "expectation_met": expectation_met,
+                    "min_tool_calls": case.min_tool_calls,
+                    "observed_tool_calls": observed_tool_calls,
+                    "tool_expectation_met": tool_expectation_met,
+                    "correction_invocations": correction_invocations,
+                    "failed_invocations": failed_invocations,
                     "result": result,
                     "error": error,
                     "ollama_loaded": loaded,
@@ -444,15 +526,27 @@ def run_benchmark(
                     {
                         "case_id": case.case_id,
                         "ok": record["ok"],
+                        "transport_ok": record["transport_ok"],
+                        "clean_run": record["clean_run"],
+                        "observed_planner_status": planner_status,
+                        "observed_tool_calls": observed_tool_calls,
+                        "correction_invocations": correction_invocations,
+                        "failed_invocations": failed_invocations,
                         "elapsed_seconds": elapsed,
                         "result_file": str(result_path.relative_to(run_root)),
                     }
                 )
+                if record["clean_run"]:
+                    outcome_label = "PASS"
+                elif record["transport_ok"]:
+                    outcome_label = "DEGRADED"
+                else:
+                    outcome_label = "ERROR"
                 print(
                     f"[{index}/{len(enabled)} case {case_index}/{len(cases)}] "
-                    f"{candidate.name}/{case.case_id}: "
-                    f"{'OK' if record['ok'] else 'ERROR'} "
-                    f"({elapsed}s)"
+                    f"{candidate.name}/{case.case_id}: {outcome_label} "
+                    f"status={planner_status or '-'} tools={observed_tool_calls} "
+                    f"corrections={correction_invocations} ({elapsed}s)"
                 )
 
             unload = _unload_model(candidate.model)
@@ -519,6 +613,8 @@ def run_benchmark(
                 "workspace_root": item.workspace_root,
                 "work_type_id": item.work_type_id,
                 "complexity": item.complexity,
+                "expected_planner_status": item.expected_planner_status,
+                "min_tool_calls": item.min_tool_calls,
                 "request": item.request,
             }
             for item in cases
