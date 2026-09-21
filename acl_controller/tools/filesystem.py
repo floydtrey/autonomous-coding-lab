@@ -64,12 +64,14 @@ class FilesystemToolService:
         definitions = (
             ToolDefinition(
                 FS_READ_TEXT,
-                "Read UTF-8 text from one authorized file.",
+                "Read one bounded UTF-8 text page from an authorized file. Use start_line/max_lines to continue through large files.",
                 ("filesystem.read",),
                 {
                     "type": "object",
                     "properties": {
                         "path": {"type": "string"},
+                        "start_line": {"type": "integer", "minimum": 1},
+                        "max_lines": {"type": "integer", "minimum": 1, "maximum": 5000},
                         "max_chars": {"type": "integer", "minimum": 1, "maximum": 1000000},
                     },
                     "required": ["path"],
@@ -183,19 +185,72 @@ class FilesystemToolService:
         target = Path(canonical)
         if not target.is_file():
             raise CoreError("TOOL_FILE_MISSING", "read target is not a regular file", {"path": canonical})
-        max_chars = call.arguments.get("max_chars", 200000)
-        if isinstance(max_chars, bool) or not isinstance(max_chars, int) or not 1 <= max_chars <= 1000000:
+        start_line = call.arguments.get("start_line", 1)
+        max_lines = call.arguments.get("max_lines", 120)
+        max_chars = call.arguments.get("max_chars", 8000)
+        if (
+            isinstance(start_line, bool)
+            or not isinstance(start_line, int)
+            or start_line < 1
+        ):
+            raise CoreError("TOOL_ARGUMENTS_INVALID", "start_line is invalid")
+        if (
+            isinstance(max_lines, bool)
+            or not isinstance(max_lines, int)
+            or not 1 <= max_lines <= 5000
+        ):
+            raise CoreError("TOOL_ARGUMENTS_INVALID", "max_lines is invalid")
+        if (
+            isinstance(max_chars, bool)
+            or not isinstance(max_chars, int)
+            or not 1 <= max_chars <= 1000000
+        ):
             raise CoreError("TOOL_ARGUMENTS_INVALID", "max_chars is invalid")
         try:
             text = target.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as exc:
-            raise CoreError("TOOL_FILE_READ_FAILED", "file could not be read as UTF-8", {"path": canonical}) from exc
-        truncated = len(text) > max_chars
+            raise CoreError(
+                "TOOL_FILE_READ_FAILED",
+                "file could not be read as UTF-8",
+                {"path": canonical},
+            ) from exc
+
+        lines = text.splitlines(keepends=True)
+        total_lines = len(lines)
+        start_index = min(start_line - 1, total_lines)
+        end_index = min(start_index + max_lines, total_lines)
+        page = "".join(lines[start_index:end_index])
+        char_truncated = len(page) > max_chars
+        visible = page[:max_chars]
+
+        if visible:
+            visible_line_span = visible.count("\n") + (
+                0 if visible.endswith("\n") else 1
+            )
+            end_line = start_line + max(visible_line_span - 1, 0)
+        else:
+            end_line = None
+
+        if char_truncated:
+            # Resume from the current partially visible line rather than skipping
+            # unseen content. Re-reading at most one partial line is preferable to
+            # losing the remainder of a long line.
+            next_start_line = start_line + visible.count("\n")
+        elif end_index < total_lines:
+            next_start_line = start_line + len(lines[start_index:end_index])
+        else:
+            next_start_line = None
+
         return {
             "path": canonical,
-            "content": text[:max_chars],
+            "content": visible,
             "characters": len(text),
-            "truncated": truncated,
+            "returned_characters": len(visible),
+            "line_count": total_lines,
+            "start_line": start_line,
+            "end_line": end_line,
+            "next_start_line": next_start_line,
+            "truncated": char_truncated or next_start_line is not None,
         }
 
     def _list_directory(self, call: ToolCall, grant: AuthorityGrant) -> Mapping[str, Any]:
